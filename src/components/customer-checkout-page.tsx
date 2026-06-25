@@ -2,7 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { EstanciaLogo } from "@/components/estancia-logo";
+import { RincaoLogo } from "@/components/rincao-logo";
 import { IngressoShell } from "@/components/ingresso-shell";
 import { FlowStepper } from "@/components/order-flow-ui";
 import type { AuthUser } from "@/lib/auth-contracts";
@@ -130,7 +130,7 @@ function PixPreview({
             </div>
           </div>
           <div className="rounded-[14px] border border-[#dbe8d4] bg-white px-4 py-3 text-[13px] font-semibold text-[#36523c] sm:text-sm">
-            PIX-ESTANCIA-{purchaseId}-{totalLabel.replace(/\D/g, "")}
+            PIX-RINCAO-{purchaseId}-{totalLabel.replace(/\D/g, "")}
           </div>
         </div>
       </div>
@@ -261,7 +261,7 @@ export function CustomerCheckoutPage({
       retornoUrl: returnUrl,
       container: "#cieloCheckoutInline",
       continueShoppingUrl: "/meus-ingressos",
-      logoUrl: "/brand/estancia-logo-dark.png",
+      logoUrl: "/brand/rincao-logo-dark.png",
       paymentMethods: ["CreditCard", "DebitCard", "Pix"],
       maxInstallments: 12,
       minInstallmentValue: 1,
@@ -389,7 +389,7 @@ export function CustomerCheckoutPage({
             <section className="rounded-[24px] border border-[#e4e8e2] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6 lg:p-7">
               <div className="flex flex-col gap-3 border-b border-[#d9dfd4] pb-4 sm:flex-row sm:items-center">
                 <div className="w-[82px] shrink-0 sm:w-[100px]">
-                  <EstanciaLogo href={null} className="h-auto w-full" />
+                  <RincaoLogo href={null} className="h-auto w-full" />
                 </div>
                 <div>
                   <h1 className="text-[20px] font-semibold text-[#111827] sm:text-[22px]">

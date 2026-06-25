@@ -105,7 +105,7 @@ export function PainelForgotPasswordPage() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="voce@dominio.com"
-                  className="estancia-field"
+                  className="rincao-field"
                 />
               </label>
 
@@ -242,7 +242,7 @@ export function PainelResetPasswordPage({
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   maxLength={120}
-                  className="estancia-field"
+                  className="rincao-field"
                 />
               </label>
 
@@ -253,7 +253,7 @@ export function PainelResetPasswordPage({
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   maxLength={120}
-                  className="estancia-field"
+                  className="rincao-field"
                 />
               </label>
 

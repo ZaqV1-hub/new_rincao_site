@@ -7,8 +7,8 @@ import { syncCheckoutStatus } from "@/lib/checkout-status";
 import { getUserVoucherPurchaseById } from "@/lib/voucher-repository";
 
 export const metadata: Metadata = {
-  title: "Retorno do pagamento | Estancia",
-  description: "Confirmacao do pagamento de ingressos do Estancia.",
+  title: "Retorno do pagamento | Rincao",
+  description: "Confirmacao do pagamento de ingressos do Rincao.",
 };
 
 export const dynamic = "force-dynamic";

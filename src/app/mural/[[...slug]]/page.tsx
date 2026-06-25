@@ -12,10 +12,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const requestedSlug = slug?.[0];
 
   return {
-    title: "Mural Legado - Estancia",
+    title: "Mural Legado - Rincao",
     description: requestedSlug
-      ? `Arquivo do mural legado para o slug ${requestedSlug}, preservado no novo institucional do Estancia.`
-      : "Arquivo centralizado do mural legado preservado no novo institucional do Estancia.",
+      ? `Arquivo do mural legado para o slug ${requestedSlug}, preservado no novo institucional do Rincao.`
+      : "Arquivo centralizado do mural legado preservado no novo institucional do Rincao.",
     alternates: {
       canonical: requestedSlug ? `/mural/${requestedSlug}` : "/mural",
     },

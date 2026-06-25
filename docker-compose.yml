@@ -1,12 +1,12 @@
 services:
   db:
     image: postgres:17
-    container_name: estancia_ingresso_db
+    container_name: rincao_ingresso_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${INGRESSO_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${INGRESSO_DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${INGRESSO_DB_NAME:-clestancia_sistema}
+      POSTGRES_DB: ${INGRESSO_DB_NAME:-clrincao_sistema}
       POSTGRES_HOST_AUTH_METHOD: md5
       POSTGRES_INITDB_ARGS: "--auth-host=md5 --auth-local=trust"
     ports:

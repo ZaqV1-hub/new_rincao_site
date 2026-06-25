@@ -10,10 +10,10 @@ import {
 } from "@/lib/painel-agenda";
 import {
   makeContentId,
-  readEstanciaContent,
+  readRincaoContent,
   saveUploadedSiteImage,
-  writeEstanciaContent,
-} from "@/lib/estancia-content-store";
+  writeRincaoContent,
+} from "@/lib/rincao-content-store";
 import { authenticateOperationsRequest } from "@/lib/ops-auth";
 
 export const runtime = "nodejs";
@@ -83,28 +83,30 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const section = asText(formData.get("section"));
-  const data = await readEstanciaContent();
+  const data = await readRincaoContent();
 
   if (section === "home") {
     const id = asText(formData.get("id")) || makeContentId(asText(formData.get("alt")));
     const current = data.homeImages.find((item) => item.id === id);
     const desktopUpload = await saveUploadedSiteImage(formData.get("desktopImage"));
     const mobileUpload = await saveUploadedSiteImage(formData.get("mobileImage"));
-    const fallbackImage = "/hero/current/banner-site-oficial-1.jpg";
+    if (!desktopUpload && !mobileUpload && !current?.desktopSrc && !current?.mobileSrc) {
+      return errorResponse("Envie pelo menos uma imagem para o banner da home.");
+    }
+
     const desktopSrc =
       desktopUpload ??
       current?.desktopSrc ??
       mobileUpload ??
       current?.mobileSrc ??
-      fallbackImage;
+      "";
     const mobileSrc =
       mobileUpload ??
       current?.mobileSrc ??
       desktopUpload ??
       current?.desktopSrc ??
-      fallbackImage;
-
-    await writeEstanciaContent({
+      "";
+    await writeRincaoContent({
       ...data,
       homeImages: [
         ...data.homeImages.filter((item) => item.id !== id),
@@ -131,7 +133,11 @@ export async function POST(request: Request) {
     const current = data.attractions.find((item) => item.id === id);
     const imageUpload = await saveUploadedSiteImage(formData.get("image"));
 
-    await writeEstanciaContent({
+    if (!imageUpload && !current?.imageSrc) {
+      return errorResponse("Envie uma imagem para a atração.");
+    }
+
+    await writeRincaoContent({
       ...data,
       attractions: [
         ...data.attractions.filter((item) => item.id !== id),
@@ -140,7 +146,7 @@ export async function POST(request: Request) {
           title: title || current?.title || "Nova atração",
           description:
             asText(formData.get("description")) || current?.description || "",
-          imageSrc: imageUpload ?? current?.imageSrc ?? "/photos/day-use.jpg",
+          imageSrc: imageUpload ?? current?.imageSrc ?? "",
           active: asBool(formData.get("active")),
           sortOrder:
             Number(formData.get("sortOrder")) ||
@@ -197,6 +203,10 @@ export async function POST(request: Request) {
     if (!hasDate && !asText(formData.get("href")) && !current?.href) {
       return errorResponse("Informe o link manual do botao.");
     }
+    if (!imageUpload && !current?.imageSrc) {
+      return errorResponse("Envie uma imagem para o evento.");
+    }
+
 
     const derivedHref =
       hasDate && eventDate
@@ -234,7 +244,7 @@ export async function POST(request: Request) {
       );
     }
 
-    await writeEstanciaContent({
+    await writeRincaoContent({
       ...data,
       events: [
         ...data.events.filter((item) => item.id !== id),
@@ -246,7 +256,7 @@ export async function POST(request: Request) {
           imageSrc:
             imageUpload ??
             current?.imageSrc ??
-            "/hero/current/banner-14-06-2026.jpg",
+            "",
           href: derivedHref || asText(formData.get("href")) || current?.href || "/agenda",
           buttonLabel:
             asText(formData.get("buttonLabel")) ||
@@ -278,19 +288,19 @@ export async function DELETE(request: Request) {
     section?: string;
     id?: string;
   } | null;
-  const data = await readEstanciaContent();
+  const data = await readRincaoContent();
 
   if (!payload?.id) {
     return errorResponse("Item não informado.");
   }
 
   if (payload.section === "home") {
-    await writeEstanciaContent({
+    await writeRincaoContent({
       ...data,
       homeImages: data.homeImages.filter((item) => item.id !== payload.id),
     });
   } else if (payload.section === "attraction") {
-    await writeEstanciaContent({
+    await writeRincaoContent({
       ...data,
       attractions: data.attractions.filter((item) => item.id !== payload.id),
     });
@@ -302,7 +312,7 @@ export async function DELETE(request: Request) {
       "Evento do site removido pelo painel.",
     );
 
-    await writeEstanciaContent({
+    await writeRincaoContent({
       ...data,
       events: data.events.filter((item) => item.id !== payload.id),
     });

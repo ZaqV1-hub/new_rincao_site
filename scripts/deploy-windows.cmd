@@ -66,7 +66,7 @@ echo.
 echo Deploy preparado com sucesso.
 echo Para subir o app novamente:
 echo   for /f "usebackq tokens=1,* delims==" %%A in (".env.local") do @if not "%%A"=="" if not "%%A:~0,1%%"=="#" set "%%A=%%B"
-echo   set ESTANCIA_SITE_STORAGE_ROOT=%CD%
+echo   set RINCAO_SITE_STORAGE_ROOT=%CD%
 echo   set HOSTNAME=127.0.0.1^&^& set PORT=%PORT%^&^& node .next\standalone\server.js
 exit /b 0
 

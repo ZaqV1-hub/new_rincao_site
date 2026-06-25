@@ -10,7 +10,7 @@ describe("ops-client-trip-school-report-pdf", () => {
       trip: {
         agendaId: 10,
         clientId: 20,
-        clientName: "Colegio Estancia",
+        clientName: "Colegio Rincao",
         clientTypeName: "Escola",
         date: "2026-06-15",
         dateLabel: "15/06/2026",

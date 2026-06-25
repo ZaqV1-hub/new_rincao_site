@@ -31,7 +31,7 @@ export function CustomerAccountHome({ snapshot }: CustomerAccountHomeProps) {
   return (
     <IngressoShell active="account" user={snapshot.profile}>
       <div className="mx-auto w-full max-w-[1180px] px-4 pt-6 md:px-6">
-        <section className="estancia-card mt-6 p-6 text-left">
+        <section className="rincao-card mt-6 p-6 text-left">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h2 className="text-[30px] font-black leading-tight text-[#17351f]">
               Meus Dados
@@ -39,13 +39,13 @@ export function CustomerAccountHome({ snapshot }: CustomerAccountHomeProps) {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/minha-conta/editar"
-                className="estancia-button-secondary px-4 py-2 text-[14px]"
+                className="rincao-button-secondary px-4 py-2 text-[14px]"
               >
                 Alterar meus dados
               </Link>
               <Link
                 href="/minha-conta/alterar-senha"
-                className="estancia-button-secondary px-4 py-2 text-[14px]"
+                className="rincao-button-secondary px-4 py-2 text-[14px]"
               >
                 Alterar senha
               </Link>
@@ -134,7 +134,7 @@ export function CustomerAccountHome({ snapshot }: CustomerAccountHomeProps) {
         </section>
 
         {snapshot.agreements.length > 0 ? (
-          <section className="estancia-card mt-6 p-6 text-left">
+          <section className="rincao-card mt-6 p-6 text-left">
             <h3 className="text-[24px] font-black text-[#17351f]">
               Lista de convenios
             </h3>

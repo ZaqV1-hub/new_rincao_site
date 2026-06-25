@@ -37,7 +37,7 @@ export type ManagedEvent = {
   sortOrder: number;
 };
 
-export type EstanciaContentData = {
+export type RincaoContentData = {
   homeImages: ManagedHomeImage[];
   attractions: ManagedAttraction[];
   events: ManagedEvent[];
@@ -45,7 +45,7 @@ export type EstanciaContentData = {
 };
 
 function resolveSiteStorageRoot() {
-  const configuredRoot = process.env.ESTANCIA_SITE_STORAGE_ROOT?.trim();
+  const configuredRoot = process.env.RINCAO_SITE_STORAGE_ROOT?.trim();
   const runtimeEntry = process.argv[1] ? dirname(resolve(process.argv[1])) : null;
   const candidates = [
     configuredRoot,
@@ -72,81 +72,116 @@ function resolveSiteStorageRoot() {
 
 const storageRoot = resolveSiteStorageRoot();
 const dataDir = join(storageRoot, ".data");
-const dataFile = join(dataDir, "estancia-content.json");
+const dataFile = join(dataDir, "rincao-content.json");
 export const siteUploadDir = join(storageRoot, "public", "uploads", "site");
 const siteBinaryUploadDir = join(dataDir, "uploads", "site");
 const siteContentKey = "main";
 const runtimeEntry = process.argv[1] ? dirname(resolve(process.argv[1])) : null;
 
-const defaultContent: EstanciaContentData = {
-  homeImages: [
-    {
-      id: "home-1",
-      desktopSrc: "/hero/current/banner-site-oficial-1.jpg",
-      mobileSrc: "/hero/current/banner-site-oficial-1.jpg",
-      alt: "Piscina e área verde da Estância",
-      active: true,
-      sortOrder: 1,
-    },
-    {
-      id: "home-2",
-      desktopSrc: "/hero/current/banner-onda.jpg",
-      mobileSrc: "/hero/current/banner-onda.jpg",
-      alt: "Piscina de ondas da Estância",
-      active: true,
-      sortOrder: 2,
-    },
-    {
-      id: "home-3",
-      desktopSrc: "/hero/current/banner-14-06-2026.jpg",
-      mobileSrc: "/hero/current/banner-14-06-2026.jpg",
-      alt: "Evento na Estância",
-      active: true,
-      sortOrder: 3,
-    },
-  ],
-  attractions: [
-    {
-      id: "piscina-natural",
-      title: "Piscina Natural",
-      description:
-        "Água, sombra e área verde para aproveitar o dia em família com conforto.",
-      imageSrc: "/photos/estrutura-piscina.jpg",
-      active: true,
-      sortOrder: 1,
-    },
-    {
-      id: "trilhas-natureza",
-      title: "Trilhas e Natureza",
-      description:
-        "Caminhos ao ar livre, paisagens do parque e contato direto com a natureza.",
-      imageSrc: "/photos/day-use.jpg",
-      active: true,
-      sortOrder: 2,
-    },
-    {
-      id: "piscina-ondas",
-      title: "Piscina de Ondas",
-      description:
-        "Uma das experiências mais procuradas para quem quer brincar na água.",
-      imageSrc: "/hero/current/banner-onda.jpg",
-      active: true,
-      sortOrder: 3,
-    },
-  ],
-  events: [
-    {
-      id: "festa-junina",
-      title: "Festa Junina",
-      description:
-        "Comidas típicas, música, brincadeiras e lazer ao ar livre em um dia preparado para curtir com a família na Estância.",
-      imageSrc: "/hero/current/banner-14-06-2026.jpg",
-      href: "/agenda?mes=6&ano=2026&date=2026-06-14",
-      buttonLabel: "Compre seu ingresso!",
-      active: true,
-      sortOrder: 1,
-    },
-  ],
+const EMPTY_HOME_IMAGE: ManagedHomeImage = {
+  id: "",
+  desktopSrc: "",
+  mobileSrc: "",
+  alt: "Imagem da home",
+  active: true,
+  sortOrder: 1,
+};
+
+const EMPTY_ATTRACTION: ManagedAttraction = {
+  id: "",
+  title: "Nova atracao",
+  description: "",
+  imageSrc: "",
+  active: true,
+  sortOrder: 1,
+};
+
+const EMPTY_EVENT: ManagedEvent = {
+  id: "",
+  title: "Novo evento",
+  description: "",
+  imageSrc: "",
+  href: "/agenda",
+  buttonLabel: "Compre seu ingresso!",
+  active: true,
+  sortOrder: 1,
+};
+
+const legacyDefaultHomeImages: ManagedHomeImage[] = [
+  {
+    id: "home-1",
+    desktopSrc: "/hero/current/banner-site-oficial-1.jpg",
+    mobileSrc: "/hero/current/banner-site-oficial-1.jpg",
+    alt: "Piscina e area verde da Rincao",
+    active: true,
+    sortOrder: 1,
+  },
+  {
+    id: "home-2",
+    desktopSrc: "/hero/current/banner-onda.jpg",
+    mobileSrc: "/hero/current/banner-onda.jpg",
+    alt: "Piscina de ondas da Rincao",
+    active: true,
+    sortOrder: 2,
+  },
+  {
+    id: "home-3",
+    desktopSrc: "/hero/current/banner-14-06-2026.jpg",
+    mobileSrc: "/hero/current/banner-14-06-2026.jpg",
+    alt: "Evento na Rincao",
+    active: true,
+    sortOrder: 3,
+  },
+];
+
+const legacyDefaultAttractions: ManagedAttraction[] = [
+  {
+    id: "piscina-natural",
+    title: "Piscina Natural",
+    description:
+      "Agua, sombra e area verde para aproveitar o dia em familia com conforto.",
+    imageSrc: "/photos/estrutura-piscina.jpg",
+    active: true,
+    sortOrder: 1,
+  },
+  {
+    id: "trilhas-natureza",
+    title: "Trilhas e Natureza",
+    description:
+      "Caminhos ao ar livre, paisagens do parque e contato direto com a natureza.",
+    imageSrc: "/photos/day-use.jpg",
+    active: true,
+    sortOrder: 2,
+  },
+  {
+    id: "piscina-ondas",
+    title: "Piscina de Ondas",
+    description:
+      "Uma das experiencias mais procuradas para quem quer brincar na agua.",
+    imageSrc: "/hero/current/banner-onda.jpg",
+    active: true,
+    sortOrder: 3,
+  },
+];
+
+const legacyDefaultEvents: ManagedEvent[] = [
+  {
+    id: "festa-junina",
+    title: "Festa Junina",
+    description:
+      "Comidas tipicas, musica, brincadeiras e lazer ao ar livre em um dia preparado para curtir com a familia na Rincao.",
+    imageSrc: "/hero/current/banner-14-06-2026.jpg",
+    href: "/agenda?mes=6&ano=2026&date=2026-06-14",
+    buttonLabel: "Compre seu ingresso!",
+    active: true,
+    sortOrder: 1,
+  },
+];
+
+const defaultContent: RincaoContentData = {
+  homeImages: [],
+  attractions: [],
+  events: [],
   products: DEFAULT_B2C_PRODUCTS,
 };
 
@@ -230,6 +265,45 @@ function normalizeManagedImageSrc(src: string | undefined, fallback: string) {
   return fallback;
 }
 
+function stripAccents(value: string | undefined) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function isLegacyHomeImage(item: ManagedHomeImage) {
+  return legacyDefaultHomeImages.some(
+    (legacyItem) =>
+      item.id === legacyItem.id &&
+      item.desktopSrc === legacyItem.desktopSrc &&
+      item.mobileSrc === legacyItem.mobileSrc &&
+      stripAccents(item.alt) === stripAccents(legacyItem.alt),
+  );
+}
+
+function isLegacyAttraction(item: ManagedAttraction) {
+  return legacyDefaultAttractions.some(
+    (legacyItem) =>
+      item.id === legacyItem.id &&
+      item.imageSrc === legacyItem.imageSrc &&
+      stripAccents(item.title) === stripAccents(legacyItem.title) &&
+      stripAccents(item.description) === stripAccents(legacyItem.description),
+  );
+}
+
+function isLegacyEvent(item: ManagedEvent) {
+  return legacyDefaultEvents.some(
+    (legacyItem) =>
+      item.id === legacyItem.id &&
+      item.imageSrc === legacyItem.imageSrc &&
+      item.href === legacyItem.href &&
+      stripAccents(item.title) === stripAccents(legacyItem.title) &&
+      stripAccents(item.description) === stripAccents(legacyItem.description),
+  );
+}
+
 function normalizeManagedHomeImage(item: ManagedHomeImage, fallback: ManagedHomeImage) {
   const desktopSrc = normalizeManagedImageSrc(item.desktopSrc, fallback.desktopSrc);
   const mobileSrc = normalizeManagedImageSrc(item.mobileSrc, desktopSrc);
@@ -292,12 +366,12 @@ function readManagedList<T extends { sortOrder?: number; title?: string }>(
   return Array.isArray(value) ? sortByOrder(value) : sortByOrder(fallback);
 }
 
-function normalizeEstanciaContent(parsed?: Partial<EstanciaContentData> | null) {
+function normalizeRincaoContent(parsed?: Partial<RincaoContentData> | null) {
   const parsedHomeImages = Array.isArray(parsed?.homeImages)
     ? parsed.homeImages.map((item, index) =>
         normalizeManagedHomeImage(
           item,
-          defaultContent.homeImages[index] ?? defaultContent.homeImages[0],
+          defaultContent.homeImages[index] ?? EMPTY_HOME_IMAGE,
         ),
       )
     : undefined;
@@ -305,7 +379,7 @@ function normalizeEstanciaContent(parsed?: Partial<EstanciaContentData> | null) 
     ? parsed.attractions.map((item, index) =>
         normalizeManagedAttraction(
           item,
-          defaultContent.attractions[index] ?? defaultContent.attractions[0],
+          defaultContent.attractions[index] ?? EMPTY_ATTRACTION,
         ),
       )
     : undefined;
@@ -313,7 +387,7 @@ function normalizeEstanciaContent(parsed?: Partial<EstanciaContentData> | null) 
     ? parsed.events.map((item, index) =>
         normalizeManagedEvent(
           item,
-          defaultContent.events[index] ?? defaultContent.events[0],
+          defaultContent.events[index] ?? EMPTY_EVENT,
         ),
       )
     : undefined;
@@ -331,10 +405,19 @@ function normalizeEstanciaContent(parsed?: Partial<EstanciaContentData> | null) 
     attractions: readManagedList(parsedAttractions, defaultContent.attractions),
     events: readManagedList(parsedEvents, defaultContent.events),
     products: readManagedList(parsedProducts, defaultContent.products),
-  } satisfies EstanciaContentData;
+  } satisfies RincaoContentData;
 }
 
-function readLegacyEstanciaContent() {
+function removeLegacyHardcodedContent(data: RincaoContentData) {
+  return {
+    ...data,
+    homeImages: data.homeImages.filter((item) => !isLegacyHomeImage(item)),
+    attractions: data.attractions.filter((item) => !isLegacyAttraction(item)),
+    events: data.events.filter((item) => !isLegacyEvent(item)),
+  } satisfies RincaoContentData;
+}
+
+function readLegacyRincaoContent() {
   ensureLocalStore();
 
   if (!existsSync(dataFile)) {
@@ -342,14 +425,14 @@ function readLegacyEstanciaContent() {
   }
 
   try {
-    const parsed = JSON.parse(readFileSync(dataFile, "utf8")) as Partial<EstanciaContentData>;
-    return normalizeEstanciaContent(parsed);
+    const parsed = JSON.parse(readFileSync(dataFile, "utf8")) as Partial<RincaoContentData>;
+    return normalizeRincaoContent(parsed);
   } catch {
     return defaultContent;
   }
 }
 
-function writeLegacyEstanciaContentBackup(data: EstanciaContentData) {
+function writeLegacyRincaoContentBackup(data: RincaoContentData) {
   ensureLocalStore();
   writeFileSync(dataFile, JSON.stringify(data, null, 2), "utf8");
 }
@@ -367,8 +450,8 @@ function getSiteUploadTargets() {
 }
 
 function hasNormalizedDifference(
-  raw: Partial<EstanciaContentData> | null | undefined,
-  normalized: EstanciaContentData,
+  raw: Partial<RincaoContentData> | null | undefined,
+  normalized: RincaoContentData,
 ) {
   if (!raw) {
     return false;
@@ -411,11 +494,11 @@ function resolveSiteContentDialect() {
 
 function getSiteContentTableName() {
   return resolveSiteContentDialect() === "mysql"
-    ? "estancia_site_content"
-    : "public.estancia_site_content";
+    ? "rincao_site_content"
+    : "public.rincao_site_content";
 }
 
-async function persistEstanciaContent(data: EstanciaContentData) {
+async function persistRincaoContent(data: RincaoContentData) {
   const pool = getIngressoDbPool();
   const tableName = getSiteContentTableName();
   const jsonValue = JSON.stringify(data);
@@ -478,7 +561,7 @@ async function ensureDatabaseSeeded() {
 
   const pool = getIngressoDbPool();
   const tableName = getSiteContentTableName();
-  const existing = await pool.query<{ content_json: EstanciaContentData }>(
+  const existing = await pool.query<{ content_json: RincaoContentData }>(
     `
       SELECT content_json
       FROM ${tableName}
@@ -492,7 +575,7 @@ async function ensureDatabaseSeeded() {
     return;
   }
 
-  const seededContent = readLegacyEstanciaContent();
+  const seededContent = readLegacyRincaoContent();
   const jsonValue = JSON.stringify(seededContent);
 
   if (resolveSiteContentDialect() === "mysql") {
@@ -516,12 +599,12 @@ async function ensureDatabaseSeeded() {
   );
 }
 
-export async function readEstanciaContent() {
+export async function readRincaoContent() {
   await ensureDatabaseSeeded();
 
   const pool = getIngressoDbPool();
   const tableName = getSiteContentTableName();
-  const result = await pool.query<{ content_json: Partial<EstanciaContentData> }>(
+  const result = await pool.query<{ content_json: Partial<RincaoContentData> }>(
     `
       SELECT content_json
       FROM ${tableName}
@@ -532,42 +615,44 @@ export async function readEstanciaContent() {
   );
 
   const storedContent = result.rows[0]?.content_json ?? null;
-  const data = normalizeEstanciaContent(storedContent);
+  const data = removeLegacyHardcodedContent(
+    normalizeRincaoContent(storedContent),
+  );
 
   if (hasNormalizedDifference(storedContent, data)) {
-    await persistEstanciaContent(data);
+    await persistRincaoContent(data);
   }
 
-  writeLegacyEstanciaContentBackup(data);
+  writeLegacyRincaoContentBackup(data);
   return data;
 }
 
-export async function writeEstanciaContent(data: EstanciaContentData) {
+export async function writeRincaoContent(data: RincaoContentData) {
   await ensureDatabaseSeeded();
 
-  const normalized = normalizeEstanciaContent(data);
-  await persistEstanciaContent(normalized);
+  const normalized = normalizeRincaoContent(data);
+  await persistRincaoContent(normalized);
 
-  writeLegacyEstanciaContentBackup(normalized);
+  writeLegacyRincaoContentBackup(normalized);
 }
 
 export async function getActiveHomeImages() {
-  const items = (await readEstanciaContent()).homeImages.filter((item) => item.active);
-  return items.length > 0 ? items : defaultContent.homeImages.filter((item) => item.active);
+  const items = (await readRincaoContent()).homeImages.filter((item) => item.active);
+  return items;
 }
 
 export async function getActiveAttractions() {
-  const items = (await readEstanciaContent()).attractions.filter((item) => item.active);
+  const items = (await readRincaoContent()).attractions.filter((item) => item.active);
   return items;
 }
 
 export async function getActiveEvents() {
-  const items = (await readEstanciaContent()).events.filter((item) => item.active);
+  const items = (await readRincaoContent()).events.filter((item) => item.active);
   return items;
 }
 
 export async function getManagedB2cProducts(type?: B2cProductType) {
-  const products = (await readEstanciaContent()).products.filter((product) => product.active);
+  const products = (await readRincaoContent()).products.filter((product) => product.active);
   return type ? products.filter((product) => product.type === type) : products;
 }
 

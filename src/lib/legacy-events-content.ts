@@ -34,7 +34,7 @@ export const legacyEvents: LegacyEvent[] = [
     path: "/evento/festa-julina-25-07-2026-sabado",
     title: "Festa Julina 25-07-2026 - Sabado",
     seoDescription:
-      "Pagina legada da Festa Julina de 25 de julho de 2026, preservada no novo institucional para manter as URLs historicas do Estancia.",
+      "Pagina legada da Festa Julina de 25 de julho de 2026, preservada no novo institucional para manter as URLs historicas do Rincao.",
     heroImage: "/hero/current/banner-25-07-2026.png",
     heroAlt: "Banner da Festa Julina de 25 de julho de 2026",
     summary:
@@ -415,7 +415,7 @@ export function buildLegacyEventMetadata(event: LegacyEvent): Metadata {
   const siteUrl = getSiteUrl();
 
   return {
-    title: `${event.title} - Estancia`,
+    title: `${event.title} - Rincao`,
     description: event.seoDescription,
     alternates: {
       canonical: event.path,
@@ -424,7 +424,7 @@ export function buildLegacyEventMetadata(event: LegacyEvent): Metadata {
       title: event.title,
       description: event.seoDescription,
       url: event.path,
-      siteName: "Estancia",
+      siteName: "Rincao",
       type: "website",
       images: [
         {

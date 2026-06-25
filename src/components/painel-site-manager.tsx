@@ -11,11 +11,11 @@ import {
 } from "react";
 import { PainelModal } from "@/components/painel-modal";
 import type {
-  EstanciaContentData,
+  RincaoContentData,
   ManagedAttraction,
   ManagedEvent,
   ManagedHomeImage,
-} from "@/lib/estancia-content-store";
+} from "@/lib/rincao-content-store";
 
 type EditableItem =
   | { section: "home"; item: ManagedHomeImage | null }
@@ -130,7 +130,7 @@ export function PainelSiteManager({
   defaultPriceTableId,
   defaultInformationId,
 }: {
-  content: EstanciaContentData;
+  content: RincaoContentData;
   initialEditEventId?: string | null;
   initialOpenCreateEvent?: boolean;
   defaultPriceTableId?: number | null;

@@ -7,7 +7,7 @@ import {
 } from "@/lib/b2c-catalog";
 
 describe("b2c catalog", () => {
-  it("exposes the Estancia passport and addon catalog", async () => {
+  it("exposes the Rincao passport and addon catalog", async () => {
     expect((await listB2cPassports()).map((product) => product.id)).toEqual([
       "passaporte-explorador",
       "passaporte-aventura",

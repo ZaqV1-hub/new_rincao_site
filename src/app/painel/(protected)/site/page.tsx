@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { PainelSiteManager } from "@/components/painel-site-manager";
-import { readEstanciaContent } from "@/lib/estancia-content-store";
+import { readRincaoContent } from "@/lib/rincao-content-store";
 import {
   listPainelAgendaInformationOptions,
   listPainelAgendaPriceTables,
@@ -28,7 +28,7 @@ export default async function PainelSiteRoute({
   await requirePainelAccess(["vis_info", "vis_param"], "/painel/site");
   const params = await searchParams;
   const [content, priceTables, informationOptions] = await Promise.all([
-    readEstanciaContent(),
+    readRincaoContent(),
     listPainelAgendaPriceTables(),
     listPainelAgendaInformationOptions(),
   ]);

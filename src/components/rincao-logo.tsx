@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-type EstanciaLogoProps = {
+type RincaoLogoProps = {
   href?: string | null;
   className?: string;
   compact?: boolean;
@@ -9,21 +9,21 @@ type EstanciaLogoProps = {
   stacked?: boolean;
 };
 
-export function EstanciaLogo({
+export function RincaoLogo({
   href = "/",
   className = "",
   compact = false,
   light = false,
   stacked = false,
-}: EstanciaLogoProps) {
+}: RincaoLogoProps) {
   const width = stacked ? 220 : compact ? 260 : 500;
   const height = stacked ? 260 : compact ? 76 : 146;
   const classes = `inline-flex items-center ${className}`.trim();
   const src = stacked
-    ? "/brand/estancia-logo-white-stacked.png"
+    ? "/brand/rincao-logo-white-stacked.png"
     : light
-      ? "/brand/estancia-logo-white.png"
-      : "/brand/estancia-logo-dark.png";
+      ? "/brand/rincao-logo-white.png"
+      : "/brand/rincao-logo-dark.png";
   const label = "Estância e Parque Ecológico das Águas";
   const image = (
     <Image

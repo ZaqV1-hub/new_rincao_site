@@ -3,7 +3,7 @@ import { CustomerResetPasswordPage } from "@/components/customer-password-reset-
 import { getCustomerPasswordResetTicket } from "@/lib/customer-password-reset";
 
 export const metadata: Metadata = {
-  title: "Area do Cliente - Trocar Senha | Estancia",
+  title: "Area do Cliente - Trocar Senha | Rincao",
   robots: {
     index: false,
     follow: false,

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PainelAgendaEditor } from "@/components/painel-agenda-editor";
-import { readEstanciaContent } from "@/lib/estancia-content-store";
+import { readRincaoContent } from "@/lib/rincao-content-store";
 import { getPainelAgendaScreenData } from "@/lib/painel-agenda";
 import { requirePainelAccess } from "@/lib/painel-session";
 
@@ -38,7 +38,7 @@ export default async function PainelAgendaAddPage({
     year: params.ano,
     selectedDate: params.dia,
   });
-  const content = await readEstanciaContent();
+  const content = await readRincaoContent();
   const returnHref = `/painel/agenda?mes=${data.month}&ano=${data.year}`;
 
   return (

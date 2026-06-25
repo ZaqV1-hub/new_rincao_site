@@ -1,7 +1,7 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePainelAccess } from "@/lib/painel-session";
-import { readEstanciaContent } from "@/lib/estancia-content-store";
+import { readRincaoContent } from "@/lib/rincao-content-store";
 
 export const metadata: Metadata = {
   title: "Painel - Eventos | Rincao",
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function PainelEventosRoute() {
   await requirePainelAccess(["vis_info", "vis_agenda"], "/painel/eventos");
 
-  const events = (await readEstanciaContent()).events.filter((event) => event.active);
+  const events = (await readRincaoContent()).events.filter((event) => event.active);
   const featuredEvent = events[0] ?? null;
 
   return (

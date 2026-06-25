@@ -94,7 +94,7 @@ export function LocationPage() {
 
         <div className="mt-5 overflow-hidden rounded bg-[#eaeaea]">
           <iframe
-            title="Mapa Estancia"
+            title="Mapa Rincao"
             src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d10114.54023873911!2d-46.747566408833706!3d-23.77692536125703!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94ce4eacb5029f0b%3A0x3023a922486787e9!2sClube+Rinc%C3%A3o!5e0!3m2!1spt-BR!2sbr!4v1455706557119"
             className="h-[320px] w-full md:h-[450px]"
             style={{ border: 0 }}
@@ -173,7 +173,7 @@ export function LocationPage() {
 
         <div className="mt-8 md:hidden">
           <div className="relative aspect-[16/9] overflow-hidden bg-[#eaeaea]">
-            <Image src="/photos/day-use.jpg" alt="Estrada de acesso ao Estancia" fill className="object-cover" sizes="100vw" />
+            <Image src="/photos/day-use.jpg" alt="Estrada de acesso ao Rincao" fill className="object-cover" sizes="100vw" />
           </div>
         </div>
       </div>

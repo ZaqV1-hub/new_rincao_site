@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PainelAgendaEditor } from "@/components/painel-agenda-editor";
-import { readEstanciaContent } from "@/lib/estancia-content-store";
+import { readRincaoContent } from "@/lib/rincao-content-store";
 import { getPainelAgendaScreenData } from "@/lib/painel-agenda";
 import { requirePainelAccess } from "@/lib/painel-session";
 
@@ -34,7 +34,7 @@ export default async function PainelAgendaEditPage({
     year: queryParams.ano,
     selectedDate: routeParams.date,
   });
-  const content = await readEstanciaContent();
+  const content = await readRincaoContent();
 
   if (data.selectedDay?.agenda?.type === "promo") {
     const linkedEvent = content.events.find((event) =>

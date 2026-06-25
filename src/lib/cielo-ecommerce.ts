@@ -288,13 +288,13 @@ function normalizeSoftDescriptor(value: unknown) {
   const configured =
     String(value ?? "").trim() ||
     process.env.INGRESSO_CIELO_SOFT_DESCRIPTOR?.trim() ||
-    "ESTANCIA";
+    "RINCAO";
   const normalized = configured
     .toUpperCase()
     .replace(/[^A-Z0-9 ]/g, "")
     .trim();
 
-  return (normalized || "ESTANCIA").slice(0, 13);
+  return (normalized || "RINCAO").slice(0, 13);
 }
 
 function normalizeCardData(card: Record<string, unknown> | null) {
@@ -378,7 +378,7 @@ function buildCustomer(customer: NativeCheckoutCustomer) {
   }
 
   if (!cieloCustomer.Name) {
-    cieloCustomer.Name = "Cliente Estancia";
+    cieloCustomer.Name = "Cliente Rincao";
   }
 
   return cieloCustomer;

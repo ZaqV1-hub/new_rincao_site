@@ -74,7 +74,7 @@ describe("customer-password-reset", () => {
       expect.objectContaining({
         to: "cliente@example.com",
         toName: "Cliente Teste",
-        subject: "Estancia - Recuperacao de Senha",
+        subject: "Rincao - Recuperacao de Senha",
         html: expect.stringContaining("/login/trocar-senha/ticket/"),
       }),
     );

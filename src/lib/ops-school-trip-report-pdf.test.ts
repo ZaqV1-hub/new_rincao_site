@@ -10,7 +10,7 @@ describe("ops-school-trip-report-pdf", () => {
       trip: {
         agendaId: 10,
         schoolId: 20,
-        schoolName: "Colegio Estancia",
+        schoolName: "Colegio Rincao",
         date: "2026-06-15",
         dateLabel: "15/06/2026",
         code: "ABC123",

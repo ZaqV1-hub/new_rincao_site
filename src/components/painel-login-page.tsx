@@ -226,7 +226,7 @@ export function PainelLoginPage({
                 onChange={(event) => setCpf(formatCpf(event.target.value))}
                 placeholder="000.000.000-00"
                 disabled={isBusy}
-                className="estancia-field"
+                className="rincao-field"
               />
             </label>
 
@@ -240,7 +240,7 @@ export function PainelLoginPage({
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Sua senha"
                 disabled={isBusy}
-                className="estancia-field"
+                className="rincao-field"
               />
             </label>
 

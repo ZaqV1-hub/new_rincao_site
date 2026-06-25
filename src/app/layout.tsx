@@ -19,22 +19,22 @@ const salsa = Salsa({
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
-  title: "Estancia em Sao Paulo",
+  title: "Rincao em Sao Paulo",
   description:
-    "Novo institucional do Estancia em Next.js, com paginas publicas, segmentos de atendimento e convivencia inicial com o dominio transacional `/ingresso`.",
+    "Novo institucional do Rincao em Next.js, com paginas publicas, segmentos de atendimento e convivencia inicial com o dominio transacional `/ingresso`.",
   icons: {
     icon: "/favicon.ico",
   },
   openGraph: {
-    title: "Estancia em Sao Paulo",
+    title: "Rincao em Sao Paulo",
     description:
-      "Conheca o novo institucional do Estancia, com estrutura, segmentos e canais de atendimento.",
-    siteName: "Estancia",
+      "Conheca o novo institucional do Rincao, com estrutura, segmentos e canais de atendimento.",
+    siteName: "Rincao",
     type: "website",
     images: [
       {
         url: "/photos/day-use.jpg",
-        alt: "Area verde do Estancia",
+        alt: "Area verde do Rincao",
       },
     ],
   },

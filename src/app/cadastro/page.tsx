@@ -7,9 +7,9 @@ import {
 } from "@/lib/customer-area";
 
 export const metadata: Metadata = {
-  title: "Area do Cliente - Cadastro | Estancia",
+  title: "Area do Cliente - Cadastro | Rincao",
   description:
-    "Crie sua conta no Estancia para acessar a area do cliente e continuar a jornada de compra.",
+    "Crie sua conta no Rincao para acessar a area do cliente e continuar a jornada de compra.",
   alternates: {
     canonical: "/cadastro",
   },

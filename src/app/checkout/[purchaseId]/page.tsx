@@ -10,8 +10,8 @@ import { getSiteUrl } from "@/lib/site-metadata";
 import { getUserVoucherPurchaseById } from "@/lib/voucher-repository";
 
 export const metadata: Metadata = {
-  title: "Checkout | Estancia",
-  description: "Checkout seguro do Estancia para compra de ingressos.",
+  title: "Checkout | Rincao",
+  description: "Checkout seguro do Rincao para compra de ingressos.",
 };
 
 export const dynamic = "force-dynamic";

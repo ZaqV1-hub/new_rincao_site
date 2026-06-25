@@ -124,7 +124,7 @@ describe("ticket-service", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      "https://estanciaticketapi.azurewebsites.net/website/tickets/send",
+      "https://rincaoticketapi.azurewebsites.net/website/tickets/send",
       expect.objectContaining({
         method: "POST",
       }),
@@ -452,7 +452,7 @@ describe("ticket-service", () => {
     });
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      "https://estanciaticketapi.azurewebsites.net/website/tickets/send",
+      "https://rincaoticketapi.azurewebsites.net/website/tickets/send",
       expect.objectContaining({
         method: "POST",
       }),
@@ -582,7 +582,7 @@ describe("ticket-service", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      "https://estanciaticketapi.azurewebsites.net/website/tickets/send",
+      "https://rincaoticketapi.azurewebsites.net/website/tickets/send",
       expect.objectContaining({
         method: "POST",
       }),

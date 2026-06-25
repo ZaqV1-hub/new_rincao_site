@@ -6,9 +6,9 @@ import type {
   ManagedAttraction,
   ManagedEvent,
   ManagedHomeImage,
-} from "@/lib/estancia-content-store";
+} from "@/lib/rincao-content-store";
 
-type EstanciaHomePageProps = {
+type RincaoHomePageProps = {
   heroImages: ManagedHomeImage[];
   attractions: ManagedAttraction[];
   events: ManagedEvent[];
@@ -122,11 +122,12 @@ function HeroBannerImage({
   );
 }
 
-export function EstanciaHomePage({
+export function RincaoHomePage({
   heroImages,
   attractions,
   events,
-}: EstanciaHomePageProps) {
+}: RincaoHomePageProps) {
+  const hasHeroImages = heroImages.length > 0;
   const [heroIndex, setHeroIndex] = useState(0);
   const [attractionIndex, setAttractionIndex] = useState(0);
   const [eventIndex, setEventIndex] = useState(0);
@@ -144,6 +145,10 @@ export function EstanciaHomePage({
   } | null>(null);
 
   function handleHeroPointerDown(event: PointerEvent<HTMLElement>) {
+    if (!hasHeroImages) {
+      return;
+    }
+
     heroDragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -153,6 +158,10 @@ export function EstanciaHomePage({
   }
 
   function handleHeroPointerMove(event: PointerEvent<HTMLElement>) {
+    if (!hasHeroImages) {
+      return;
+    }
+
     if (
       !heroDragRef.current ||
       heroDragRef.current.pointerId !== event.pointerId
@@ -164,6 +173,10 @@ export function EstanciaHomePage({
   }
 
   function handleHeroPointerUp(event: PointerEvent<HTMLElement>) {
+    if (!hasHeroImages) {
+      return;
+    }
+
     if (
       !heroDragRef.current ||
       heroDragRef.current.pointerId !== event.pointerId
@@ -241,30 +254,47 @@ export function EstanciaHomePage({
         }}
         className="relative h-[76svh] min-h-[520px] scroll-mt-[76px] cursor-grab select-none overflow-hidden bg-[#0b1110] [touch-action:pan-y] active:cursor-grabbing lg:scroll-mt-[108px]"
       >
-        <div className="absolute inset-0">
-          {heroImages.map((image, index) => (
-            <HeroBannerImage
-              key={image.id}
-              image={image}
-              active={index === heroIndex}
-              preload={index === 0}
-            />
-          ))}
-        </div>
+        {hasHeroImages ? (
+          <>
+            <div className="absolute inset-0">
+              {heroImages.map((image, index) => (
+                <HeroBannerImage
+                  key={image.id}
+                  image={image}
+                  active={index === heroIndex}
+                  preload={index === 0}
+                />
+              ))}
+            </div>
 
-        <div className="absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 gap-2">
-          {heroImages.map((image, index) => (
-            <button
-              key={image.id}
-              type="button"
-              aria-label={`Ver imagem ${index + 1}`}
-              onClick={() => setHeroIndex(index)}
-              className={`h-2.5 rounded-full bg-white/85 transition-all ${
-                index === heroIndex ? "w-9" : "w-2.5 opacity-60"
-              }`}
-            />
-          ))}
-        </div>
+            <div className="absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+              {heroImages.map((image, index) => (
+                <button
+                  key={image.id}
+                  type="button"
+                  aria-label={`Ver imagem ${index + 1}`}
+                  onClick={() => setHeroIndex(index)}
+                  className={`h-2.5 rounded-full bg-white/85 transition-all ${
+                    index === heroIndex ? "w-9" : "w-2.5 opacity-60"
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#1d4a3d_0%,#10211d_55%,#09110f_100%)]">
+            <div className="mx-auto flex h-full max-w-[1240px] items-end px-5 pb-16 pt-24">
+              <div className="max-w-[520px]">
+                <p className="text-[12px] font-bold uppercase tracking-[0.22em] text-white/70">
+                  Site em atualização
+                </p>
+                <h1 className="mt-4 text-[clamp(2.4rem,6vw,5.5rem)] font-black leading-[0.95] text-white">
+                  O conteúdo da home será publicado pelo painel.
+                </h1>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       <main>
@@ -282,6 +312,19 @@ export function EstanciaHomePage({
               </h2>
             </div>
 
+            {attractions.length === 0 ? (
+              <div className="rounded-[8px] border border-[#dbe7d7] bg-white px-6 py-10 text-center shadow-[0_14px_32px_rgba(24,67,34,0.08)]">
+                <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#1f6b36]">
+                  Parque
+                </p>
+                <h3 className="mt-3 text-[28px] font-black text-[#17342d]">
+                  Nenhuma atração publicada
+                </h3>
+                <p className="mx-auto mt-3 max-w-[560px] text-[15px] leading-7 text-[#4b6570]">
+                  Assim que as atrações forem cadastradas no painel, elas vão aparecer aqui.
+                </p>
+              </div>
+            ) : (
             <div className="relative">
               {attractions.length > 1 ? (
                 <>
@@ -347,6 +390,7 @@ export function EstanciaHomePage({
                 ))}
               </div>
             </div>
+            )}
           </div>
         </section>
 

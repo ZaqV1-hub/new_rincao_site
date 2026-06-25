@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     purchaseId: purchase.id,
     amount: purchase.totalValue ?? "0.00",
     cpf: cpf || session.sub,
-    name: name || "Cliente Estancia",
+    name: name || "Cliente Rincao",
     email,
     phone,
     paymentType,

@@ -203,12 +203,12 @@ describe("codindica-cashback", () => {
     expect(dbQuery).toHaveBeenCalledWith(
       expect.stringContaining("INSERT INTO email"),
       expect.arrayContaining([
-        "ingressos@estancia.local",
-        "Ingressos Estancia",
+        "ingressos@rincao.local",
+        "Ingressos Rincao",
         "rep@example.com",
         "Equipe",
-        "ingressos@estancia.local",
-        "Estancia - Compra Finalizada",
+        "ingressos@rincao.local",
+        "Rincao - Compra Finalizada",
       ]),
     );
     expect(dbQuery).toHaveBeenCalledWith(

@@ -1,6 +1,6 @@
 "use client";
 
-import { EstanciaLogo } from "@/components/estancia-logo";
+import { RincaoLogo } from "@/components/rincao-logo";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -136,8 +136,8 @@ export function CustomerLoginPage({
   return (
     <IngressoShell active="auth">
       <div className="mx-auto w-full max-w-[760px] px-4 pt-8 md:px-6">
-        <div className="estancia-card p-7 text-left md:p-8">
-          <EstanciaLogo compact />
+        <div className="rincao-card p-7 text-left md:p-8">
+          <RincaoLogo compact />
           <h2 className="mt-6 text-[32px] font-black leading-tight text-[#17351f]">
             Entrar
           </h2>
@@ -164,7 +164,7 @@ export function CustomerLoginPage({
                 value={cpf}
                 onChange={(event) => setCpf(formatCpf(event.target.value))}
                 disabled={isBusy}
-                className="estancia-field mt-2"
+                className="rincao-field mt-2"
               />
             </label>
 
@@ -179,7 +179,7 @@ export function CustomerLoginPage({
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 disabled={isBusy}
-                className="estancia-field mt-2"
+                className="rincao-field mt-2"
               />
             </label>
 

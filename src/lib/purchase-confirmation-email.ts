@@ -51,7 +51,7 @@ function buildBuyerConfirmationEmailHtml(purchase: ConfirmedPurchaseEmailRow) {
     <html lang="pt-BR">
       <head>
         <meta charSet="UTF-8" />
-        <title>Estancia - Compra</title>
+        <title>Rincao - Compra</title>
       </head>
       <body style="margin:0;padding:24px;background:#f0ede5;color:#4a5560;font-family:Arial,Helvetica,sans-serif;">
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -212,12 +212,12 @@ export async function queuePurchaseConfirmationEmail(
       )
     `,
     [
-      "ingressos@estancia.local",
-      "Ingressos Estancia",
+      "ingressos@rincao.local",
+      "Ingressos Rincao",
       recipientEmail,
       purchase.nmusuario ?? recipientEmail,
-      "ingressos@estancia.local",
-      "Estancia - Compra",
+      "ingressos@rincao.local",
+      "Rincao - Compra",
       buildBuyerConfirmationEmailHtml(purchase),
     ],
   );

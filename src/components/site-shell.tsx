@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 import { useState } from "react";
-import { EstanciaLogo } from "@/components/estancia-logo";
+import { RincaoLogo } from "@/components/rincao-logo";
 import { contact } from "@/lib/site-content";
 
 export function SiteShell({
@@ -66,7 +66,7 @@ export function SiteShell({
         className="fixed inset-x-0 top-0 z-40 border-b border-[rgba(35,73,63,0.08)] bg-white shadow-[0_10px_30px_rgba(21,48,42,0.06)]"
       >
         <div className="mx-auto grid min-h-[76px] w-[min(1240px,calc(100%-28px))] grid-cols-[auto_1fr] items-center gap-3 py-2 sm:w-[min(1240px,calc(100%-40px))] lg:min-h-[108px] lg:grid-cols-[220px_1fr_220px] lg:gap-5">
-          <EstanciaLogo
+          <RincaoLogo
             href="/"
             compact
             className="h-[40px] max-w-[170px] sm:h-[48px] sm:max-w-[210px] lg:h-[62px] lg:max-w-[260px]"

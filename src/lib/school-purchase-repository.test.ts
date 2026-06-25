@@ -34,7 +34,7 @@ describe("school-purchase-repository", () => {
         {
           idagenda: 77,
           dtagenda: "2026-06-15",
-          school_name: "Escola Estancia",
+          school_name: "Escola Rincao",
         },
       ],
     });

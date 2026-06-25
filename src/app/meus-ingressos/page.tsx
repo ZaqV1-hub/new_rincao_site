@@ -4,9 +4,9 @@ import { requireAuthenticatedCustomer } from "@/lib/customer-area";
 import { getUserVouchersPage } from "@/lib/voucher-repository";
 
 export const metadata: Metadata = {
-  title: "Meus Ingressos | Estancia",
+  title: "Meus Ingressos | Rincao",
   description:
-    "Consulta read-only de compras, reservas e vouchers do cliente durante a migracao do Estancia para Next.js.",
+    "Consulta read-only de compras, reservas e vouchers do cliente durante a migracao do Rincao para Next.js.",
   alternates: {
     canonical: "/meus-ingressos",
   },

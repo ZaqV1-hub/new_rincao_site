@@ -11,7 +11,7 @@ type PageProps = {
 };
 
 export const metadata: Metadata = {
-  title: "Impressao de Fechamento | Estancia",
+  title: "Impressao de Fechamento | Rincao",
   robots: {
     index: false,
     follow: false,

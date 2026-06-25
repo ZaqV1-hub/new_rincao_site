@@ -1,4 +1,4 @@
-import { getManagedB2cProducts } from "@/lib/estancia-content-store";
+import { getManagedB2cProducts } from "@/lib/rincao-content-store";
 import type {
   B2cProduct,
   B2cProductId,

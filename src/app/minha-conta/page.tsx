@@ -4,9 +4,9 @@ import { requireAuthenticatedCustomer } from "@/lib/customer-area";
 import { getCustomerAccountSnapshotByCpf } from "@/lib/user-repository";
 
 export const metadata: Metadata = {
-  title: "Minha Conta | Estancia",
+  title: "Minha Conta | Rincao",
   description:
-    "Resumo da area do cliente do Estancia com sessao atual, pedidos e acesso controlado aos fluxos ainda mantidos no legado.",
+    "Resumo da area do cliente do Rincao com sessao atual, pedidos e acesso controlado aos fluxos ainda mantidos no legado.",
   alternates: {
     canonical: "/minha-conta",
   },

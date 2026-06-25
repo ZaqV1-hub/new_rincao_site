@@ -20,10 +20,10 @@ function getLegacyEmailConfig() {
     username: process.env.EMAIL_SMTP_USERNAME?.trim() || "",
     password: process.env.EMAIL_SMTP_PASSWORD?.trim() || "",
     fromEmail:
-      process.env.EMAIL_FROM_ADDRESS?.trim() || "ingressos@estancia.local",
-    fromName: process.env.EMAIL_FROM_NAME?.trim() || "Estancia",
+      process.env.EMAIL_FROM_ADDRESS?.trim() || "ingressos@rincao.local",
+    fromName: process.env.EMAIL_FROM_NAME?.trim() || "Rincao",
     replyToEmail:
-      process.env.EMAIL_REPLYTO_ADDRESS?.trim() || "ingressos@estancia.local",
+      process.env.EMAIL_REPLYTO_ADDRESS?.trim() || "ingressos@rincao.local",
     sendSync: String(process.env.PASSWORD_RESET_SEND_SYNC ?? "1").trim() === "1",
     maxRetries: Number(process.env.EMAIL_MAX_RETRIES ?? 1),
   };

@@ -14,7 +14,7 @@ describe("school-purchase-link", () => {
   it("resolves a school preset from a valid exclusive plink", async () => {
     resolveSchoolPurchasePreset.mockResolvedValue({
       schoolId: 20,
-      schoolName: "Colegio Estancia",
+      schoolName: "Colegio Rincao",
       agendaId: 10,
       agendaLabel: "15/06/2026",
     });
@@ -31,7 +31,7 @@ describe("school-purchase-link", () => {
 
     await expect(resolveSchoolPurchasePresetFromPlink(token)).resolves.toEqual({
       schoolId: 20,
-      schoolName: "Colegio Estancia",
+      schoolName: "Colegio Rincao",
       agendaId: 10,
       agendaLabel: "15/06/2026",
     });

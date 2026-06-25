@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 
 export const defaultTicketsApiBaseUrl =
-  "https://estanciaticketapi.azurewebsites.net";
+  "https://rincaoticketapi.azurewebsites.net";
 
 export type TicketApiVoucherPayload = {
   purchaseId: number;

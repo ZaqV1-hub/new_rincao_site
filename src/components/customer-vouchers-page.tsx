@@ -323,7 +323,7 @@ function PurchaseTicket({
   }
 
   return (
-    <article className="estancia-card p-5 md:p-6">
+    <article className="rincao-card p-5 md:p-6">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px_230px] lg:items-center">
         <div className="min-w-0">
           <p className="text-[12px] uppercase tracking-[0.18em] text-[#719168]">
@@ -399,7 +399,7 @@ function PurchaseTicket({
                   href={buildVoucherExportHref(purchase.id, selectedVoucherIds)}
                   target="_blank"
                   rel="noreferrer"
-                  className="estancia-button mt-0 inline-flex px-5 py-3 text-sm"
+                  className="rincao-button mt-0 inline-flex px-5 py-3 text-sm"
                 >
                   Gerar {selectedVoucherIds.length} Voucher
                   {selectedVoucherIds.length === 1 ? "" : "s"}
@@ -455,7 +455,7 @@ function PurchaseGroup({
         </h2>
       </div>
       {purchases.length === 0 ? (
-        <div className="estancia-card px-5 py-8 text-center text-sm text-[#5c745f]">
+        <div className="rincao-card px-5 py-8 text-center text-sm text-[#5c745f]">
           {emptyMessage}
         </div>
       ) : (
@@ -567,7 +567,7 @@ export function CustomerVouchersPage({
                 type="button"
                 onClick={handleLoadMore}
                 disabled={loadingMore}
-                className="estancia-button-secondary"
+                className="rincao-button-secondary"
               >
                 {loadingMore ? "Carregando..." : "Carregar mais pedidos"}
               </button>

@@ -265,7 +265,7 @@ export function PainelShell({
   }
 
   return (
-    <div className="estancia-panel min-h-screen bg-[linear-gradient(180deg,#f8f5ef_0%,#fbfaf7_32%,#ffffff_100%)] text-[#17312d]">
+    <div className="rincao-panel min-h-screen bg-[linear-gradient(180deg,#f8f5ef_0%,#fbfaf7_32%,#ffffff_100%)] text-[#17312d]">
       <div
         className={`grid min-h-screen transition-[grid-template-columns] duration-200 ${
           sidebarCollapsed

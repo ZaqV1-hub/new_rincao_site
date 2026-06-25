@@ -65,7 +65,7 @@ export type InfoPage = {
 };
 
 export const contact = {
-  email: "contato@estancia.local",
+  email: "contato@rincao.local",
   whatsapp: "https://wa.me/5511947040718",
   instagram: "#",
   tiktok: "#",
@@ -73,7 +73,7 @@ export const contact = {
   map: "https://goo.gl/maps/hK5JdJb6nM92",
   address: "Av. do Jaceguava, 2.222 - Jardim Casa Grande - São Paulo - SP",
   cep: "04870-425",
-  company: "Estancia Pousada e Lazer LTDA",
+  company: "Rincao Pousada e Lazer LTDA",
   cnpj: "14.582.297/0001-55",
   phones: ["(11) 5979-2522", "(11) 5979-6000", "(11) 5922-8464"],
 };
@@ -91,7 +91,7 @@ export const primaryNav = [
 export const homeHighlights = [
   {
     title: "84 mil metros quadrados de lazer",
-    text: "O texto institucional atual posiciona o Estancia como um espaco de lazer e tranquilidade cercado por area verde e estrutura para receber familias e grupos.",
+    text: "O texto institucional atual posiciona o Rincao como um espaco de lazer e tranquilidade cercado por area verde e estrutura para receber familias e grupos.",
   },
   {
     title: "Compra parte da agenda publica",
@@ -217,9 +217,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/quem-somos",
     eyebrow: "Institucional",
     title: "Quem Somos",
-    seoTitle: "Quem Somos | Estancia",
+    seoTitle: "Quem Somos | Rincao",
     seoDescription:
-      "Conheca a historia, a proposta e a equipe do Estancia, espaco de lazer e eventos em Sao Paulo.",
+      "Conheca a historia, a proposta e a equipe do Rincao, espaco de lazer e eventos em Sao Paulo.",
     summary:
       "Somos um espaco de 84 mil metros quadrados focado em lazer e tranquilidade, com area de reflorestamento, atendimento especializado e experiencia em eventos e entretenimento.",
     highlights: [
@@ -236,13 +236,13 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/photos/quem-somos.jpg",
-      alt: "Visitantes aproveitando a area de lazer do Estancia",
+      alt: "Visitantes aproveitando a area de lazer do Rincao",
     },
     sections: [
       {
         title: "Um espaco para lazer e tranquilidade",
         paragraphs: [
-          "O conteudo institucional atual define o Estancia como um espaco cercado por natureza, com experiencia em lazer, eventos e entretenimento.",
+          "O conteudo institucional atual define o Rincao como um espaco cercado por natureza, com experiencia em lazer, eventos e entretenimento.",
           "A proposta publica combina acolhimento, estrutura e operacao comercial para receber familias, grupos e encontros especiais ao longo do ano.",
         ],
       },
@@ -259,14 +259,14 @@ export const infoPages: Record<string, InfoPage> = {
       {
         title: "O que move a experiencia",
         paragraphs: [
-          "Toda a qualidade na prestacao de servicos aliada a um dos mais belos locais de contato com a natureza faz do Estancia uma opcao para se divertir e relaxar.",
+          "Toda a qualidade na prestacao de servicos aliada a um dos mais belos locais de contato com a natureza faz do Rincao uma opcao para se divertir e relaxar.",
           "A camada institucional nova preserva essa narrativa e tira o WordPress da frente para que o conteudo possa evoluir em um frontend mais atual.",
         ],
       },
     ],
     gallery: [
-      { src: "/photos/quem-somos.jpg", alt: "Area social do Estancia" },
-      { src: "/photos/day-use.jpg", alt: "Paisagem do Estancia" },
+      { src: "/photos/quem-somos.jpg", alt: "Area social do Rincao" },
+      { src: "/photos/day-use.jpg", alt: "Paisagem do Rincao" },
       { src: "/photos/estrutura-galeria.jpg", alt: "Galeria da estrutura do clube" },
     ],
   },
@@ -275,11 +275,11 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/estrutura",
     eyebrow: "Estrutura",
     title: "Estrutura",
-    seoTitle: "Estrutura | Estancia",
+    seoTitle: "Estrutura | Rincao",
     seoDescription:
-      "Veja a estrutura de lazer, apoio e comodidade do Estancia para familias, grupos e eventos.",
+      "Veja a estrutura de lazer, apoio e comodidade do Rincao para familias, grupos e eventos.",
     summary:
-      "A estrutura publica do Estancia combina piscinas, parque, trilha, salao de jogos, apoio logistico e espacos preparados para lazer e convivencia em grupo.",
+      "A estrutura publica do Rincao combina piscinas, parque, trilha, salao de jogos, apoio logistico e espacos preparados para lazer e convivencia em grupo.",
     highlights: [
       "Piscinas, toboaguas, parque de diversoes e trilha ecologica.",
       "Apoio com estacionamento, vestiarios, enfermaria e guarda-volumes.",
@@ -294,7 +294,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/photos/estrutura-piscina.jpg",
-      alt: "Piscina infantil do Estancia cercada por area verde",
+      alt: "Piscina infantil do Rincao cercada por area verde",
     },
     sections: [
       {
@@ -336,9 +336,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/servicos",
     eyebrow: "Segmentos",
     title: "Servicos",
-    seoTitle: "Servicos | Estancia",
+    seoTitle: "Servicos | Rincao",
     seoDescription:
-      "Explore os segmentos e formatos de atendimento do Estancia para familias, escolas, igrejas, ONGs e grupos.",
+      "Explore os segmentos e formatos de atendimento do Rincao para familias, escolas, igrejas, ONGs e grupos.",
     summary:
       "A pagina de servicos do institucional atual funciona como ponto de entrada para os perfis de atendimento do clube. No novo app, ela organiza melhor cada segmento e seus proximos passos.",
     highlights: [
@@ -355,7 +355,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/photos/day-use.jpg",
-      alt: "Vista aberta do Estancia",
+      alt: "Vista aberta do Rincao",
     },
     sections: [
       {
@@ -381,7 +381,7 @@ export const infoPages: Record<string, InfoPage> = {
     gallery: [
       { src: "/photos/day-use.jpg", alt: "Paisagem do clube" },
       { src: "/photos/estrutura-piscina.jpg", alt: "Piscina do clube" },
-      { src: "/photos/confraternizacao.jpg", alt: "Encontro em grupo no Estancia" },
+      { src: "/photos/confraternizacao.jpg", alt: "Encontro em grupo no Rincao" },
     ],
   },
   agenda: {
@@ -389,9 +389,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/agenda",
     eyebrow: "Agenda",
     title: "Agenda",
-    seoTitle: "Agenda | Estancia",
+    seoTitle: "Agenda | Rincao",
     seoDescription:
-      "Consulte a agenda publica do Estancia e siga para o fluxo de compra ou agendamento quando necessario.",
+      "Consulte a agenda publica do Rincao e siga para o fluxo de compra ou agendamento quando necessario.",
     summary:
       "A agenda publica agora e renderizada pelo Next.js a partir do BFF, com compra, agendamento e checkout atendidos pela stack atual.",
     highlights: [
@@ -408,7 +408,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/theme/clube-park-rincao.jpg",
-      alt: "Vista aerea do Estancia",
+      alt: "Vista aerea do Rincao",
     },
     sections: [
       {
@@ -433,9 +433,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/localizacao",
     eyebrow: "Acesso",
     title: "Localizacao",
-    seoTitle: "Localizacao | Estancia",
+    seoTitle: "Localizacao | Rincao",
     seoDescription:
-      "Veja o endereco do Estancia, os roteiros de onibus e metro/trem e o mapa ampliado.",
+      "Veja o endereco do Rincao, os roteiros de onibus e metro/trem e o mapa ampliado.",
     summary:
       "A pagina de localizacao concentra endereco, rotas por onibus e metro/trem e o acesso ao mapa ampliado para facilitar a chegada ao clube.",
     highlights: [
@@ -452,7 +452,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/photos/day-use.jpg",
-      alt: "Area externa arborizada do Estancia",
+      alt: "Area externa arborizada do Rincao",
     },
     sections: [
       {
@@ -484,9 +484,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/trabalhe-conosco",
     eyebrow: "Equipe",
     title: "Trabalhe Conosco",
-    seoTitle: "Trabalhe Conosco | Estancia",
+    seoTitle: "Trabalhe Conosco | Rincao",
     seoDescription:
-      "Veja os canais de contato e envie seu curriculo para trabalhar no Estancia.",
+      "Veja os canais de contato e envie seu curriculo para trabalhar no Rincao.",
     summary:
       "A pagina institucional de recrutamento concentra o CTA para envio de curriculo, telefones e endereco do clube em uma camada publica mais limpa.",
     highlights: [
@@ -503,7 +503,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/photos/confraternizacao.jpg",
-      alt: "Equipe e visitantes reunidos no Estancia",
+      alt: "Equipe e visitantes reunidos no Rincao",
     },
     sections: [
       {
@@ -528,9 +528,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/day-use-familia",
     eyebrow: "Familias",
     title: "Day-Use Familia",
-    seoTitle: "Day-Use Familia | Estancia",
+    seoTitle: "Day-Use Familia | Rincao",
     seoDescription:
-      "Conheca a experiencia de day-use para familias no Estancia, com estrutura de lazer, atividades e compra online.",
+      "Conheca a experiencia de day-use para familias no Rincao, com estrutura de lazer, atividades e compra online.",
     summary:
       "A pagina de Day-Use Familia traz o principal produto do publico familiar, com faixa de horario, atividades, alimentacao complementar e orientacoes frequentes.",
     highlights: [
@@ -581,9 +581,9 @@ export const infoPages: Record<string, InfoPage> = {
       },
     ],
     gallery: [
-      { src: "/photos/day-use.jpg", alt: "Vista geral do day-use no Estancia" },
+      { src: "/photos/day-use.jpg", alt: "Vista geral do day-use no Rincao" },
       { src: "/photos/estrutura-piscina.jpg", alt: "Piscina do day-use" },
-      { src: "/photos/estrutura-galeria.jpg", alt: "Area de lazer do Estancia" },
+      { src: "/photos/estrutura-galeria.jpg", alt: "Area de lazer do Rincao" },
     ],
   },
   "melhor-idade": {
@@ -591,9 +591,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/melhor-idade",
     eyebrow: "Grupos",
     title: "Melhor Idade",
-    seoTitle: "Melhor Idade | Estancia",
+    seoTitle: "Melhor Idade | Rincao",
     seoDescription:
-      "Veja a proposta do Estancia para grupos da melhor idade, com programacao previa, day-use e atendimento consultivo.",
+      "Veja a proposta do Rincao para grupos da melhor idade, com programacao previa, day-use e atendimento consultivo.",
     summary:
       "A oferta atual para melhor idade combina day-use das 9h as 17h, programacao previa, alimentacao completa e atividades pensadas para grupos com acompanhamento especializado.",
     highlights: [
@@ -610,7 +610,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/photos/melhor-idade.jpg",
-      alt: "Grupo da melhor idade em evento no Estancia",
+      alt: "Grupo da melhor idade em evento no Rincao",
     },
     sections: [
       {
@@ -643,11 +643,11 @@ export const infoPages: Record<string, InfoPage> = {
           },
           {
             src: "/legacy/mural/SAM_3979-150x150.jpg",
-            alt: "Grupo da melhor idade em programacao no Estancia",
+            alt: "Grupo da melhor idade em programacao no Rincao",
           },
           {
             src: "/legacy/mural/SAM_4516-150x150.jpg",
-            alt: "Participantes da melhor idade no Estancia",
+            alt: "Participantes da melhor idade no Rincao",
           },
           {
             src: "/legacy/mural/SAM_4614-150x150.jpg",
@@ -655,11 +655,11 @@ export const infoPages: Record<string, InfoPage> = {
           },
           {
             src: "/legacy/mural/Melhor-idade-festa-nordestina-rincao-8-150x150.jpg",
-            alt: "Festa nordestina da melhor idade no Estancia",
+            alt: "Festa nordestina da melhor idade no Rincao",
           },
           {
             src: "/legacy/mural/melhor-idade-festa-natalina-rincao-7-150x150.jpg",
-            alt: "Festa natalina da melhor idade no Estancia",
+            alt: "Festa natalina da melhor idade no Rincao",
           },
           {
             src: "/legacy/mural/melhor-idade-anos-60-rincao-3-150x150.jpg",
@@ -675,7 +675,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     gallery: [
       { src: "/photos/melhor-idade.jpg", alt: "Grupo da melhor idade em programacao especial" },
-      { src: "/photos/confraternizacao.jpg", alt: "Programacao em grupo no Estancia" },
+      { src: "/photos/confraternizacao.jpg", alt: "Programacao em grupo no Rincao" },
       { src: "/photos/day-use.jpg", alt: "Area verde do clube" },
     ],
   },
@@ -684,9 +684,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/confraternizacoes",
     eyebrow: "Eventos",
     title: "Confraternizacoes Corporativas",
-    seoTitle: "Confraternizacoes Corporativas | Estancia",
+    seoTitle: "Confraternizacoes Corporativas | Rincao",
     seoDescription:
-      "Conheca a estrutura do Estancia para confraternizacoes corporativas, com alimentacao, lazer e apoio a grupos.",
+      "Conheca a estrutura do Rincao para confraternizacoes corporativas, com alimentacao, lazer e apoio a grupos.",
     summary:
       "A pagina de confraternizacoes corporativas apresenta um produto de grupo com atendimento das 9h as 17h, alimentacao, bebidas, lazer e acompanhamento de recreadores.",
     highlights: [
@@ -703,7 +703,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/photos/confraternizacao.jpg",
-      alt: "Grupo em confraternizacao no Estancia",
+      alt: "Grupo em confraternizacao no Rincao",
     },
     sections: [
       {
@@ -737,9 +737,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/escola",
     eyebrow: "Educacional",
     title: "Escola",
-    seoTitle: "Escola | Estancia",
+    seoTitle: "Escola | Rincao",
     seoDescription:
-      "Conheca a proposta escolar do Estancia, com alimentacao, atividades e acesso a operacao de ingresso estudantil.",
+      "Conheca a proposta escolar do Rincao, com alimentacao, atividades e acesso a operacao de ingresso estudantil.",
     summary:
       "O segmento escolar continua com operacao propria, mas a nova camada institucional preserva o conteudo de alimentacao, atividades e contatos para escolas.",
     highlights: [
@@ -756,7 +756,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/photos/escola.jpg",
-      alt: "Criancas aproveitando a area aquatica do Estancia",
+      alt: "Criancas aproveitando a area aquatica do Rincao",
     },
     sections: [
       {
@@ -800,7 +800,7 @@ export const infoPages: Record<string, InfoPage> = {
       },
     ],
     gallery: [
-      { src: "/photos/escola.jpg", alt: "Passeio escolar no Estancia" },
+      { src: "/photos/escola.jpg", alt: "Passeio escolar no Rincao" },
       { src: "/photos/estrutura-piscina.jpg", alt: "Piscina infantil para grupos escolares" },
       { src: "/photos/day-use.jpg", alt: "Area arborizada do clube" },
     ],
@@ -810,9 +810,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/igreja",
     eyebrow: "Grupos",
     title: "Igreja",
-    seoTitle: "Igreja | Estancia",
+    seoTitle: "Igreja | Rincao",
     seoDescription:
-      "Veja a proposta do Estancia para igrejas, retiros e encontros religiosos com alimentacao e atividades em grupo.",
+      "Veja a proposta do Rincao para igrejas, retiros e encontros religiosos com alimentacao e atividades em grupo.",
     summary:
       "A pagina de Igreja do site atual apresenta alimentacao para grupos, atividades religiosas e de convivencia e CTA para orcamento e cadastro da igreja.",
     highlights: [
@@ -829,7 +829,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/photos/igreja.jpg",
-      alt: "Grupo de igreja reunido no Estancia",
+      alt: "Grupo de igreja reunido no Rincao",
     },
     sections: [
       {
@@ -862,9 +862,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/ongs",
     eyebrow: "Grupos",
     title: "ONGs",
-    seoTitle: "ONGs | Estancia",
+    seoTitle: "ONGs | Rincao",
     seoDescription:
-      "Conheca a proposta do Estancia para ONGs, com estrutura de lazer, alimentacao e atendimento consultivo para grupos.",
+      "Conheca a proposta do Rincao para ONGs, com estrutura de lazer, alimentacao e atendimento consultivo para grupos.",
     summary:
       "A pagina publica de ONGs segue uma estrutura semelhante a escola e enfatiza alimentacao, atividades e o CTA para cadastro e orcamento.",
     highlights: [
@@ -881,7 +881,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/photos/escola.jpg",
-      alt: "Grupo social aproveitando o Estancia",
+      alt: "Grupo social aproveitando o Rincao",
     },
     sections: [
       {
@@ -914,9 +914,9 @@ export const infoPages: Record<string, InfoPage> = {
     path: "/grupos-mistos",
     eyebrow: "Grupos",
     title: "Grupos Mistos",
-    seoTitle: "Grupos Mistos | Estancia",
+    seoTitle: "Grupos Mistos | Rincao",
     seoDescription:
-      "Atendimento para grupos mistos no Estancia, com programacao previa, day-use e servicos para experiencias em grupo.",
+      "Atendimento para grupos mistos no Rincao, com programacao previa, day-use e servicos para experiencias em grupo.",
     summary:
       "No site atual, grupos mistos compartilham a base de conteudo da pagina de melhor idade. No novo institucional, o segmento ganha identidade propria sem perder a proposta comercial original.",
     highlights: [
@@ -933,7 +933,7 @@ export const infoPages: Record<string, InfoPage> = {
     ],
     heroImage: {
       src: "/photos/confraternizacao.jpg",
-      alt: "Grupo misto em encontro no Estancia",
+      alt: "Grupo misto em encontro no Rincao",
     },
     sections: [
       {
@@ -954,9 +954,9 @@ export const infoPages: Record<string, InfoPage> = {
       },
     ],
     gallery: [
-      { src: "/photos/confraternizacao.jpg", alt: "Grupo misto no Estancia" },
+      { src: "/photos/confraternizacao.jpg", alt: "Grupo misto no Rincao" },
       { src: "/photos/melhor-idade.jpg", alt: "Programacao para grupos no clube" },
-      { src: "/photos/day-use.jpg", alt: "Area externa do Estancia" },
+      { src: "/photos/day-use.jpg", alt: "Area externa do Rincao" },
     ],
   },
 };

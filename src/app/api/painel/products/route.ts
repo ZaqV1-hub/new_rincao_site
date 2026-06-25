@@ -5,10 +5,10 @@ import type { B2cProduct } from "@/lib/b2c-catalog-defaults";
 import {
   makeContentId,
   normalizePrice,
-  readEstanciaContent,
+  readRincaoContent,
   saveUploadedSiteImage,
-  writeEstanciaContent,
-} from "@/lib/estancia-content-store";
+  writeRincaoContent,
+} from "@/lib/rincao-content-store";
 import { authenticateOperationsRequest } from "@/lib/ops-auth";
 
 export const runtime = "nodejs";
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const data = await readEstanciaContent();
+  const data = await readRincaoContent();
   const title = asText(formData.get("title"));
   const type = asText(formData.get("type")) === "addon" ? "addon" : "passport";
   const id = asText(formData.get("id")) || makeContentId(title);
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       data.products.length + 1,
   };
 
-  await writeEstanciaContent({
+  await writeRincaoContent({
     ...data,
     products: [...data.products.filter((item) => item.id !== id), product],
   });
@@ -107,8 +107,8 @@ export async function DELETE(request: Request) {
     return errorResponse("Produto não informado.");
   }
 
-  const data = await readEstanciaContent();
-  await writeEstanciaContent({
+  const data = await readRincaoContent();
+  await writeRincaoContent({
     ...data,
     products: data.products.filter((item) => item.id !== payload.id),
   });

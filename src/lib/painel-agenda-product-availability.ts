@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { getManagedB2cProducts } from "@/lib/estancia-content-store";
+import { getManagedB2cProducts } from "@/lib/rincao-content-store";
 
 export type PainelAgendaProductAvailability = {
   passportIds: string[];

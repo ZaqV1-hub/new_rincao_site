@@ -6,8 +6,8 @@ import { getPublicAgendaReservationById } from "@/lib/agenda-repository";
 import { requireAuthenticatedCustomer } from "@/lib/customer-area";
 
 export const metadata: Metadata = {
-  title: "Agendar Visita | Estancia",
-  description: "Reserva de visita com pagamento no parque no Estancia.",
+  title: "Agendar Visita | Rincao",
+  description: "Reserva de visita com pagamento no parque no Rincao.",
 };
 
 export const dynamic = "force-dynamic";

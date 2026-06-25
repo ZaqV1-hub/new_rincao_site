@@ -630,7 +630,7 @@ export function PainelBilheteriaWorkstation({
                         value={value}
                         onChange={(event) => setValue(event.target.value)}
                         placeholder={field?.placeholder || field?.label}
-                        className="estancia-field min-h-[56px] rounded-[6px] px-4 text-base"
+                        className="rincao-field min-h-[56px] rounded-[6px] px-4 text-base"
                       />
                       <button
                         type="submit"
@@ -760,7 +760,7 @@ export function PainelBilheteriaWorkstation({
                     setTicketWhatsappSuccess(null);
                   }}
                   placeholder="ID do Ingresso"
-                  className="estancia-field min-h-[42px] px-4 py-2.5 text-sm"
+                  className="rincao-field min-h-[42px] px-4 py-2.5 text-sm"
                 />
               </label>
 
@@ -801,7 +801,7 @@ export function PainelBilheteriaWorkstation({
                           value={ticketWhatsappPhone}
                           onChange={(event) => setTicketWhatsappPhone(event.target.value)}
                           placeholder="(DDD) 9xxxx-xxxx"
-                          className="estancia-field min-h-[42px] px-4 py-2.5 text-sm"
+                          className="rincao-field min-h-[42px] px-4 py-2.5 text-sm"
                         />
                       </label>
                       {ticketWhatsappError ? (

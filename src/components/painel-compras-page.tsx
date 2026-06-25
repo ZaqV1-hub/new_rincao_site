@@ -120,7 +120,7 @@ function renderSelect(
 ) {
   return (
     <select
-      className="estancia-field w-full rounded-[8px] px-3 py-2 text-sm"
+      className="rincao-field w-full rounded-[8px] px-3 py-2 text-sm"
       defaultValue={value ?? "-1"}
       name={name}
     >
@@ -217,7 +217,7 @@ export function PainelComprasPage({
           <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
             De
             <input
-              className="estancia-field rounded-[8px] px-3 py-2 text-sm"
+              className="rincao-field rounded-[8px] px-3 py-2 text-sm"
               defaultValue={toDateInputValue(result.filters.dateFrom ?? null)}
               name="dtcompra[de]"
               type="date"
@@ -226,7 +226,7 @@ export function PainelComprasPage({
           <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
             Ate
             <input
-              className="estancia-field rounded-[8px] px-3 py-2 text-sm"
+              className="rincao-field rounded-[8px] px-3 py-2 text-sm"
               defaultValue={toDateInputValue(result.filters.dateTo ?? null)}
               name="dtcompra[ate]"
               type="date"
@@ -235,7 +235,7 @@ export function PainelComprasPage({
           <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
             ID
             <input
-              className="estancia-field rounded-[8px] px-3 py-2 text-sm"
+              className="rincao-field rounded-[8px] px-3 py-2 text-sm"
               defaultValue={result.filters.purchaseId ?? ""}
               min={0}
               name="idcompra"
@@ -270,7 +270,7 @@ export function PainelComprasPage({
           <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
             CPF
             <input
-              className="estancia-field rounded-[8px] px-3 py-2 text-sm"
+              className="rincao-field rounded-[8px] px-3 py-2 text-sm"
               defaultValue={result.filters.cpf ?? ""}
               name="cpf"
               type="text"
@@ -279,7 +279,7 @@ export function PainelComprasPage({
           <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
             Usuario
             <input
-              className="estancia-field rounded-[8px] px-3 py-2 text-sm"
+              className="rincao-field rounded-[8px] px-3 py-2 text-sm"
               defaultValue={result.filters.userName ?? ""}
               name="nmusuario"
               type="text"
@@ -298,7 +298,7 @@ export function PainelComprasPage({
               </span>
             ) : null}
             <button
-              className="estancia-button inline-flex items-center justify-center rounded-[8px] px-4 py-2 text-sm"
+              className="rincao-button inline-flex items-center justify-center rounded-[8px] px-4 py-2 text-sm"
               type="submit"
             >
               Filtrar

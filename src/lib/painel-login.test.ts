@@ -30,7 +30,7 @@ describe("painel-login helpers", () => {
     expect(shouldBypassPainelRecaptcha("http://localhost:3000/api/painel/session")).toBe(
       true,
     );
-    expect(shouldBypassPainelRecaptcha("https://www.estancia.local/api/painel/session")).toBe(
+    expect(shouldBypassPainelRecaptcha("https://www.rincao.local/api/painel/session")).toBe(
       false,
     );
   });
@@ -51,7 +51,7 @@ describe("painel-login helpers", () => {
     expect(
       resolvePainelRecaptchaSiteKey(
         "site-key",
-        "https://www.estancia.local/painel/login",
+        "https://www.rincao.local/painel/login",
       ),
     ).toBe("site-key");
   });

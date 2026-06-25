@@ -1,6 +1,6 @@
 import { extname } from "path";
 import { NextResponse } from "next/server";
-import { readUploadedSiteImage } from "@/lib/estancia-content-store";
+import { readUploadedSiteImage } from "@/lib/rincao-content-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

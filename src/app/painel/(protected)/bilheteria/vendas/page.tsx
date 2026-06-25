@@ -1,7 +1,7 @@
 ﻿import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import { PainelBilheteriaSalesBuilder } from "@/components/painel-bilheteria-sales-builder";
-import { getManagedB2cProducts } from "@/lib/estancia-content-store";
+import { getManagedB2cProducts } from "@/lib/rincao-content-store";
 import { getPublicAgendaEvents } from "@/lib/agenda-repository";
 import { getAgendaProductAvailability } from "@/lib/painel-agenda-product-availability";
 import { requirePainelAccess } from "@/lib/painel-session";

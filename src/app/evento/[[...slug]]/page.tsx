@@ -22,9 +22,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   return {
-    title: "Eventos Legados - Estancia",
+    title: "Eventos Legados - Rincao",
     description:
-      "Arquivo das URLs legadas de eventos preservadas no novo institucional do Estancia.",
+      "Arquivo das URLs legadas de eventos preservadas no novo institucional do Rincao.",
     alternates: {
       canonical: requestedSlug ? `/evento/${requestedSlug}` : "/evento",
     },

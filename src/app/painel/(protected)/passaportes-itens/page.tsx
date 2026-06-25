@@ -1,6 +1,6 @@
 ﻿import type { Metadata } from "next";
 import { PainelProductsManager } from "@/components/painel-products-manager";
-import { readEstanciaContent } from "@/lib/estancia-content-store";
+import { readRincaoContent } from "@/lib/rincao-content-store";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PainelIngressosItensRoute() {
   await requirePainelAccess(["vis_agenda", "vis_tabpre"], "/painel/passaportes-itens");
-  const content = await readEstanciaContent();
+  const content = await readRincaoContent();
 
   return (
     <div className="space-y-3">

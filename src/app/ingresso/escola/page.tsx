@@ -4,7 +4,7 @@ import { SchoolPurchasePage } from "@/components/school-purchase-page";
 import { getAuthenticatedCustomer } from "@/lib/customer-area";
 import { resolveSchoolPurchasePresetFromPlink } from "@/lib/school-purchase-link";
 
-const title = "Passeio Estudantil - Compra Online - Estancia";
+const title = "Passeio Estudantil - Compra Online - Rincao";
 const description =
   "Entrada dedicada para o fluxo escolar, separada do cadastro institucional de escolas.";
 
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     title,
     description,
     url: "/ingresso/escola",
-    siteName: "Estancia",
+    siteName: "Rincao",
     type: "website",
   },
   twitter: {

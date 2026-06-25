@@ -93,7 +93,7 @@ describe("me/purchases BFF route", () => {
     });
   });
 
-  it("creates an online purchase from Estancia B2C cart line items", async () => {
+  it("creates an online purchase from Rincao B2C cart line items", async () => {
     createOnlinePurchase.mockResolvedValue({
       purchaseId: 655,
       legacyEncodedId: "NjU1",

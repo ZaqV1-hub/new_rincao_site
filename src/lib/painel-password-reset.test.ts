@@ -75,7 +75,7 @@ describe("painel-password-reset", () => {
       expect.objectContaining({
         to: "gestor@example.com",
         toName: "Gestor Teste",
-        subject: "Estancia - Recuperacao de Senha",
+        subject: "Rincao - Recuperacao de Senha",
         html: expect.stringContaining("/painel/login/trocar-senha/ticket/"),
       }),
     );

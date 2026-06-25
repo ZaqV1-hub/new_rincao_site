@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CustomerForgotPasswordPage } from "@/components/customer-password-reset-pages";
 
 export const metadata: Metadata = {
-  title: "Area do Cliente - Esqueci Minha Senha | Estancia",
+  title: "Area do Cliente - Esqueci Minha Senha | Rincao",
   robots: {
     index: false,
     follow: false,

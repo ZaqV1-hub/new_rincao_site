@@ -33,7 +33,7 @@ describe("ops/admin/schools/[schoolId]/trips route", () => {
       search: { query: "" },
       selectedSchool: {
         schoolId: 12,
-        name: "Escola Estancia",
+        name: "Escola Rincao",
         status: "ati",
         trips: [],
       },

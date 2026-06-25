@@ -1,9 +1,9 @@
-import { EstanciaHomePage } from "@/components/estancia-home-page";
+import { RincaoHomePage } from "@/components/rincao-home-page";
 import {
   getActiveAttractions,
   getActiveEvents,
   getActiveHomeImages,
-} from "@/lib/estancia-content-store";
+} from "@/lib/rincao-content-store";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export default async function Home() {
   ]);
 
   return (
-    <EstanciaHomePage
+    <RincaoHomePage
       heroImages={heroImages}
       attractions={attractions}
       events={events}

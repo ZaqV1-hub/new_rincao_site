@@ -1,6 +1,6 @@
 "use client";
 
-import { EstanciaLogo } from "@/components/estancia-logo";
+import { RincaoLogo } from "@/components/rincao-logo";
 import type { AuthUser } from "@/lib/auth-contracts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -75,7 +75,7 @@ export function IngressoShell({
             </button>
 
             <div className="lg:w-[240px]">
-              <EstanciaLogo
+              <RincaoLogo
                 href="/"
                 compact
                 className="h-[30px] max-w-[155px] sm:h-[36px] sm:max-w-[185px] lg:h-[46px] lg:max-w-[220px]"
@@ -128,7 +128,7 @@ export function IngressoShell({
       <header className="sticky top-0 z-40 border-b border-[rgba(35,73,63,0.08)] bg-white/95 shadow-[0_10px_30px_rgba(21,48,42,0.06)] backdrop-blur-md">
         <div className="mx-auto grid min-h-[74px] w-[min(1240px,calc(100%-24px))] grid-cols-1 gap-2 py-2 sm:w-[min(1240px,calc(100%-40px))] lg:min-h-[96px] lg:grid-cols-[220px_1fr_220px] lg:items-center lg:gap-3 lg:py-3">
           <div className="flex justify-center lg:justify-start">
-            <EstanciaLogo
+            <RincaoLogo
               href="/"
               compact
               className="h-[34px] max-w-[150px] sm:h-[42px] sm:max-w-[180px] lg:h-[62px] lg:max-w-[260px]"

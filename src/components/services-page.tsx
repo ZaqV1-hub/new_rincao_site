@@ -38,13 +38,13 @@ const services = [
 ];
 
 const gallery = [
-  { src: "/services/gallery-1.jpeg", alt: "Piscina do Estancia", className: "col-span-4 aspect-[16/8]" },
-  { src: "/services/gallery-2.jpg", alt: "Vista aérea do Estancia", className: "col-span-2 aspect-[16/10]" },
+  { src: "/services/gallery-1.jpeg", alt: "Piscina do Rincao", className: "col-span-4 aspect-[16/8]" },
+  { src: "/services/gallery-2.jpg", alt: "Vista aérea do Rincao", className: "col-span-2 aspect-[16/10]" },
   { src: "/services/gallery-3.jpeg", alt: "Estrutura de lazer do clube", className: "col-span-2 aspect-[16/10]" },
-  { src: "/services/gallery-4.jpg", alt: "Toboágua do Estancia", className: "col-span-2 aspect-[16/10]" },
+  { src: "/services/gallery-4.jpg", alt: "Toboágua do Rincao", className: "col-span-2 aspect-[16/10]" },
   { src: "/services/gallery-5.jpg", alt: "Família aproveitando a piscina", className: "col-span-1 aspect-square" },
   { src: "/services/gallery-6.jpg", alt: "Visitantes curtindo o parque", className: "col-span-1 aspect-square" },
-  { src: "/services/gallery-7.jpg", alt: "Área verde do Estancia", className: "col-span-2 aspect-[16/7]" },
+  { src: "/services/gallery-7.jpg", alt: "Área verde do Rincao", className: "col-span-2 aspect-[16/7]" },
 ];
 
 export function ServicesPage() {

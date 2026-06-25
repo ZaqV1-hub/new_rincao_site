@@ -19,7 +19,7 @@ function buildResetEmailHtml(input: {
 }) {
   return `
     <h2>Recuperacao de Senha</h2>
-    <p>Ola ${input.userName}, foi solicitada uma recuperacao de senha para acesso a area do cliente do Estancia.</p>
+    <p>Ola ${input.userName}, foi solicitada uma recuperacao de senha para acesso a area do cliente do Rincao.</p>
     <p>Seu ticket para mudanca de senha e: <strong>${input.ticket}</strong>.</p>
     <p>Para alterar sua senha, acesse: <a href="${input.resetUrl}">${input.resetUrl}</a></p>
   `;

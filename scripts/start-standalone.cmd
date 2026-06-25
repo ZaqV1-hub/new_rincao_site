@@ -11,7 +11,7 @@ if "%PORT%"=="" set "PORT=3002"
 if "%NODE_ENV%"=="" set "NODE_ENV=production"
 if "%HOSTNAME%"=="" set "HOSTNAME=127.0.0.1"
 
-set "ESTANCIA_SITE_STORAGE_ROOT=%CD%"
+set "RINCAO_SITE_STORAGE_ROOT=%CD%"
 
 echo Projeto: %CD%
 echo Porta: %PORT%

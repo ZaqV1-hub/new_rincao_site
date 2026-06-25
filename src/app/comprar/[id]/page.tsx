@@ -14,9 +14,9 @@ import { getAgendaProductAvailability } from "@/lib/painel-agenda-product-availa
 import { getPurchaseAgendaContext } from "@/lib/purchase-repository";
 
 export const metadata: Metadata = {
-  title: "Comprar Ingressos | Estancia",
+  title: "Comprar Ingressos | Rincao",
   description:
-    "Compra online de ingressos do Estancia com checkout seguro.",
+    "Compra online de ingressos do Rincao com checkout seguro.",
 };
 
 export const dynamic = "force-dynamic";

@@ -3,7 +3,7 @@
 import Image from "next/image";
 
 const paragraphs = [
-  "Somos um espaço de 84 mil metros quadrados focados no lazer e tranquilidade. Localizado a 10km do autódromo de Interlagos, o Estancia conta com 12 mil metros quadrados de área de reflorestamento totalmente evidenciada pela serenidade da natureza.",
+  "Somos um espaço de 84 mil metros quadrados focados no lazer e tranquilidade. Localizado a 10km do autódromo de Interlagos, o Rincao conta com 12 mil metros quadrados de área de reflorestamento totalmente evidenciada pela serenidade da natureza.",
   "O clube se destaca por sua excelência nos serviços prestados, estrutura de lazer oferecida aos seus visitantes e pelo tempo de atividade no ramo de eventos e entretenimento. São 14 anos de constante aprimoramento das nossas funções e profissionais.",
   "Por isso, temos uma equipe especializada e devidamente capacitada para cuidar de cada detalhe do seu evento, proporcionando um dia inesquecível para você, sua família e seus amigos.",
 ];
@@ -24,14 +24,14 @@ const team = [
 ];
 
 const closing = [
-  "Toda a qualidade na prestação de serviços aliada a um dos mais belos locais de contato com a natureza, faz com que o Estancia seja sua melhor opção para se divertir e relaxar.",
-  "Nós da família Estancia esperamos que todas as pessoas possam desfrutar de nossa qualidade o quanto antes.",
+  "Toda a qualidade na prestação de serviços aliada a um dos mais belos locais de contato com a natureza, faz com que o Rincao seja sua melhor opção para se divertir e relaxar.",
+  "Nós da família Rincao esperamos que todas as pessoas possam desfrutar de nossa qualidade o quanto antes.",
 ];
 
 const gallery = [
   {
     src: "/about/gallery-1.jpeg",
-    alt: "Piscina de ondas do Estancia",
+    alt: "Piscina de ondas do Rincao",
     className: "col-span-4 aspect-[16/8] md:aspect-[16/7]",
   },
   {
@@ -46,7 +46,7 @@ const gallery = [
   },
   {
     src: "/about/gallery-4.jpg",
-    alt: "Toboágua do Estancia",
+    alt: "Toboágua do Rincao",
     className: "col-span-2 aspect-[16/10]",
   },
   {
@@ -61,7 +61,7 @@ const gallery = [
   },
   {
     src: "/about/gallery-7.jpg",
-    alt: "Estrutura verde do Estancia",
+    alt: "Estrutura verde do Rincao",
     className: "col-span-2 aspect-[16/7]",
   },
 ];
