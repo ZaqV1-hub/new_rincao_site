@@ -299,6 +299,21 @@ async function hasColumn(client: PoolClient, tableName: string, columnName: stri
   return Boolean(result.rows[0]?.exists);
 }
 
+async function agendaExtrasRequireManualId(client: PoolClient) {
+  return hasColumn(client, "agenda_extras", "idextra");
+}
+
+async function getNextAgendaExtraId(client: PoolClient) {
+  const result = await client.query<{ next_id: string | number | null }>(
+    `
+      SELECT COALESCE(MAX(idextra), 0) + 1 AS next_id
+      FROM agenda_extras
+    `,
+  );
+
+  return Number(result.rows[0]?.next_id ?? 1);
+}
+
 async function buildAgendaCreatePayload(client: PoolClient, clientId: number) {
   const [latestClientAgenda, latestSystemAgenda] = await Promise.all([
     client.query<{
@@ -423,6 +438,27 @@ async function ensureAgendaExtrasBinding(
           AND idcliente = $2
       `,
       [agendaId, clientId],
+    );
+    return;
+  }
+
+  if (await agendaExtrasRequireManualId(client)) {
+    const nextId = await getNextAgendaExtraId(client);
+
+    await client.query(
+      `
+        INSERT INTO agenda_extras (
+          idagenda,
+          idcliente,
+          aceita_familia,
+          slug,
+          foto,
+          criado_em,
+          atualizado_em,
+          idextra
+        ) VALUES ($1, $2, $3, $4, NULL, NOW(), NOW(), $5)
+      `,
+      [agendaId, clientId, false, randomUUID().replaceAll("-", ""), nextId],
     );
     return;
   }

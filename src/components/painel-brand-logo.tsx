@@ -1,0 +1,46 @@
+import Image from "next/image";
+import Link from "next/link";
+
+type PainelBrandLogoProps = {
+  href?: string | null;
+  className?: string;
+  compact?: boolean;
+  light?: boolean;
+  stacked?: boolean;
+};
+
+export function PainelBrandLogo({
+  href = "/painel",
+  className = "",
+  compact = false,
+  stacked = false,
+}: PainelBrandLogoProps) {
+  const width = stacked ? 160 : compact ? 220 : 320;
+  const height = stacked ? 160 : compact ? 72 : 104;
+  const classes = `inline-flex items-center ${className}`.trim();
+  const image = (
+    <Image
+      src="/brand/rincao-logo.png"
+      alt="Clube de Campo Rincao"
+      width={width}
+      height={height}
+      priority={compact}
+      className="h-auto max-w-full object-contain"
+      style={{ width: "auto", height: "auto" }}
+    />
+  );
+
+  if (!href) {
+    return (
+      <span className={classes} aria-label="Clube de Campo Rincao">
+        {image}
+      </span>
+    );
+  }
+
+  return (
+    <Link href={href} className={classes} aria-label="Clube de Campo Rincao">
+      {image}
+    </Link>
+  );
+}

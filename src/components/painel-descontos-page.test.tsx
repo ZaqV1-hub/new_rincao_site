@@ -38,8 +38,8 @@ describe("PainelDescontosPage", () => {
     );
 
     expect(html).toContain("Descontos");
-    expect(html).toContain("Adicionar Desconto");
-    expect(html).toContain("Lista de Categorias");
+    expect(html).toContain("Novo desconto");
+    expect(html).toContain("Categorias");
     expect(html).toContain("Desconto X");
   });
 });

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PainelAgendaEditor } from "@/components/painel-agenda-editor";
@@ -7,7 +7,7 @@ import { getPainelAgendaScreenData } from "@/lib/painel-agenda";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Agenda - Adicionar | Estancia",
+  title: "Painel - Agenda - Adicionar | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -74,3 +74,4 @@ export default async function PainelAgendaAddPage({
     </div>
   );
 }
+

@@ -48,19 +48,17 @@ describe("PainelComprasPage", () => {
       }),
     );
 
-    expect(html).toContain("Lista de compras / reservas");
-    expect(html).toContain("Forma Pag.");
+    expect(html).toContain("Lista de compras e reservas");
+    expect(html).toContain("Forma de pgto");
     expect(html).toContain("Pagamento");
-    expect(html).toContain(">Compra<");
-    expect(html).toContain("Remover Filtros");
+    expect(html).toContain(">Bilheteria<");
+    expect(html).toContain("Limpar filtros");
     expect(html).toContain("Filtrar");
     expect(html).toContain("Bilheteria");
     expect(html).toContain("DEV");
     expect(html).toContain("/ingresso/painel/usuario-site/detalhe/cpf/MTIzNDU2Nzg5MDE=");
-    expect(html).toContain("Lista de vouchers");
-    expect(html).toContain("Disponivel na proxima fase da migracao.");
-    expect(html).toContain("Atualizar compras");
-    expect(html).toContain("Acao liberada junto da fase de sincronizacao.");
+    expect(html).toContain("Exportar");
+    expect(html).toContain("Atualizacao manual em fase futura");
   });
 
   it("nao renderiza remover filtros quando nao ha filtros ativos", () => {
@@ -92,8 +90,8 @@ describe("PainelComprasPage", () => {
     );
 
     expect(html).toContain("Nenhuma compra encontrada.");
-    expect(html).not.toContain("Remover Filtros");
-    expect(html).toContain("Lista de vouchers");
-    expect(html).not.toContain("Atualizar compras");
+    expect(html).not.toContain("Limpar filtros");
+    expect(html).toContain("Lista de compras e reservas");
+    expect(html).toContain("Exportar");
   });
 });

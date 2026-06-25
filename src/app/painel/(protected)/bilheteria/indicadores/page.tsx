@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import { getPainelBilheteriaIndicators } from "@/lib/painel-bilheteria";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Indicadores da Bilheteria | Estancia",
+  title: "Painel - Indicadores da Bilheteria | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -116,3 +116,4 @@ export default async function PainelBilheteriaIndicadoresPage({
     </div>
   );
 }
+

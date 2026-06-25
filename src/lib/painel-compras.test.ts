@@ -420,6 +420,7 @@ describe("listPainelPurchases", () => {
         purchaseId: "551",
         type: null,
         purchaseStatus: null,
+        paymentMethod: null,
         ticketPaymentMethod: "pix",
         gatewayPaymentMethod: null,
         gatewayStatus: null,

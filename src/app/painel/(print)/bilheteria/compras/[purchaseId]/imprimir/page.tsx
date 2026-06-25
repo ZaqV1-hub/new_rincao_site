@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PainelBilheteriaPurchasePrintView } from "@/components/painel-bilheteria-purchase-print-view";
 import {
@@ -10,7 +10,7 @@ import { requirePainelAccess } from "@/lib/painel-session";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Painel - Impressao QR da compra | Estancia",
+  title: "Painel - Impressao QR da compra | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -71,3 +71,4 @@ export default async function PainelBilheteriaPurchasePrintPage({
 
   return <PainelBilheteriaPurchasePrintView model={model} />;
 }
+

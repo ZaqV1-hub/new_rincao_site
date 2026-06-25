@@ -20,13 +20,13 @@ function resolveSkippedWhatsappMessage(skippedReason?: string) {
     case "phone_not_allowed_for_testing":
       return "Numero nao autorizado para este ambiente.";
     case "invalid_phone_number":
-      return "Informe telefone com DDD para enviar os passaportes.";
+      return "Informe telefone com DDD para enviar os ingressos.";
     case "no_selected_vouchers":
       return "Nenhum voucher elegivel foi selecionado para envio por WhatsApp.";
     case "purchase_not_confirmed":
       return "A compra ainda nao esta confirmada para envio por WhatsApp.";
     default:
-      return "Nao foi possivel enviar os passaportes selecionados por WhatsApp.";
+      return "Nao foi possivel enviar os ingressos selecionados por WhatsApp.";
   }
 }
 
@@ -48,14 +48,14 @@ function asWhatsappRouteError(error: unknown) {
   if (error instanceof Error) {
     return {
       code: "painel_bilheteria_whatsapp_failed",
-      message: error.message || "Nao foi possivel enviar os passaportes por WhatsApp.",
+      message: error.message || "Nao foi possivel enviar os ingressos por WhatsApp.",
       status: 502,
     };
   }
 
   return {
     code: "painel_bilheteria_whatsapp_failed",
-    message: "Nao foi possivel enviar os passaportes por WhatsApp.",
+    message: "Nao foi possivel enviar os ingressos por WhatsApp.",
     status: 502,
   };
 }
@@ -96,7 +96,7 @@ export async function POST(
       return {
         purchaseId: result.purchaseId,
         sentVoucherIds: result.sentVoucherIds,
-        message: "Passaportes enviados por WhatsApp com sucesso.",
+        message: "Ingressos enviados por WhatsApp com sucesso.",
       };
     },
     mapError: asWhatsappRouteError,

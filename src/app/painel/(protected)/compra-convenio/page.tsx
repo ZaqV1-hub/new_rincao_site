@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelCompraConvenioPage } from "@/components/painel-compra-convenio-page";
 import { listPainelCompraConvenio } from "@/lib/painel-compra-convenio";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Compra Convenio | Estancia",
+  title: "Painel - Compra Convenio | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -27,3 +27,4 @@ export default async function PainelCompraConvenioPageRoute({
 
   return <PainelCompraConvenioPage result={result} />;
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -310,8 +310,8 @@ export function PainelAgendaEditor({
         </h2>
         <p className="mt-2 text-sm text-[#5f7564]">
           {mode === "create"
-            ? "Configure a data, os passaportes e os itens disponíveis."
-            : "Atualize a data, os passaportes e os itens disponíveis."}
+            ? "Configure a data, os ingressos e os itens disponíveis."
+            : "Atualize a data, os ingressos e os itens disponíveis."}
         </p>
         {mode === "create" ? (
           <p className="mt-2 text-sm text-[#5f7564]">
@@ -403,9 +403,9 @@ export function PainelAgendaEditor({
         <section className="grid gap-3 rounded-[8px] border border-[#dbe7d7] bg-white p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="panel-eyebrow">Passaportes</p>
+              <p className="panel-eyebrow">Ingressos</p>
               <h3 className="mt-1 text-lg font-black text-[#17351f]">
-                Seleção de passaportes
+                Seleção de ingressos
               </h3>
             </div>
             <button
@@ -413,7 +413,7 @@ export function PainelAgendaEditor({
               onClick={() => router.push("/painel/passaportes-itens")}
               className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-xs font-semibold text-[#17351f]"
             >
-              Adicionar passaporte
+              Gerenciar ingressos
             </button>
           </div>
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
@@ -582,3 +582,4 @@ export function PainelAgendaEditor({
     </section>
   );
 }
+

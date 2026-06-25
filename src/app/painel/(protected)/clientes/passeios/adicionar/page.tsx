@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelClientTripEditor } from "@/components/painel-client-trip-editor";
 import { getOpsClientTripCreateScreenData } from "@/lib/ops-client-trips";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Vincular Passeio | Estancia",
+  title: "Painel - Vincular Passeio | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -40,3 +40,4 @@ export default async function PainelClientesPasseiosAdicionarPage({
     />
   );
 }
+

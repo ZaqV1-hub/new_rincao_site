@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelDescontoFormPage } from "@/components/painel-desconto-form-page";
 import { listPainelDiscountTypeOptions } from "@/lib/painel-descontos";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Novo Desconto | Estancia",
+  title: "Painel - Novo Desconto | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -19,3 +19,4 @@ export default async function PainelNovoDescontoPageRoute() {
     />
   );
 }
+

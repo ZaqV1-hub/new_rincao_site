@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelDescontosPage } from "@/components/painel-descontos-page";
 import { listPainelDiscounts } from "@/lib/painel-descontos";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Descontos | Estancia",
+  title: "Painel - Descontos | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -20,3 +20,4 @@ export default async function PainelDescontosPageRoute({
   });
   return <PainelDescontosPage data={data} />;
 }
+

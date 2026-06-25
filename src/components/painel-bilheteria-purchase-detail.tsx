@@ -423,7 +423,7 @@ export function PainelBilheteriaPurchaseDetail({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#5d7282]">
-                  Passaportes
+                  Ingressos
                 </p>
                 <h3 className="mt-2 text-xl font-semibold text-[#205a7f]">
                   Itens vinculados
@@ -441,7 +441,7 @@ export function PainelBilheteriaPurchaseDetail({
                     <th className="px-4 py-3">ID</th>
                     <th className="px-4 py-3">Voucher</th>
                     <th className="px-4 py-3">Data da visita</th>
-                    <th className="px-4 py-3">Passaporte</th>
+                    <th className="px-4 py-3">Ingresso</th>
                     <th className="px-4 py-3 text-right">Valor</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3 text-right">Acao</th>

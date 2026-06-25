@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { EstanciaLogo } from "@/components/estancia-logo";
+import { PainelBrandLogo } from "@/components/painel-brand-logo";
 import type { PainelBilheteriaVoucherPrintModel } from "@/lib/painel-bilheteria";
 import {
   formatPainelBilheteriaCpf,
@@ -38,7 +38,7 @@ function PainelBilheteriaPrintTicketItem({
     <article className="overflow-hidden rounded-[18px] border border-[#d7e3d2] bg-white shadow-[0_10px_28px_rgba(24,67,34,0.1)] print:border-0 print:shadow-none">
       <div className="border-b border-[#dbe7d7] bg-[linear-gradient(135deg,#1f6b36,#7bc043)] px-4 py-4 text-center">
         <div className="flex justify-center">
-          <EstanciaLogo href={null} compact light className="scale-[0.82]" />
+          <PainelBrandLogo href={null} compact light className="scale-[0.82]" />
         </div>
         <div className="mt-3 inline-flex rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#2b8c46]">
           Voucher

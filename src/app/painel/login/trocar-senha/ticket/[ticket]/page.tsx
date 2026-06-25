@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelResetPasswordPage } from "@/components/painel-password-reset-pages";
 import { getPainelPasswordResetTicket } from "@/lib/painel-password-reset";
 
 export const metadata: Metadata = {
-  title: "Painel - Trocar Senha | Estancia",
+  title: "Painel - Trocar Senha | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -24,3 +24,4 @@ export default async function PainelResetPasswordRoute({ params }: PageProps) {
     <PainelResetPasswordPage ticket={ticket} initialValid={status.valid} />
   );
 }
+

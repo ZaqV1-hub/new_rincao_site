@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import {
   loadPainelBilheteriaPurchaseDetailFromParams,
@@ -7,7 +7,7 @@ import {
 } from "@/lib/painel-bilheteria-page";
 
 export const metadata: Metadata = {
-  title: "Painel - Detalhe de Venda | Estancia",
+  title: "Painel - Detalhe de Venda | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -47,3 +47,4 @@ export default async function PainelBilheteriaHistoricoDetailPage({
 
   redirect(`/painel/bilheteria/historico?${nextParams.toString()}`);
 }
+

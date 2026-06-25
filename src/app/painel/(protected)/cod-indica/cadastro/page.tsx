@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelCodIndicaFormPage } from "@/components/painel-cod-indica-form-page";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Cadastro Cod Indica | Estancia",
+  title: "Painel - Cadastro Cod Indica | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -25,3 +25,4 @@ export default async function PainelCodIndicaCreatePageRoute() {
     />
   );
 }
+

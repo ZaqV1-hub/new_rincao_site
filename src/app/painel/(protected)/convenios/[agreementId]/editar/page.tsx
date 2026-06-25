@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelConvenioFormPage } from "@/components/painel-convenio-form-page";
 import {
   getPainelConvenioDetail,
@@ -7,7 +7,7 @@ import {
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Editar Convenio | Estancia",
+  title: "Painel - Editar Convenio | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -54,3 +54,4 @@ export default async function PainelConvenioEditPageRoute({
     />
   );
 }
+

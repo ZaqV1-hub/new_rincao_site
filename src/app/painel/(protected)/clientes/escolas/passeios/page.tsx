@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelClientesNav } from "@/components/painel-clientes-nav";
 import { PainelSchoolTripsManager } from "@/components/painel-school-trips-manager";
 import { getOpsSchoolTripsScreenData } from "@/lib/ops-school-trips";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Passeios Escolares | Estancia",
+  title: "Painel - Passeios Escolares | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -55,3 +55,4 @@ export default async function PainelClientesEscolasPasseiosPage({
     </div>
   );
 }
+

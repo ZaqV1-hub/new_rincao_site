@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
@@ -143,7 +143,7 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
         <PainelAdminBreadcrumb
           items={[
             { href: "/painel", label: "Home" },
-            { href: "/painel/administrativo", label: "Administrativo" },
+            { href: "/painel/administrativo", label: "Acessos" },
             { label: "Socios" },
           ]}
         />
@@ -375,3 +375,4 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
     </div>
   );
 }
+

@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelClientesPage } from "@/components/painel-clientes-page";
 import { listPainelClientes } from "@/lib/painel-clientes";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Clientes | Estancia",
+  title: "Painel - Clientes | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -24,3 +24,4 @@ export default async function PainelClientesPageRoute({
 
   return <PainelClientesPage data={data} />;
 }
+

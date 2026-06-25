@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelSocioFormPage } from "@/components/painel-socio-form-page";
 import { getPainelSocioFormContext } from "@/lib/painel-socios";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Adicionar Socio | Estancia",
+  title: "Painel - Adicionar Socio | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -22,3 +22,4 @@ export default async function PainelSocioCreatePageRoute() {
     />
   );
 }
+

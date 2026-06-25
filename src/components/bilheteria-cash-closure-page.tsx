@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
@@ -300,7 +300,7 @@ export function BilheteriaCashClosurePage({
           <div className="grid gap-6 xl:grid-cols-2">
             <article className="rounded-[6px] border border-[#d8e3ef] bg-white shadow-[0_10px_22px_rgba(29,70,109,0.06)]">
               <div className="border-b border-[#d8e3ef] bg-[linear-gradient(180deg,#fff_0%,#f1f7fc_100%)] px-4 py-4 text-lg font-bold text-[#224b71]">
-                Passaportes validados: {report.kpis.people.siteValidatedCount}
+                Ingressos validados: {report.kpis.people.siteValidatedCount}
                 <span className="ml-2 inline-flex rounded-full border border-[#bed6eb] bg-[#f4faff] px-3 py-1 text-xs font-bold uppercase tracking-[0.04em] text-[#335f82]">
                   SITE
                 </span>
@@ -309,7 +309,7 @@ export function BilheteriaCashClosurePage({
                 <table className="min-w-full border-collapse text-sm">
                   <thead className="bg-[#5f84a3] text-left text-white">
                     <tr>
-                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Passaporte</th>
+                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ingresso</th>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Quantidade</th>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor total</th>
                     </tr>
@@ -328,7 +328,7 @@ export function BilheteriaCashClosurePage({
                     ) : (
                       <tr>
                         <td className="px-4 py-5 text-center text-[#5f7387]" colSpan={3}>
-                          - Nenhum passaporte validado -
+                          - Nenhum ingresso validado -
                         </td>
                       </tr>
                     )}
@@ -346,7 +346,7 @@ export function BilheteriaCashClosurePage({
 
             <article className="rounded-[6px] border border-[#d8e3ef] bg-white shadow-[0_10px_22px_rgba(29,70,109,0.06)]">
               <div className="border-b border-[#d8e3ef] bg-[linear-gradient(180deg,#fff_0%,#f1f7fc_100%)] px-4 py-4 text-lg font-bold text-[#224b71]">
-                Passaportes vendidos: {report.boxOfficeCount}
+                Ingressos vendidos: {report.boxOfficeCount}
                 <span className="ml-2 inline-flex rounded-full border border-[#bed6eb] bg-[#f4faff] px-3 py-1 text-xs font-bold uppercase tracking-[0.04em] text-[#335f82]">
                   BILHETERIA
                 </span>
@@ -355,7 +355,7 @@ export function BilheteriaCashClosurePage({
                 <table className="min-w-full border-collapse text-sm">
                   <thead className="bg-[#5f84a3] text-left text-white">
                     <tr>
-                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Passaporte</th>
+                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ingresso</th>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Quantidade</th>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor total</th>
                     </tr>
@@ -374,7 +374,7 @@ export function BilheteriaCashClosurePage({
                     ) : (
                       <tr>
                         <td className="px-4 py-5 text-center text-[#5f7387]" colSpan={3}>
-                          - Nenhum passaporte vendido -
+                          - Nenhum ingresso vendido -
                         </td>
                       </tr>
                     )}
@@ -502,7 +502,7 @@ export function BilheteriaCashClosurePage({
           <div className="grid gap-6 xl:grid-cols-2">
             <article className="rounded-[6px] border border-[#d8e3ef] bg-white shadow-[0_10px_22px_rgba(29,70,109,0.06)]">
               <div className="border-b border-[#d8e3ef] bg-[linear-gradient(180deg,#fff_0%,#f1f7fc_100%)] px-4 py-4 text-lg font-bold text-[#224b71]">
-                Passaportes validados: {report.kpis.people.siteValidatedCount}
+                Ingressos validados: {report.kpis.people.siteValidatedCount}
                 <span className="ml-2 inline-flex rounded-full border border-[#bed6eb] bg-[#f4faff] px-3 py-1 text-xs font-bold uppercase tracking-[0.04em] text-[#335f82]">
                   SITE
                 </span>
@@ -511,7 +511,7 @@ export function BilheteriaCashClosurePage({
                 <table className="min-w-full border-collapse text-sm">
                   <thead className="bg-[#5f84a3] text-left text-white">
                     <tr>
-                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Passaporte</th>
+                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ingresso</th>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Quantidade</th>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor total</th>
                     </tr>
@@ -530,7 +530,7 @@ export function BilheteriaCashClosurePage({
                     ) : (
                       <tr>
                         <td className="px-4 py-5 text-center text-[#5f7387]" colSpan={3}>
-                          - Nenhum passaporte validado -
+                          - Nenhum ingresso validado -
                         </td>
                       </tr>
                     )}
@@ -548,7 +548,7 @@ export function BilheteriaCashClosurePage({
 
             <article className="rounded-[6px] border border-[#d8e3ef] bg-white shadow-[0_10px_22px_rgba(29,70,109,0.06)]">
               <div className="border-b border-[#d8e3ef] bg-[linear-gradient(180deg,#fff_0%,#f1f7fc_100%)] px-4 py-4 text-lg font-bold text-[#224b71]">
-                Passaportes vendidos: {report.boxOfficeBaseCount}
+                Ingressos vendidos: {report.boxOfficeBaseCount}
                 <span className="ml-2 inline-flex rounded-full border border-[#bed6eb] bg-[#f4faff] px-3 py-1 text-xs font-bold uppercase tracking-[0.04em] text-[#335f82]">
                   BILHETERIA
                 </span>
@@ -557,7 +557,7 @@ export function BilheteriaCashClosurePage({
                 <table className="min-w-full border-collapse text-sm">
                   <thead className="bg-[#5f84a3] text-left text-white">
                     <tr>
-                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Passaporte</th>
+                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ingresso</th>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Quantidade</th>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor total</th>
                     </tr>
@@ -576,7 +576,7 @@ export function BilheteriaCashClosurePage({
                     ) : (
                       <tr>
                         <td className="px-4 py-5 text-center text-[#5f7387]" colSpan={3}>
-                          - Nenhum passaporte vendido -
+                          - Nenhum ingresso vendido -
                         </td>
                       </tr>
                     )}
@@ -633,7 +633,7 @@ export function BilheteriaCashClosurePage({
                 className="rounded-[6px] border border-[#d8e3ef] bg-white shadow-[0_10px_22px_rgba(29,70,109,0.06)]"
               >
                 <div className="border-b border-[#d8e3ef] bg-[linear-gradient(180deg,#fff_0%,#f1f7fc_100%)] px-4 py-4 text-lg font-bold text-[#224b71]">
-                  Passaportes vendidos: {panel.quantity}
+                  Ingressos vendidos: {panel.quantity}
                   <span className="ml-2 inline-flex rounded-full border border-[#bed6eb] bg-[#f4faff] px-3 py-1 text-xs font-bold uppercase tracking-[0.04em] text-[#335f82]">
                     {panel.label}
                   </span>
@@ -642,7 +642,7 @@ export function BilheteriaCashClosurePage({
                   <table className="min-w-full border-collapse text-sm">
                     <thead className="bg-[#5f84a3] text-left text-white">
                       <tr>
-                        <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Passaporte</th>
+                        <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ingresso</th>
                         <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Quantidade</th>
                         <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor total</th>
                       </tr>
@@ -759,3 +759,5 @@ export function BilheteriaCashClosurePage({
     </div>
   );
 }
+
+

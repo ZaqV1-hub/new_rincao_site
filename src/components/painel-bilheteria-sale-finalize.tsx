@@ -242,13 +242,13 @@ export function PainelBilheteriaSaleFinalize() {
       if (!response.ok || !payload?.ok) {
         setWhatsMessage(
           payload?.error?.message ||
-            "Nao foi possivel enviar os passaportes por WhatsApp.",
+            "Nao foi possivel enviar os ingressos por WhatsApp.",
         );
         return;
       }
 
       setWhatsMessage(
-        payload.data?.message || "Passaportes enviados por WhatsApp com sucesso.",
+        payload.data?.message || "Ingressos enviados por WhatsApp com sucesso.",
       );
     } finally {
       setWhatsSubmitting(false);
@@ -475,7 +475,7 @@ export function PainelBilheteriaSaleFinalize() {
           <div className="w-full max-w-md rounded-[18px] bg-white p-5 shadow-[0_24px_60px_rgba(16,45,70,0.24)]">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-lg font-black text-[#17351f]">
-                Enviar passaportes por WhatsApp
+                Enviar ingressos por WhatsApp
               </h3>
               <button
                 type="button"

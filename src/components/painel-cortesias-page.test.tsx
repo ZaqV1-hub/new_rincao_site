@@ -25,8 +25,8 @@ describe("PainelCortesiasPage", () => {
       }),
     );
 
-    expect(html).toContain("Cortesias | Autorizadores");
-    expect(html).toContain("Lista de autorizadores");
+    expect(html).toContain("Cortesias");
+    expect(html).toContain("Autorizadores");
     expect(html).toContain("Novo autorizador");
     expect(html).toContain("Diretoria");
   });

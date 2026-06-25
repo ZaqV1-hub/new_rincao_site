@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import {
@@ -9,7 +9,7 @@ import { listPainelBilheteriaHistory } from "@/lib/painel-bilheteria";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Reservas | Estancia",
+  title: "Painel - Reservas | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -115,3 +115,4 @@ export default async function PainelBilheteriaReservasPage({
     </div>
   );
 }
+

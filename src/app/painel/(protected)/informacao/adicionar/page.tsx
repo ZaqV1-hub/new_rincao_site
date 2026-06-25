@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelInformacaoFormPage } from "@/components/painel-informacao-form-page";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Adicionar Informacao | Estancia",
+  title: "Painel - Adicionar Informacao | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -20,3 +20,4 @@ export default async function PainelAdicionarInformacaoPage() {
     />
   );
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
@@ -64,7 +64,7 @@ export function PainelUsuarioSiteDetailPage({
         <PainelAdminBreadcrumb
           items={[
             { href: "/painel", label: "Home" },
-            { href: "/painel/administrativo", label: "Administrativo" },
+            { href: "/painel/administrativo", label: "Acessos" },
             { href: "/painel/usuario-site", label: "Usuario Site" },
             { label: data.name },
           ]}
@@ -219,3 +219,4 @@ export function PainelUsuarioSiteDetailPage({
     </div>
   );
 }
+

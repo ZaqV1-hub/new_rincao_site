@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+﻿import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { PainelClientTripDetailPage } from "@/components/painel-client-trip-detail-page";
 import {
@@ -8,7 +8,7 @@ import {
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Alunos do Passeio | Estancia",
+  title: "Painel - Alunos do Passeio | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -74,3 +74,4 @@ export default async function PainelClientesPasseiosAlunosPage({
     />
   );
 }
+

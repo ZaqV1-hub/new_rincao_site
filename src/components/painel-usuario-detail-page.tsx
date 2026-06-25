@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { PainelAdminBreadcrumb } from "@/components/painel-admin-breadcrumb";
 import { PainelAdminSidebar } from "@/components/painel-admin-sidebar";
 import type { PainelUsuarioItem } from "@/lib/painel-usuarios";
@@ -20,7 +20,7 @@ export function PainelUsuarioDetailPage({
         <PainelAdminBreadcrumb
           items={[
             { href: "/painel", label: "Home" },
-            { href: "/painel/administrativo", label: "Administrativo" },
+            { href: "/painel/administrativo", label: "Acessos" },
             { href: "/painel/usuario", label: "Usuarios" },
             { label: data.name },
           ]}
@@ -81,3 +81,4 @@ export function PainelUsuarioDetailPage({
     </div>
   );
 }
+

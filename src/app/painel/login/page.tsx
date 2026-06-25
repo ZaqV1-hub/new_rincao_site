@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { PainelLoginPage } from "@/components/painel-login-page";
@@ -15,8 +15,8 @@ import {
 import { getRecaptchaSiteKey } from "@/lib/recaptcha";
 
 export const metadata: Metadata = {
-  title: "Painel - Entrar | Estancia",
-  description: "Entrada do novo painel interno operacional do Estancia.",
+  title: "Painel - Entrar | Rincao",
+  description: "Entrada do novo painel interno operacional do Rincao.",
   robots: {
     index: false,
     follow: false,
@@ -72,3 +72,4 @@ export default async function PainelLoginRoute({
     />
   );
 }
+

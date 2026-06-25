@@ -396,7 +396,7 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
                   <span className="font-semibold">Status:</span> {selectedAgenda.statusLabel}
                 </div>
                 <div>
-                  <span className="font-semibold">Passaportes vendidos:</span>{" "}
+                  <span className="font-semibold">Ingressos vendidos:</span>{" "}
                   {selectedVoucherCount}
                 </div>
               </div>

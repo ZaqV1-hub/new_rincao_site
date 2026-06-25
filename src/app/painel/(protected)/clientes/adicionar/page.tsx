@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelClienteFormPage } from "@/components/painel-cliente-form-page";
 import { listClientTypes } from "@/lib/ops-client-education";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Adicionar Cliente | Estancia",
+  title: "Painel - Adicionar Cliente | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -17,3 +17,4 @@ export default async function PainelClientesAdicionarPage() {
 
   return <PainelClienteFormPage mode="create" typeOptions={typeOptions} />;
 }
+

@@ -10,15 +10,15 @@ export type PainelAdminModule = {
 export const painelAdminModules: PainelAdminModule[] = [
   {
     href: "/painel/usuario",
-    label: "Usuários",
+    label: "Usuarios internos",
     description:
-      "Usuários internos do painel, perfis de acesso e senha da conta operacional.",
+      "Gerencie perfis de acesso, permissoes e senha da conta operacional.",
     resources: ["vis_usu"],
   },
   {
     href: "/painel/usuario-site",
-    label: "Usuários do site",
-    description: "Contas de clientes do site e dados de acesso à área do cliente.",
+    label: "Usuarios do site",
+    description: "Gerencie contas de clientes e dados de acesso da area do cliente.",
     resources: ["vis_situsu"],
   },
 ];

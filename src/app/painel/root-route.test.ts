@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,7 +51,7 @@ describe("/painel root route", () => {
     expect(loadPainelHomePageData).toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
     expect(html).toContain("Visao geral");
-    expect(html).toContain("Valor arrecadado no dia");
+    expect(html).toContain("Resumo financeiro do dia");
   });
 
   it("redirects box office users directly to the bilheteria module", async () => {
@@ -72,3 +72,4 @@ describe("/painel root route", () => {
     expect(loadPainelHomePageData).not.toHaveBeenCalled();
   });
 });
+

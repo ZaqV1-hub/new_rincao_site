@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelSocioDetailPage } from "@/components/painel-socio-detail-page";
 import { getPainelSocio } from "@/lib/painel-socios";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Detalhe Socio | Estancia",
+  title: "Painel - Detalhe Socio | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -21,3 +21,4 @@ export default async function PainelSocioDetailPageRoute({
 
   return <PainelSocioDetailPage data={data} legacyResources={session.legacyResources} />;
 }
+

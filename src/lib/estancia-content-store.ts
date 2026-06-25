@@ -381,25 +381,90 @@ function hasNormalizedDifference(
   }
 }
 
+function resolveSiteContentDialect() {
+  const explicit =
+    process.env.INGRESSO_DB_CLIENT ?? process.env.INGRESSO_DB_DIALECT ?? "";
+  const normalized = explicit.trim().toLowerCase();
+
+  if (normalized === "mysql") {
+    return "mysql";
+  }
+
+  if (normalized === "postgres" || normalized === "pg") {
+    return "postgres";
+  }
+
+  if (process.env.INGRESSO_DATABASE_URL) {
+    return "postgres";
+  }
+
+  if (
+    process.env.WP_DB_HOST ||
+    process.env.GROUP_REGISTRATION_MYSQL_HOST ||
+    process.env.INGRESSO_DB_HOST?.toLowerCase().includes("mysql")
+  ) {
+    return "mysql";
+  }
+
+  return "postgres";
+}
+
+function getSiteContentTableName() {
+  return resolveSiteContentDialect() === "mysql"
+    ? "estancia_site_content"
+    : "public.estancia_site_content";
+}
+
 async function persistEstanciaContent(data: EstanciaContentData) {
   const pool = getIngressoDbPool();
+  const tableName = getSiteContentTableName();
+  const jsonValue = JSON.stringify(data);
+
+  if (resolveSiteContentDialect() === "mysql") {
+    await pool.query(
+      `
+        INSERT INTO ${tableName} (content_key, content_json, updated_at)
+        VALUES ($1, CAST($2 AS JSON), NOW())
+        ON DUPLICATE KEY UPDATE
+          content_json = VALUES(content_json),
+          updated_at = NOW()
+      `,
+      [siteContentKey, jsonValue],
+    );
+    return;
+  }
+
   await pool.query(
     `
-      INSERT INTO public.estancia_site_content (content_key, content_json, updated_at)
+      INSERT INTO ${tableName} (content_key, content_json, updated_at)
       VALUES ($1, $2::jsonb, now())
       ON CONFLICT (content_key)
       DO UPDATE SET
         content_json = EXCLUDED.content_json,
         updated_at = now()
     `,
-    [siteContentKey, JSON.stringify(data)],
+    [siteContentKey, jsonValue],
   );
 }
 
 async function ensureDatabaseStore() {
   const pool = getIngressoDbPool();
+  const tableName = getSiteContentTableName();
+
+  if (resolveSiteContentDialect() === "mysql") {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ${tableName} (
+        content_key VARCHAR(191) PRIMARY KEY,
+        content_json JSON NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    return;
+  }
+
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS public.estancia_site_content (
+    CREATE TABLE IF NOT EXISTS ${tableName} (
       content_key text PRIMARY KEY,
       content_json jsonb NOT NULL,
       created_at timestamp without time zone NOT NULL DEFAULT now(),
@@ -412,10 +477,11 @@ async function ensureDatabaseSeeded() {
   await ensureDatabaseStore();
 
   const pool = getIngressoDbPool();
+  const tableName = getSiteContentTableName();
   const existing = await pool.query<{ content_json: EstanciaContentData }>(
     `
       SELECT content_json
-      FROM public.estancia_site_content
+      FROM ${tableName}
       WHERE content_key = $1
       LIMIT 1
     `,
@@ -427,13 +493,26 @@ async function ensureDatabaseSeeded() {
   }
 
   const seededContent = readLegacyEstanciaContent();
+  const jsonValue = JSON.stringify(seededContent);
+
+  if (resolveSiteContentDialect() === "mysql") {
+    await pool.query(
+      `
+        INSERT IGNORE INTO ${tableName} (content_key, content_json)
+        VALUES ($1, CAST($2 AS JSON))
+      `,
+      [siteContentKey, jsonValue],
+    );
+    return;
+  }
+
   await pool.query(
     `
-      INSERT INTO public.estancia_site_content (content_key, content_json)
+      INSERT INTO ${tableName} (content_key, content_json)
       VALUES ($1, $2::jsonb)
       ON CONFLICT (content_key) DO NOTHING
     `,
-    [siteContentKey, JSON.stringify(seededContent)],
+    [siteContentKey, jsonValue],
   );
 }
 
@@ -441,10 +520,11 @@ export async function readEstanciaContent() {
   await ensureDatabaseSeeded();
 
   const pool = getIngressoDbPool();
+  const tableName = getSiteContentTableName();
   const result = await pool.query<{ content_json: Partial<EstanciaContentData> }>(
     `
       SELECT content_json
-      FROM public.estancia_site_content
+      FROM ${tableName}
       WHERE content_key = $1
       LIMIT 1
     `,

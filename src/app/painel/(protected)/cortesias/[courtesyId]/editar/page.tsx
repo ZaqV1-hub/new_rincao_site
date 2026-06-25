@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelCortesiaFormPage } from "@/components/painel-cortesia-form-page";
 import { getPainelCortesia } from "@/lib/painel-cortesias";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Editar Cortesia | Estancia",
+  title: "Painel - Editar Cortesia | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -24,3 +24,4 @@ export default async function PainelEditarCortesiaPageRoute({
     />
   );
 }
+

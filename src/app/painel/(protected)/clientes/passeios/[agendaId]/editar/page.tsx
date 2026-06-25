@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+﻿import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { PainelClientTripEditor } from "@/components/painel-client-trip-editor";
 import {
@@ -8,7 +8,7 @@ import {
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Editar Passeio | Estancia",
+  title: "Painel - Editar Passeio | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -56,3 +56,4 @@ export default async function PainelClientesPasseiosEditarPage({
     />
   );
 }
+

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PainelHomePage } from "@/components/painel-home-page";
 import { getDefaultPainelPath } from "@/lib/painel-access";
@@ -6,7 +6,7 @@ import { loadPainelHomePageData } from "@/lib/painel-home";
 import { requirePainelSession } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Home | Estancia",
+  title: "Painel - Home | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -34,3 +34,4 @@ export default async function PainelHomeRoute() {
     />
   );
 }
+

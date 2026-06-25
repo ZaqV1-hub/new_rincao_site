@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { PainelBilheteriaHistoryEditor } from "@/components/painel-bilheteria-history-editor";
@@ -17,7 +17,7 @@ import { readPainelBilheteriaFlashState } from "@/lib/painel-bilheteria-page";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Historico de Vendas | Estancia",
+  title: "Painel - Historico de Vendas | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -403,3 +403,4 @@ export default async function PainelBilheteriaHistoricoPage({
     </div>
   );
 }
+

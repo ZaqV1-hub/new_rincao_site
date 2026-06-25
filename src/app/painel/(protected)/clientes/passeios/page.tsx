@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelClientTripsManager } from "@/components/painel-client-trips-manager";
 import { listOpsClientTrips } from "@/lib/ops-client-trips";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Passeios | Estancia",
+  title: "Painel - Passeios | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -50,3 +50,4 @@ export default async function PainelClientesPasseiosPage({
     />
   );
 }
+

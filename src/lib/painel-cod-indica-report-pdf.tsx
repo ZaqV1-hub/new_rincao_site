@@ -91,8 +91,8 @@ function ReportDocument({ report }: { report: PainelCodIndicaReportData }) {
     <Document title={`cod-indica-${report.codigo}`}>
       <Page size="A4" orientation="landscape" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.logoTitle}>Estancia e Parque</Text>
-          <Text style={styles.logoSubtitle}>Ecologica das Aguas</Text>
+          <Text style={styles.logoTitle}>Rincao</Text>
+          <Text style={styles.logoSubtitle}>Painel Administrativo</Text>
           <Text style={styles.title}>Relatorio de cashback - Cod Indica</Text>
           <Text style={styles.meta}>
             Codigo {report.codigo} • {report.representante} • Periodo{" "}

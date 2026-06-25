@@ -192,8 +192,8 @@ function ReportDocument({
       <Page size="A4" orientation="landscape" style={styles.page}>
         <View style={styles.card}>
           <View style={styles.header}>
-            <Text style={styles.logoTitle}>Estancia e Parque</Text>
-            <Text style={styles.logoSubtitle}>Ecologica das Aguas</Text>
+            <Text style={styles.logoTitle}>Rincao</Text>
+            <Text style={styles.logoSubtitle}>Painel Administrativo</Text>
             <Text style={styles.headerTitle}>Relatorio do passeio escolar</Text>
             <Text style={styles.headerMeta}>
               {report.trip.code} - {ownerName} - {report.trip.dateLabel} - Status da

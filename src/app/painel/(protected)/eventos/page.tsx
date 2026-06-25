@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePainelAccess } from "@/lib/painel-session";
 import { readEstanciaContent } from "@/lib/estancia-content-store";
 
 export const metadata: Metadata = {
-  title: "Painel - Eventos | Estancia",
+  title: "Painel - Eventos | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -115,3 +115,4 @@ export default async function PainelEventosRoute() {
     </div>
   );
 }
+

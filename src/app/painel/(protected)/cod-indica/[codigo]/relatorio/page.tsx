@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelCodIndicaReportPage } from "@/components/painel-cod-indica-report-page";
 import {
   asPainelCodIndicaError,
@@ -7,7 +7,7 @@ import {
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Relatorio Cod Indica | Estancia",
+  title: "Painel - Relatorio Cod Indica | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -47,3 +47,4 @@ export default async function PainelCodIndicaReportPageRoute({
     />
   );
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -224,7 +224,7 @@ export function PainelBilheteriaSalesBuilder({
           },
         ];
       }),
-    [products, saleLines, selectedAgenda],
+    [products, saleLines],
   );
 
   const courtesyDrafts: PainelBilheteriaSaleDraftCourtesy[] = useMemo(
@@ -314,7 +314,7 @@ export function PainelBilheteriaSalesBuilder({
     }
 
     if (!canProceed) {
-      setErrorMessage("Adicione ao menos um passaporte ou uma cortesia.");
+      setErrorMessage("Adicione ao menos um ingresso ou uma cortesia.");
       return;
     }
 
@@ -366,7 +366,7 @@ export function PainelBilheteriaSalesBuilder({
               </div>
               <div>
                 <h3 className="text-[22px] font-black text-[#17351f]">
-                  Passaportes e cortesias
+                  Ingressos e cortesias
                 </h3>
               </div>
             </div>
@@ -411,7 +411,7 @@ export function PainelBilheteriaSalesBuilder({
                       }
                     >
                       <label className="grid gap-2 text-sm font-semibold text-[#3d5844]">
-                        Passaporte
+                        Ingresso
                         <select
                           value={line.selection}
                           onChange={(event) =>
@@ -624,7 +624,7 @@ export function PainelBilheteriaSalesBuilder({
               <div className="text-[#6c8b71]">
                 <SalesIcon kind="ticket" />
               </div>
-              <div className="mt-5">Nenhum passaporte ou cortesia adicionado ainda.</div>
+              <div className="mt-5">Nenhum ingresso ou cortesia adicionado ainda.</div>
             </div>
           )}
         </article>
@@ -687,7 +687,7 @@ export function PainelBilheteriaSalesBuilder({
           <h3 className="mt-3 text-[28px] font-black text-[#17351f]">{todayLabel}</h3>
 
           <div className="mt-6">
-            <p className="panel-eyebrow">Passaportes e cortesias</p>
+            <p className="panel-eyebrow">Ingressos e cortesias</p>
           </div>
 
           <div className="mt-4 space-y-2 rounded-[8px] border border-dashed border-[#dbe4d7] bg-[#fcfefd] px-5 py-5">
@@ -736,7 +736,7 @@ export function PainelBilheteriaSalesBuilder({
                   <SalesIcon kind="ticket" />
                 </div>
                 <div>
-                  Nenhum passaporte ou cortesia adicionado ainda.
+                  Nenhum ingresso ou cortesia adicionado ainda.
                 </div>
               </div>
             )}
@@ -792,3 +792,5 @@ export function PainelBilheteriaSalesBuilder({
     </section>
   );
 }
+
+

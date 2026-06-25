@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { PainelAdminBreadcrumb } from "@/components/painel-admin-breadcrumb";
 import { PainelAdminSidebar } from "@/components/painel-admin-sidebar";
 import type { PainelCategoriaSocioItem } from "@/lib/painel-categoria-socio";
@@ -18,7 +18,7 @@ export function PainelCategoriaSocioDetailPage({
         <PainelAdminBreadcrumb
           items={[
             { href: "/painel", label: "Home" },
-            { href: "/painel/administrativo", label: "Administrativo" },
+            { href: "/painel/administrativo", label: "Acessos" },
             { href: "/painel/categoria-socio", label: "Categoria Socio" },
             { label: data.name },
           ]}
@@ -69,3 +69,4 @@ export function PainelCategoriaSocioDetailPage({
     </div>
   );
 }
+

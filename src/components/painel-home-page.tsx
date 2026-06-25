@@ -21,15 +21,21 @@ type QuickLink = {
 
 const quickLinks: QuickLink[] = [
   {
-    href: "/painel/bilheteria",
-    label: "Bilheteria",
-    resources: ["vis_bilhet"],
-    roles: [1, 2, 3],
+    href: "/painel/site",
+    label: "Site",
+    resources: ["vis_info", "vis_param"],
+    roles: [1, 2],
   },
   {
     href: "/painel/agenda",
     label: "Agenda",
     resources: ["vis_agenda"],
+    roles: [1, 2],
+  },
+  {
+    href: "/painel/clientes",
+    label: "Clientes",
+    resources: ["vis_clientes", "vis_escola"],
     roles: [1, 2],
   },
   {
@@ -39,10 +45,16 @@ const quickLinks: QuickLink[] = [
     roles: [1, 2],
   },
   {
-    href: "/painel/administrativo",
-    label: "Administrativo",
-    resources: ["vis_usu", "vis_situsu"],
-    roles: [1],
+    href: "/painel/bilheteria",
+    label: "Bilheteria",
+    resources: ["vis_bilhet"],
+    roles: [1, 2, 3],
+  },
+  {
+    href: "/painel/tabela-preco",
+    label: "Tabela de preco",
+    resources: ["vis_tabpre"],
+    roles: [1, 2],
   },
 ];
 
@@ -73,10 +85,10 @@ export function PainelHomePage({
         <div className="mt-3 grid gap-5 xl:grid-cols-[1fr_0.85fr]">
           <div>
             <h2 className="text-[30px] font-black leading-tight text-[#17351f]">
-              Valor arrecadado no dia
+              Resumo financeiro do dia
             </h2>
             <p className="mt-3 max-w-[620px] text-[15px] leading-7 text-[#5f7564]">
-              Soma das vendas confirmadas do site e da bilheteria.
+              Acompanhe o total confirmado entre vendas do site e da bilheteria do Rincao.
             </p>
           </div>
 
@@ -132,7 +144,7 @@ export function PainelHomePage({
               Eventos
             </h3>
             <p className="mt-3 text-[15px] leading-7 text-[#5f7564]">
-              Publique eventos na home e leve o visitante direto para a data de compra.
+              Organize os destaques do Rincao e leve o visitante direto para a data de compra.
             </p>
             <Link
               href="/painel/site#eventos"
@@ -148,8 +160,8 @@ export function PainelHomePage({
               Imagens e atracoes
             </h3>
             <p className="mt-3 text-[15px] leading-7 text-[#5f7564]">
-              Organize imagens da home, versoes mobile e desktop, atracoes e chamadas
-              do site.
+              Atualize banners, versoes mobile e desktop, atracoes e chamadas do
+              site do Rincao.
             </p>
             <Link
               href="/painel/site"

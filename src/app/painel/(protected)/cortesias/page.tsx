@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelCortesiasPage } from "@/components/painel-cortesias-page";
 import { listPainelCortesias } from "@/lib/painel-cortesias";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Cortesias | Estancia",
+  title: "Painel - Cortesias | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -21,3 +21,4 @@ export default async function PainelCortesiasPageRoute({
   });
   return <PainelCortesiasPage data={data} />;
 }
+

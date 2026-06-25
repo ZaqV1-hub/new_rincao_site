@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import { PainelBilheteriaSaleFinalize } from "@/components/painel-bilheteria-sale-finalize";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Finalizar Compra | Estancia",
+  title: "Painel - Finalizar Compra | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -31,3 +31,4 @@ export default async function PainelBilheteriaFinalizePage() {
     </div>
   );
 }
+

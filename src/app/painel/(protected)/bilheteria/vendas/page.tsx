@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import { PainelBilheteriaSalesBuilder } from "@/components/painel-bilheteria-sales-builder";
 import { getManagedB2cProducts } from "@/lib/estancia-content-store";
@@ -7,7 +7,7 @@ import { getAgendaProductAvailability } from "@/lib/painel-agenda-product-availa
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Vendas da Bilheteria | Estancia",
+  title: "Painel - Vendas da Bilheteria | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -54,3 +54,4 @@ export default async function PainelBilheteriaVendasPage() {
     </div>
   );
 }
+

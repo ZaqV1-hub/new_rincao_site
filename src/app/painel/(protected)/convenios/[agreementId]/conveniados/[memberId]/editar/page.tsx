@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelConvenioMemberFormPage } from "@/components/painel-convenio-member-form-page";
 import { getPainelConvenioMemberDetail } from "@/lib/painel-convenio-members";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Editar Conveniado | Estancia",
+  title: "Painel - Editar Conveniado | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -50,3 +50,4 @@ export default async function PainelConvenioMemberEditPageRoute({
     />
   );
 }
+

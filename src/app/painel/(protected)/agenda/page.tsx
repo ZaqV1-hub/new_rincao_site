@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelAgendaManager } from "@/components/painel-agenda-manager";
 import { getPainelAgendaScreenData } from "@/lib/painel-agenda";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Agenda | Estancia",
+  title: "Painel - Agenda | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -37,3 +37,4 @@ export default async function PainelAgendaPage({
     />
   );
 }
+

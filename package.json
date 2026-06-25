@@ -13,6 +13,7 @@
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v",
     "db:schema:pull": "powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap-local-db.ps1",
+    "db:mysql:bootstrap": "node ./scripts/bootstrap-mysql-panel.mjs",
     "deploy:windows": "scripts\\deploy-windows.cmd",
     "duplication": "jscpd --config .jscpd.json",
     "duplication:strict": "jscpd --config .jscpd.strict.json",

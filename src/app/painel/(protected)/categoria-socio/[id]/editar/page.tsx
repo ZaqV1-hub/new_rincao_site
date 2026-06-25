@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelCategoriaSocioFormPage } from "@/components/painel-categoria-socio-form-page";
 import {
   getPainelCategoriaSocio,
@@ -7,7 +7,7 @@ import {
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Editar Categoria Socio | Estancia",
+  title: "Painel - Editar Categoria Socio | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -35,3 +35,4 @@ export default async function PainelEditarCategoriaSocioPage({
     />
   );
 }
+

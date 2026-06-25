@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import { PainelBilheteriaPurchaseDetail } from "@/components/painel-bilheteria-purchase-detail";
@@ -7,7 +7,7 @@ import { loadPainelBilheteriaPurchaseDetailFromParams } from "@/lib/painel-bilhe
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Pagamento de Reserva | Estancia",
+  title: "Painel - Pagamento de Reserva | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -51,3 +51,4 @@ export default async function PainelBilheteriaReservaDetailPage({
     </div>
   );
 }
+

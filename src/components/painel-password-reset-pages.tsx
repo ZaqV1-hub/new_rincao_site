@@ -1,6 +1,6 @@
 "use client";
 
-import { EstanciaLogo } from "@/components/estancia-logo";
+import { PainelBrandLogo } from "@/components/painel-brand-logo";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -79,7 +79,7 @@ export function PainelForgotPasswordPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#6f9565]">
             Painel
           </p>
-          <EstanciaLogo compact className="mt-4" />
+          <PainelBrandLogo compact className="mt-4" />
           <h1 className="mt-6 text-5xl font-black text-[#17351f]">
             Esqueci minha senha
           </h1>
@@ -217,7 +217,7 @@ export function PainelResetPasswordPage({
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#6f9565]">
             Painel
           </p>
-          <EstanciaLogo compact className="mt-4" />
+          <PainelBrandLogo compact className="mt-4" />
           <h1 className="mt-6 text-5xl font-black text-[#17351f]">
             Trocar senha
           </h1>

@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelUsuarioAccountPage } from "@/components/painel-usuario-account-page";
 import { getPainelUsuario } from "@/lib/painel-usuarios";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Minha Conta | Estancia",
+  title: "Painel - Minha Conta | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -22,3 +22,4 @@ export default async function PainelMinhaContaPage() {
     />
   );
 }
+

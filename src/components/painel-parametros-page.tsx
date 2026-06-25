@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -84,7 +84,7 @@ export function PainelParametrosPage({
         <PainelAdminBreadcrumb
           items={[
             { href: "/painel", label: "Home" },
-            { href: "/painel/administrativo", label: "Administrativo" },
+            { href: "/painel/administrativo", label: "Acessos" },
             { label: "Parametros" },
           ]}
         />
@@ -195,3 +195,4 @@ export function PainelParametrosPage({
     </div>
   );
 }
+

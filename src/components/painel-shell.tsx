@@ -1,6 +1,6 @@
 "use client";
 
-import { EstanciaLogo } from "@/components/estancia-logo";
+import { PainelBrandLogo } from "@/components/painel-brand-logo";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -53,22 +53,15 @@ const navItems: PainelNavItem[] = [
     href: "/painel/agenda",
     label: "Agenda",
     icon: "calendar",
-    roles: [1],
+    roles: [1, 2],
     resources: ["vis_agenda"],
   },
   {
-    href: "/painel/passaportes-itens",
-    label: "Passaportes e itens",
-    icon: "products",
+    href: "/painel/clientes",
+    label: "Clientes",
+    icon: "users",
     roles: [1, 2],
-    resources: ["vis_agenda", "vis_tabpre"],
-  },
-  {
-    href: "/painel/bilheteria",
-    label: "Bilheteria",
-    icon: "ticket",
-    roles: [1, 2, 3],
-    resources: ["vis_bilhet"],
+    resources: ["vis_clientes", "vis_escola"],
   },
   {
     href: "/painel/compras",
@@ -76,6 +69,27 @@ const navItems: PainelNavItem[] = [
     icon: "cart",
     roles: [1, 2],
     resources: ["vis_compra"],
+  },
+  {
+    href: "/painel/tabela-preco",
+    label: "Tabela de pre\u00e7o",
+    icon: "products",
+    roles: [1, 2],
+    resources: ["vis_tabpre"],
+  },
+  {
+    href: "/painel/cod-indica",
+    label: "C\u00f3digos de indica\u00e7\u00e3o",
+    icon: "share",
+    roles: [1],
+    resources: ["vis_indica"],
+  },
+  {
+    href: "/painel/bilheteria",
+    label: "Bilheteria",
+    icon: "ticket",
+    roles: [1, 2, 3],
+    resources: ["vis_bilhet"],
   },
   {
     href: "/painel/descontos",
@@ -90,27 +104,6 @@ const navItems: PainelNavItem[] = [
     icon: "gift",
     roles: [1],
     resources: ["vis_cort"],
-  },
-  {
-    href: "/painel/cod-indica",
-    label: "C\u00f3digos de indica\u00e7\u00e3o",
-    icon: "share",
-    roles: [1],
-    resources: ["vis_indica"],
-  },
-  {
-    href: "/painel/administrativo",
-    label: "Administrativo",
-    icon: "admin",
-    roles: [1],
-    resources: [
-      "vis_usu",
-      "vis_situsu",
-      "vis_tabpre",
-      "vis_catsoc",
-      "vis_socio",
-      "vis_param",
-    ],
   },
 ];
 
@@ -295,7 +288,7 @@ export function PainelShell({
                 sidebarCollapsed ? "w-16" : "w-[230px]"
               }`}
             >
-              <EstanciaLogo
+              <PainelBrandLogo
                 href="/painel"
                 compact
                 light
@@ -332,7 +325,7 @@ export function PainelShell({
                   sidebarCollapsed ? "hidden" : ""
                 }`}
               >
-                {actorName || actorCpf || "Sess\u00e3o operacional"}
+                {actorName || actorCpf || "Sess\u00e3o do painel"}
               </p>
               <p
                 className={`mt-1 text-xs text-white/65 ${sidebarCollapsed ? "hidden" : ""}`}
@@ -427,7 +420,7 @@ export function PainelShell({
 
               <div>
                 <h1 className="text-[20px] font-bold leading-tight text-[#17342d]">
-                  Painel operacional
+                  Painel do Rincao
                 </h1>
               </div>
             </div>

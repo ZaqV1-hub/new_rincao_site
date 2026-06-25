@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelTabelaPrecoPage } from "@/components/painel-tabela-preco-page";
 import { listPainelTabelaPreco } from "@/lib/painel-tabela-preco";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Tabela de Preco | Estancia",
+  title: "Painel - Tabela de Preco | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -29,3 +29,4 @@ export default async function PainelTabelaPrecoPageRoute({
     />
   );
 }
+

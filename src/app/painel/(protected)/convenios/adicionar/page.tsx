@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelConvenioFormPage } from "@/components/painel-convenio-form-page";
 import { listPainelConvenioPriceTableOptions } from "@/lib/painel-convenios";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Adicionar Convenio | Estancia",
+  title: "Painel - Adicionar Convenio | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -28,3 +28,4 @@ export default async function PainelConvenioCreatePageRoute() {
     />
   );
 }
+

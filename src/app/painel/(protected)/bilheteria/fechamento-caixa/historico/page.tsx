@@ -1,11 +1,11 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { BilheteriaCashClosureHistoryPage } from "@/components/bilheteria-cash-closure-history-page";
 import { listBilheteriaCashClosureHistory } from "@/lib/bilheteria-cash-data";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Historico de Fechamentos | Estancia",
+  title: "Painel - Historico de Fechamentos | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -44,3 +44,4 @@ export default async function PainelBilheteriaFechamentoCaixaHistoricoPage({
     />
   );
 }
+

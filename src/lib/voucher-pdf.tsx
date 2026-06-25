@@ -204,8 +204,8 @@ function VoucherDocument({
         <Page key={voucher.id} size="A4" style={styles.page}>
           <View style={styles.card}>
             <View style={styles.header}>
-              <Text style={styles.logoTitle}>Estancia e Parque</Text>
-              <Text style={styles.logoSubtitle}>Ecologica das Aguas</Text>
+              <Text style={styles.logoTitle}>Rincao</Text>
+              <Text style={styles.logoSubtitle}>Painel Administrativo</Text>
               <Text style={styles.headerBadge}>
                 {input.purchase.type === "reser" ? "Voucher de reserva" : "Voucher"}
               </Text>
@@ -216,7 +216,7 @@ function VoucherDocument({
 
             <View style={styles.body}>
               <View>
-                <Text style={styles.sectionTitle}>Passaporte</Text>
+                <Text style={styles.sectionTitle}>Ingresso</Text>
                 <Text style={styles.primaryValue}>{voucher.typeLabel}</Text>
                 <Text>Valido para a visita de {formatDate(voucher.visitDate)}.</Text>
                 <Text>Valor unitario: {formatCurrency(voucher.unitValue)}.</Text>
@@ -259,36 +259,29 @@ function VoucherDocument({
                     {String(input.purchase.id)}
                   </Text>
                   <Text>
-                    <Text style={styles.primaryValue}>Status: </Text>
-                    {input.purchase.type === "reser"
-                      ? "Reserva"
-                      : input.purchase.statusLabel}
-                  </Text>
-                  <Text>
                     <Text style={styles.primaryValue}>Data da compra: </Text>
                     {formatDate(input.purchase.purchaseDate)}
                   </Text>
+                  <Text>
+                    <Text style={styles.primaryValue}>Status: </Text>
+                    {input.purchase.statusLabel}
+                  </Text>
                 </View>
 
-                {!input.isSchool ? (
-                  <View style={styles.qrColumn}>
-                    {voucher.qrCodeDataUrl ? (
-                      <Image src={voucher.qrCodeDataUrl} style={styles.qrImage} />
-                    ) : (
-                      <Text>QR Code indisponivel</Text>
-                    )}
-                  </View>
-                ) : null}
+                <View style={styles.qrColumn}>
+                  {voucher.qrCodeDataUrl ? (
+                    <Image src={voucher.qrCodeDataUrl} style={styles.qrImage} />
+                  ) : (
+                    <Text>QR indisponivel</Text>
+                  )}
+                </View>
               </View>
             </View>
 
-            <View style={styles.footer}>
-              <Text>
-                Obrigatorio apresentar este voucher na bilheteria. Se necessario,
-                reagende sua visita pela sua conta.
-              </Text>
-              <Text>Atencao para as instrucoes na ultima pagina.</Text>
-            </View>
+            <Text style={styles.footer}>
+              Apresente este voucher na entrada no dia da visita. Em caso de duvidas,
+              utilize os canais oficiais do Rincao.
+            </Text>
           </View>
         </Page>
       ))}
@@ -296,9 +289,9 @@ function VoucherDocument({
       {infoParagraphs.length > 0 ? (
         <Page size="A4" style={styles.infoPage}>
           <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>Informacoes</Text>
-            {infoParagraphs.map((paragraph, index) => (
-              <Text key={`${paragraph}-${index}`} style={styles.infoParagraph}>
+            <Text style={styles.infoTitle}>Informacoes importantes</Text>
+            {infoParagraphs.map((paragraph) => (
+              <Text key={paragraph} style={styles.infoParagraph}>
                 {paragraph}
               </Text>
             ))}

@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelUsuarioSitePage } from "@/components/painel-usuario-site-page";
 import { listPainelUsuariosSite } from "@/lib/painel-usuario-site";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Usuario Site | Estancia",
+  title: "Painel - Usuario Site | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -21,3 +21,4 @@ export default async function PainelUsuarioSitePageRoute({
 
   return <PainelUsuarioSitePage data={data} legacyResources={session.legacyResources} />;
 }
+

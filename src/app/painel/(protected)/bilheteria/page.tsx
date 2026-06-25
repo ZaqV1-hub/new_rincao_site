@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import { PainelBilheteriaWorkstation } from "@/components/painel-bilheteria-workstation";
 import { getPublicAgendaEvents } from "@/lib/agenda-repository";
@@ -10,7 +10,7 @@ import {
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Bilheteria | Estancia",
+  title: "Painel - Bilheteria | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -23,6 +23,10 @@ function getSaoPauloToday() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
   }).format(new Date());
+}
+
+function isBilheteriaAgendaOpen(status: string | null | undefined) {
+  return status === "abe" || status === "lot";
 }
 
 export default async function PainelBilheteriaPage({
@@ -38,7 +42,7 @@ export default async function PainelBilheteriaPage({
   const today = getSaoPauloToday();
   const [year, month] = today.split("-").map(Number);
   const hasOpenAgendaToday = (await getPublicAgendaEvents(month, year)).some(
-    (agenda) => agenda.date === today && agenda.status === "abe",
+    (agenda) => agenda.date === today && isBilheteriaAgendaOpen(agenda.status),
   );
   let initialTicketLookupState:
     | {
@@ -107,3 +111,4 @@ export default async function PainelBilheteriaPage({
     </div>
   );
 }
+

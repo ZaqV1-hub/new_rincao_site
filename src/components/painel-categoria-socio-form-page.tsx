@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
@@ -98,7 +98,7 @@ export function PainelCategoriaSocioFormPage({
         <PainelAdminBreadcrumb
           items={[
             { href: "/painel", label: "Home" },
-            { href: "/painel/administrativo", label: "Administrativo" },
+            { href: "/painel/administrativo", label: "Acessos" },
             { href: "/painel/categoria-socio", label: "Categoria Socio" },
             { label: title },
           ]}
@@ -193,3 +193,4 @@ export function PainelCategoriaSocioFormPage({
     </div>
   );
 }
+

@@ -138,7 +138,7 @@ export function PainelProductsManager({ products }: { products: B2cProduct[] }) 
   return (
     <>
       <ProductSection
-        eyebrow="Passaportes"
+        eyebrow="Ingressos"
         title="Produtos principais"
         products={passports}
         onCreate={() => setEditing({ type: "passport", product: null })}
@@ -327,7 +327,7 @@ function ProductSection({
           onClick={onCreate}
           className="rounded-[8px] bg-[#17342d] px-3 py-2 text-xs font-semibold text-white"
         >
-          {eyebrow === "Passaportes" ? "Adicionar passaporte" : "Adicionar item"}
+          {eyebrow === "Ingressos" ? "Adicionar ingresso" : "Adicionar item"}
         </button>
       </div>
       <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">

@@ -4,7 +4,7 @@ import { painelAdminModules } from "@/lib/painel-admin-modules";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Administrativo | Estancia",
+  title: "Painel - Acessos | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -24,12 +24,13 @@ export default async function PainelAdministrativoPage() {
   return (
     <div className="space-y-5">
       <section className="panel-section p-5">
-        <p className="panel-eyebrow">Administrativo</p>
+        <p className="panel-eyebrow">Acessos</p>
         <h1 className="mt-2 text-[30px] font-black leading-tight text-[#17351f]">
-          Usuários e permissões
+          Usuarios e permissoes
         </h1>
         <p className="mt-3 max-w-[720px] text-[15px] leading-7 text-[#5f7564]">
-          Gerencie acessos internos do painel e contas dos clientes do site.
+          Gerencie acessos internos do painel e contas de clientes vinculadas ao
+          site.
         </p>
       </section>
 

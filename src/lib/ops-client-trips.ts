@@ -221,6 +221,7 @@ const agendaStatusLabels: Record<string, string> = {
 };
 
 let agendaFaixasSupportsClientId: boolean | null = null;
+let agendaExtrasNeedsManualId: boolean | null = null;
 
 export class OpsClientTripError extends Error {
   code: string;
@@ -383,6 +384,26 @@ async function hasPublicColumn(
   );
 
   return Boolean(result.rows[0]?.exists);
+}
+
+async function agendaExtrasRequireManualId(client: PoolClient) {
+  if (agendaExtrasNeedsManualId !== null) {
+    return agendaExtrasNeedsManualId;
+  }
+
+  agendaExtrasNeedsManualId = await hasPublicColumn(client, "agenda_extras", "idextra");
+  return agendaExtrasNeedsManualId;
+}
+
+async function getNextAgendaExtraId(client: PoolClient) {
+  const result = await client.query<{ next_id: number | string | null }>(
+    `
+      SELECT COALESCE(MAX(idextra), 0) + 1 AS next_id
+      FROM agenda_extras
+    `,
+  );
+
+  return Number(result.rows[0]?.next_id ?? 1);
 }
 
 async function getClientById(client: PoolClient, clientId: number) {
@@ -609,6 +630,50 @@ async function replaceFaixasForAgenda(
       );
     }
   }
+}
+
+async function insertAgendaExtrasBinding(
+  client: PoolClient,
+  input: {
+    agendaId: number;
+    clientId: number;
+    acceptsFamily: boolean;
+    slug: string;
+  },
+) {
+  if (await agendaExtrasRequireManualId(client)) {
+    const nextId = await getNextAgendaExtraId(client);
+
+    await client.query(
+      `
+        INSERT INTO agenda_extras (
+          idagenda,
+          idcliente,
+          aceita_familia,
+          slug,
+          criado_em,
+          atualizado_em,
+          idextra
+        ) VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)
+      `,
+      [input.agendaId, input.clientId, input.acceptsFamily, input.slug, nextId],
+    );
+    return;
+  }
+
+  await client.query(
+    `
+      INSERT INTO agenda_extras (
+        idagenda,
+        idcliente,
+        aceita_familia,
+        slug,
+        criado_em,
+        atualizado_em
+      ) VALUES ($1, $2, $3, $4, NOW(), NOW())
+    `,
+    [input.agendaId, input.clientId, input.acceptsFamily, input.slug],
+  );
 }
 
 function buildListWhere(filters: ReturnType<typeof normalizeListFilters>) {
@@ -967,19 +1032,12 @@ export async function createOpsClientTrip(input: OpsClientTripCreateInput) {
     const slug = currentExtras?.slug || buildRandomSlug();
 
     if (!currentExtras) {
-      await client.query(
-        `
-          INSERT INTO agenda_extras (
-            idagenda,
-            idcliente,
-            aceita_familia,
-            slug,
-            criado_em,
-            atualizado_em
-          ) VALUES ($1, $2, $3, $4, NOW(), NOW())
-        `,
-        [agendaId, clientId, acceptsFamily, slug],
-      );
+      await insertAgendaExtrasBinding(client, {
+        agendaId,
+        clientId,
+        acceptsFamily,
+        slug,
+      });
     } else {
       await client.query(
         `
@@ -1264,25 +1322,12 @@ export async function moveOpsClientTripDate(input: OpsClientTripMoveDateInput) {
     }
 
     if (!nextBinding) {
-      await client.query(
-        `
-          INSERT INTO agenda_extras (
-            idagenda,
-            idcliente,
-            aceita_familia,
-            slug,
-            foto,
-            criado_em,
-            atualizado_em
-          ) VALUES ($1, $2, $3, $4, NULL, NOW(), NOW())
-        `,
-        [
-          nextAgendaId,
-          clientId,
-          currentExtras.aceita_familia ? true : false,
-          currentExtras.slug || buildRandomSlug(),
-        ],
-      );
+      await insertAgendaExtrasBinding(client, {
+        agendaId: nextAgendaId,
+        clientId,
+        acceptsFamily: currentExtras.aceita_familia ? true : false,
+        slug: currentExtras.slug || buildRandomSlug(),
+      });
     }
 
     const currentFaixas = await listFaixasForAgenda(client, agendaId, clientId);

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelDescontoFormPage } from "@/components/painel-desconto-form-page";
 import {
   getPainelDiscount,
@@ -7,7 +7,7 @@ import {
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Editar Desconto | Estancia",
+  title: "Painel - Editar Desconto | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -37,3 +37,4 @@ export default async function PainelEditarDescontoPageRoute({
     />
   );
 }
+

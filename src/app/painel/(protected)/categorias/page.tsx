@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelCategoriasPage } from "@/components/painel-categorias-page";
 import { listPainelDiscountTypes } from "@/lib/painel-descontos";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Categorias | Estancia",
+  title: "Painel - Categorias | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -20,3 +20,4 @@ export default async function PainelCategoriasPageRoute({
   });
   return <PainelCategoriasPage data={data} />;
 }
+

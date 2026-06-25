@@ -58,6 +58,15 @@ describe("painel-clientes", () => {
       if (
         sql.includes("information_schema.columns") &&
         Array.isArray(values) &&
+        values[0] === "agenda_extras" &&
+        values[1] === "idextra"
+      ) {
+        return { rows: [{ exists: true }] };
+      }
+
+      if (
+        sql.includes("information_schema.columns") &&
+        Array.isArray(values) &&
         values[0] === "agenda" &&
         (values[1] === "dtualt" || values[1] === "hrualt")
       ) {
@@ -91,10 +100,15 @@ describe("painel-clientes", () => {
         return { rows: [] };
       }
 
+      if (sql.includes("SELECT COALESCE(MAX(idextra), 0) + 1 AS next_id")) {
+        return { rows: [{ next_id: 9 }] };
+      }
+
       if (sql.includes("INSERT INTO agenda_extras")) {
         expect(values?.[0]).toBe(777);
         expect(values?.[1]).toBe(4658);
         expect(values?.[2]).toBe(false);
+        expect(values?.[4]).toBe(9);
         return { rows: [] };
       }
 

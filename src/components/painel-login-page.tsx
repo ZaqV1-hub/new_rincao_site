@@ -1,6 +1,6 @@
 "use client";
 
-import { EstanciaLogo } from "@/components/estancia-logo";
+import { PainelBrandLogo } from "@/components/painel-brand-logo";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -202,10 +202,10 @@ export function PainelLoginPage({
       ) : null}
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[760px] items-center">
         <div className="w-full rounded-[28px] border border-[#dbe7d7] bg-white p-8 shadow-[0_22px_52px_rgba(24,67,34,0.12)] md:p-10">
-          <EstanciaLogo compact />
+          <PainelBrandLogo compact />
           <h2 className="mt-6 text-[38px] font-black text-[#17351f]">Entrar</h2>
           <p className="mt-2 text-sm leading-6 text-[#516956]">
-            Acesse o painel operacional.
+            Acesse o painel do Rincao.
           </p>
 
           <form

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelCompraGatewayStatusPage } from "@/components/painel-compra-gateway-status-page";
 import {
   getPainelPurchaseDetail,
@@ -7,7 +7,7 @@ import {
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Consulta Pagamento | Estancia",
+  title: "Painel - Consulta Pagamento | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -31,3 +31,4 @@ export default async function PainelCompraGatewayStatusRoute({
 
   return <PainelCompraGatewayStatusPage consult={consult} detail={detail} />;
 }
+

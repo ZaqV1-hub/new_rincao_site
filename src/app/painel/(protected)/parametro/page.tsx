@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { PainelParametrosPage } from "@/components/painel-parametros-page";
 import { listPainelParametros } from "@/lib/painel-parametros";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Parametros | Estancia",
+  title: "Painel - Parametros | Rincao",
   robots: { index: false, follow: false },
 };
 
@@ -16,3 +16,4 @@ export default async function PainelParametrosPageRoute() {
 
   return <PainelParametrosPage groups={groups} legacyResources={session.legacyResources} />;
 }
+

@@ -8,7 +8,7 @@ import {
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Site | Estância",
+  title: "Painel - Site | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -38,10 +38,11 @@ export default async function PainelSiteRoute({
       <section className="panel-section p-5">
         <p className="panel-eyebrow">Site</p>
         <h2 className="mt-2 text-[28px] font-black leading-tight text-[#17351f]">
-          Conteúdo publicado
+          Conteudo do site
         </h2>
         <p className="mt-3 max-w-[760px] text-[15px] leading-7 text-[#5f7564]">
-          Gerencie imagens da home, atrações e eventos exibidos no site.
+          Gerencie banners, atracoes, destaques e eventos exibidos no site do
+          Rincao.
         </p>
       </section>
 

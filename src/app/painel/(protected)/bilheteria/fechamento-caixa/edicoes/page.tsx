@@ -1,11 +1,11 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { BilheteriaCashClosureEditsPage } from "@/components/bilheteria-cash-closure-edits-page";
 import { listBilheteriaCashEdits } from "@/lib/bilheteria-cash-data";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Log de Edicoes do Caixa | Estancia",
+  title: "Painel - Log de Edicoes do Caixa | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -47,3 +47,4 @@ export default async function PainelBilheteriaFechamentoCaixaEdicoesPage({
     />
   );
 }
+

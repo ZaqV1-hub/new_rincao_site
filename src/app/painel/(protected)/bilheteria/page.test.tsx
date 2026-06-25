@@ -72,7 +72,7 @@ describe("/painel/bilheteria overview route", () => {
     renderToStaticMarkup(React.createElement(React.Fragment, null, element));
 
     expect(requirePainelAccess).toHaveBeenCalledWith(
-      ["vis_bilhet", "vis_compra"],
+      "vis_bilhet",
       "/painel/bilheteria",
     );
     expect(lookupPainelBilheteriaTicketByVoucherId).toHaveBeenCalledWith("123");
@@ -88,5 +88,25 @@ describe("/painel/bilheteria overview route", () => {
         }),
       }),
     );
+  });
+
+  it("mantem a bilheteria aberta quando a agenda do dia estiver lotada", async () => {
+    getPublicAgendaEvents.mockResolvedValue([
+      {
+        date: new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/Sao_Paulo",
+        }).format(new Date()),
+        status: "lot",
+      },
+    ]);
+
+    const page = (await import("@/app/painel/(protected)/bilheteria/page")).default;
+    const element = await page({
+      searchParams: Promise.resolve({}),
+    });
+
+    const html = renderToStaticMarkup(React.createElement(React.Fragment, null, element));
+
+    expect(html).toContain("data-testid=\"workstation\"");
   });
 });
