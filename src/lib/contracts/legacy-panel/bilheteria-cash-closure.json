@@ -1,0 +1,10 @@
+{
+  "screenId": "bilheteria-cash-closure",
+  "title": "Fechamento de Caixa",
+  "header": {
+    "actions": [
+      { "key": "cash-closure-history", "label": "Ver histórico de fechamentos", "href": "/painel/bilheteria/fechamento-caixa/historico", "managerOnly": true },
+      { "key": "cash-closure-edits", "label": "Ver edições", "href": "/painel/bilheteria/fechamento-caixa/edicoes", "managerOnly": true }
+    ]
+  }
+}

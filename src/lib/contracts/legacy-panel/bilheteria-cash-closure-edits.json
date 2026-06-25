@@ -1,0 +1,9 @@
+{
+  "screenId": "bilheteria-cash-closure-edits",
+  "title": "Log de Edições",
+  "header": {
+    "actions": [
+      { "key": "cash-closure", "label": "Fechamento de Caixa", "href": "/painel/bilheteria/fechamento-caixa" }
+    ]
+  }
+}

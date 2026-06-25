@@ -1,0 +1,9 @@
+{
+  "screenId": "bilheteria-cash-fund",
+  "title": "Fundo de Caixa",
+  "header": {
+    "actions": [
+      { "key": "cash-closure", "label": "Fechamento de Caixa", "href": "/painel/bilheteria/fechamento-caixa" }
+    ]
+  }
+}

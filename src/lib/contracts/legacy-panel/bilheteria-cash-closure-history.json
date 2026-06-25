@@ -1,0 +1,9 @@
+{
+  "screenId": "bilheteria-cash-closure-history",
+  "title": "Histórico de Fechamentos",
+  "header": {
+    "actions": [
+      { "key": "cash-closure", "label": "Fechamento de Caixa", "href": "/painel/bilheteria/fechamento-caixa" }
+    ]
+  }
+}

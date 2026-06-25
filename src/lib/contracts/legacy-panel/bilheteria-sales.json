@@ -1,0 +1,11 @@
+{
+  "screenId": "bilheteria-sales",
+  "title": "Vendas",
+  "header": {
+    "actions": [
+      { "key": "back-to-workstation", "label": "Validar Voucher", "href": "/painel/bilheteria" },
+      { "key": "cash-closure", "label": "Fechamento de Caixa", "href": "/painel/bilheteria/fechamento-caixa" },
+      { "key": "cash-fund", "label": "Fundo de Caixa", "href": "/painel/bilheteria/fundo-caixa" }
+    ]
+  }
+}

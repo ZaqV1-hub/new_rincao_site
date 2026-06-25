@@ -1,0 +1,41 @@
+{
+  "screenId": "painel-home",
+  "title": "Home",
+  "breadcrumb": ["Home"],
+  "header": {
+    "primaryLinks": [
+      { "label": "Home", "href": "/painel" },
+      { "label": "Meus dados", "href": "/painel/login" }
+    ],
+    "secondaryLinks": [
+      { "label": "Clientes", "href": "/painel/clientes", "resource": "vis_clientes" },
+      { "label": "Usuarios", "href": "/painel/usuario", "resource": "vis_usu" },
+      { "label": "Compras", "href": "/painel/bilheteria/historico", "resource": "vis_compra" },
+      { "label": "Tabela de Preco", "href": "/painel/tabela-preco", "resource": "vis_tabpre" },
+      { "label": "Agenda", "href": "/painel/agenda", "resource": "vis_agenda" },
+      { "label": "Informacoes", "href": "/painel/informacao", "resource": "vis_info" },
+      { "label": "Indicacoes", "href": "/painel/cod-indica", "resource": "vis_indica" },
+      { "label": "Bilheteria", "href": "/painel/bilheteria", "resource": "vis_bilhet" },
+      { "label": "Descontos", "href": "/painel/descontos", "resource": "vis_desc" },
+      { "label": "Cortesias", "href": "/painel/cortesias", "resource": "vis_cort" }
+    ]
+  },
+  "feedback": {
+    "successText": "Todos os e-mails do sistema foram enviados com sucesso!",
+    "errorTextPrefix": "Atualmente encontram-se",
+    "errorTextSuffix": "e-mail(s) com erro de envio."
+  },
+  "tables": [
+    {
+      "id": "tracked-urls",
+      "title": "URLs",
+      "columns": [
+        { "key": "url", "label": "URL" },
+        { "key": "accessCount", "label": "Quantidade de acesso" }
+      ]
+    }
+  ],
+  "emptyStates": {
+    "urls": "Não há nenhuma url cadastrada."
+  }
+}

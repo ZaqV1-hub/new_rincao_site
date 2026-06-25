@@ -1,0 +1,46 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v",
+    "db:schema:pull": "powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap-local-db.ps1",
+    "deploy:windows": "scripts\\deploy-windows.cmd",
+    "duplication": "jscpd --config .jscpd.json",
+    "duplication:strict": "jscpd --config .jscpd.strict.json",
+    "audit:readiness": "node ../../scripts/audit-readiness.mjs"
+  },
+  "dependencies": {
+    "@react-pdf/renderer": "^4.5.1",
+    "mysql2": "^3.22.1",
+    "next": "16.2.4",
+    "nodemailer": "^8.0.7",
+    "pg": "^8.20.0",
+    "postcss": "^8.5.14",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/nodemailer": "^6.4.23",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.4",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "jscpd": "^4.0.5",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^4.1.4"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "screenId": "bilheteria-index",
+  "title": "Bilheteria",
+  "header": {
+    "actions": [
+      { "key": "sales", "label": "Vendas", "href": "/painel/bilheteria/vendas" },
+      { "key": "cash-closure", "label": "Fechamento de Caixa", "href": "/painel/bilheteria/fechamento-caixa" },
+      { "key": "cash-fund", "label": "Fundo de Caixa", "href": "/painel/bilheteria/fundo-caixa" },
+      { "key": "history", "label": "Histórico de Vendas", "href": "/painel/bilheteria/historico", "managerOnly": true },
+      { "key": "ticket-lookup", "label": "Consultar Ingresso", "href": "/painel/bilheteria?consult=1" }
+    ]
+  },
+  "forms": [
+    {
+      "id": "voucher-validation",
+      "title": "Validação via Voucher",
+      "submitLabel": "Validar",
+      "fields": [
+        { "key": "voucherNumber", "label": "Voucher", "placeholder": "Voucher" }
+      ]
+    },
+    {
+      "id": "customer-validation",
+      "title": "Validação via Dados do Cliente",
+      "submitLabel": "Consultar",
+      "fields": [
+        { "key": "customerDocument", "label": "RG ou CPF", "placeholder": "RG ou CPF" }
+      ]
+    },
+    {
+      "id": "trip-validation",
+      "title": "Validação via Passeio",
+      "submitLabel": "Consultar",
+      "fields": [
+        { "key": "tripCode", "label": "Passeio", "placeholder": "Passeio" }
+      ]
+    }
+  ],
+  "modals": [
+    {
+      "id": "ticket-lookup",
+      "title": "Consultar Ingresso",
+      "primaryActionLabel": "Procurar"
+    }
+  ]
+}

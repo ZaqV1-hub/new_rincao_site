@@ -1,0 +1,9 @@
+{
+  "path": ["src"],
+  "ignore": ["**/*.test.ts", "**/*.test.tsx", "public/vendor/**"],
+  "reporters": ["console"],
+  "mode": "strict",
+  "minLines": 8,
+  "minTokens": 80,
+  "threshold": 11.5
+}

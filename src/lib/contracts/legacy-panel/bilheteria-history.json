@@ -1,0 +1,27 @@
+{
+  "screenId": "bilheteria-history",
+  "title": "Histórico de vendas",
+  "header": {
+    "actions": [
+      { "key": "back-to-workstation", "label": "Validar Voucher", "href": "/painel/bilheteria" },
+      { "key": "sales", "label": "Vendas", "href": "/painel/bilheteria/vendas" },
+      { "key": "cash-closure", "label": "Fechamento de Caixa", "href": "/painel/bilheteria/fechamento-caixa" },
+      { "key": "cash-fund", "label": "Fundo de Caixa", "href": "/painel/bilheteria/fundo-caixa" },
+      { "key": "ticket-lookup", "label": "Consultar Ingresso", "href": "/painel/bilheteria?consult=1" }
+    ]
+  },
+  "tables": [
+    {
+      "id": "history-results",
+      "columns": [
+        { "key": "purchaseDate", "label": "Data" },
+        { "key": "purchaseId", "label": "ID" },
+        { "key": "cpf", "label": "CPF" },
+        { "key": "totalValue", "label": "Valor" },
+        { "key": "paymentLabels", "label": "Forma de pagamento" },
+        { "key": "statusLabel", "label": "Status" },
+        { "key": "actions", "label": "Ações" }
+      ]
+    }
+  ]
+}
