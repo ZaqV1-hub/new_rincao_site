@@ -17,4 +17,7 @@ echo Projeto: %CD%
 echo Porta: %PORT%
 echo Ambiente: %NODE_ENV%
 
+call scripts\sync-standalone-assets.cmd
+if errorlevel 1 exit /b 1
+
 node .next\standalone\server.js

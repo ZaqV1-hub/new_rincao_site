@@ -54,12 +54,8 @@ echo Rodando npm run build...
 call npm run build
 if errorlevel 1 goto :error
 
-echo Sincronizando assets publicos para o runtime standalone...
-call :sync_dir "public" ".next\standalone\public"
-if errorlevel 1 goto :error
-
-echo Sincronizando assets compilados do Next para o runtime standalone...
-call :sync_dir ".next\static" ".next\standalone\.next\static"
+echo Sincronizando assets do runtime standalone...
+call scripts\sync-standalone-assets.cmd
 if errorlevel 1 goto :error
 
 echo.
@@ -68,25 +64,6 @@ echo Para subir o app novamente:
 echo   for /f "usebackq tokens=1,* delims==" %%A in (".env.local") do @if not "%%A"=="" if not "%%A:~0,1%%"=="#" set "%%A=%%B"
 echo   set RINCAO_SITE_STORAGE_ROOT=%CD%
 echo   set HOSTNAME=127.0.0.1^&^& set PORT=%PORT%^&^& node .next\standalone\server.js
-exit /b 0
-
-:sync_dir
-set "SRC=%~1"
-set "DEST=%~2"
-
-if not exist "%SRC%" (
-  echo Pasta de origem nao encontrada: %SRC%
-  exit /b 1
-)
-
-if not exist "%DEST%" mkdir "%DEST%"
-
-robocopy "%SRC%" "%DEST%" /E /NFL /NDL /NJH /NJS /NP >nul
-if errorlevel 8 (
-  echo Falha ao sincronizar %SRC% para %DEST%
-  exit /b 1
-)
-
 exit /b 0
 
 :error
