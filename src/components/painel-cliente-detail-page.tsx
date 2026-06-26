@@ -67,7 +67,7 @@ export function PainelClienteDetailPage({
               </tr>
               <tr className="bg-[#fafafa]">
                 <th className="border border-[#d7d7d7] px-4 py-3 text-left font-bold text-[#555]" colSpan={3}>
-                  Informacoes
+                  Informações
                 </th>
               </tr>
               <tr className="bg-[#fafafa]">
@@ -100,7 +100,7 @@ export function PainelClienteDetailPage({
       </section>
 
       <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
-        <h2 className="text-[28px] text-[#3f3f3f]">Historicos de Datas de Passeio</h2>
+        <h2 className="text-[28px] text-[#3f3f3f]">Histórico de Datas de Passeio</h2>
         <div className="mt-4 overflow-x-auto border border-[#cfcfcf]">
           <table className="min-w-full border-collapse text-[15px]">
             <thead className="bg-[#5f84a3] text-left text-white">
@@ -129,7 +129,7 @@ export function PainelClienteDetailPage({
               ) : (
                 <tr>
                   <td className="border border-[#d7d7d7] px-4 py-5 text-center" colSpan={2}>
-                    Nao ha dados
+                    Não há dados
                   </td>
                 </tr>
               )}
@@ -155,7 +155,7 @@ export function PainelClienteDetailPage({
                     {classItem.periods.length > 0 ? (
                       classItem.periods.map((period) => period.name).join(", ")
                     ) : (
-                      <span>Nenhum periodo cadastrado.</span>
+                      <span>Nenhum período cadastrado.</span>
                     )}
                   </div>
                 </div>

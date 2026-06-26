@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { buildClientTripPurchasePath } from "@/lib/plink";
 
@@ -741,7 +741,7 @@ async function listClientTripTypeOptions(client: PoolClient) {
 export async function listOpsClientTrips(input: OpsClientTripFilterInput) {
   const filters = normalizeListFilters(input);
   const { where, values } = buildListWhere(filters);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -860,7 +860,7 @@ export async function getOpsClientTripCreateScreenData(input?: {
   agendaId?: number | null;
   clientId?: number | null;
 }) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -945,7 +945,7 @@ export async function getOpsClientTripEditScreenData(
     clientId,
     "Informe um cliente valido.",
   );
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1010,7 +1010,7 @@ export async function createOpsClientTrip(input: OpsClientTripCreateInput) {
   const clientId = assertPositiveInteger(input.clientId, "Selecione o cliente.");
   const acceptsFamily = parseBooleanish(input.acceptsFamily);
   const faixas = normalizeFaixas(input.faixas);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1090,7 +1090,7 @@ export async function updateOpsClientTrip(input: OpsClientTripUpdateInput) {
   const clientId = assertPositiveInteger(input.clientId, "Informe um cliente valido.");
   const acceptsFamily = parseBooleanish(input.acceptsFamily);
   const faixas = normalizeFaixas(input.faixas);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1154,7 +1154,7 @@ export async function updateOpsClientTrip(input: OpsClientTripUpdateInput) {
 export async function unlinkOpsClientTrip(input: OpsClientTripDeleteInput) {
   const agendaId = assertPositiveInteger(input.agendaId, "Informe uma agenda valida.");
   const clientId = assertPositiveInteger(input.clientId, "Informe um cliente valido.");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1221,7 +1221,7 @@ export async function moveOpsClientTripDate(input: OpsClientTripMoveDateInput) {
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {

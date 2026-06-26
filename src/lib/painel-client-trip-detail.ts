@@ -1,5 +1,5 @@
 import { getSchoolEducationStructure } from "@/lib/school-education";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   formatAgendaStatusLabel,
   formatAgendaTypeLabel,
@@ -149,7 +149,7 @@ export async function getPainelClientTripDetail(
   const agendaId = assertPositiveInteger(input.agendaId, "Informe uma agenda valida.");
   const clientId = assertPositiveInteger(input.clientId, "Informe um cliente valido.");
   const purchaseStatus = normalizePurchaseStatus(input.purchaseStatus);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
 
   const tripResult = await pool.query<TripRow>(
     `

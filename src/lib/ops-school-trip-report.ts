@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   assertPositiveInteger,
   formatActiveStatusLabel,
@@ -110,7 +110,7 @@ export async function getOpsSchoolTripReport(
       ),
   );
   const purchaseStatus = normalizePurchaseStatus(input.purchaseStatus);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
 
   const tripResult = await pool.query<TripRow>(
     `

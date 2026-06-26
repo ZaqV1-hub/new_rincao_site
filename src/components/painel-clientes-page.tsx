@@ -178,7 +178,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
           <div
             className={`mt-4 border px-4 py-3 text-sm ${
               feedback.tone === "success"
-                ? "border-[#b7dfc0] bg-[#edf8f0] text-[#245336]"
+                ? "border-[#c8def4] bg-[#eff6ff] text-[#1d4f91]"
                 : "border-[#efc0c0] bg-[#fff0f0] text-[#7a2b2b]"
             }`}
           >
@@ -208,7 +208,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Nome</th>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Tipo</th>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
-                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acoes</th>
+                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -287,14 +287,14 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                   <span className="text-[#9d9d9d]">&lt; Anterior</span>
                 )}
                 <span className="text-[#5a5a5a]">
-                  Pagina {data.page} de {data.pageCount}
+                  Página {data.page} de {data.pageCount}
                 </span>
                 {nextHref ? (
                   <Link className="text-[#1868d6] underline" href={nextHref}>
-                    Proxima &gt;
+                    Próxima &gt;
                   </Link>
                 ) : (
-                  <span className="text-[#9d9d9d]">Proxima &gt;</span>
+                  <span className="text-[#9d9d9d]">Próxima &gt;</span>
                 )}
               </div>
             ) : null}
@@ -303,7 +303,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
           <aside className="grid content-start gap-6">
             <div className="grid gap-4 text-[17px]">
               <Link
-                className="break-words text-[#6d6d6d] underline decoration-transparent transition hover:text-[#246b18]"
+                className="break-words text-[#6d6d6d] underline decoration-transparent transition hover:text-[#205a7f]"
                 href="/painel/clientes/adicionar"
               >
                 + Adicionar cliente

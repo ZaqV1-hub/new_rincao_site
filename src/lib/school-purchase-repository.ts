@@ -1,5 +1,5 @@
 import { encodeLegacyId } from "@/lib/agenda-id";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   buildSchoolClassDisplay,
   getSchoolEducationStructure,
@@ -124,7 +124,7 @@ export async function searchSchoolsByName(term: string) {
     return [] satisfies SchoolOption[];
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<SchoolRow>(
     `
       SELECT idcliente AS id, nome AS name
@@ -147,7 +147,7 @@ export async function searchSchoolsByName(term: string) {
 export async function getSchoolPurchaseContext(
   schoolId: number,
 ): Promise<SchoolPurchaseContext | null> {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<SchoolTripRow>(
     `
       SELECT
@@ -208,7 +208,7 @@ export async function resolveSchoolPurchasePreset(
 }
 
 async function assertSchoolTripAvailability(schoolId: number, agendaId: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<SchoolTripRow>(
     `
       SELECT
@@ -327,7 +327,7 @@ export async function createSchoolPurchase(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
   const totalValue = normalizeMoney(parsedValue);
 

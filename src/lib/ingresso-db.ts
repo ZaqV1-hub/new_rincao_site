@@ -23,6 +23,7 @@ type IngressoDbClient = Pick<PoolClient, "query" | "release">;
 type IngressoDbPool = Pick<PgPoolType, "query" | "connect">;
 
 type IngressoDbDialect = "postgres" | "mysql";
+type IngressoDbConfigPrefix = "INGRESSO_DB" | "INGRESSO_SISTEMA_DB";
 
 type MysqlPreparedQuery = {
   sql: string;
@@ -82,6 +83,28 @@ function getPgPoolConfig(): PgPoolConfig {
       process.env.INGRESSO_DB_SSL === "true"
         ? { rejectUnauthorized: true }
         : undefined,
+  };
+}
+
+function getPrefixedPgPoolConfig(prefix: IngressoDbConfigPrefix): PgPoolConfig {
+  const connectionString = process.env[`${prefix}_URL`];
+  const sslEnabled = process.env[`${prefix}_SSL`] === "true";
+
+  if (connectionString) {
+    return {
+      connectionString,
+      ssl: sslEnabled ? { rejectUnauthorized: true } : undefined,
+    };
+  }
+
+  return {
+    host: process.env[`${prefix}_HOST`] ?? "127.0.0.1",
+    port: Number(process.env[`${prefix}_PORT`] ?? 5432),
+    database: process.env[`${prefix}_NAME`] ?? "postgres",
+    user: process.env[`${prefix}_USER`] ?? "postgres",
+    password: process.env[`${prefix}_PASSWORD`] ?? "postgres",
+    max: Number(process.env[`${prefix}_POOL_MAX`] ?? process.env.INGRESSO_DB_POOL_MAX ?? 4),
+    ssl: sslEnabled ? { rejectUnauthorized: true } : undefined,
   };
 }
 
@@ -434,8 +457,63 @@ function createPostgresIngressoDbPool(): IngressoDbPool {
   return wrapper as unknown as IngressoDbPool;
 }
 
+function createPrefixedPostgresIngressoDbPool(prefix: IngressoDbConfigPrefix): IngressoDbPool {
+  const cacheKey =
+    prefix === "INGRESSO_SISTEMA_DB"
+      ? "__ingressoSistemaDbPool"
+      : "__ingressoDbPrefixedPool";
+  const globalForPg = globalThis as typeof globalThis & {
+    __ingressoSistemaDbPool?: PgPool;
+    __ingressoDbPrefixedPool?: PgPool;
+  };
+
+  if (!globalForPg[cacheKey]) {
+    globalForPg[cacheKey] = new PgPool(getPrefixedPgPoolConfig(prefix));
+  }
+
+  const pool = globalForPg[cacheKey]!;
+
+  const wrapper = {
+    async query<T extends QueryResultRow = QueryResultRow>(
+      sql: string,
+      values?: unknown[],
+    ) {
+      const result = await pool.query<T>(sql, values);
+      return {
+        rows: result.rows,
+        rowCount: result.rowCount ?? result.rows.length,
+      };
+    },
+    async connect() {
+      const client = await pool.connect();
+
+      return {
+        async query<T extends QueryResultRow = QueryResultRow>(
+          sql: string,
+          values?: unknown[],
+        ) {
+          const result = await client.query<T>(sql, values);
+          return {
+            rows: result.rows,
+            rowCount: result.rowCount ?? result.rows.length,
+          };
+        },
+        release() {
+          client.release();
+        },
+      };
+    },
+  };
+
+  return wrapper as unknown as IngressoDbPool;
+}
+
 export function getIngressoDbPool(): IngressoDbPool {
   return resolveIngressoDbDialect() === "mysql"
     ? createMysqlIngressoDbPool()
     : createPostgresIngressoDbPool();
+}
+
+export function getIngressoSistemaDbPool(): IngressoDbPool {
+  return createPrefixedPostgresIngressoDbPool("INGRESSO_SISTEMA_DB");
 }

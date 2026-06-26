@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   getOpsSchoolTripReport,
   type OpsSchoolTripReport,
@@ -39,7 +39,7 @@ export async function getPublicSchoolTripReportByPermalink(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const permalinkResult = await pool.query<PublicSchoolTripPermalinkRow>(
     `
       SELECT idescola, idagenda

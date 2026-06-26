@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   asOpsClientEducationError,
   getClientEducationSummary,
@@ -695,7 +695,7 @@ export async function listPainelClientes(
   }
 
   const whereSql = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
 
   const [typeOptions, countResult, rowsResult] = await Promise.all([
     listClientTypes(),
@@ -756,7 +756,7 @@ export async function listPainelClientes(
 
 export async function getPainelClientDetail(clientIdInput: unknown) {
   const clientId = assertPositiveInteger(clientIdInput, "Informe um cliente valido.");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -838,7 +838,7 @@ export async function getPainelClientDetail(clientIdInput: unknown) {
 
 export async function createPainelClient(input: PainelClienteMutationInput) {
   const payload = validateClientPayload(input.values);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -885,7 +885,7 @@ export async function createPainelClient(input: PainelClienteMutationInput) {
 export async function updatePainelClient(input: PainelClienteMutationInput) {
   const clientId = assertPositiveInteger(input.clientId, "Informe um cliente valido.");
   const payload = validateClientPayload(input.values);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -956,7 +956,7 @@ export async function removePainelClient(input: {
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1009,7 +1009,7 @@ export async function addPainelClientTripDate(input: PainelClientTripDateMutatio
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1052,7 +1052,7 @@ export async function togglePainelClientTripDateStatus(
     : "ina";
   const nextAgendaStatus = nextUiStatus === "ati" ? "abe" : "fec";
   const actorName = normalizeActorName(input.actor);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1132,7 +1132,7 @@ export async function togglePainelClientTripDateStatus(
 export async function removePainelClientTripDate(input: PainelClientTripDateMutationInput) {
   const clientId = assertPositiveInteger(input.clientId, "Cliente invalido.");
   const agendaId = assertPositiveInteger(input.agendaId, "Agenda invalida.");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1298,7 +1298,7 @@ export async function removePainelClientTripDate(input: PainelClientTripDateMuta
 
 export async function listPainelTripSchools(input: PainelTripSchoolLookupInput) {
   const agendaId = assertPositiveInteger(input.agendaId, "Agenda invalida.");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<{ idcliente: number; nome: string }>(
     `
       SELECT c.idcliente, c.nome
@@ -1320,7 +1320,7 @@ export async function listPainelTripSchools(input: PainelTripSchoolLookupInput) 
 
 export async function listPainelTripSchoolDates(input: PainelTripSchoolDatesInput) {
   const clientId = assertPositiveInteger(input.clientId, "Cliente invalido.");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<{ idagenda: number; dtagenda_fmt: string }>(
     `
       SELECT a.idagenda, to_char(a.dtagenda, 'DD/MM/YYYY') AS dtagenda_fmt
@@ -1414,7 +1414,7 @@ export async function updatePainelTripVoucherStudent(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {

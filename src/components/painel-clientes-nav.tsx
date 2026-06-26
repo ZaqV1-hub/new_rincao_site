@@ -8,7 +8,7 @@ const navItems = [
   {
     key: "overview",
     href: "/painel/clientes",
-    label: "Visao geral",
+    label: "Visão geral",
   },
   {
     key: "trips",

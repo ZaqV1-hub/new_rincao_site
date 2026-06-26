@@ -149,7 +149,7 @@ export function PainelClientTripEditor({
       if (!response.ok || !payload?.ok) {
         throw new Error(
           payload?.error?.message ||
-            "Nao foi possivel salvar o passeio agora.",
+            "Não foi possível salvar o passeio agora.",
         );
       }
 
@@ -163,7 +163,7 @@ export function PainelClientTripEditor({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel salvar o passeio agora.",
+          : "Não foi possível salvar o passeio agora.",
       );
     } finally {
       setIsSaving(false);
@@ -208,7 +208,7 @@ export function PainelClientTripEditor({
       if (!response.ok || !payload?.ok || !payload.data?.agendaId) {
         throw new Error(
           payload?.error?.message ||
-            "Nao foi possivel mover a data do passeio agora.",
+            "Não foi possível mover a data do passeio agora.",
         );
       }
 
@@ -222,7 +222,7 @@ export function PainelClientTripEditor({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel mover a data do passeio agora.",
+          : "Não foi possível mover a data do passeio agora.",
       );
     } finally {
       setIsMovingDate(false);
@@ -283,8 +283,8 @@ export function PainelClientTripEditor({
                   />
                 </label>
                 <p className="text-sm text-[#667]">
-                  Se ja existir agenda na data escolhida, o vinculo e os vouchers
-                  deste cliente serao movidos para ela.
+                  Se já existir agenda na data escolhida, o vínculo e os vouchers
+                  deste cliente serão movidos para ela.
                 </p>
               </div>
             </section>
@@ -344,7 +344,7 @@ export function PainelClientTripEditor({
 
               <tr>
                 <th className="border border-[#d7d7d7] bg-[#f4f4f4] px-4 py-3 text-left font-bold text-[#555]">
-                  Aceita familia?
+                  Aceita família?
                 </th>
                 <td className="border border-[#d7d7d7] px-4 py-3">
                   <select
@@ -352,7 +352,7 @@ export function PainelClientTripEditor({
                     onChange={(event) => setAcceptsFamily(event.target.value === "1")}
                     value={acceptsFamily ? "1" : "0"}
                   >
-                    <option value="0">Nao</option>
+                    <option value="0">Não</option>
                     <option value="1">Sim</option>
                   </select>
                 </td>
@@ -362,7 +362,7 @@ export function PainelClientTripEditor({
 
           <section className="rounded-[6px] border border-[#d7d7d7] bg-white">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d7d7d7] bg-[#f4f4f4] px-4 py-3">
-              <h2 className="text-[18px] font-bold text-[#555]">Faixas de preco</h2>
+              <h2 className="text-[18px] font-bold text-[#555]">Faixas de preço</h2>
               <button
                 className="border border-[#c5c5c5] bg-[#f8f8f8] px-4 py-2 text-sm text-[#555]"
                 onClick={addFaixa}
@@ -380,13 +380,13 @@ export function PainelClientTripEditor({
                       Idade de
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                      Idade ate
+                      Idade até
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
                       Valor (R$)
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                      Acao
+                      Ação
                     </th>
                   </tr>
                 </thead>
@@ -451,7 +451,7 @@ export function PainelClientTripEditor({
               Cancelar
             </Link>
             <button
-              className="border border-[#2f7f2f] bg-[#4b9c38] px-5 py-2.5 text-sm font-bold text-white"
+              className="border border-[#1d4f91] bg-[#246b99] px-5 py-2.5 text-sm font-bold text-white"
               disabled={isSaving}
               type="submit"
             >
@@ -459,7 +459,7 @@ export function PainelClientTripEditor({
                 ? "Salvando..."
                 : data.mode === "create"
                   ? "Vincular"
-                  : "Salvar alteracoes"}
+                  : "Salvar alterações"}
             </button>
           </div>
         </form>

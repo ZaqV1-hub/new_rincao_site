@@ -158,7 +158,7 @@ export function PainelClientTripDetailPage({
       | null;
 
     if (!response.ok || !payload?.ok) {
-      setStatusMessage(payload?.error?.message ?? "Nao foi possivel alterar o status.");
+      setStatusMessage(payload?.error?.message ?? "Não foi possível alterar o status.");
       return;
     }
 
@@ -273,7 +273,7 @@ export function PainelClientTripDetailPage({
                 Data Agendada
               </th>
               <th className="border border-[#d8dfe5] bg-[#f4f6f8] px-4 py-3 text-left font-semibold text-[#53697a]">
-                Status Agenda
+                Status da Agenda
               </th>
             </tr>
             <tr>
@@ -285,7 +285,7 @@ export function PainelClientTripDetailPage({
                 className="border border-[#d8dfe5] bg-[#f4f6f8] px-4 py-3 text-left font-semibold text-[#53697a]"
                 colSpan={2}
               >
-                Codigo Passeio
+                Código do Passeio
               </th>
               <th className="border border-[#d8dfe5] bg-[#f4f6f8] px-4 py-3 text-left font-semibold text-[#53697a]">
                 Status Passeio
@@ -319,7 +319,7 @@ export function PainelClientTripDetailPage({
                 Cliente
               </th>
               <th className="border border-[#d8dfe5] bg-[#f4f6f8] px-4 py-3 text-left font-semibold text-[#53697a]">
-                Aceita familia?
+                Aceita família?
               </th>
             </tr>
             <tr>
@@ -332,7 +332,7 @@ export function PainelClientTripDetailPage({
                 ) : null}
               </td>
               <td className="border border-[#d8dfe5] px-4 py-3">
-                {data.trip.acceptsFamily ? "Sim" : "Nao"}
+                {data.trip.acceptsFamily ? "Sim" : "Não"}
               </td>
             </tr>
           </tbody>
@@ -350,7 +350,7 @@ export function PainelClientTripDetailPage({
                 setStatusMessage("Link copiado com sucesso.");
               }}
             >
-              Gerar link
+              Copiar link
             </button>
           ) : null}
           {csvHref ? (
@@ -358,7 +358,7 @@ export function PainelClientTripDetailPage({
               className="rounded border border-[#cdd8e2] bg-white px-4 py-2 text-[#215f92]"
               href={csvHref}
             >
-              Relatorio CSV
+              Relatório CSV
             </Link>
           ) : null}
           {pdfHref ? (
@@ -368,7 +368,7 @@ export function PainelClientTripDetailPage({
               rel="noreferrer"
               target="_blank"
             >
-              Relatorio PDF
+              Relatório PDF
             </Link>
           ) : null}
         </div>
@@ -381,7 +381,7 @@ export function PainelClientTripDetailPage({
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-[26px] font-light text-[#546979]">Relatorio de Ingressos</h2>
+        <h2 className="text-[26px] font-light text-[#546979]">Relatório de Ingressos</h2>
 
         <form action="" className="flex flex-wrap items-end gap-3" method="get">
           <input name="clientId" type="hidden" value={String(data.trip.clientId)} />
@@ -610,7 +610,7 @@ export function PainelClientTripDetailPage({
                   }
                 >
                   <option value="pend">Pendente</option>
-                  <option value="conc">Concluida</option>
+                  <option value="conc">Concluída</option>
                   <option value="canc">Cancelada</option>
                   <option value="pago">Pago</option>
                 </select>
@@ -649,14 +649,14 @@ export function PainelClientTripDetailPage({
             <div className="border-b border-[#d8dfe5] px-5 py-4">
               <h4 className="text-lg font-semibold text-[#355062]">Confirmar</h4>
             </div>
-            <div className="px-5 py-5">Deseja salvar as alteracoes deste aluno?</div>
+            <div className="px-5 py-5">Deseja salvar as alterações deste aluno?</div>
             <div className="flex justify-end gap-3 border-t border-[#d8dfe5] px-5 py-4">
               <button
                 className="rounded border border-[#cfd7de] px-4 py-2 text-[#4f6576]"
                 type="button"
                 onClick={() => setConfirmOpen(false)}
               >
-                Nao
+                Não
               </button>
               <button
                 className="rounded bg-[#246b99] px-4 py-2 text-white"
@@ -699,7 +699,7 @@ function ParticipantTable({
               {kind === "student" ? "Nome do aluno" : "Nome"}
             </th>
             <th className="border border-[#d8dfe5] px-3 py-3 font-semibold">
-              {kind === "student" ? "Tipo/Ano/Turma" : kind === "educator" ? "Funcao" : "Tipo"}
+              {kind === "student" ? "Tipo/Ano/Turma" : kind === "educator" ? "Função" : "Tipo"}
             </th>
             <th className="border border-[#d8dfe5] px-3 py-3 font-semibold text-right">Valor</th>
             <th className="border border-[#d8dfe5] px-3 py-3 font-semibold">Data da Compra</th>

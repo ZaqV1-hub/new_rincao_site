@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 
 type SchoolRow = {
@@ -250,7 +250,7 @@ async function getSchoolTripBinding(
 export async function getOpsSchoolTripsScreenData(
   input: OpsSchoolTripsScreenInput,
 ): Promise<OpsSchoolTripsScreenData> {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
   const query = normalizeText(input.query);
   const schoolId = normalizeText(input.schoolId)
@@ -334,7 +334,7 @@ export async function createOpsSchoolTripDate(
   const schoolId = assertPositiveInteger(input.schoolId, "Informe uma escola valida.");
   const visitDate = parseDateInput(input.visitDate);
   ensureTodayOrFuture(visitDate);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -430,7 +430,7 @@ export async function updateOpsSchoolTripDateStatus(
   const schoolId = assertPositiveInteger(input.schoolId, "Informe uma escola valida.");
   const agendaId = assertPositiveInteger(input.agendaId, "Informe uma agenda valida.");
   const status = normalizeText(input.status).toLowerCase() === "ina" ? "ina" : "ati";
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -480,7 +480,7 @@ export async function deleteOpsSchoolTripDate(
 ): Promise<OpsSchoolTripMutationResult> {
   const schoolId = assertPositiveInteger(input.schoolId, "Informe uma escola valida.");
   const agendaId = assertPositiveInteger(input.agendaId, "Informe uma agenda valida.");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {

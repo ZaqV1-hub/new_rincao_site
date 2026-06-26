@@ -111,7 +111,7 @@ export function PainelClientTripsManager({
       if (!response.ok || !payload?.ok) {
         throw new Error(
           payload?.error?.message ||
-            "Nao foi possivel desvincular o passeio agora.",
+            "Não foi possível desvincular o passeio agora.",
         );
       }
 
@@ -122,7 +122,7 @@ export function PainelClientTripsManager({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel desvincular o passeio agora.",
+          : "Não foi possível desvincular o passeio agora.",
       );
     } finally {
       setPendingAgendaId(null);
@@ -159,7 +159,7 @@ export function PainelClientTripsManager({
           </Link>{" "}
           <span className="mx-2 text-[#b8b8b8]">&gt;</span>
           <Link className="text-[#1d68a2] underline" href="/painel/clientes">
-            Cliente
+            Clientes
           </Link>{" "}
           <span className="mx-2 text-[#b8b8b8]">&gt;</span>
           <span>Passeios</span>
@@ -167,7 +167,7 @@ export function PainelClientTripsManager({
       </section>
 
       {successMessage ? (
-        <div className="border border-[#cfe8bf] bg-[#f3ffeb] px-4 py-3 text-sm text-[#3f6e1d]">
+        <div className="border border-[#c8def4] bg-[#eff6ff] px-4 py-3 text-sm text-[#1d4f91]">
           {successMessage}
         </div>
       ) : null}
@@ -189,7 +189,7 @@ export function PainelClientTripsManager({
           {data.total === 0 ? (
             <section className="rounded-[6px] bg-white px-4 py-10 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
               <h2 className="text-[28px] text-[#3f3f3f]">
-                Nao foi encontrado nenhum passeio
+                Não foi encontrado nenhum passeio
               </h2>
             </section>
           ) : (
@@ -228,7 +228,7 @@ export function PainelClientTripsManager({
                     <thead className="bg-[#5f84a3] text-left text-white">
                       <tr>
                         <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                          Codigo Passeio
+                          Código do Passeio
                         </th>
                         <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
                           Cliente
@@ -246,10 +246,10 @@ export function PainelClientTripsManager({
                           Qtd Pessoas
                         </th>
                         <th className="border border-[#6f8ea8] px-4 py-3 text-center font-normal">
-                          Acoes
+                          Ações
                         </th>
                         <th className="border border-[#6f8ea8] px-4 py-3 text-center font-normal">
-                          Link Compra Participante
+                          Link de Compra do Participante
                         </th>
                       </tr>
                     </thead>
@@ -396,7 +396,7 @@ export function PainelClientTripsManager({
             </div>
             <form action="/painel/clientes/passeios" className="grid gap-5 px-6 py-5" method="get">
               <label className="grid gap-2 text-[18px] font-bold text-[#555]">
-                <span>Codigo</span>
+                <span>Código</span>
                 <input
                   className="h-12 border border-[#d7d7d7] px-3 text-[16px] font-normal"
                   defaultValue={data.filters.code}
@@ -477,7 +477,7 @@ export function PainelClientTripsManager({
                   className="text-sm text-[#1868d6] underline"
                   href="/painel/clientes/passeios"
                 >
-                  Remover Filtros
+                  Limpar filtros
                 </Link>
               </div>
             </form>

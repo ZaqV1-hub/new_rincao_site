@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 
 type ClientEducationActor = {
@@ -518,7 +518,7 @@ async function syncDefaultPeriods(
 }
 
 export async function listClientTypes() {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<{ idtipo: number; nome: string }>(
     `
       SELECT idtipo, nome
@@ -541,7 +541,7 @@ export async function autocompleteClients(query: unknown, limitInput: unknown) {
     return [] as ClientAutocompleteItem[];
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<{
     idcliente: number;
     nome: string;
@@ -574,7 +574,7 @@ export async function autocompleteClients(query: unknown, limitInput: unknown) {
 
 export async function getClientEducationSummary(clientIdInput: unknown) {
   const clientId = assertPositiveInteger(clientIdInput, "Informe um cliente valido.");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -600,7 +600,7 @@ export async function getClientEducationSummary(clientIdInput: unknown) {
 
 export async function toggleClientStatus(input: ClientStatusToggleInput) {
   const clientId = assertPositiveInteger(input.clientId, "Informe um cliente valido.");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -658,7 +658,7 @@ export async function toggleClientStatus(input: ClientStatusToggleInput) {
 export async function createClientClass(input: ClientClassMutationInput) {
   const clientId = assertPositiveInteger(input.clientId, "Informe um cliente valido.");
   const payload = validateClassPayload(input.values);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -736,7 +736,7 @@ export async function updateClientClass(input: ClientClassMutationInput) {
   const clientId = assertPositiveInteger(input.clientId, "Informe um cliente valido.");
   const classId = assertPositiveInteger(input.id, "Informe uma turma valida.");
   const payload = validateClassPayload(input.values);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -808,7 +808,7 @@ export async function updateClientClass(input: ClientClassMutationInput) {
 export async function deleteClientClass(input: ClientClassMutationInput) {
   const clientId = assertPositiveInteger(input.clientId, "Informe um cliente valido.");
   const classId = assertPositiveInteger(input.id, "Informe uma turma valida.");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -867,7 +867,7 @@ export async function createClientPeriod(input: ClientPeriodMutationInput) {
   const clientId = assertPositiveInteger(input.clientId, "Informe um cliente valido.");
   const classId = assertPositiveInteger(input.classId, "Informe uma turma valida.");
   const payload = validatePeriodPayload(input.values);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -946,7 +946,7 @@ export async function updateClientPeriod(input: ClientPeriodMutationInput) {
   const classId = assertPositiveInteger(input.classId, "Informe uma turma valida.");
   const periodId = assertPositiveInteger(input.id, "Informe um periodo valido.");
   const payload = validatePeriodPayload(input.values);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1019,7 +1019,7 @@ export async function deleteClientPeriod(input: ClientPeriodMutationInput) {
   const clientId = assertPositiveInteger(input.clientId, "Informe um cliente valido.");
   const classId = assertPositiveInteger(input.classId, "Informe uma turma valida.");
   const periodId = assertPositiveInteger(input.id, "Informe um periodo valido.");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
