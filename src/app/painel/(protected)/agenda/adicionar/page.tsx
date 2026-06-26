@@ -7,7 +7,7 @@ import { getPainelAgendaScreenData } from "@/lib/painel-agenda";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Agenda - Adicionar | Rincao",
+  title: "Painel - Agenda - Adicionar | Rincão",
   robots: {
     index: false,
     follow: false,
@@ -56,7 +56,7 @@ export default async function PainelAgendaAddPage({
           <span>Adicionar</span>
         </div>
         <p className="mt-3 text-sm text-[#5d7282]">
-          Use esta tela apenas para datas padrao da agenda. Datas promocionais e eventos ficam na area de Site.
+          Use esta tela apenas para datas padrão da agenda. Datas promocionais e eventos ficam na área de Site.
         </p>
       </header>
 

@@ -80,7 +80,7 @@ export function getAgendaToneClasses(
 
 function getSelectedDayCardClasses(entry: AgendaToneInput | undefined) {
   if (!entry) {
-    return "border-[#d9e3eb] bg-[#f7fafc] text-[#345062]";
+    return "border-[#d4dfeb] bg-[#eef4fb] text-[#123b63]";
   }
 
   if (entry.status === "lot") {
@@ -228,13 +228,13 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
         SelectedDayResponse | SelectedDayErrorResponse
       >(response);
 
-      if (!response.ok || !payload?.ok) {
-        throw new Error(
-          payload && !payload.ok
-            ? payload.error?.message || "Nao foi possivel carregar o dia."
-            : "Nao foi possivel carregar o dia.",
-        );
-      }
+        if (!response.ok || !payload?.ok) {
+          throw new Error(
+            payload && !payload.ok
+              ? payload.error?.message || "Não foi possível carregar o dia."
+              : "Não foi possível carregar o dia.",
+          );
+        }
 
       if (requestSequenceRef.current !== requestSequence) {
         return;
@@ -251,7 +251,7 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
       }
 
       console.error("painel-agenda-day-selection-failed", error);
-      setSelectedDayError("Nao foi possivel carregar o dia agora.");
+      setSelectedDayError("Não foi possível carregar o dia agora.");
     } finally {
       if (requestSequenceRef.current === requestSequence) {
         setLoadingDate(null);
@@ -265,22 +265,22 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
         <section className="panel-section p-3.5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="panel-eyebrow">Agenda</p>
-              <h1 className="mt-1 text-[28px] font-black leading-none text-[#17351f]">
+              <p className="panel-eyebrow !text-[#4d7398]">Agenda</p>
+              <h1 className="mt-1 text-[28px] font-black leading-none text-[#123b63]">
                 {formatPainelAgendaMonthLabel(data.month, data.year)}
               </h1>
             </div>
 
             <Link
               href={buildAgendaAddHref(data.month, data.year, selectedDate)}
-              className="rounded-[8px] border border-[#d7e3d2] px-3 py-2 text-xs font-semibold text-[#275330] hover:bg-[#f7fbf5]"
+              className="rounded-[8px] border border-[#d4dfeb] px-3 py-2 text-xs font-semibold text-[#123b63] hover:bg-[#eef4fb]"
             >
-              Adicionar data padrao
+              Adicionar data padrão
             </Link>
           </div>
 
-          <div className="mt-3 overflow-hidden rounded-[14px] border border-[#dbe7d7]">
-            <div className="grid grid-cols-[40px_1fr_40px] items-center bg-[linear-gradient(135deg,#1f6b36,#7bc043)] text-white">
+          <div className="mt-3 overflow-hidden rounded-[14px] border border-[#d4dfeb]">
+            <div className="grid grid-cols-[40px_1fr_40px] items-center bg-[linear-gradient(135deg,#123b63,#2f6ea3)] text-white">
               <Link
                 href={buildAgendaHref(previousMonth.month, previousMonth.year)}
                 className="flex h-10 items-center justify-center text-[1.35rem] font-semibold hover:bg-white/10"
@@ -298,7 +298,7 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
               </Link>
             </div>
 
-            <div className="grid grid-cols-7 border-b border-[#dbe7d7] bg-[#17351f] text-center text-[13px] font-semibold text-white">
+            <div className="grid grid-cols-7 border-b border-[#d4dfeb] bg-[#123b63] text-center text-[13px] font-semibold text-white">
               {["D", "S", "T", "Q", "Q", "S", "S"].map((label, index) => (
                 <div key={`${label}-${index}`} className="px-2 py-2">
                   {label}
@@ -347,7 +347,7 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5 text-[11px] text-[#4f6472]">
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 rounded bg-[#8dc72b]" />
-              Padrao
+              Padrão
             </div>
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 rounded bg-[#ff6138]" />
@@ -362,8 +362,8 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
 
         <section className="panel-section p-3.5 xl:sticky xl:top-5">
           <div>
-            <p className="panel-eyebrow">Dia selecionado</p>
-            <h2 className="mt-1 text-[24px] font-black leading-none text-[#17351f]">
+            <p className="panel-eyebrow !text-[#4d7398]">Dia selecionado</p>
+            <h2 className="mt-1 text-[24px] font-black leading-none text-[#123b63]">
               {selectedDate
                 ? formatPainelAgendaDateLabel(selectedDate)
                 : "Selecione um dia"}
@@ -371,7 +371,7 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
           </div>
 
           {isDayLoading ? (
-            <div className="mt-3 rounded-[12px] border border-dashed border-[#d7e3d2] bg-[#f7fbf5] px-4 py-4 text-sm text-[#5d745f]">
+            <div className="mt-3 rounded-[12px] border border-dashed border-[#d4dfeb] bg-[#eef4fb] px-4 py-4 text-sm text-[#60758d]">
               Carregando dados do dia...
             </div>
           ) : null}
@@ -407,21 +407,21 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
             {selectedDate ? (
               <Link
                 href={`/painel/agenda/${selectedDate}/editar?mes=${data.month}&ano=${data.year}`}
-                className="rounded-[8px] bg-[#2b8c46] px-3 py-2 text-sm font-semibold text-white"
+                className="rounded-[8px] bg-[#123b63] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0f2f4f]"
               >
                 Editar dia
               </Link>
             ) : (
               <Link
                 href={buildAgendaAddHref(data.month, data.year, data.selectedDate)}
-                className="rounded-[8px] bg-[#2b8c46] px-3 py-2 text-sm font-semibold text-white"
+                className="rounded-[8px] bg-[#123b63] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0f2f4f]"
               >
-                Adicionar data padrao
+                Adicionar data padrão
               </Link>
             )}
           </div>
-          <p className="mt-3 text-xs leading-5 text-[#5d745f]">
-            Datas promocionais e eventos devem ser criados na area de Site.
+          <p className="mt-3 text-xs leading-5 text-[#60758d]">
+            Datas promocionais e eventos devem ser criados na área de Site.
           </p>
         </section>
       </div>
@@ -430,22 +430,22 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
         <section className="panel-section p-3.5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="panel-eyebrow">Vouchers do dia</p>
-              <h2 className="mt-1 text-[24px] font-black text-[#17351f]">
+              <p className="panel-eyebrow !text-[#4d7398]">Vouchers do dia</p>
+              <h2 className="mt-1 text-[24px] font-black text-[#123b63]">
                 {formatPainelAgendaDateLabel(selectedDay.selectedDate)}
               </h2>
             </div>
-            <div className="text-sm text-[#5d745f]">
+            <div className="text-sm text-[#60758d]">
               {selectedDay.vouchers.length} voucher(s)
             </div>
           </div>
 
           <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full overflow-hidden rounded-[12px] border border-[#dbe7d7] text-sm">
-              <thead className="bg-[#f7fbf5] text-left text-[#35503b]">
+            <table className="min-w-full overflow-hidden rounded-[12px] border border-[#d4dfeb] text-sm">
+              <thead className="bg-[#eef4fb] text-left text-[#123b63]">
                 <tr>
                   <th className="px-3 py-2.5 text-xs font-semibold">Compra</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Usuario</th>
+                  <th className="px-3 py-2.5 text-xs font-semibold">Usuário</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">Telefone</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">Celular</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">E-mail</th>
@@ -462,7 +462,7 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
                     key={`${voucher.purchaseId}-${voucher.voucherNumber}-${index}`}
                     className={index % 2 === 0 ? "bg-white" : "bg-[#f8fbfd]"}
                   >
-                    <td className="px-3 py-3 font-semibold text-[#17351f]">
+                    <td className="px-3 py-3 font-semibold text-[#123b63]">
                       {voucher.purchaseId}
                     </td>
                     <td className="px-3 py-3">{voucher.customerName || "-"}</td>
@@ -477,7 +477,7 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
                         ? formatPainelAgendaDateLabel(voucher.useDate)
                         : "-"}
                     </td>
-                    <td className="px-3 py-3">{voucher.used ? "Sim" : "Nao"}</td>
+                    <td className="px-3 py-3">{voucher.used ? "Sim" : "Não"}</td>
                   </tr>
                 ))}
               </tbody>
