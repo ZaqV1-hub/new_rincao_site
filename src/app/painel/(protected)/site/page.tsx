@@ -36,13 +36,13 @@ export default async function PainelSiteRoute({
   return (
     <div className="space-y-5">
       <section className="panel-section p-5">
-        <p className="panel-eyebrow">Site</p>
-        <h2 className="mt-2 text-[28px] font-black leading-tight text-[#17351f]">
-          Conteudo do site
+        <p className="panel-eyebrow !text-[#4d7398]">Site</p>
+        <h2 className="mt-2 text-[28px] font-black leading-tight text-[#123b63]">
+          Conteúdo do site
         </h2>
-        <p className="mt-3 max-w-[760px] text-[15px] leading-7 text-[#5f7564]">
-          Gerencie banners, atracoes, destaques e eventos exibidos no site do
-          Rincao.
+        <p className="mt-3 max-w-[760px] text-[15px] leading-7 text-[#60758d]">
+          Gerencie banners, atrações, destaques e eventos exibidos no site do
+          Rincão.
         </p>
       </section>
 

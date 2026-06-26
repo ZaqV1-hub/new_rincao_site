@@ -16,8 +16,60 @@ type OpsAuditInput = {
 
 let auditTableReady = false;
 
-export async function ensureOpsAuditLogTable(client: PoolClient) {
+type OpsAuditClient = Pick<PoolClient, "query" | "release">;
+
+function isMysqlDialect() {
+  const explicit =
+    process.env.INGRESSO_DB_CLIENT ?? process.env.INGRESSO_DB_DIALECT ?? "";
+  const normalized = explicit.trim().toLowerCase();
+
+  if (normalized === "mysql") {
+    return true;
+  }
+
+  if (normalized === "postgres" || normalized === "pg") {
+    return false;
+  }
+
+  return (
+    Boolean(process.env.WP_DB_HOST) ||
+    Boolean(process.env.GROUP_REGISTRATION_MYSQL_HOST) ||
+    process.env.INGRESSO_DB_HOST?.toLowerCase().includes("mysql") === true
+  );
+}
+
+async function ensureMysqlOpsAuditLogTable(client: OpsAuditClient) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS edicoes_log (
+      id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      origem VARCHAR(30) NOT NULL,
+      acao VARCHAR(30) NOT NULL,
+      compra_id INT NULL,
+      movimentacao_id INT NULL,
+      movimentacao_tipo VARCHAR(20) NULL,
+      periodo_id INT NULL,
+      folha_id INT NULL,
+      descricao TEXT NOT NULL,
+      motivo TEXT NOT NULL,
+      usuario_nome VARCHAR(255) NULL,
+      detalhes_json LONGTEXT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY idx_edicoes_log_created_at (created_at),
+      KEY idx_edicoes_log_compra_id (compra_id),
+      KEY idx_edicoes_log_periodo_id (periodo_id),
+      KEY idx_edicoes_log_folha_id (folha_id)
+    )
+  `);
+}
+
+export async function ensureOpsAuditLogTable(client: OpsAuditClient) {
   if (auditTableReady) {
+    return;
+  }
+
+  if (isMysqlDialect()) {
+    await ensureMysqlOpsAuditLogTable(client);
+    auditTableReady = true;
     return;
   }
 
@@ -66,7 +118,7 @@ export async function ensureOpsAuditLogTable(client: PoolClient) {
 }
 
 export async function registerOpsAuditLog(
-  client: PoolClient,
+  client: OpsAuditClient,
   input: OpsAuditInput,
 ) {
   const descricao = input.descricao.trim();
