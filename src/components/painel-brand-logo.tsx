@@ -17,7 +17,7 @@ export function PainelBrandLogo({
 }: PainelBrandLogoProps) {
   const width = stacked ? 160 : compact ? 220 : 320;
   const height = stacked ? 160 : compact ? 72 : 104;
-  const classes = `inline-flex items-center ${className}`.trim();
+  const classes = `inline-flex items-center justify-center overflow-hidden ${className}`.trim();
   const image = (
     <Image
       src="/brand/rincao-logo.png"
@@ -25,8 +25,7 @@ export function PainelBrandLogo({
       width={width}
       height={height}
       priority={compact}
-      className="h-auto max-w-full object-contain"
-      style={{ width: "auto", height: "auto" }}
+      className="block h-full w-full object-contain object-center"
     />
   );
 

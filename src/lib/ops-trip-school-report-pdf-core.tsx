@@ -50,13 +50,13 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   logoWrap: {
-    width: 120,
+    width: 164,
     alignItems: "center",
     justifyContent: "center",
   },
   logoImage: {
-    width: 96,
-    height: 96,
+    width: 156,
+    height: 76,
     objectFit: "contain",
   },
   headerContent: {
@@ -67,12 +67,7 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 18,
     fontWeight: "bold",
-  },
-  logoSubtitle: {
-    color: "#ffffff",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 6,
   },
   headerTitle: {
     color: "#ffffff",
@@ -161,7 +156,7 @@ const styles = StyleSheet.create({
   },
 });
 
-const logoPath = path.join(process.cwd(), "public", "brand", "rincao-logo-white.png");
+const logoPath = path.join(process.cwd(), "public", "brand", "rincao-logo.png");
 
 function buildStudentGroups(rows: OpsTripSchoolReportParticipant[]) {
   const groups = new Map<string, OpsTripSchoolReportParticipant[]>();
@@ -270,8 +265,7 @@ function ReportDocument({
               <Image src={logoPath} style={styles.logoImage} />
             </View>
             <View style={styles.headerContent}>
-              <Text style={styles.logoTitle}>Rincão</Text>
-              <Text style={styles.logoSubtitle}>Painel Administrativo</Text>
+              <Text style={styles.logoTitle}>Clube Rincão</Text>
               <Text style={styles.headerTitle}>Relatório do passeio escolar</Text>
               <Text style={styles.headerMeta}>
                 {report.trip.code} - {ownerName} - {report.trip.dateLabel} - Status da

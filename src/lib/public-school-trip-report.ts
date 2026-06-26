@@ -1,5 +1,9 @@
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
+  getOpsClientTripSchoolReport,
+  type OpsClientTripSchoolReport,
+} from "@/lib/ops-client-trip-school-report";
+import {
   getOpsSchoolTripReport,
   type OpsSchoolTripReport,
   type OpsSchoolTripReportInput,
@@ -10,6 +14,16 @@ type PublicSchoolTripPermalinkRow = {
   idescola: number;
   idagenda: number;
 };
+
+export type PublicSchoolTripReportResult =
+  | {
+      kind: "client";
+      report: OpsClientTripSchoolReport;
+    }
+  | {
+      kind: "school";
+      report: OpsSchoolTripReport;
+    };
 
 export class PublicSchoolTripReportError extends Error {
   code: string;
@@ -29,13 +43,13 @@ function normalizeText(value: unknown) {
 
 export async function getPublicSchoolTripReportByPermalink(
   permalink: string,
-): Promise<OpsSchoolTripReport> {
+): Promise<PublicSchoolTripReportResult> {
   const normalizedPermalink = normalizeText(permalink);
 
   if (!normalizedPermalink) {
     throw new PublicSchoolTripReportError(
       "public_school_trip_report_not_found",
-      "Passeio escolar publico nao encontrado.",
+      "Passeio escolar público não encontrado.",
       404,
     );
   }
@@ -43,11 +57,14 @@ export async function getPublicSchoolTripReportByPermalink(
   const plinkPayload = readClientTripPlink(normalizedPermalink);
 
   if (plinkPayload?.tipo === "escola") {
-    return getOpsSchoolTripReport({
-      schoolId: plinkPayload.idcliente,
-      agendaId: plinkPayload.idagenda,
-      purchaseStatus: "conc",
-    } satisfies OpsSchoolTripReportInput);
+    return {
+      kind: "client",
+      report: await getOpsClientTripSchoolReport({
+        clientId: plinkPayload.idcliente,
+        agendaId: plinkPayload.idagenda,
+        purchaseStatus: "conc",
+      }),
+    };
   }
 
   const pool = getIngressoSistemaDbPool();
@@ -65,16 +82,19 @@ export async function getPublicSchoolTripReportByPermalink(
   if (!match) {
     throw new PublicSchoolTripReportError(
       "public_school_trip_report_not_found",
-      "Passeio escolar publico nao encontrado.",
+      "Passeio escolar público não encontrado.",
       404,
     );
   }
 
-  return getOpsSchoolTripReport({
-    schoolId: match.idescola,
-    agendaId: match.idagenda,
-    purchaseStatus: "conc",
-  } satisfies OpsSchoolTripReportInput);
+  return {
+    kind: "school",
+    report: await getOpsSchoolTripReport({
+      schoolId: match.idescola,
+      agendaId: match.idagenda,
+      purchaseStatus: "conc",
+    } satisfies OpsSchoolTripReportInput),
+  };
 }
 
 export function asPublicSchoolTripReportError(error: unknown) {
@@ -84,7 +104,7 @@ export function asPublicSchoolTripReportError(error: unknown) {
 
   return new PublicSchoolTripReportError(
     "public_school_trip_report_failed",
-    "Nao foi possivel gerar o relatorio publico do passeio agora.",
+    "Não foi possível gerar o relatório público do passeio agora.",
     500,
   );
 }

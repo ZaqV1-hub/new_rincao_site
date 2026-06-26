@@ -265,7 +265,7 @@ export function PainelShell({
   }
 
   return (
-    <div className="rincao-panel min-h-screen bg-[linear-gradient(180deg,#f8f5ef_0%,#fbfaf7_32%,#ffffff_100%)] text-[#17312d]">
+    <div className="rincao-panel min-h-screen bg-[linear-gradient(180deg,#f4f8fc_0%,#f8fbff_34%,#ffffff_100%)] text-[#133d63]">
       <div
         className={`grid min-h-screen transition-[grid-template-columns] duration-200 ${
           sidebarCollapsed
@@ -274,7 +274,7 @@ export function PainelShell({
         }`}
       >
         <aside
-          className={`flex flex-col border-r border-[rgba(35,73,63,0.12)] bg-[#17342d] text-white transition-all duration-200 ${
+          className={`flex flex-col border-r border-[rgba(16,58,99,0.18)] bg-[#123b63] text-white transition-all duration-200 ${
             menuOpen ? "block" : "hidden lg:flex"
           }`}
         >
@@ -285,7 +285,7 @@ export function PainelShell({
           >
             <div
               className={`min-w-0 overflow-hidden transition-all ${
-                sidebarCollapsed ? "w-16" : "w-[230px]"
+                sidebarCollapsed ? "w-16" : "mx-auto w-[188px]"
               }`}
             >
               <PainelBrandLogo
@@ -295,8 +295,8 @@ export function PainelShell({
                 stacked={sidebarCollapsed}
                 className={
                   sidebarCollapsed
-                    ? "h-16 w-16 max-w-none"
-                    : "h-[64px] max-w-[200px]"
+                    ? "h-14 w-14 max-w-none"
+                    : "h-[58px] w-full max-w-[188px]"
                 }
               />
             </div>
@@ -317,7 +317,7 @@ export function PainelShell({
                 sidebarCollapsed ? "px-0 text-center" : "px-2"
               }`}
             >
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9fb9b3]">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9fc4e4]">
                 Operador
               </p>
               <p
@@ -362,7 +362,7 @@ export function PainelShell({
                     onClick={() => setMenuOpen(false)}
                     className={`min-h-10 border-l-4 text-[13px] font-semibold transition ${
                       active
-                        ? "border-[#efe7d9] bg-white/10 text-white"
+                        ? "border-[#b9d7f3] bg-white/12 text-white"
                         : "border-transparent text-white/72 hover:bg-white/6 hover:text-white"
                     } ${
                       sidebarCollapsed
@@ -397,7 +397,7 @@ export function PainelShell({
         </aside>
 
         <main className="min-w-0">
-          <div className="border-b border-[rgba(35,73,63,0.08)] bg-white/95 px-4 py-2.5 shadow-[0_10px_30px_rgba(21,48,42,0.06)] backdrop-blur-md md:px-5 lg:px-6">
+          <div className="border-b border-[rgba(16,58,99,0.08)] bg-white/95 px-4 py-2.5 shadow-[0_10px_30px_rgba(19,61,99,0.06)] backdrop-blur-md md:px-5 lg:px-6">
             <div className="mx-auto flex max-w-[1380px] items-center gap-3">
               <button
                 type="button"
@@ -413,13 +413,13 @@ export function PainelShell({
                     setMenuOpen((current) => !current);
                   }
                 }}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-[rgba(35,73,63,0.12)] bg-white text-[#17342d] shadow-[0_10px_22px_rgba(22,47,41,0.08)] hover:bg-[#17342d] hover:text-white"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-[rgba(19,61,99,0.12)] bg-white text-[#133d63] shadow-[0_10px_22px_rgba(19,61,99,0.08)] hover:bg-[#133d63] hover:text-white"
               >
                 <ChevronIcon open={!sidebarCollapsed} />
               </button>
 
               <div>
-                <h1 className="text-[20px] font-bold leading-tight text-[#17342d]">
+                <h1 className="text-[20px] font-bold leading-tight text-[#133d63]">
                   {"Painel do Rinc\u00e3o"}
                 </h1>
               </div>

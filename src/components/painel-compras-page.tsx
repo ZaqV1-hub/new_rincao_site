@@ -29,9 +29,9 @@ const gatewayPaymentMethodOptions = [
 const ticketPaymentMethodOptions = [
   { value: "dinhe", label: "Dinheiro" },
   { value: "debit", label: "Débito" },
-  { value: "credi", label: "Credito" },
+  { value: "credi", label: "Crédito" },
   { value: "chequ", label: "Cheque" },
-  { value: "tranb", label: "Trans. Bancaria" },
+  { value: "tranb", label: "Trans. Bancária" },
   { value: "corte", label: "Cortesia" },
   { value: "pix", label: "PIX" },
 ];
@@ -49,7 +49,7 @@ const paymentMethodOptions = [
 
 const gatewayStatusOptions = [
   { value: "1", label: "Aguardando pagamento" },
-  { value: "2", label: "Em analise" },
+  { value: "2", label: "Em análise" },
   { value: "3", label: "Paga" },
   { value: "4", label: "Disponível" },
   { value: "5", label: "Em disputa" },
@@ -309,7 +309,7 @@ export function PainelComprasPage({
 
       <div className="panel-section overflow-hidden p-0">
         {result.items.length === 0 ? (
-          <div className="px-4 py-6 text-sm text-[#5f7564]">
+          <div className="px-4 py-6 text-sm text-[#58728b]">
             Nenhuma compra encontrada.
           </div>
         ) : (
@@ -324,7 +324,7 @@ export function PainelComprasPage({
                   <th className="px-3 py-2.5 text-xs font-semibold">Forma</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">Pagamento</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">CPF</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">{"Usu\u00e1rio"}</th>
+                  <th className="px-3 py-2.5 text-xs font-semibold">Usuário</th>
                   <th className="px-3 py-2.5 text-xs font-semibold text-right">Valor</th>
                 </tr>
               </thead>
