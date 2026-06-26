@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { encodeLegacyId } from "@/lib/agenda-id";
 import { generateUniqueVoucherNumber } from "@/lib/voucher-number";
 
@@ -41,7 +41,7 @@ export async function createReservationPurchase(
   agendaId: number,
   quantities: ReservationQuantities,
 ) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {

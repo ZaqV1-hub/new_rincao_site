@@ -16,7 +16,7 @@ const typeOptions = [
 
 const purchaseStatusOptions = [
   { value: "pend", label: "Em processamento" },
-  { value: "conc", label: "Concluida" },
+  { value: "conc", label: "Concluída" },
   { value: "canc", label: "Cancelada" },
 ];
 
@@ -28,7 +28,7 @@ const gatewayPaymentMethodOptions = [
 
 const ticketPaymentMethodOptions = [
   { value: "dinhe", label: "Dinheiro" },
-  { value: "debit", label: "Debito" },
+  { value: "debit", label: "Débito" },
   { value: "credi", label: "Credito" },
   { value: "chequ", label: "Cheque" },
   { value: "tranb", label: "Trans. Bancaria" },
@@ -51,12 +51,12 @@ const gatewayStatusOptions = [
   { value: "1", label: "Aguardando pagamento" },
   { value: "2", label: "Em analise" },
   { value: "3", label: "Paga" },
-  { value: "4", label: "Disponivel" },
+  { value: "4", label: "Disponível" },
   { value: "5", label: "Em disputa" },
   { value: "6", label: "Devolvida" },
   { value: "7", label: "Cancelada" },
   { value: "8", label: "Chargeback debitado" },
-  { value: "9", label: "Em contestacao" },
+  { value: "9", label: "Em contestação" },
 ];
 
 function buildComprasHref(
@@ -186,23 +186,23 @@ export function PainelComprasPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="panel-eyebrow">Compras</p>
-            <h1 className="mt-1 text-[24px] font-black text-[#17351f]">
+            <h1 className="mt-1 text-[24px] font-black text-[#133d63]">
               Lista de compras e reservas
             </h1>
-            <p className="mt-1 text-sm text-[#5f7564]">
-              Operador: {actorName || actorCpf || "Sessao operacional"}
+            <p className="mt-1 text-sm text-[#58728b]">
+              Operador: {actorName || actorCpf || "Sessão operacional"}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
-              className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-xs font-semibold text-[#17351f]"
+              className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-xs font-semibold text-[#133d63]"
               href={exportHref}
             >
               Exportar
             </Link>
             {filtersActive ? (
               <Link
-                className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-xs font-semibold text-[#17351f]"
+                className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-xs font-semibold text-[#133d63]"
                 href="/painel/compras"
               >
                 Limpar filtros
@@ -214,7 +214,7 @@ export function PainelComprasPage({
 
       <form action="/painel/compras" className="panel-section p-4" method="get">
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
-          <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
+          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
             De
             <input
               className="rincao-field rounded-[8px] px-3 py-2 text-sm"
@@ -223,8 +223,8 @@ export function PainelComprasPage({
               type="date"
             />
           </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
-            Ate
+          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
+            Até
             <input
               className="rincao-field rounded-[8px] px-3 py-2 text-sm"
               defaultValue={toDateInputValue(result.filters.dateTo ?? null)}
@@ -232,7 +232,7 @@ export function PainelComprasPage({
               type="date"
             />
           </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
+          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
             ID
             <input
               className="rincao-field rounded-[8px] px-3 py-2 text-sm"
@@ -242,15 +242,15 @@ export function PainelComprasPage({
               type="number"
             />
           </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
+          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
             Tipo
             {renderSelect("tpcompra", result.filters.type, typeOptions)}
           </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
+          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
             Status
             {renderSelect("stcompra", result.filters.purchaseStatus, purchaseStatusOptions)}
           </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
+          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
             Forma de pgto
             {renderSelect(
               "payment",
@@ -263,11 +263,11 @@ export function PainelComprasPage({
               paymentMethodOptions,
             )}
           </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
+          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
             Pagamento
             {renderSelect("status", result.filters.gatewayStatus, gatewayStatusOptions)}
           </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
+          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
             CPF
             <input
               className="rincao-field rounded-[8px] px-3 py-2 text-sm"
@@ -276,8 +276,8 @@ export function PainelComprasPage({
               type="text"
             />
           </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#17351f]">
-            Usuario
+          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
+            Usuário
             <input
               className="rincao-field rounded-[8px] px-3 py-2 text-sm"
               defaultValue={result.filters.userName ?? ""}
@@ -288,17 +288,17 @@ export function PainelComprasPage({
         </div>
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-[#5f7564]">
+          <div className="text-sm text-[#58728b]">
             {result.total} registro(s) no total
           </div>
           <div className="flex flex-wrap gap-2">
             {canRefreshPurchases ? (
-              <span className="rounded-[8px] border border-[#dbe7d7] bg-[#f7fbf5] px-3 py-2 text-xs text-[#5f7564]">
-                Atualizacao manual em fase futura
+              <span className="rounded-[8px] border border-[#d7e3ee] bg-[#f2f7fc] px-3 py-2 text-xs text-[#58728b]">
+                Atualização manual em fase futura
               </span>
             ) : null}
             <button
-              className="rincao-button inline-flex items-center justify-center rounded-[8px] px-4 py-2 text-sm"
+              className="inline-flex items-center justify-center rounded-[8px] bg-[#133d63] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#184b79]"
               type="submit"
             >
               Filtrar
@@ -315,7 +315,7 @@ export function PainelComprasPage({
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-[#f7fbf5] text-left text-[#35503b]">
+              <thead className="bg-[#eef5fb] text-left text-[#36536b]">
                 <tr>
                   <th className="px-3 py-2.5 text-xs font-semibold">ID</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">Data</th>
@@ -331,12 +331,12 @@ export function PainelComprasPage({
               <tbody>
                 {result.items.map((item, index) => (
                   <tr
-                    className={index % 2 === 1 ? "bg-[#fbfdf9]" : "bg-white"}
+                    className={index % 2 === 1 ? "bg-[#f8fbff]" : "bg-white"}
                     key={item.purchaseId}
                   >
-                    <td className="px-3 py-3 align-top font-semibold text-[#17351f]">
+                    <td className="px-3 py-3 align-top font-semibold text-[#133d63]">
                       <Link
-                        className="underline decoration-[#9bc08f] underline-offset-2"
+                        className="underline decoration-[#7aa7cf] underline-offset-2"
                         href={`/painel/compras/${item.purchaseId}`}
                       >
                         {item.purchaseId}
@@ -351,7 +351,7 @@ export function PainelComprasPage({
                     <td className="px-3 py-3 align-top">
                       {item.userName && item.cpf ? (
                         <a
-                          className="underline decoration-[#9bc08f] underline-offset-2"
+                          className="underline decoration-[#7aa7cf] underline-offset-2"
                           href={buildLegacyUserHref(item.cpf)}
                         >
                           {item.userName}
@@ -360,7 +360,7 @@ export function PainelComprasPage({
                         item.userName ?? "-"
                       )}
                     </td>
-                    <td className="px-3 py-3 align-top text-right font-semibold text-[#17351f]">
+                    <td className="px-3 py-3 align-top text-right font-semibold text-[#133d63]">
                       {item.totalValue}
                     </td>
                   </tr>
@@ -375,18 +375,18 @@ export function PainelComprasPage({
         <div className="flex flex-wrap justify-end gap-2">
           {previousHref ? (
             <Link
-              className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm font-semibold text-[#17351f]"
+              className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-sm font-semibold text-[#133d63]"
               href={previousHref}
             >
-              Pagina anterior
+              Página anterior
             </Link>
           ) : null}
           {nextHref ? (
             <Link
-              className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm font-semibold text-[#17351f]"
+              className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-sm font-semibold text-[#133d63]"
               href={nextHref}
             >
-              Proxima pagina
+              Próxima página
             </Link>
           ) : null}
         </div>

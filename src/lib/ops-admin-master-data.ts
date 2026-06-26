@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { hashPasswordForLegacyUser } from "@/lib/password-hashing";
 
@@ -862,7 +862,7 @@ async function ensureInternalUserRoles(client: PoolClient) {
 
 export async function listOpsAdminMasterData(resource: string) {
   const config = getConfig(resource);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<Record<string, unknown>>(
     `
       SELECT *
@@ -889,7 +889,7 @@ export async function createOpsAdminMasterData(
   assertActionSupported(config, "create");
   const values = input.values ?? {};
   const payload = normalizePayload(config, values, "create");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -965,7 +965,7 @@ export async function updateOpsAdminMasterData(
   const assignments = columns
     .map((column, index) => `${column} = $${index + 2}`)
     .join(", ");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1032,7 +1032,7 @@ export async function deleteOpsAdminMasterData(
   const config = getConfig(resource);
   assertActionSupported(config, "delete");
   const id = assertIdentifier(config, input.id);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {

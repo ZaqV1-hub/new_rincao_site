@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { buildSchoolDisplay } from "@/lib/school-structure";
 import { resolveVoucherTypeLabel } from "@/lib/voucher-type-label";
 import type {
@@ -259,7 +259,7 @@ async function getPurchasePageRows(
     purchaseId?: number;
   },
 ): Promise<PurchasePageRows> {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const totalResult = await pool.query<{ total: string }>(
     `
       SELECT COUNT(*)::text AS total
@@ -334,7 +334,7 @@ async function getVouchersByPurchaseIds(purchaseIds: number[]) {
     return new Map<number, VoucherRow[]>();
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const voucherResult = await pool.query<VoucherRow>(
     `
       SELECT
@@ -431,7 +431,7 @@ export async function getUserVoucherPurchaseById(cpf: string, purchaseId: number
 }
 
 async function getInformationForVoucherExport(voucher: VoucherRow) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
 
   if (voucher.tpagenda === "escol" && voucher.idescola) {
     const result = await pool.query<{ texto: string | null }>(
@@ -516,7 +516,7 @@ export async function getUserVoucherExportData(
 }
 
 export async function cancelReservationPurchase(cpf: string, purchaseId: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<{ idcompra: number }>(
     `
       UPDATE compra
@@ -537,7 +537,7 @@ export async function getUserVoucherRescheduleData(
   cpf: string,
   voucherId: number,
 ): Promise<UserVoucherRescheduleData | null> {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<
     VoucherRow &
       Pick<PurchaseRow, "tpcompra" | "dtcompra" | "stcompra"> & {
@@ -612,7 +612,7 @@ export async function rescheduleUserVoucher(
   voucherId: number,
   agendaId: number,
 ) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<{ idvoucher: number }>(
     `
       UPDATE voucher

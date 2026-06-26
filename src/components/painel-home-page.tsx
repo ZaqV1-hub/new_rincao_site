@@ -52,7 +52,7 @@ const quickLinks: QuickLink[] = [
   },
   {
     href: "/painel/tabela-preco",
-    label: "Tabela de preco",
+    label: "Tabela de preço",
     resources: ["vis_tabpre"],
     roles: [1, 2],
   },
@@ -79,41 +79,41 @@ export function PainelHomePage({
   });
 
   return (
-    <div className="space-y-6 text-[#35503b]">
+    <div className="space-y-6 text-[#36536b]">
       <section className="panel-section px-5 py-5">
-        <p className="panel-eyebrow">Visao geral</p>
+        <p className="panel-eyebrow text-[#4f7fa9]">Visão geral</p>
         <div className="mt-3 grid gap-5 xl:grid-cols-[1fr_0.85fr]">
           <div>
-            <h2 className="text-[30px] font-black leading-tight text-[#17351f]">
+            <h2 className="text-[30px] font-black leading-tight text-[#133d63]">
               Resumo financeiro do dia
             </h2>
-            <p className="mt-3 max-w-[620px] text-[15px] leading-7 text-[#5f7564]">
-              Acompanhe o total confirmado entre vendas do site e da bilheteria do Rincao.
+            <p className="mt-3 max-w-[620px] text-[15px] leading-7 text-[#58728b]">
+              Acompanhe o total confirmado entre vendas do site e da bilheteria do Rincão.
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[8px] border border-[#dbe7d7] bg-[#f6faf3] p-4">
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6e9464]">
+            <div className="rounded-[8px] border border-[#d7e3ee] bg-[#f2f7fc] p-4">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#4f7fa9]">
                 Total
               </p>
-              <p className="mt-2 text-[26px] font-black text-[#17351f]">
+              <p className="mt-2 text-[26px] font-black text-[#133d63]">
                 {formatCurrency(data.revenue.total)}
               </p>
             </div>
-            <div className="rounded-[8px] border border-[#dbe7d7] bg-white p-4">
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6e9464]">
+            <div className="rounded-[8px] border border-[#d7e3ee] bg-white p-4">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#4f7fa9]">
                 Site
               </p>
-              <p className="mt-2 text-[22px] font-black text-[#17351f]">
+              <p className="mt-2 text-[22px] font-black text-[#133d63]">
                 {formatCurrency(data.revenue.site)}
               </p>
             </div>
-            <div className="rounded-[8px] border border-[#dbe7d7] bg-white p-4">
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6e9464]">
+            <div className="rounded-[8px] border border-[#d7e3ee] bg-white p-4">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#4f7fa9]">
                 Bilheteria
               </p>
-              <p className="mt-2 text-[22px] font-black text-[#17351f]">
+              <p className="mt-2 text-[22px] font-black text-[#133d63]">
                 {formatCurrency(data.revenue.boxOffice)}
               </p>
             </div>
@@ -122,13 +122,13 @@ export function PainelHomePage({
       </section>
 
       <section className="panel-section p-5">
-        <p className="panel-eyebrow">Acesso rapido</p>
+        <p className="panel-eyebrow text-[#4f7fa9]">Acesso rápido</p>
         <div className="mt-4 grid gap-3 md:grid-cols-4">
           {visibleQuickLinks.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-[8px] border border-[#dbe7d7] bg-white px-4 py-4 text-center text-[15px] font-black text-[#17351f] shadow-[0_12px_26px_rgba(19,48,41,0.06)] transition hover:-translate-y-0.5 hover:border-[#7fcf72]"
+              className="rounded-[8px] border border-[#d7e3ee] bg-white px-4 py-4 text-center text-[15px] font-black text-[#133d63] shadow-[0_12px_26px_rgba(19,48,41,0.06)] transition hover:-translate-y-0.5 hover:border-[#6ea8d6]"
             >
               {item.label}
             </Link>
@@ -139,33 +139,33 @@ export function PainelHomePage({
       {hasLegacyPanelResource(legacyResources, ["vis_info", "vis_param"]) ? (
         <section className="grid gap-5 xl:grid-cols-2">
           <article className="panel-section p-5">
-            <p className="panel-eyebrow">Eventos</p>
-            <h3 className="mt-2 text-[24px] font-black text-[#17351f]">
+            <p className="panel-eyebrow text-[#4f7fa9]">Eventos</p>
+            <h3 className="mt-2 text-[24px] font-black text-[#133d63]">
               Eventos
             </h3>
-            <p className="mt-3 text-[15px] leading-7 text-[#5f7564]">
-              Organize os destaques do Rincao e leve o visitante direto para a data de compra.
+            <p className="mt-3 text-[15px] leading-7 text-[#58728b]">
+              Organize os destaques do Rincão e leve o visitante direto para a data de compra.
             </p>
             <Link
               href="/painel/site#eventos"
-              className="mt-5 inline-flex min-h-11 items-center rounded-[8px] bg-[#17342d] px-5 text-sm font-black text-white"
+              className="mt-5 inline-flex min-h-11 items-center rounded-[8px] bg-[#133d63] px-5 text-sm font-black text-white"
             >
               Configurar eventos
             </Link>
           </article>
 
           <article className="panel-section p-5">
-            <p className="panel-eyebrow">Site</p>
-            <h3 className="mt-2 text-[24px] font-black text-[#17351f]">
-              Imagens e atracoes
+            <p className="panel-eyebrow text-[#4f7fa9]">Site</p>
+            <h3 className="mt-2 text-[24px] font-black text-[#133d63]">
+              Imagens e atrações
             </h3>
-            <p className="mt-3 text-[15px] leading-7 text-[#5f7564]">
-              Atualize banners, versoes mobile e desktop, atracoes e chamadas do
-              site do Rincao.
+            <p className="mt-3 text-[15px] leading-7 text-[#58728b]">
+              Atualize banners, versões mobile e desktop, atrações e chamadas do
+              site do Rincão.
             </p>
             <Link
               href="/painel/site"
-              className="mt-5 inline-flex min-h-11 items-center rounded-[8px] bg-[#17342d] px-5 text-sm font-black text-white"
+              className="mt-5 inline-flex min-h-11 items-center rounded-[8px] bg-[#133d63] px-5 text-sm font-black text-white"
             >
               Configurar site
             </Link>

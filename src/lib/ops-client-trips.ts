@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
-import { buildClientTripPurchasePath } from "@/lib/plink";
+import { buildClientTripTrackingPath } from "@/lib/plink";
 
 type ClientTripActor = {
   name?: string | null;
@@ -840,7 +840,7 @@ export async function listOpsClientTrips(input: OpsClientTripFilterInput) {
         clientTypeId: row.idtipo == null ? null : Number(row.idtipo),
         clientTypeName: row.tipo_nome,
         peopleCount: Number(row.qtpessoas ?? 0),
-        purchaseLink: buildClientTripPurchasePath({
+        purchaseLink: buildClientTripTrackingPath({
           idagenda: Number(row.idagenda),
           idcliente: Number(row.idcliente),
           tipo: row.tipo_nome ?? "",

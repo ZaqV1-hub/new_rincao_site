@@ -4,6 +4,7 @@ import {
   type OpsSchoolTripReport,
   type OpsSchoolTripReportInput,
 } from "@/lib/ops-school-trip-report";
+import { readClientTripPlink } from "@/lib/plink";
 
 type PublicSchoolTripPermalinkRow = {
   idescola: number;
@@ -37,6 +38,16 @@ export async function getPublicSchoolTripReportByPermalink(
       "Passeio escolar publico nao encontrado.",
       404,
     );
+  }
+
+  const plinkPayload = readClientTripPlink(normalizedPermalink);
+
+  if (plinkPayload?.tipo === "escola") {
+    return getOpsSchoolTripReport({
+      schoolId: plinkPayload.idcliente,
+      agendaId: plinkPayload.idagenda,
+      purchaseStatus: "conc",
+    } satisfies OpsSchoolTripReportInput);
   }
 
   const pool = getIngressoSistemaDbPool();

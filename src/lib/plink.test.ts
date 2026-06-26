@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  buildClientTripTrackingPath,
   buildClientTripPurchasePath,
   createClientTripPlink,
   normalizeClientTripTypeSlug,
@@ -84,5 +85,26 @@ describe("plink", () => {
         tipo: "Igreja",
       }),
     ).toBeNull();
+  });
+
+  it("builds the public tracking path for school trips", () => {
+    vi.stubEnv("INGRESSO_PLINK_SECRET", "plink-secret");
+
+    const path = buildClientTripTrackingPath({
+      idagenda: 10,
+      idcliente: 20,
+      tipo: "Escola",
+    });
+
+    expect(path).toMatch(/^\/ingresso\/escola\/acesso\/plink\//);
+    if (!path) {
+      throw new Error("expected school tracking path");
+    }
+    expect(readClientTripPlink(path.split("/").pop() ?? "")).toEqual({
+      idagenda: 10,
+      idcliente: 20,
+      tipo: "escola",
+      ver: 1,
+    });
   });
 });

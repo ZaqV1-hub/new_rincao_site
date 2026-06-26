@@ -8,7 +8,7 @@ import {
 } from "@/lib/cielo-ecommerce";
 import { isNativeCheckoutConfigured } from "@/lib/checkout-mode";
 import { buildCheckoutReturnUrl } from "@/lib/checkout-status";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   mapGatewayStatusToPurchaseStatus,
   reconcilePaymentFromGatewayPayload,
@@ -52,7 +52,7 @@ function getPaymentType(payload: CheckoutBody) {
 }
 
 async function getLatestPaymentLedger(purchaseId: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<PaymentLedgerRow>(
     `
       SELECT idpagseguro, status, paymentmethodtype
@@ -68,7 +68,7 @@ async function getLatestPaymentLedger(purchaseId: number) {
 }
 
 async function tryCheckoutLock(purchaseId: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<{ locked: boolean }>(
     "SELECT pg_try_advisory_lock($1, $2) AS locked",
     [94127, purchaseId],
@@ -78,7 +78,7 @@ async function tryCheckoutLock(purchaseId: number) {
 }
 
 async function releaseCheckoutLock(purchaseId: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
 
   await pool.query("SELECT pg_advisory_unlock($1, $2)", [94127, purchaseId]);
 }

@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   normalizeAgendaStatus,
   type PublicAgendaEvent,
@@ -107,7 +107,7 @@ function parseAgendaInformation(value: string | null) {
 }
 
 export async function getPublicAgendaEvents(month: number, year: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<AgendaRow>(
     `
       SELECT
@@ -142,7 +142,7 @@ export async function getPublicAgendaEvents(month: number, year: number) {
 }
 
 export async function getPublicAgendaEventById(id: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<AgendaRow>(
     `
       SELECT
@@ -177,7 +177,7 @@ export async function getPublicAgendaEventById(id: number) {
 export async function getPublicAgendaReservationById(
   id: number,
 ): Promise<PublicAgendaReservationDetail | null> {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<AgendaReservationRow>(
     `
       SELECT
@@ -221,7 +221,7 @@ export async function getPublicAgendaReservationById(
 }
 
 export async function getNextPublicAgendaMonth(fromDate = new Date()) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const fromDateString = fromDate.toISOString().slice(0, 10);
   const result = await pool.query<AgendaMonthRow>(
     `
@@ -246,7 +246,7 @@ export async function getNextPublicAgendaMonth(fromDate = new Date()) {
 }
 
 export async function getPublicAgendaMonths() {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<AgendaMonthRow>(
     `
       SELECT
@@ -269,7 +269,7 @@ export async function getPublicAgendaMonths() {
 }
 
 export async function getRescheduleAgendaOptions(fromDate = new Date()) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const fromDateString = fromDate.toISOString().slice(0, 10);
   const result = await pool.query<AgendaRow>(
     `
@@ -303,7 +303,7 @@ export async function getRescheduleAgendaOptions(fromDate = new Date()) {
 }
 
 export async function getRescheduleAgendaOptionById(id: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<AgendaRow>(
     `
       SELECT

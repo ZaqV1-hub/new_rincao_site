@@ -12,7 +12,7 @@ import {
   type CodindicaRow,
   normalizeCodindica,
 } from "@/lib/codindica";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getAgendaProductAvailability } from "@/lib/painel-agenda-product-availability";
 import type {
   CreatePurchaseQuantities,
@@ -94,7 +94,7 @@ async function resolveDiscountedPricing(cpf: string, visitDate: string, pricing:
   standardNormal: number;
   standardChild: number;
 }) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const convenios = await pool.query<ConvenioRow>(
     `
       SELECT
@@ -328,7 +328,7 @@ export async function createOnlinePurchase(
   if (isB2cLineItemSelection(selection)) {
     const cart = await buildB2cCartSummary(selection.lineItems);
     const availability = await getAgendaProductAvailability(agenda.date);
-    const pool = getIngressoDbPool();
+    const pool = getIngressoSistemaDbPool();
     const codindica = normalizeCodindica(codindicaInput);
     let cartCodindicaTotals: ReturnType<typeof calculateCodindicaCartTotals> | null = null;
 
@@ -523,7 +523,7 @@ export async function createOnlinePurchase(
     quantities.child +
     quantities.exempt;
   const validityDate = resolveVoucherValidityDate(agenda);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const codindica = normalizeCodindica(codindicaInput);
   let codindicaTotals: ReturnType<typeof calculateCodindicaTotals> | null = null;
 
@@ -841,7 +841,7 @@ export async function previewOnlinePurchaseCodindica(
 
   const cart = await buildB2cCartSummary(selection.lineItems);
   const availability = await getAgendaProductAvailability(agenda.date);
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const codindica = normalizeCodindica(codindicaInput);
 
   if (!codindica) {

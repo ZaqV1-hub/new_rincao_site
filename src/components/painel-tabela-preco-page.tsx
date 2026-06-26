@@ -85,7 +85,7 @@ export function PainelTabelaPrecoPage({
 
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Tabela de preco atualizada.",
+        message: payload.data?.message || "Tabela de preço atualizada.",
       });
       startTransition(() => router.refresh());
     } catch (error) {
@@ -130,7 +130,7 @@ export function PainelTabelaPrecoPage({
 
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Tabela de preco removida com sucesso.",
+        message: payload.data?.message || "Tabela de preço removida com sucesso.",
       });
       startTransition(() => router.refresh());
     } catch (error) {
@@ -153,7 +153,7 @@ export function PainelTabelaPrecoPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/administrativo", label: "Acessos" },
-            { label: "Tabela de Preco" },
+            { label: "Tabela de Preço" },
           ]}
         />
 
@@ -161,7 +161,7 @@ export function PainelTabelaPrecoPage({
           <div
             className={`mt-4 border px-4 py-3 text-sm ${
               feedback.tone === "success"
-                ? "border-[#b7dfc0] bg-[#edf8f0] text-[#245336]"
+                ? "border-[#c8def4] bg-[#eff6ff] text-[#1d4f91]"
                 : "border-[#efc0c0] bg-[#fff0f0] text-[#7a2b2b]"
             }`}
           >
@@ -260,7 +260,7 @@ export function PainelTabelaPrecoPage({
                         className="border border-[#d7d7d7] px-4 py-8 text-center text-[#6f6f6f]"
                         colSpan={6}
                       >
-                        Nao ha dados
+                        Não há dados
                       </td>
                     </tr>
                   )}
@@ -270,7 +270,7 @@ export function PainelTabelaPrecoPage({
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm text-[#5a5a5a]">
               <span>
-                Pagina {data.page} de {data.pageCount}
+                Página {data.page} de {data.pageCount}
               </span>
               <div className="flex items-center gap-2">
                 {previousHref ? (
@@ -284,11 +284,11 @@ export function PainelTabelaPrecoPage({
                 )}
                 {nextHref ? (
                   <Link className="border border-[#cfcfcf] px-3 py-2" href={nextHref}>
-                    Proxima
+                    Próxima
                   </Link>
                 ) : (
                   <span className="border border-[#e2e2e2] px-3 py-2 text-[#afafaf]">
-                    Proxima
+                    Próxima
                   </span>
                 )}
               </div>
@@ -298,14 +298,17 @@ export function PainelTabelaPrecoPage({
           <aside className="grid gap-5 self-start">
             <section className="rounded-[6px] border border-[#d7e1e8] bg-white shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
               <div className="grid gap-3 px-6 py-5 text-[17px] text-[#5a5a5a]">
-                <Link className="text-[#666] underline" href="/painel/tabela-preco/adicionar">
+                <Link
+                  className="font-semibold text-[#1868d6] underline"
+                  href="/painel/tabela-preco/adicionar"
+                >
                   Adicionar tabela
                 </Link>
               </div>
             </section>
 
             <section className="rounded-[6px] border border-[#d7e1e8] bg-white shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
-              <div className="border-b border-[#d7e1e8] bg-[#f4f4f4] px-6 py-3 text-[20px] text-[#666]">
+              <div className="border-b border-[#d7e1e8] bg-[#eef5fb] px-6 py-3 text-[20px] text-[#36536b]">
                 Filtrar
               </div>
               <form action="/painel/tabela-preco" className="grid gap-5 px-6 py-5" method="get">
@@ -326,13 +329,13 @@ export function PainelTabelaPrecoPage({
                     defaultValue={data.filters.status || ""}
                     name="status"
                   >
-                    <option value="">Ativos por padrao</option>
+                    <option value="">Ativos por padrão</option>
                     <option value="ati">Ativo</option>
                     <option value="ina">Inativo</option>
                   </select>
                 </label>
                 <button
-                  className="justify-self-center bg-[#9b9b9b] px-8 py-4 text-base text-white"
+                  className="justify-self-center bg-[#133d63] px-8 py-4 text-base text-white"
                   type="submit"
                 >
                   Filtrar

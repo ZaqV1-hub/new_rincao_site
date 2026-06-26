@@ -3,7 +3,7 @@ import {
   getNativeCieloCheckoutStatus,
   isCieloEcommerceConfigured,
 } from "@/lib/cielo-ecommerce";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { normalizePaymentReconciliationPayload } from "@/lib/payment-reconciliation";
 import {
   normalizePainelCompraDateFilterValue,
@@ -596,7 +596,7 @@ function readStringValue(
 }
 
 async function loadPainelPurchaseDetailRow(purchaseId: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const purchaseResult = await pool.query<PainelPurchaseDetailRow>(
     `
       SELECT
@@ -938,7 +938,7 @@ export async function listPainelPurchases(input: {
   const offset = (page - 1) * perPage;
   const { sql } = buildPainelPurchaseListWhere(filters);
   const whereClause = sql ? `WHERE ${sql}` : "";
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const paginationClause = allRows ? "" : `LIMIT ${perPage} OFFSET ${offset}`;
 
   const rowsResult = await pool.query<PainelPurchaseListRow>(
@@ -1106,7 +1106,7 @@ export async function listPainelPurchaseVouchers(input: {
   const { sql } = buildPainelPurchaseVoucherListWhere(filters);
   const whereClause = sql ? `WHERE ${sql}` : "";
   const paginationClause = allRows ? "" : `LIMIT ${perPage} OFFSET ${offset}`;
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
 
   const [rowsResult, countResult, indicatorsResult] = await Promise.all([
     pool.query<PainelPurchaseVoucherListRow>(
@@ -1298,7 +1298,7 @@ export async function getPainelPurchaseDetail(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const voucherResult = await pool.query<PainelPurchaseDetailVoucherRow>(
     `
       SELECT
@@ -1390,7 +1390,7 @@ export async function getPainelPurchaseGatewayConsult(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const ledgerResult = await pool.query<PainelPurchaseGatewayLedgerRow>(
     `
       SELECT

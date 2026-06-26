@@ -350,7 +350,7 @@ export function PainelClientTripDetailPage({
                 setStatusMessage("Link copiado com sucesso.");
               }}
             >
-              Copiar link
+              Copiar link de acompanhamento
             </button>
           ) : null}
           {csvHref ? (

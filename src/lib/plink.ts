@@ -118,6 +118,20 @@ export function buildClientTripPurchasePath(
   return `/ingresso/escola?plink=${encodeURIComponent(token)}`;
 }
 
+export function buildClientTripTrackingPath(
+  payload: Omit<ClientTripPlinkPayload, "ver">,
+) {
+  const normalizedType = normalizeClientTripTypeSlug(payload.tipo);
+
+  if (normalizedType !== "escola") {
+    return null;
+  }
+
+  const token = createClientTripPlink(payload);
+
+  return `/ingresso/escola/acesso/plink/${encodeURIComponent(token)}`;
+}
+
 export function readClientTripPlink(
   token: string,
 ): ClientTripPlinkPayload | null {

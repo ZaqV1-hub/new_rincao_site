@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { hashPasswordForLegacyUser } from "@/lib/password-hashing";
 import type { AuthUser } from "@/lib/auth-contracts";
 import { isValidCpf, sanitizeCpf } from "@/lib/cpf";
@@ -189,7 +189,7 @@ function legacyPasswordHash(password: string) {
 }
 
 export async function authenticatePublicUser(cpf: string, password: string) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<UserRow>(
     `
       SELECT cpf, nmusuario, email, stusuario
@@ -226,7 +226,7 @@ export async function authenticatePublicUser(cpf: string, password: string) {
 }
 
 export async function authenticatePanelUser(cpf: string, password: string) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<UserRow>(
     `
       SELECT cpf, nmusuario, email, stusuario, idpapel
@@ -263,7 +263,7 @@ export async function authenticatePanelUser(cpf: string, password: string) {
 }
 
 export async function getActivePublicUserByCpf(cpf: string) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<UserRow>(
     `
       SELECT cpf, nmusuario, email, stusuario
@@ -285,7 +285,7 @@ export async function getActivePublicUserByCpf(cpf: string) {
 }
 
 export async function findPublicUserByCpf(cpf: string) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<UserRow>(
     `
       SELECT cpf, nmusuario, email, stusuario
@@ -301,7 +301,7 @@ export async function findPublicUserByCpf(cpf: string) {
 }
 
 export async function getActivePublicUserProfileByCpf(cpf: string) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<UserProfileRow>(
     `
       SELECT
@@ -347,7 +347,7 @@ export async function getCustomerAccountSnapshotByCpf(cpf: string) {
     return null;
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const [membershipResult, agreementResult] = await Promise.all([
     pool.query<CustomerMembershipRow>(
       `
@@ -398,7 +398,7 @@ export async function getCustomerAccountSnapshotByCpf(cpf: string) {
 }
 
 export async function listProfileUfs() {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<UfOption>(
     `
       SELECT iduf AS id, nmuf AS name
@@ -411,7 +411,7 @@ export async function listProfileUfs() {
 }
 
 export async function listProfileCitiesByUf(uf: string) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<CityOption>(
     `
       SELECT idcidade AS id, nmcidade AS name
@@ -428,7 +428,7 @@ export async function listProfileCitiesByUf(uf: string) {
 }
 
 export async function ensureProfileUf(input: UfOption) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const normalizedId = String(input.id ?? "").trim().toUpperCase();
   const normalizedName = String(input.name ?? "").trim();
 
@@ -468,7 +468,7 @@ export async function ensureProfileCity(input: {
   uf: string;
   name: string;
 }) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const normalizedUf = String(input.uf ?? "").trim().toUpperCase();
   const normalizedName = String(input.name ?? "").trim();
 
@@ -515,7 +515,7 @@ export async function ensureProfileCity(input: {
 }
 
 export async function getProfileCityById(cityId: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<CityLookup>(
     `
       SELECT idcidade AS id, nmcidade AS name, iduf AS uf
@@ -530,7 +530,7 @@ export async function getProfileCityById(cityId: number) {
 }
 
 export async function findPublicUserByEmail(email: string) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<UserRow>(
     `
       SELECT cpf, nmusuario, email, stusuario
@@ -546,7 +546,7 @@ export async function findPublicUserByEmail(email: string) {
 }
 
 export async function createPublicUser(input: PublicUserRegistrationInput) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<UserRow>(
     `
       INSERT INTO usuario (
@@ -620,7 +620,7 @@ export async function updatePublicUserProfile(
   cpf: string,
   input: PublicUserProfileInput,
 ) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
 
   await pool.query(
     `
@@ -664,7 +664,7 @@ export async function updatePublicUserProfile(
 }
 
 export async function checkPublicUserPassword(cpf: string, password: string) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<{ cpf: string }>(
     `
       SELECT cpf
@@ -680,7 +680,7 @@ export async function checkPublicUserPassword(cpf: string, password: string) {
 }
 
 export async function updatePublicUserPassword(cpf: string, password: string) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
 
   await pool.query(
     `

@@ -1,5 +1,7 @@
+import path from "node:path";
 import {
   Document,
+  Image,
   Page,
   StyleSheet,
   Text,
@@ -28,21 +30,37 @@ type PdfTripReport = {
 const styles = StyleSheet.create({
   page: {
     padding: 28,
-    backgroundColor: "#f4f6f1",
-    color: "#35503b",
+    backgroundColor: "#f3f7fb",
+    color: "#36536b",
     fontSize: 10,
     fontFamily: "Helvetica",
   },
   card: {
     backgroundColor: "#ffffff",
     borderRadius: 18,
-    border: "1 solid #cfe0ca",
+    border: "1 solid #d7e3ee",
     overflow: "hidden",
   },
   header: {
-    backgroundColor: "#1f6b36",
+    backgroundColor: "#133d63",
     paddingHorizontal: 24,
     paddingVertical: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 18,
+  },
+  logoWrap: {
+    width: 120,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoImage: {
+    width: 96,
+    height: 96,
+    objectFit: "contain",
+  },
+  headerContent: {
+    flex: 1,
     alignItems: "center",
   },
   logoTitle: {
@@ -63,7 +81,7 @@ const styles = StyleSheet.create({
   },
   headerMeta: {
     marginTop: 8,
-    color: "#dbeed5",
+    color: "#dcecff",
     fontSize: 10,
   },
   body: {
@@ -71,7 +89,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   sectionTitle: {
-    color: "#1f6b36",
+    color: "#1f4f7e",
     fontSize: 12,
     fontWeight: "bold",
     marginBottom: 6,
@@ -84,30 +102,44 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     width: "31%",
-    border: "1 solid #dbe7d7",
+    border: "1 solid #d7e3ee",
     borderRadius: 10,
     padding: 10,
-    backgroundColor: "#f7fbf5",
+    backgroundColor: "#f4f8fc",
   },
   metricValue: {
-    color: "#17351f",
+    color: "#133d63",
     fontSize: 14,
     fontWeight: "bold",
   },
   metricLabel: {
     marginTop: 4,
-    color: "#5d7a62",
+    color: "#5c7690",
     fontSize: 9,
   },
   table: {
-    border: "1 solid #d9e3db",
+    border: "1 solid #d7e3ee",
     borderRadius: 10,
     overflow: "hidden",
   },
+  groupCard: {
+    border: "1 solid #d7e3ee",
+    borderRadius: 10,
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  groupHeader: {
+    backgroundColor: "#e9f1f9",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    color: "#1f4f7e",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "#eef6ea",
-    color: "#35503b",
+    backgroundColor: "#eef5fb",
+    color: "#36536b",
     fontWeight: "bold",
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -116,7 +148,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingVertical: 7,
     paddingHorizontal: 10,
-    borderTop: "1 solid #e5ede2",
+    borderTop: "1 solid #e3edf6",
   },
   colVoucher: { width: "14%" },
   colName: { width: "28%" },
@@ -125,9 +157,64 @@ const styles = StyleSheet.create({
   colValue: { width: "10%", textAlign: "right" },
   colStatus: { width: "10%" },
   emptyState: {
-    color: "#5d7a62",
+    color: "#5c7690",
   },
 });
+
+const logoPath = path.join(process.cwd(), "public", "brand", "rincao-logo-white.png");
+
+function buildStudentGroups(rows: OpsTripSchoolReportParticipant[]) {
+  const groups = new Map<string, OpsTripSchoolReportParticipant[]>();
+
+  for (const row of rows) {
+    const key = row.classDisplay || "Sem turma";
+    const current = groups.get(key) ?? [];
+    current.push(row);
+    groups.set(key, current);
+  }
+
+  return Array.from(groups.entries()).map(([label, participants]) => ({
+    label,
+    participants,
+  }));
+}
+
+function ParticipantRows({
+  rows,
+  showClass,
+}: {
+  rows: OpsTripSchoolReportParticipant[];
+  showClass: boolean;
+}) {
+  return (
+    <View style={styles.table}>
+      <View style={styles.tableHeader}>
+        <Text style={styles.colVoucher}>Voucher</Text>
+        <Text style={styles.colName}>Nome</Text>
+        {showClass ? (
+          <Text style={styles.colClass}>Turma</Text>
+        ) : (
+          <Text style={styles.colRole}>Função</Text>
+        )}
+        <Text style={styles.colValue}>Valor</Text>
+        <Text style={styles.colStatus}>Status</Text>
+      </View>
+      {rows.map((row) => (
+        <View key={row.voucherId} style={styles.tableRow}>
+          <Text style={styles.colVoucher}>{row.voucherNumber}</Text>
+          <Text style={styles.colName}>{row.name}</Text>
+          {showClass ? (
+            <Text style={styles.colClass}>{row.classDisplay || "-"}</Text>
+          ) : (
+            <Text style={styles.colRole}>{row.role || "-"}</Text>
+          )}
+          <Text style={styles.colValue}>R$ {row.unitValue}</Text>
+          <Text style={styles.colStatus}>{row.purchaseStatusLabel}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 function ParticipantTable({
   title,
@@ -143,33 +230,19 @@ function ParticipantTable({
       <Text style={styles.sectionTitle}>{title}</Text>
       {rows.length === 0 ? (
         <Text style={styles.emptyState}>Nenhum registro no filtro atual.</Text>
-      ) : (
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={styles.colVoucher}>Voucher</Text>
-            <Text style={styles.colName}>Nome</Text>
-            {showClass ? (
-              <Text style={styles.colClass}>Turma</Text>
-            ) : (
-              <Text style={styles.colRole}>Funcao</Text>
-            )}
-            <Text style={styles.colValue}>Valor</Text>
-            <Text style={styles.colStatus}>Status</Text>
-          </View>
-          {rows.map((row) => (
-            <View key={row.voucherId} style={styles.tableRow}>
-              <Text style={styles.colVoucher}>{row.voucherNumber}</Text>
-              <Text style={styles.colName}>{row.name}</Text>
-              {showClass ? (
-                <Text style={styles.colClass}>{row.classDisplay || "-"}</Text>
-              ) : (
-                <Text style={styles.colRole}>{row.role || "-"}</Text>
-              )}
-              <Text style={styles.colValue}>R$ {row.unitValue}</Text>
-              <Text style={styles.colStatus}>{row.purchaseStatusLabel}</Text>
+      ) : showClass ? (
+        <View>
+          {buildStudentGroups(rows).map((group) => (
+            <View key={group.label} style={styles.groupCard}>
+              <Text style={styles.groupHeader}>
+                Turma {group.label} ({group.participants.length})
+              </Text>
+              <ParticipantRows rows={group.participants} showClass />
             </View>
           ))}
         </View>
+      ) : (
+        <ParticipantRows rows={rows} showClass={false} />
       )}
     </View>
   );
@@ -192,13 +265,18 @@ function ReportDocument({
       <Page size="A4" orientation="landscape" style={styles.page}>
         <View style={styles.card}>
           <View style={styles.header}>
-            <Text style={styles.logoTitle}>Rincao</Text>
-            <Text style={styles.logoSubtitle}>Painel Administrativo</Text>
-            <Text style={styles.headerTitle}>Relatorio do passeio escolar</Text>
-            <Text style={styles.headerMeta}>
-              {report.trip.code} - {ownerName} - {report.trip.dateLabel} - Status da
-              compra: {statusFilter}
-            </Text>
+            <View style={styles.logoWrap}>
+              <Image alt="" src={logoPath} style={styles.logoImage} />
+            </View>
+            <View style={styles.headerContent}>
+              <Text style={styles.logoTitle}>Rincão</Text>
+              <Text style={styles.logoSubtitle}>Painel Administrativo</Text>
+              <Text style={styles.headerTitle}>Relatório do passeio escolar</Text>
+              <Text style={styles.headerMeta}>
+                {report.trip.code} - {ownerName} - {report.trip.dateLabel} - Status da
+                compra: {statusFilter}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.body}>

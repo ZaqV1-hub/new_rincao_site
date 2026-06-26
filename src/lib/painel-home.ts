@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 
 type PainelHomeEmailErrorRow = {
   filaerro: string | number | null;
@@ -25,7 +25,7 @@ export type PainelHomePageData = {
 };
 
 export async function loadPainelHomePageData(): Promise<PainelHomePageData> {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const emailResult = await pool.query<PainelHomeEmailErrorRow>(
     `
       SELECT count(*) AS filaerro

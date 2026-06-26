@@ -9,7 +9,7 @@ import {
   type OpsTripSchoolReportParticipant,
   type OpsTripSchoolReportSections,
 } from "@/lib/ops-trip-school-report-core";
-import { buildClientTripPurchasePath } from "@/lib/plink";
+import { buildClientTripTrackingPath } from "@/lib/plink";
 
 type TripRow = {
   idagenda: number;
@@ -236,7 +236,7 @@ export async function getPainelClientTripDetail(
       agendaStatusLabel: formatAgendaStatusLabel(trip.stagenda),
       acceptsFamily: parseBooleanish(trip.aceita_familia),
       ...statusData,
-      purchaseLink: buildClientTripPurchasePath({
+      purchaseLink: buildClientTripTrackingPath({
         idagenda: agendaId,
         idcliente: clientId,
         tipo: normalizeText(trip.tipo_nome),
