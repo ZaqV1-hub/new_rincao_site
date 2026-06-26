@@ -406,7 +406,7 @@ export async function createOpsSchoolTripDate(
         agendaId,
         visitDate,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -456,7 +456,7 @@ export async function updateOpsSchoolTripDateStatus(
         agendaId,
         status,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -541,7 +541,7 @@ export async function deleteOpsSchoolTripDate(
         schoolId,
         agendaId,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 

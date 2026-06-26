@@ -71,14 +71,14 @@ export function PainelCodIndicaMessagePage({ data }: Props) {
         </div>
       ) : null}
       {feedback ? (
-        <div className="mt-4 border border-[#b7dfc0] bg-[#edf8f0] px-4 py-3 text-sm text-[#245336]">
+        <div className="mt-4 border border-[#bfd4e8] bg-[#eef5fb] px-4 py-3 text-sm text-[#205a7f]">
           {feedback}
         </div>
       ) : null}
 
       <form action={handleSubmit} className="mt-6 space-y-5">
         <label className="block text-sm font-semibold text-[#5a5a5a]">
-          Mensagem de validacao
+          Mensagem de validação
           <textarea
             className="mt-1 min-h-[140px] w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
             defaultValue={data.codval}
@@ -104,7 +104,7 @@ export function PainelCodIndicaMessagePage({ data }: Props) {
 
         <div className="flex flex-wrap gap-3">
           <button
-            className="inline-flex items-center justify-center bg-[#4aa329] px-6 py-3 text-sm font-semibold text-white hover:bg-[#3c8721] disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-full bg-[#1f4f7a] px-6 py-3 text-sm font-semibold text-white hover:bg-[#173d61] disabled:opacity-60"
             disabled={isPending}
             type="submit"
           >

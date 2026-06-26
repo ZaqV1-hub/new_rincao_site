@@ -1067,7 +1067,7 @@ export async function createOpsClientTrip(input: OpsClientTripCreateInput) {
         slug,
         faixas,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -1133,7 +1133,7 @@ export async function updateOpsClientTrip(input: OpsClientTripUpdateInput) {
         acceptsFamily,
         faixas,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -1190,7 +1190,7 @@ export async function unlinkOpsClientTrip(input: OpsClientTripDeleteInput) {
         clientId,
         slug: extras.slug,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -1403,7 +1403,7 @@ export async function moveOpsClientTripDate(input: OpsClientTripMoveDateInput) {
         clientId,
         nextDate,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 

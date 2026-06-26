@@ -149,7 +149,7 @@ export function PainelCodIndicaDetailPage({
           <div
             className={`mt-4 border px-4 py-3 text-sm ${
               feedback.tone === "success"
-                ? "border-[#b7dfc0] bg-[#edf8f0] text-[#245336]"
+                ? "border-[#bfd4e8] bg-[#eef5fb] text-[#205a7f]"
                 : "border-[#efc0c0] bg-[#fff0f0] text-[#7a2b2b]"
             }`}
           >
@@ -238,7 +238,7 @@ export function PainelCodIndicaDetailPage({
           <form
             action={handleCashbackPayment}
             autoComplete="off"
-            className="mt-4 space-y-4 border border-[#d7d7d7] bg-[#f8fbfd] p-4"
+            className="mt-4 space-y-4 rounded-[6px] border border-[#d3e0ec] bg-[#f4f8fc] p-4"
           >
             <div className="grid gap-4 md:grid-cols-3">
               <label className="block text-sm font-semibold text-[#5a5a5a]">
@@ -274,7 +274,7 @@ export function PainelCodIndicaDetailPage({
               Disponivel para pagamento: <strong>R$ {detail.indicators.cashbackDisponivelLabel}</strong>
             </p>
             <button
-              className="inline-flex items-center justify-center bg-[#4aa329] px-6 py-3 text-sm font-semibold text-white hover:bg-[#3c8721] disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-full bg-[#1f4f7a] px-6 py-3 text-sm font-semibold text-white hover:bg-[#173d61] disabled:opacity-60"
               disabled={isPending}
               type="submit"
             >
@@ -376,7 +376,10 @@ export function PainelCodIndicaDetailPage({
               </select>
             </label>
             <div className="flex items-end">
-              <button className="w-full bg-[#9c9c9c] px-4 py-3 text-sm font-semibold text-white" type="submit">
+              <button
+                className="w-full rounded-full bg-[#1f4f7a] px-4 py-3 text-sm font-semibold text-white hover:bg-[#173d61]"
+                type="submit"
+              >
                 Filtrar
               </button>
             </div>

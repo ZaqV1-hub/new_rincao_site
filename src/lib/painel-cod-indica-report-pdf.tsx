@@ -12,67 +12,67 @@ const styles = StyleSheet.create({
   page: {
     padding: 28,
     backgroundColor: "#ffffff",
-    color: "#35503b",
+    color: "#27445b",
     fontSize: 10,
     fontFamily: "Helvetica",
   },
   header: {
     marginBottom: 18,
-    borderBottom: "1 solid #cfe0ca",
+    borderBottom: "1 solid #d6e4f0",
     paddingBottom: 12,
   },
   logoTitle: {
-    color: "#17351f",
+    color: "#143e63",
     fontSize: 18,
     fontWeight: "bold",
   },
   logoSubtitle: {
-    color: "#17351f",
+    color: "#143e63",
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
   },
   title: {
-    color: "#17351f",
+    color: "#143e63",
     fontSize: 18,
     fontWeight: "bold",
   },
   meta: {
     marginTop: 6,
-    color: "#5b6f5e",
+    color: "#59758f",
     fontSize: 10,
   },
   totalBox: {
-    border: "1 solid #dbe7d7",
+    border: "1 solid #d6e4f0",
     padding: 10,
     marginBottom: 14,
-    backgroundColor: "#f7fbf5",
+    backgroundColor: "#f4f8fc",
   },
   totalLabel: {
-    color: "#6a8b68",
+    color: "#5f84a3",
     fontSize: 9,
     textTransform: "uppercase",
   },
   totalValue: {
     marginTop: 4,
-    color: "#17351f",
+    color: "#143e63",
     fontSize: 16,
     fontWeight: "bold",
   },
   table: {
-    border: "1 solid #d9e3db",
+    border: "1 solid #d6e4f0",
   },
   row: {
     flexDirection: "row",
   },
   headerRow: {
-    backgroundColor: "#2b8c46",
+    backgroundColor: "#1f4f7a",
     color: "#ffffff",
     fontWeight: "bold",
   },
   cell: {
-    borderRight: "1 solid #d9e3db",
-    borderBottom: "1 solid #d9e3db",
+    borderRight: "1 solid #d6e4f0",
+    borderBottom: "1 solid #d6e4f0",
     paddingHorizontal: 6,
     paddingVertical: 6,
   },
@@ -91,17 +91,17 @@ function ReportDocument({ report }: { report: PainelCodIndicaReportData }) {
     <Document title={`cod-indica-${report.codigo}`}>
       <Page size="A4" orientation="landscape" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.logoTitle}>Rincao</Text>
+          <Text style={styles.logoTitle}>Clube Rincão</Text>
           <Text style={styles.logoSubtitle}>Painel Administrativo</Text>
-          <Text style={styles.title}>Relatorio de cashback - Cod Indica</Text>
+          <Text style={styles.title}>Relatório de cashback - Códigos de indicação</Text>
           <Text style={styles.meta}>
-            Codigo {report.codigo} • {report.representante} • Periodo{" "}
-            {report.dateFromLabel} ate {report.dateToLabel}
+            Código {report.codigo} • {report.representante} • Período{" "}
+            {report.dateFromLabel} até {report.dateToLabel}
           </Text>
         </View>
 
         <View style={styles.totalBox}>
-          <Text style={styles.totalLabel}>Cashback total do periodo</Text>
+          <Text style={styles.totalLabel}>Cashback total do período</Text>
           <Text style={styles.totalValue}>R$ {report.totalCashbackLabel}</Text>
         </View>
 

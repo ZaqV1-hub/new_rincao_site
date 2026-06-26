@@ -933,7 +933,7 @@ export async function createOpsAdminMasterData(
         id,
         after: item,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -1005,7 +1005,7 @@ export async function updateOpsAdminMasterData(
         previousId: currentId === id ? null : id,
         after: item,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -1060,7 +1060,7 @@ export async function deleteOpsAdminMasterData(
         id,
         before,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 

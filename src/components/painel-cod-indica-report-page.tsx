@@ -39,7 +39,7 @@ export function PainelCodIndicaReportPage({ codigo, dtini, dtfim, report, error 
 
         <form action={`/painel/cod-indica/${encodeURIComponent(codigo)}/relatorio`} className="mt-6 grid gap-4 md:grid-cols-[1fr_1fr_auto]" method="get">
           <label className="block text-sm font-semibold text-[#5a5a5a]">
-            Dia Inicio
+            Dia inicial
             <input
               className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
               defaultValue={dtini}
@@ -48,7 +48,7 @@ export function PainelCodIndicaReportPage({ codigo, dtini, dtfim, report, error 
             />
           </label>
           <label className="block text-sm font-semibold text-[#5a5a5a]">
-            Dia Fim
+            Dia final
             <input
               className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
               defaultValue={dtfim}
@@ -57,8 +57,11 @@ export function PainelCodIndicaReportPage({ codigo, dtini, dtfim, report, error 
             />
           </label>
           <div className="flex items-end">
-            <button className="w-full bg-[#4aa329] px-6 py-3 text-sm font-semibold text-white" type="submit">
-              Gerar relatorio
+            <button
+              className="w-full rounded-full bg-[#1f4f7a] px-6 py-3 text-sm font-semibold text-white hover:bg-[#173d61]"
+              type="submit"
+            >
+              Gerar relatório
             </button>
           </div>
         </form>

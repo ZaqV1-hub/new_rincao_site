@@ -635,7 +635,7 @@ export async function toggleClientStatus(input: ClientStatusToggleInput) {
           active: nextActive,
         },
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -712,7 +712,7 @@ export async function createClientClass(input: ClientClassMutationInput) {
         classId,
         after: item,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -785,7 +785,7 @@ export async function updateClientClass(input: ClientClassMutationInput) {
         classId,
         after: item,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -843,7 +843,7 @@ export async function deleteClientClass(input: ClientClassMutationInput) {
         classId,
         before: toClientClassItem(currentClass, []),
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -920,7 +920,7 @@ export async function createClientPeriod(input: ClientPeriodMutationInput) {
         periodId,
         after: item ? toClientPeriodItem(item) : null,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -994,7 +994,7 @@ export async function updateClientPeriod(input: ClientPeriodMutationInput) {
         periodId,
         after: item ? toClientPeriodItem(item) : null,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -1056,7 +1056,7 @@ export async function deleteClientPeriod(input: ClientPeriodMutationInput) {
         periodId,
         before: toClientPeriodItem(currentPeriod),
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 

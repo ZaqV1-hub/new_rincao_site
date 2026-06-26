@@ -14,7 +14,10 @@ type OpsAuditInput = {
   detalhes?: unknown;
 };
 
-let auditTableReady = false;
+const auditTableReady = {
+  mysql: false,
+  postgres: false,
+};
 
 type OpsAuditClient = Pick<PoolClient, "query" | "release">;
 
@@ -35,6 +38,27 @@ function isMysqlDialect() {
     Boolean(process.env.WP_DB_HOST) ||
     Boolean(process.env.GROUP_REGISTRATION_MYSQL_HOST) ||
     process.env.INGRESSO_DB_HOST?.toLowerCase().includes("mysql") === true
+  );
+}
+
+function isSyntaxOrDialectError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code?: unknown }).code ?? "")
+      : "";
+
+  return (
+    code === "42601" ||
+    code === "ER_PARSE_ERROR" ||
+    message.includes("syntax error") ||
+    message.includes("auto_increment") ||
+    message.includes("serial") ||
+    message.includes("timestamptz")
   );
 }
 
@@ -62,64 +86,84 @@ async function ensureMysqlOpsAuditLogTable(client: OpsAuditClient) {
   `);
 }
 
-export async function ensureOpsAuditLogTable(client: OpsAuditClient) {
-  if (auditTableReady) {
+export async function ensureOpsAuditLogTable(
+  client: OpsAuditClient,
+  dialectHint?: "mysql" | "postgres",
+) {
+  const preferredDialect = dialectHint ?? (isMysqlDialect() ? "mysql" : "postgres");
+
+  if (auditTableReady[preferredDialect]) {
     return;
   }
 
-  if (isMysqlDialect()) {
-    await ensureMysqlOpsAuditLogTable(client);
-    auditTableReady = true;
-    return;
+  async function ensurePostgresTable() {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS edicoes_log (
+        id SERIAL PRIMARY KEY,
+        origem VARCHAR(30) NOT NULL,
+        acao VARCHAR(30) NOT NULL,
+        compra_id INTEGER NULL,
+        movimentacao_id INTEGER NULL,
+        movimentacao_tipo VARCHAR(20) NULL,
+        descricao TEXT NOT NULL,
+        motivo TEXT NOT NULL,
+        usuario_nome VARCHAR(255) NULL,
+        detalhes_json TEXT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(
+      "ALTER TABLE edicoes_log ADD COLUMN IF NOT EXISTS periodo_id INTEGER NULL",
+    );
+    await client.query(
+      "ALTER TABLE edicoes_log ADD COLUMN IF NOT EXISTS folha_id INTEGER NULL",
+    );
+    await client.query(
+      "CREATE INDEX IF NOT EXISTS idx_edicoes_log_created_at ON edicoes_log (created_at DESC)",
+    );
+    await client.query(
+      "CREATE INDEX IF NOT EXISTS idx_edicoes_log_compra_id ON edicoes_log (compra_id)",
+    );
+    await client.query(
+      "CREATE INDEX IF NOT EXISTS idx_edicoes_log_periodo_id ON edicoes_log (periodo_id)",
+    );
+    await client.query(
+      "CREATE INDEX IF NOT EXISTS idx_edicoes_log_folha_id ON edicoes_log (folha_id)",
+    );
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_edicoes_log_box_office_idempotency
+      ON edicoes_log ((NULLIF(detalhes_json, '')::jsonb ->> 'idempotencyKey'))
+      WHERE origem = 'ops-box-office'
+        AND acao = 'sale_create'
+        AND detalhes_json IS NOT NULL
+    `);
   }
 
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS edicoes_log (
-      id SERIAL PRIMARY KEY,
-      origem VARCHAR(30) NOT NULL,
-      acao VARCHAR(30) NOT NULL,
-      compra_id INTEGER NULL,
-      movimentacao_id INTEGER NULL,
-      movimentacao_tipo VARCHAR(20) NULL,
-      descricao TEXT NOT NULL,
-      motivo TEXT NOT NULL,
-      usuario_nome VARCHAR(255) NULL,
-      detalhes_json TEXT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-  await client.query(
-    "ALTER TABLE edicoes_log ADD COLUMN IF NOT EXISTS periodo_id INTEGER NULL",
-  );
-  await client.query(
-    "ALTER TABLE edicoes_log ADD COLUMN IF NOT EXISTS folha_id INTEGER NULL",
-  );
-  await client.query(
-    "CREATE INDEX IF NOT EXISTS idx_edicoes_log_created_at ON edicoes_log (created_at DESC)",
-  );
-  await client.query(
-    "CREATE INDEX IF NOT EXISTS idx_edicoes_log_compra_id ON edicoes_log (compra_id)",
-  );
-  await client.query(
-    "CREATE INDEX IF NOT EXISTS idx_edicoes_log_periodo_id ON edicoes_log (periodo_id)",
-  );
-  await client.query(
-    "CREATE INDEX IF NOT EXISTS idx_edicoes_log_folha_id ON edicoes_log (folha_id)",
-  );
-  await client.query(`
-    CREATE INDEX IF NOT EXISTS idx_edicoes_log_box_office_idempotency
-    ON edicoes_log ((NULLIF(detalhes_json, '')::jsonb ->> 'idempotencyKey'))
-    WHERE origem = 'ops-box-office'
-      AND acao = 'sale_create'
-      AND detalhes_json IS NOT NULL
-  `);
+  try {
+    if (preferredDialect === "mysql") {
+      await ensureMysqlOpsAuditLogTable(client);
+    } else {
+      await ensurePostgresTable();
+    }
+  } catch (error) {
+    if (!isSyntaxOrDialectError(error)) {
+      throw error;
+    }
 
-  auditTableReady = true;
+    if (preferredDialect === "mysql") {
+      await ensurePostgresTable();
+    } else {
+      await ensureMysqlOpsAuditLogTable(client);
+    }
+  }
+
+  auditTableReady[preferredDialect] = true;
 }
 
 export async function registerOpsAuditLog(
   client: OpsAuditClient,
   input: OpsAuditInput,
+  dialectHint?: "mysql" | "postgres",
 ) {
   const descricao = input.descricao.trim();
   const motivo = input.motivo.trim();
@@ -128,7 +172,7 @@ export async function registerOpsAuditLog(
     throw new Error("Descricao e motivo sao obrigatorios para auditoria.");
   }
 
-  await ensureOpsAuditLogTable(client);
+  await ensureOpsAuditLogTable(client, dialectHint);
 
   const result = await client.query<{ id: number }>(
     `

@@ -93,15 +93,25 @@ export function PainelCodIndicaFormPage({ mode, initialValues, codigo }: Props) 
         </div>
       ) : null}
       {feedback ? (
-        <div className="mt-4 border border-[#b7dfc0] bg-[#edf8f0] px-4 py-3 text-sm text-[#245336]">
+        <div className="mt-4 border border-[#bfd4e8] bg-[#eef5fb] px-4 py-3 text-sm text-[#205a7f]">
           {feedback}
         </div>
       ) : null}
 
       <form action={handleSubmit} className="mt-6 space-y-6">
+        <div className="rounded-[6px] border border-[#d3e0ec] bg-[#f4f8fc] px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5f84a3]">
+            Cadastro
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[#5d7285]">
+            Use o mesmo fluxo do painel antigo: defina o código, o representante,
+            a validade, o desconto e o cashback antes de publicar.
+          </p>
+        </div>
+
         <div className="grid gap-5 lg:grid-cols-3">
           <label className="block text-sm font-semibold text-[#5a5a5a]">
-            Codigo
+            Código
             <input
               className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444] disabled:bg-[#f2f2f2]"
               defaultValue={initialValues.codindica}
@@ -142,7 +152,7 @@ export function PainelCodIndicaFormPage({ mode, initialValues, codigo }: Props) 
             />
           </label>
           <label className="block text-sm font-semibold text-[#5a5a5a]">
-            Valor de Desconto
+            Valor de desconto
             <CurrencyInput
               className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
               defaultValue={initialValues.discountValue}
@@ -150,7 +160,7 @@ export function PainelCodIndicaFormPage({ mode, initialValues, codigo }: Props) 
             />
           </label>
           <label className="block text-sm font-semibold text-[#5a5a5a]">
-            CashBack (% por venda)
+            Cashback (% por venda)
             <input
               className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
               defaultValue={initialValues.cashbackPercent}
@@ -172,17 +182,17 @@ export function PainelCodIndicaFormPage({ mode, initialValues, codigo }: Props) 
         </div>
 
         <p className="text-sm leading-6 text-[#666]">
-          O desconto informado sera aplicado na etapa final da compra quando o cliente
-          usar este codigo. O cashback sera calculado como percentual sobre o valor da venda.
+          O desconto informado será aplicado na etapa final da compra quando o cliente
+          usar este código. O cashback será calculado como percentual sobre o valor da venda.
         </p>
 
         <div className="flex flex-wrap gap-3">
           <button
-            className="inline-flex items-center justify-center bg-[#4aa329] px-6 py-3 text-sm font-semibold text-white hover:bg-[#3c8721] disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-full bg-[#1f4f7a] px-6 py-3 text-sm font-semibold text-white hover:bg-[#173d61] disabled:opacity-60"
             disabled={isPending}
             type="submit"
           >
-            Enviar
+            Salvar código
           </button>
           <Link
             className="inline-flex items-center justify-center border border-[#c8c8c8] bg-white px-6 py-3 text-sm font-semibold text-[#4a4a4a]"

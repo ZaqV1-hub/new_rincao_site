@@ -1,9 +1,10 @@
 "use client";
 
 import { CurrencyInput } from "@/components/currency-input";
+import { DateInput, normalizeDateInputValue } from "@/components/date-input";
 import Link from "next/link";
-import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import type {
   OpsClientTripCreateScreenData,
   OpsClientTripEditScreenData,
@@ -148,10 +149,7 @@ export function PainelClientTripEditor({
         | null;
 
       if (!response.ok || !payload?.ok) {
-        throw new Error(
-          payload?.error?.message ||
-            "Não foi possível salvar o passeio agora.",
-        );
+        throw new Error(payload?.error?.message || "Não foi possível salvar o passeio agora.");
       }
 
       router.push(
@@ -162,9 +160,7 @@ export function PainelClientTripEditor({
       router.refresh();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível salvar o passeio agora.",
+        error instanceof Error ? error.message : "Não foi possível salvar o passeio agora.",
       );
     } finally {
       setIsSaving(false);
@@ -180,6 +176,12 @@ export function PainelClientTripEditor({
     setErrorMessage(null);
 
     try {
+      const normalizedMoveDate = normalizeDateInputValue(moveDateValue);
+
+      if (!normalizedMoveDate) {
+        throw new Error("Informe uma data válida no formato dd/mm/aaaa.");
+      }
+
       const response = await fetch(
         `/api/painel/clientes/passeios/${data.agenda.agendaId}/date`,
         {
@@ -190,7 +192,7 @@ export function PainelClientTripEditor({
           },
           body: JSON.stringify({
             clientId: data.client.clientId,
-            datapasseio: moveDateValue,
+            datapasseio: normalizedMoveDate,
             actor: {
               name: actorName ?? null,
               cpf: actorCpf ?? null,
@@ -208,8 +210,7 @@ export function PainelClientTripEditor({
 
       if (!response.ok || !payload?.ok || !payload.data?.agendaId) {
         throw new Error(
-          payload?.error?.message ||
-            "Não foi possível mover a data do passeio agora.",
+          payload?.error?.message || "Não foi possível mover a data do passeio agora.",
         );
       }
 
@@ -259,9 +260,7 @@ export function PainelClientTripEditor({
           {data.mode === "edit" ? (
             <section className="rounded-[6px] border border-[#d7d7d7] bg-white">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d7d7d7] bg-[#f4f4f4] px-4 py-3">
-                <h2 className="text-[18px] font-bold text-[#555]">
-                  Alterar data do passeio
-                </h2>
+                <h2 className="text-[18px] font-bold text-[#555]">Alterar data do passeio</h2>
                 <button
                   className="border border-[#2b6cb0] bg-[#3277bb] px-4 py-2 text-sm font-bold text-white"
                   disabled={isMovingDate}
@@ -274,19 +273,16 @@ export function PainelClientTripEditor({
               <div className="grid gap-3 px-4 py-4">
                 <label className="grid gap-2 text-[15px] text-[#555]" htmlFor="nova_data">
                   <span className="font-bold">Nova data (dd/mm/aaaa)</span>
-                  <input
+                  <DateInput
                     className="h-10 w-[220px] max-w-full border border-[#d7d7d7] px-3 text-[15px]"
+                    defaultValue={moveDateValue}
                     id="nova_data"
-                    onChange={(event) => setMoveDateValue(event.target.value)}
-                    placeholder="dd/mm/aaaa"
-                    type="text"
-                    value={moveDateValue}
+                    onValueChange={setMoveDateValue}
                   />
                 </label>
                 <p className="text-sm text-[#667]">
-                  Se já existir outro passeio nessa data, este vínculo será movido
-                  para a agenda existente e os ingressos comprados também serão
-                  transferidos.
+                  Se já existir outro passeio nessa data, este vínculo será movido para
+                  a agenda existente e os ingressos comprados também serão transferidos.
                 </p>
               </div>
             </section>
@@ -387,9 +383,7 @@ export function PainelClientTripEditor({
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
                       Valor (R$)
                     </th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                      Ação
-                    </th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ação</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -401,9 +395,7 @@ export function PainelClientTripEditor({
                       <td className="border border-[#d7d7d7] px-4 py-3">
                         <input
                           className="h-10 w-full border border-[#d7d7d7] px-3 text-[15px]"
-                          onChange={(event) =>
-                            updateFaixa(index, "minAge", event.target.value)
-                          }
+                          onChange={(event) => updateFaixa(index, "minAge", event.target.value)}
                           type="number"
                           value={faixa.minAge}
                         />
@@ -411,9 +403,7 @@ export function PainelClientTripEditor({
                       <td className="border border-[#d7d7d7] px-4 py-3">
                         <input
                           className="h-10 w-full border border-[#d7d7d7] px-3 text-[15px]"
-                          onChange={(event) =>
-                            updateFaixa(index, "maxAge", event.target.value)
-                          }
+                          onChange={(event) => updateFaixa(index, "maxAge", event.target.value)}
                           type="number"
                           value={faixa.maxAge}
                         />
