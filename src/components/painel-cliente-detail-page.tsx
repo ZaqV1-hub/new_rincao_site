@@ -46,32 +46,35 @@ export function PainelClienteDetailPage({
           <span>{data.client.name}</span>
         </div>
 
-        <h1 className="mt-5 text-[28px] text-[#3f3f3f] md:text-[32px]">{data.client.name}</h1>
+        <h1 className="mt-5 text-[28px] text-[#123b63] md:text-[32px]">{data.client.name}</h1>
 
-        <div className="mt-5 overflow-x-auto border border-[#cfcfcf]">
+        <div className="mt-5 overflow-x-auto rounded-[6px] border border-[#d7e3ee]">
           <table className="min-w-full border-collapse text-[15px]">
-            <thead className="bg-[#5f84a3] text-left text-white">
+            <thead className="bg-[#eef5fb] text-left text-[#133d63]">
               <tr>
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Nome</th>
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Tipo</th>
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
+                <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">Nome</th>
+                <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">Tipo</th>
+                <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">Status</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td className="border border-[#d7d7d7] px-4 py-3">{data.client.name}</td>
-                <td className="border border-[#d7d7d7] px-4 py-3">{data.client.typeName || "-"}</td>
-                <td className="border border-[#d7d7d7] px-4 py-3">
+                <td className="border border-[#d7e3ee] px-4 py-3">{data.client.name}</td>
+                <td className="border border-[#d7e3ee] px-4 py-3">{data.client.typeName || "-"}</td>
+                <td className="border border-[#d7e3ee] px-4 py-3">
                   {data.client.active ? "Ativo" : "Inativo"}
                 </td>
               </tr>
-              <tr className="bg-[#fafafa]">
-                <th className="border border-[#d7d7d7] px-4 py-3 text-left font-bold text-[#555]" colSpan={3}>
+              <tr className="bg-[#f8fbfe]">
+                <th
+                  className="border border-[#d7e3ee] px-4 py-3 text-left font-bold text-[#133d63]"
+                  colSpan={3}
+                >
                   Informações
                 </th>
               </tr>
-              <tr className="bg-[#fafafa]">
-                <td className="border border-[#d7d7d7] px-4 py-4 text-[#444]" colSpan={3}>
+              <tr className="bg-[#f8fbfe]">
+                <td className="border border-[#d7e3ee] px-4 py-4 text-[#355066]" colSpan={3}>
                   <strong>ID:</strong> {data.client.id}
                   {"  "} | {"  "}
                   <strong>Criado em:</strong> {formatDate(data.client.createdAt, true)}
@@ -90,30 +93,30 @@ export function PainelClienteDetailPage({
           >
             Editar
           </Link>
-          <Link
-            className="text-[#1868d6] underline"
-            href="/painel/clientes/passeios"
-          >
+          <Link className="text-[#1868d6] underline" href="/painel/clientes/passeios">
             Passeios
           </Link>
         </div>
       </section>
 
       <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
-        <h2 className="text-[28px] text-[#3f3f3f]">Histórico de Datas de Passeio</h2>
-        <div className="mt-4 overflow-x-auto border border-[#cfcfcf]">
+        <h2 className="text-[28px] text-[#123b63]">Histórico de Datas de Passeio</h2>
+        <div className="mt-4 overflow-x-auto rounded-[6px] border border-[#d7e3ee]">
           <table className="min-w-full border-collapse text-[15px]">
-            <thead className="bg-[#5f84a3] text-left text-white">
+            <thead className="bg-[#eef5fb] text-left text-[#133d63]">
               <tr>
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data do Passeio</th>
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
+                <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">Data do Passeio</th>
+                <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">Status</th>
               </tr>
             </thead>
             <tbody>
               {data.tripDates.length > 0 ? (
                 data.tripDates.map((tripDate, index) => (
-                  <tr className={index % 2 === 1 ? "bg-[#fafafa]" : "bg-white"} key={tripDate.agendaId}>
-                    <td className="border border-[#d7d7d7] px-4 py-3">
+                  <tr
+                    className={index % 2 === 1 ? "bg-[#f8fbfe]" : "bg-white"}
+                    key={tripDate.agendaId}
+                  >
+                    <td className="border border-[#d7e3ee] px-4 py-3">
                       <Link
                         className="text-[#1868d6] underline"
                         href={`/painel/clientes/passeios/${tripDate.agendaId}/alunos?clientId=${data.client.id}`}
@@ -121,14 +124,14 @@ export function PainelClienteDetailPage({
                         {formatDate(tripDate.date)}
                       </Link>
                     </td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">
+                    <td className="border border-[#d7e3ee] px-4 py-3 text-[#355066]">
                       {tripDate.statusLabel}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td className="border border-[#d7d7d7] px-4 py-5 text-center" colSpan={2}>
+                  <td className="border border-[#d7e3ee] px-4 py-5 text-center text-[#355066]" colSpan={2}>
                     Não há dados
                   </td>
                 </tr>
@@ -140,12 +143,12 @@ export function PainelClienteDetailPage({
 
       {data.education ? (
         <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
-          <h2 className="text-[28px] text-[#3f3f3f]">Estrutura Escolar</h2>
+          <h2 className="text-[28px] text-[#123b63]">Estrutura Escolar</h2>
           <div className="mt-4 grid gap-4">
             {data.education.classes.length > 0 ? (
               data.education.classes.map((classItem) => (
-                <div className="border border-[#d7d7d7]" key={classItem.id}>
-                  <div className="flex flex-wrap items-center justify-between gap-3 bg-[#eef3f8] px-4 py-3">
+                <div className="rounded-[6px] border border-[#d7e3ee]" key={classItem.id}>
+                  <div className="flex flex-wrap items-center justify-between gap-3 bg-[#eef5fb] px-4 py-3">
                     <strong className="text-[#2d4050]">{classItem.name}</strong>
                     <span className="text-sm text-[#5e6d7a]">
                       Status: {classItem.status === "ati" ? "Ativo" : "Inativo"}
