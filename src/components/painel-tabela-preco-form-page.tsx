@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { CurrencyInput } from "@/components/currency-input";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -124,29 +125,57 @@ export function PainelTabelaPrecoFormPage({
                 <table className="min-w-full border-collapse text-left text-[15px]">
                   <tbody>
                     {[
-                      ["Nome", "nmtabpreco"],
-                      ["Valor normal", "vlnormal"],
-                      ["Valor infantil", "vlinfant"],
-                      ["Valor normal bilheteria", "vlnormalbil"],
-                      ["Valor infantil bilheteria", "vlinfantbil"],
-                    ].map(([label, field]) => (
+                      { label: "Nome", field: "nmtabpreco", money: false },
+                      { label: "Valor normal", field: "vlnormal", money: true },
+                      { label: "Valor infantil", field: "vlinfant", money: true },
+                      {
+                        label: "Valor normal bilheteria",
+                        field: "vlnormalbil",
+                        money: true,
+                      },
+                      {
+                        label: "Valor infantil bilheteria",
+                        field: "vlinfantbil",
+                        money: true,
+                      },
+                    ].map(({ label, field, money }) => (
                       <tr key={field}>
                         <th className="w-[260px] border border-[#d7e3ee] bg-[#eef5fb] px-4 py-3 font-semibold text-[#133d63]">
                           {label}
                         </th>
                         <td className="border border-[#d7e3ee] px-4 py-3">
-                          <input
-                            className="w-full border border-[#d3dbe3] px-3 py-3"
-                            onChange={(event) =>
-                              setForm((current) => ({
-                                ...current,
-                                [field]: event.target.value,
-                              }))
-                            }
-                            required={field !== "vlnormalbil" && field !== "vlinfantbil"}
-                            type="text"
-                            value={form[field as keyof PainelTabelaPrecoFormValues] ?? ""}
-                          />
+                          {money ? (
+                            <CurrencyInput
+                              key={`price-field-${field}-${table?.id ?? "new"}`}
+                              className="w-full border border-[#d3dbe3] px-3 py-3"
+                              defaultValue={
+                                String(
+                                  form[field as keyof PainelTabelaPrecoFormValues] ?? "0,00",
+                                ) || "0,00"
+                              }
+                              name={field}
+                              onValueChange={(value) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  [field]: value,
+                                }))
+                              }
+                              required={field !== "vlnormalbil" && field !== "vlinfantbil"}
+                            />
+                          ) : (
+                            <input
+                              className="w-full border border-[#d3dbe3] px-3 py-3"
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  [field]: event.target.value,
+                                }))
+                              }
+                              required
+                              type="text"
+                              value={form[field as keyof PainelTabelaPrecoFormValues] ?? ""}
+                            />
+                          )}
                         </td>
                       </tr>
                     ))}

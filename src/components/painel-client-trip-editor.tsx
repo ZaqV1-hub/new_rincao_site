@@ -1,5 +1,6 @@
 "use client";
 
+import { CurrencyInput } from "@/components/currency-input";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -52,7 +53,7 @@ export function PainelClientTripEditor({
     data.mode === "edit" ? data.acceptsFamily : false,
   );
   const [faixas, setFaixas] = useState<EditableFaixa[]>(
-    (data.faixas.length > 0 ? data.faixas : [{ minAge: 0, maxAge: 0, value: "0.00" }]).map(
+    (data.faixas.length > 0 ? data.faixas : [{ minAge: 0, maxAge: 0, value: "0,00" }]).map(
       toEditableFaixa,
     ),
   );
@@ -99,7 +100,7 @@ export function PainelClientTripEditor({
   }
 
   function addFaixa() {
-    setFaixas((current) => [...current, { minAge: "", maxAge: "", value: "0.00" }]);
+    setFaixas((current) => [...current, { minAge: "", maxAge: "", value: "0,00" }]);
   }
 
   function removeFaixa(index: number) {
@@ -283,8 +284,9 @@ export function PainelClientTripEditor({
                   />
                 </label>
                 <p className="text-sm text-[#667]">
-                  Se já existir agenda na data escolhida, o vínculo e os vouchers
-                  deste cliente serão movidos para ela.
+                  Se já existir outro passeio nessa data, este vínculo será movido
+                  para a agenda existente e os ingressos comprados também serão
+                  transferidos.
                 </p>
               </div>
             </section>
@@ -417,13 +419,12 @@ export function PainelClientTripEditor({
                         />
                       </td>
                       <td className="border border-[#d7d7d7] px-4 py-3">
-                        <input
+                        <CurrencyInput
+                          key={`faixa-valor-${index}-${faixa.minAge}-${faixa.maxAge}`}
                           className="h-10 w-full border border-[#d7d7d7] px-3 text-[15px]"
-                          onChange={(event) =>
-                            updateFaixa(index, "value", event.target.value)
-                          }
-                          type="text"
-                          value={faixa.value}
+                          defaultValue={faixa.value}
+                          name={`faixa_valor_${index}`}
+                          onValueChange={(value) => updateFaixa(index, "value", value)}
                         />
                       </td>
                       <td className="border border-[#d7d7d7] px-4 py-3">

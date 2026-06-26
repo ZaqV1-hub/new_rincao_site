@@ -339,6 +339,12 @@ export function PainelClientTripDetailPage({
         </table>
 
         <div className="flex flex-wrap gap-3">
+          <Link
+            className="rounded border border-[#cdd8e2] bg-white px-4 py-2 text-[#215f92]"
+            href={`/painel/clientes/passeios/${data.trip.agendaId}/editar?clientId=${data.trip.clientId}`}
+          >
+            Editar passeio
+          </Link>
           {data.trip.purchaseLink ? (
             <button
               className="rounded border border-[#cdd8e2] bg-white px-4 py-2 text-[#215f92]"
