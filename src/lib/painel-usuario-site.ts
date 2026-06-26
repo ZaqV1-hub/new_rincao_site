@@ -1,5 +1,5 @@
 import { formatCpf, sanitizeCpf } from "@/lib/cpf";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   asOpsAdminMasterDataError,
   updateOpsAdminMasterData,
@@ -251,7 +251,7 @@ function buildListWhere(filters: {
 }
 
 async function getUsuarioSiteRaw(cpf: string) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<UsuarioSiteRow>(
     `
       SELECT
@@ -296,7 +296,7 @@ async function getUsuarioSiteRaw(cpf: string) {
 }
 
 async function getUsuarioSiteRelationships(cpf: string) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const [associateResult, agreementsResult] = await Promise.all([
     pool.query<{ cpf: string }>(
       `
@@ -366,7 +366,7 @@ export async function listPainelUsuariosSite(input: Record<string, unknown>) {
     createdFrom,
     createdTo,
   });
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const countResult = await pool.query<{ total: string }>(
     `
       SELECT COUNT(*)::text AS total

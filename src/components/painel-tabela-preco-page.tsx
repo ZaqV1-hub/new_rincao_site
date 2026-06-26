@@ -182,27 +182,27 @@ export function PainelTabelaPrecoPage({
               </p>
             )}
 
-            <div className="overflow-x-auto border border-[#cfcfcf]">
+            <div className="overflow-x-auto rounded-[6px] border border-[#d7e3ee]">
               <table className="min-w-full border-collapse text-[15px]">
-                <thead className="bg-[#5f84a3] text-left text-white">
+                <thead className="bg-[#eef5fb] text-left text-[#133d63]">
                   <tr>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Nome</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Normal</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Infantil</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Bilheteria</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acoes</th>
+                    <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">Nome</th>
+                    <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">Normal</th>
+                    <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">Infantil</th>
+                    <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">Bilheteria</th>
+                    <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">Status</th>
+                    <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.items.length > 0 ? (
                     data.items.map((item, index) => {
-                      const rowTone = index % 2 === 1 ? "bg-[#fafafa]" : "bg-white";
+                      const rowTone = index % 2 === 1 ? "bg-[#f8fbfe]" : "bg-white";
                       const isBusy = pendingId === item.id;
 
                       return (
                         <tr className={rowTone} key={item.id}>
-                          <td className="border border-[#d7d7d7] px-4 py-3 align-top">
+                          <td className="border border-[#d7e3ee] px-4 py-3 align-top">
                             <Link
                               className="text-[#1868d6] underline"
                               href={`/painel/tabela-preco/${item.id}`}
@@ -210,18 +210,18 @@ export function PainelTabelaPrecoPage({
                               {item.name}
                             </Link>
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 align-top">
+                          <td className="border border-[#d7e3ee] px-4 py-3 align-top text-[#355066]">
                             R$ {item.normalValue}
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 align-top">
+                          <td className="border border-[#d7e3ee] px-4 py-3 align-top text-[#355066]">
                             R$ {item.childValue}
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 align-top">
+                          <td className="border border-[#d7e3ee] px-4 py-3 align-top text-[#355066]">
                             Passaporte R$ {item.gateNormalValue}
                             <br />
                             Passaporte infantil R$ {item.gateChildValue}
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 align-top">
+                          <td className="border border-[#d7e3ee] px-4 py-3 align-top text-[#355066]">
                             {item.statusLabel} [
                             <button
                               className="text-[#1868d6] underline"
@@ -233,7 +233,7 @@ export function PainelTabelaPrecoPage({
                             </button>
                             ]
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 align-top">
+                          <td className="border border-[#d7e3ee] px-4 py-3 align-top">
                             <div className="flex flex-wrap items-center gap-3 text-sm">
                               <Link
                                 className="text-[#1868d6] underline"
@@ -257,7 +257,7 @@ export function PainelTabelaPrecoPage({
                   ) : (
                     <tr>
                       <td
-                        className="border border-[#d7d7d7] px-4 py-8 text-center text-[#6f6f6f]"
+                        className="border border-[#d7e3ee] px-4 py-8 text-center text-[#6f6f6f]"
                         colSpan={6}
                       >
                         Não há dados
@@ -274,7 +274,7 @@ export function PainelTabelaPrecoPage({
               </span>
               <div className="flex items-center gap-2">
                 {previousHref ? (
-                  <Link className="border border-[#cfcfcf] px-3 py-2" href={previousHref}>
+                  <Link className="border border-[#d7e3ee] px-3 py-2" href={previousHref}>
                     Anterior
                   </Link>
                 ) : (
@@ -283,7 +283,7 @@ export function PainelTabelaPrecoPage({
                   </span>
                 )}
                 {nextHref ? (
-                  <Link className="border border-[#cfcfcf] px-3 py-2" href={nextHref}>
+                  <Link className="border border-[#d7e3ee] px-3 py-2" href={nextHref}>
                     Próxima
                   </Link>
                 ) : (

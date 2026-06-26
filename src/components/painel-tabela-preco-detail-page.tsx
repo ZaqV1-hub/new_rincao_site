@@ -19,7 +19,7 @@ export function PainelTabelaPrecoDetailPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/administrativo", label: "Acessos" },
-            { href: "/painel/tabela-preco", label: "Tabela de Preco" },
+            { href: "/painel/tabela-preco", label: "Tabela de Preço" },
             { label: data.name },
           ]}
         />
@@ -39,10 +39,10 @@ export function PainelTabelaPrecoDetailPage({
                     ["Status", data.statusLabel],
                   ].map(([label, value]) => (
                     <tr key={label}>
-                      <th className="w-[260px] border border-[#d7d7d7] bg-[#f7f7f7] px-4 py-3 font-semibold text-[#5a5a5a]">
+                      <th className="w-[260px] border border-[#d7e3ee] bg-[#eef5fb] px-4 py-3 font-semibold text-[#133d63]">
                         {label}
                       </th>
-                      <td className="border border-[#d7d7d7] px-4 py-3 text-[#355066]">
+                      <td className="border border-[#d7e3ee] px-4 py-3 text-[#355066]">
                         {value}
                       </td>
                     </tr>

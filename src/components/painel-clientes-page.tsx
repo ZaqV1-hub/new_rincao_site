@@ -145,7 +145,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
 
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Cliente excluido com sucesso.",
+        message: payload.data?.message || "Cliente excluído com sucesso.",
       });
       startTransition(() => {
         router.refresh();
@@ -186,7 +186,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
           </div>
         ) : null}
 
-        <div className="mt-7 grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="mt-7 grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="min-w-0">
             {data.total > 0 ? (
               <p className="mb-4 text-[17px] text-[#5a5a5a]">
@@ -200,26 +200,34 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
             )}
 
             {data.total > 0 ? (
-              <div className="overflow-x-auto border border-[#cfcfcf]">
+              <div className="overflow-x-auto rounded-[6px] border border-[#d7e3ee]">
                 <table className="min-w-full border-collapse text-[15px]">
-                  <thead className="bg-[#5f84a3] text-left text-white">
+                  <thead className="bg-[#eef5fb] text-left text-[#133d63]">
                     <tr>
-                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">ID</th>
-                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Nome</th>
-                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Tipo</th>
-                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
-                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ações</th>
+                      <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">ID</th>
+                      <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">
+                        Nome
+                      </th>
+                      <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">
+                        Tipo
+                      </th>
+                      <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">
+                        Status
+                      </th>
+                      <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">
+                        Ações
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.items.map((item, index) => {
-                      const rowTone = index % 2 === 1 ? "bg-[#fafafa]" : "bg-white";
+                      const rowTone = index % 2 === 1 ? "bg-[#f8fbfe]" : "bg-white";
                       const statusActionLabel = item.active ? "Desativar" : "Ativar";
                       const isBusy = pendingClientId === item.id;
 
                       return (
                         <tr className={rowTone} key={item.id}>
-                          <td className="border border-[#d7d7d7] px-4 py-3 align-top">
+                          <td className="border border-[#d7e3ee] px-4 py-3 align-top text-[#355066]">
                             <Link
                               className="text-[#1868d6] underline"
                               href={`/painel/clientes/detalhe?id=${item.id}`}
@@ -227,7 +235,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                               {item.id}
                             </Link>
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 align-top">
+                          <td className="border border-[#d7e3ee] px-4 py-3 align-top">
                             <Link
                               className="text-[#1868d6] underline"
                               href={`/painel/clientes/detalhe?id=${item.id}`}
@@ -235,10 +243,10 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                               {item.name}
                             </Link>
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 align-top">
+                          <td className="border border-[#d7e3ee] px-4 py-3 align-top text-[#355066]">
                             {item.typeName || "-"}
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 align-top">
+                          <td className="border border-[#d7e3ee] px-4 py-3 align-top text-[#355066]">
                             {item.active ? "Ativo" : "Inativo"}{" "}
                             [
                             <button
@@ -251,7 +259,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                             </button>
                             ]
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 align-top">
+                          <td className="border border-[#d7e3ee] px-4 py-3 align-top">
                             <div className="flex flex-wrap items-center gap-3 text-sm">
                               <Link
                                 className="text-[#1868d6] underline"
@@ -316,24 +324,24 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
               </Link>
             </div>
 
-            <div className="border border-[#cfcfcf] bg-white">
-              <div className="bg-[#ececec] px-4 py-3 text-[28px] leading-none text-[#666]">
+            <div className="rounded-[6px] border border-[#d7e3ee] bg-white shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
+              <div className="border-b border-[#d7e3ee] bg-[#eef5fb] px-4 py-3 text-[28px] leading-none text-[#36536b]">
                 Filtrar
               </div>
               <form className="grid gap-5 p-4" method="get">
-                <label className="grid gap-2 text-[16px] font-bold text-[#666]">
+                <label className="grid gap-2 text-[16px] font-bold text-[#36536b]">
                   Busca
                   <input
-                    className="h-10 border border-[#dddddd] px-3 text-[15px] font-normal text-[#333]"
+                    className="h-10 rounded-[16px] border border-[#c9d8e6] px-3 text-[15px] font-normal text-[#133d63]"
                     defaultValue={data.filters.q}
                     name="q"
                   />
                 </label>
 
-                <label className="grid gap-2 text-[16px] font-bold text-[#666]">
+                <label className="grid gap-2 text-[16px] font-bold text-[#36536b]">
                   Tipo
                   <select
-                    className="h-10 border border-[#dddddd] px-3 text-[15px] font-normal text-[#333]"
+                    className="h-10 rounded-[16px] border border-[#c9d8e6] px-3 text-[15px] font-normal text-[#133d63]"
                     defaultValue={data.filters.idtipo}
                     name="idtipo"
                   >
@@ -346,10 +354,10 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                   </select>
                 </label>
 
-                <label className="grid gap-2 text-[16px] font-bold text-[#666]">
+                <label className="grid gap-2 text-[16px] font-bold text-[#36536b]">
                   Status
                   <select
-                    className="h-10 border border-[#dddddd] px-3 text-[15px] font-normal text-[#333]"
+                    className="h-10 rounded-[16px] border border-[#c9d8e6] px-3 text-[15px] font-normal text-[#133d63]"
                     defaultValue={data.filters.status}
                     name="status"
                   >
@@ -361,7 +369,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
 
                 <div className="flex justify-center pt-2">
                   <button
-                    className="min-w-[116px] bg-[#9a9a9a] px-8 py-4 text-[18px] text-white"
+                    className="min-w-[116px] bg-[#133d63] px-8 py-4 text-[18px] text-white"
                     type="submit"
                   >
                     Filtrar

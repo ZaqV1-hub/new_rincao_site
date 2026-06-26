@@ -36,7 +36,7 @@ export function PainelTabelaPrecoFormPage({
     sttabpreco: table?.status || "ati",
   });
 
-  const title = mode === "create" ? "Adicionar tabela de preco" : "Editar tabela de preco";
+  const title = mode === "create" ? "Adicionar tabela de preço" : "Editar tabela de preço";
   const submitLabel = mode === "create" ? "Cadastrar" : "Salvar";
   const destination = useMemo(
     () => (mode === "create" ? "/api/painel/tabela-preco" : `/api/painel/tabela-preco/${table?.id}`),
@@ -98,7 +98,7 @@ export function PainelTabelaPrecoFormPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/administrativo", label: "Acessos" },
-            { href: "/painel/tabela-preco", label: "Tabela de Preco" },
+            { href: "/painel/tabela-preco", label: "Tabela de Preço" },
             { label: title },
           ]}
         />
@@ -111,7 +111,7 @@ export function PainelTabelaPrecoFormPage({
               <div
                 className={`mt-4 border px-4 py-3 text-sm ${
                   feedback.tone === "success"
-                    ? "border-[#b7dfc0] bg-[#edf8f0] text-[#245336]"
+                    ? "border-[#c8def4] bg-[#eff6ff] text-[#1d4f91]"
                     : "border-[#efc0c0] bg-[#fff0f0] text-[#7a2b2b]"
                 }`}
               >
@@ -131,10 +131,10 @@ export function PainelTabelaPrecoFormPage({
                       ["Valor infantil bilheteria", "vlinfantbil"],
                     ].map(([label, field]) => (
                       <tr key={field}>
-                        <th className="w-[260px] border border-[#d7d7d7] bg-[#f7f7f7] px-4 py-3 font-semibold text-[#5a5a5a]">
+                        <th className="w-[260px] border border-[#d7e3ee] bg-[#eef5fb] px-4 py-3 font-semibold text-[#133d63]">
                           {label}
                         </th>
-                        <td className="border border-[#d7d7d7] px-4 py-3">
+                        <td className="border border-[#d7e3ee] px-4 py-3">
                           <input
                             className="w-full border border-[#d3dbe3] px-3 py-3"
                             onChange={(event) =>
@@ -152,10 +152,10 @@ export function PainelTabelaPrecoFormPage({
                     ))}
                     {mode === "edit" ? (
                       <tr>
-                        <th className="w-[260px] border border-[#d7d7d7] bg-[#f7f7f7] px-4 py-3 font-semibold text-[#5a5a5a]">
+                        <th className="w-[260px] border border-[#d7e3ee] bg-[#eef5fb] px-4 py-3 font-semibold text-[#133d63]">
                           Status
                         </th>
-                        <td className="border border-[#d7d7d7] px-4 py-3">
+                        <td className="border border-[#d7e3ee] px-4 py-3">
                           <select
                             className="w-full border border-[#d3dbe3] px-3 py-3"
                             onChange={(event) =>
@@ -178,14 +178,14 @@ export function PainelTabelaPrecoFormPage({
 
               <div className="flex flex-wrap gap-4">
                 <button
-                  className="bg-[#3fae2a] px-8 py-4 text-base font-semibold text-white disabled:opacity-60"
+                  className="bg-[#133d63] px-8 py-4 text-base font-semibold text-white disabled:opacity-60"
                   disabled={isPending}
                   type="submit"
                 >
                   {isPending ? "Salvando..." : submitLabel}
                 </button>
                 <Link
-                  className="border border-[#cfcfcf] px-8 py-4 text-base text-[#666]"
+                  className="border border-[#d7e3ee] px-8 py-4 text-base text-[#666]"
                   href={table ? `/painel/tabela-preco/${table.id}` : "/painel/tabela-preco"}
                 >
                   Cancelar

@@ -110,8 +110,7 @@ export function PainelClientTripsManager({
 
       if (!response.ok || !payload?.ok) {
         throw new Error(
-          payload?.error?.message ||
-            "Não foi possível desvincular o passeio agora.",
+          payload?.error?.message || "Não foi possível desvincular o passeio agora.",
         );
       }
 
@@ -184,8 +183,8 @@ export function PainelClientTripsManager({
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <section className="grid gap-5">
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="grid min-w-0 gap-5">
           {data.total === 0 ? (
             <section className="rounded-[6px] bg-white px-4 py-10 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
               <h2 className="text-[28px] text-[#3f3f3f]">
@@ -197,19 +196,19 @@ export function PainelClientTripsManager({
               <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
                 <div className="values m-0">
                   <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <li className="border border-[#d7d7d7] bg-[#f8fbfd] px-4 py-4 text-center">
+                    <li className="border border-[#d7e3ee] bg-[#f8fbfe] px-4 py-4 text-center">
                       <strong className="block text-[28px] text-[#205a7f]">
                         {data.indicators.performed}
                       </strong>
                       <span className="text-sm text-[#5d7282]">Realizados</span>
                     </li>
-                    <li className="border border-[#d7d7d7] bg-[#f8fbfd] px-4 py-4 text-center">
+                    <li className="border border-[#d7e3ee] bg-[#f8fbfe] px-4 py-4 text-center">
                       <strong className="block text-[28px] text-[#205a7f]">
                         {data.indicators.upcoming}
                       </strong>
                       <span className="text-sm text-[#5d7282]">Futuros</span>
                     </li>
-                    <li className="border border-[#d7d7d7] bg-[#f8fbfd] px-4 py-4 text-center">
+                    <li className="border border-[#d7e3ee] bg-[#f8fbfe] px-4 py-4 text-center">
                       <strong className="block text-[28px] text-[#205a7f]">
                         {data.indicators.total}
                       </strong>
@@ -223,32 +222,32 @@ export function PainelClientTripsManager({
               </section>
 
               <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-[6px] border border-[#d7e3ee]">
                   <table className="min-w-full border-collapse text-[15px]">
-                    <thead className="bg-[#5f84a3] text-left text-white">
+                    <thead className="bg-[#eef5fb] text-left text-[#133d63]">
                       <tr>
-                        <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
+                        <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">
                           Código do Passeio
                         </th>
-                        <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
+                        <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">
                           Cliente
                         </th>
-                        <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
+                        <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">
                           Tipo de Cliente
                         </th>
-                        <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
+                        <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">
                           Data
                         </th>
-                        <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
+                        <th className="border border-[#d7e3ee] px-4 py-3 font-semibold">
                           Status
                         </th>
-                        <th className="border border-[#6f8ea8] px-4 py-3 text-center font-normal">
+                        <th className="border border-[#d7e3ee] px-4 py-3 text-center font-semibold">
                           Qtd Pessoas
                         </th>
-                        <th className="border border-[#6f8ea8] px-4 py-3 text-center font-normal">
+                        <th className="border border-[#d7e3ee] px-4 py-3 text-center font-semibold">
                           Ações
                         </th>
-                        <th className="border border-[#6f8ea8] px-4 py-3 text-center font-normal">
+                        <th className="border border-[#d7e3ee] px-4 py-3 text-center font-semibold">
                           Link de Compra do Participante
                         </th>
                       </tr>
@@ -256,13 +255,13 @@ export function PainelClientTripsManager({
                     <tbody>
                       {data.items.map((item, index) => (
                         <tr
-                          className={index % 2 === 1 ? "bg-[#fafafa]" : "bg-white"}
+                          className={index % 2 === 1 ? "bg-[#f8fbfe]" : "bg-white"}
                           key={`${item.agendaId}-${item.clientId}`}
                         >
-                          <td className="border border-[#d7d7d7] px-4 py-3">
+                          <td className="border border-[#d7e3ee] px-4 py-3 text-[#355066]">
                             {item.code}
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3">
+                          <td className="border border-[#d7e3ee] px-4 py-3">
                             <Link
                               className="text-[#1868d6] underline"
                               href={`/painel/clientes/editar?id=${item.clientId}`}
@@ -270,19 +269,19 @@ export function PainelClientTripsManager({
                               {item.clientName}
                             </Link>
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3">
+                          <td className="border border-[#d7e3ee] px-4 py-3 text-[#355066]">
                             {item.clientTypeName || "-"}
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3">
+                          <td className="border border-[#d7e3ee] px-4 py-3 text-[#355066]">
                             {item.dateLabel}
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3">
+                          <td className="border border-[#d7e3ee] px-4 py-3 text-[#355066]">
                             {item.statusLabel}
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 text-center">
+                          <td className="border border-[#d7e3ee] px-4 py-3 text-center text-[#355066]">
                             {item.peopleCount}
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 text-center">
+                          <td className="border border-[#d7e3ee] px-4 py-3 text-center">
                             <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
                               <Link
                                 className="text-[#1868d6] underline"
@@ -310,10 +309,10 @@ export function PainelClientTripsManager({
                               </button>
                             </div>
                           </td>
-                          <td className="border border-[#d7d7d7] px-4 py-3 text-center">
+                          <td className="border border-[#d7e3ee] px-4 py-3 text-center text-[#355066]">
                             {item.purchaseLink ? (
                               <button
-                                className="border border-[#c6d2db] bg-[#f9fbfd] px-3 py-1.5 text-sm text-[#345062]"
+                                className="border border-[#c6d8ea] bg-[#f5f9fe] px-3 py-1.5 text-sm text-[#345062]"
                                 onClick={() => void handleCopyLink(item.purchaseLink!)}
                                 type="button"
                               >
@@ -333,7 +332,7 @@ export function PainelClientTripsManager({
                   <nav className="mt-5 flex flex-wrap items-center gap-2 text-sm text-[#4f6476]">
                     {data.page > 1 ? (
                       <Link
-                        className="border border-[#d7d7d7] px-3 py-1.5"
+                        className="border border-[#d7e3ee] px-3 py-1.5"
                         href={`/painel/clientes/passeios?${buildLegacyQuery({
                           ...queryBase,
                           page: data.page - 1,
@@ -347,8 +346,8 @@ export function PainelClientTripsManager({
                       <Link
                         className={
                           pageNumber === data.page
-                            ? "border border-[#5f84a3] bg-[#5f84a3] px-3 py-1.5 text-white"
-                            : "border border-[#d7d7d7] px-3 py-1.5"
+                            ? "border border-[#133d63] bg-[#133d63] px-3 py-1.5 text-white"
+                            : "border border-[#d7e3ee] px-3 py-1.5"
                         }
                         href={`/painel/clientes/passeios?${buildLegacyQuery({
                           ...queryBase,
@@ -362,7 +361,7 @@ export function PainelClientTripsManager({
 
                     {data.page < data.pageCount ? (
                       <Link
-                        className="border border-[#d7d7d7] px-3 py-1.5"
+                        className="border border-[#d7e3ee] px-3 py-1.5"
                         href={`/painel/clientes/passeios?${buildLegacyQuery({
                           ...queryBase,
                           page: data.page + 1,
@@ -390,33 +389,33 @@ export function PainelClientTripsManager({
             </div>
           </section>
 
-          <section className="rounded-[6px] bg-white shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
-            <div className="border-b border-[#d7d7d7] bg-[#efefef] px-6 py-4 text-[22px] text-[#666]">
+          <section className="rounded-[6px] border border-[#d7e3ee] bg-white shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
+            <div className="border-b border-[#d7e3ee] bg-[#eef5fb] px-6 py-4 text-[22px] text-[#36536b]">
               Filtrar
             </div>
             <form action="/painel/clientes/passeios" className="grid gap-5 px-6 py-5" method="get">
-              <label className="grid gap-2 text-[18px] font-bold text-[#555]">
+              <label className="grid gap-2 text-[18px] font-bold text-[#36536b]">
                 <span>Código</span>
                 <input
-                  className="h-12 border border-[#d7d7d7] px-3 text-[16px] font-normal"
+                  className="h-12 rounded-[16px] border border-[#c9d8e6] px-3 text-[16px] font-normal text-[#133d63]"
                   defaultValue={data.filters.code}
                   name="codescoladata"
                 />
               </label>
 
-              <label className="grid gap-2 text-[18px] font-bold text-[#555]">
+              <label className="grid gap-2 text-[18px] font-bold text-[#36536b]">
                 <span>Busca</span>
                 <input
-                  className="h-12 border border-[#d7d7d7] px-3 text-[16px] font-normal"
+                  className="h-12 rounded-[16px] border border-[#c9d8e6] px-3 text-[16px] font-normal text-[#133d63]"
                   defaultValue={data.filters.query}
                   name="q"
                 />
               </label>
 
-              <label className="grid gap-2 text-[18px] font-bold text-[#555]">
+              <label className="grid gap-2 text-[18px] font-bold text-[#36536b]">
                 <span>Tipo</span>
                 <select
-                  className="h-12 border border-[#d7d7d7] px-3 text-[16px] font-normal"
+                  className="h-12 rounded-[16px] border border-[#c9d8e6] px-3 text-[16px] font-normal text-[#133d63]"
                   defaultValue={data.filters.typeId == null ? "" : String(data.filters.typeId)}
                   name="idtipo"
                 >
@@ -429,10 +428,10 @@ export function PainelClientTripsManager({
                 </select>
               </label>
 
-              <label className="grid gap-2 text-[18px] font-bold text-[#555]">
+              <label className="grid gap-2 text-[18px] font-bold text-[#36536b]">
                 <span>Status</span>
                 <select
-                  className="h-12 border border-[#d7d7d7] px-3 text-[16px] font-normal"
+                  className="h-12 rounded-[16px] border border-[#c9d8e6] px-3 text-[16px] font-normal text-[#133d63]"
                   defaultValue={data.filters.status}
                   name="status"
                 >
@@ -444,20 +443,20 @@ export function PainelClientTripsManager({
                 </select>
               </label>
 
-              <label className="grid gap-2 text-[18px] font-bold text-[#555]">
+              <label className="grid gap-2 text-[18px] font-bold text-[#36536b]">
                 <span>Data inicial</span>
                 <input
-                  className="h-12 border border-[#d7d7d7] px-3 text-[16px] font-normal"
+                  className="h-12 rounded-[16px] border border-[#c9d8e6] px-3 text-[16px] font-normal text-[#133d63]"
                   defaultValue={formatDateFilter(data.filters.fromDate)}
                   name="de"
                   placeholder="dd/mm/aaaa"
                 />
               </label>
 
-              <label className="grid gap-2 text-[18px] font-bold text-[#555]">
+              <label className="grid gap-2 text-[18px] font-bold text-[#36536b]">
                 <span>Data final</span>
                 <input
-                  className="h-12 border border-[#d7d7d7] px-3 text-[16px] font-normal"
+                  className="h-12 rounded-[16px] border border-[#c9d8e6] px-3 text-[16px] font-normal text-[#133d63]"
                   defaultValue={formatDateFilter(data.filters.toDate)}
                   name="ate"
                   placeholder="dd/mm/aaaa"
@@ -467,10 +466,7 @@ export function PainelClientTripsManager({
               <input name="per" type="hidden" value={data.pageSize} />
 
               <div className="flex flex-wrap items-center gap-3 pt-1">
-                <button
-                  className="border border-[#c0c0c0] bg-[#8e8e8e] px-9 py-3 text-[18px] text-white"
-                  type="submit"
-                >
+                <button className="bg-[#133d63] px-9 py-3 text-[18px] text-white" type="submit">
                   Filtrar
                 </button>
                 <Link
