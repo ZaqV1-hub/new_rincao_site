@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import type { PoolClient } from "pg";
 
@@ -301,7 +301,7 @@ function normalizeCourtesyInput(input: CourtesyInput, mode: "create" | "update")
 }
 
 async function listDiscountTypes() {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<DiscountTypeRow>(
     `
       SELECT
@@ -319,7 +319,7 @@ async function listDiscountTypes() {
 }
 
 async function listDiscounts() {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<DiscountRow>(
     `
       SELECT
@@ -346,7 +346,7 @@ async function listDiscounts() {
 }
 
 async function listCourtesyAuthors() {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<CourtesyRow>(
     `
       SELECT
@@ -624,7 +624,7 @@ export async function createOperationalDiscountType(
   input: DiscountTypeInput,
 ): Promise<OpsReferenceMutationSuccess> {
   const normalized = normalizeDiscountTypeInput(input, "create");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -684,7 +684,7 @@ export async function updateOperationalDiscountType(
 ): Promise<OpsReferenceMutationSuccess> {
   const normalized = normalizeDiscountTypeInput(input, "update");
   const id = normalized.id as number;
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -750,7 +750,7 @@ export async function deleteOperationalDiscountType(input: {
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -797,7 +797,7 @@ export async function createOperationalDiscount(
   input: DiscountInput,
 ): Promise<OpsReferenceMutationSuccess> {
   const normalized = normalizeDiscountInput(input, "create");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -879,7 +879,7 @@ export async function updateOperationalDiscount(
 ): Promise<OpsReferenceMutationSuccess> {
   const normalized = normalizeDiscountInput(input, "update");
   const id = normalized.id as number;
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -963,7 +963,7 @@ export async function deleteOperationalDiscount(input: {
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1010,7 +1010,7 @@ export async function createOperationalCourtesyAuthor(
   input: CourtesyInput,
 ): Promise<OpsReferenceMutationSuccess> {
   const normalized = normalizeCourtesyInput(input, "create");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1070,7 +1070,7 @@ export async function updateOperationalCourtesyAuthor(
 ): Promise<OpsReferenceMutationSuccess> {
   const normalized = normalizeCourtesyInput(input, "update");
   const id = normalized.id as number;
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1132,7 +1132,7 @@ export async function deleteOperationalCourtesyAuthor(input: {
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {

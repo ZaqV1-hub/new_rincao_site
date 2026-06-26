@@ -26,6 +26,13 @@ vi.mock("@/lib/ingresso-db", () => ({
       release: mocks.release,
     }),
   }),
+  getIngressoSistemaDbPool: () => ({
+    query: mocks.query,
+    connect: async () => ({
+      query: mocks.clientQuery,
+      release: mocks.release,
+    }),
+  }),
 }));
 
 vi.mock("@/lib/ops-audit-log", () => ({
