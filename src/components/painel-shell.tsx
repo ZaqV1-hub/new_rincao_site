@@ -420,7 +420,7 @@ export function PainelShell({
 
               <div>
                 <h1 className="text-[20px] font-bold leading-tight text-[#17342d]">
-                  Painel do Rincao
+                  {"Painel do Rinc\u00e3o"}
                 </h1>
               </div>
             </div>

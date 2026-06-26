@@ -205,7 +205,7 @@ export function PainelLoginPage({
           <PainelBrandLogo compact />
           <h2 className="mt-6 text-[38px] font-black text-[#17351f]">Entrar</h2>
           <p className="mt-2 text-sm leading-6 text-[#516956]">
-            Acesse o painel do Rincao.
+            {"Acesse o painel do Rinc\u00e3o."}
           </p>
 
           <form

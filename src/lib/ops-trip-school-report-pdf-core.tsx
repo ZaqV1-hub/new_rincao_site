@@ -266,7 +266,8 @@ function ReportDocument({
         <View style={styles.card}>
           <View style={styles.header}>
             <View style={styles.logoWrap}>
-              <Image alt="" src={logoPath} style={styles.logoImage} />
+              {/* eslint-disable-next-line jsx-a11y/alt-text */}
+              <Image src={logoPath} style={styles.logoImage} />
             </View>
             <View style={styles.headerContent}>
               <Text style={styles.logoTitle}>Rincão</Text>

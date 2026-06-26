@@ -21,7 +21,7 @@ export function PainelBrandLogo({
   const image = (
     <Image
       src="/brand/rincao-logo.png"
-      alt="Clube de Campo Rincao"
+      alt={"Clube de Campo Rinc\u00e3o"}
       width={width}
       height={height}
       priority={compact}
@@ -32,14 +32,14 @@ export function PainelBrandLogo({
 
   if (!href) {
     return (
-      <span className={classes} aria-label="Clube de Campo Rincao">
+      <span className={classes} aria-label={"Clube de Campo Rinc\u00e3o"}>
         {image}
       </span>
     );
   }
 
   return (
-    <Link href={href} className={classes} aria-label="Clube de Campo Rincao">
+    <Link href={href} className={classes} aria-label={"Clube de Campo Rinc\u00e3o"}>
       {image}
     </Link>
   );

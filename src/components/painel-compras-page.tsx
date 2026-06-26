@@ -324,7 +324,7 @@ export function PainelComprasPage({
                   <th className="px-3 py-2.5 text-xs font-semibold">Forma</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">Pagamento</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">CPF</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Usuario</th>
+                  <th className="px-3 py-2.5 text-xs font-semibold">{"Usu\u00e1rio"}</th>
                   <th className="px-3 py-2.5 text-xs font-semibold text-right">Valor</th>
                 </tr>
               </thead>
