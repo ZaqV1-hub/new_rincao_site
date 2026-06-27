@@ -16,10 +16,16 @@ export default async function PainelCodIndicaCreatePageRoute() {
         codindica: "",
         nmrepresentante: "",
         validade: "",
-        discountValue: "0.00",
-        cashbackPercent: "0.00",
+        vlvendanormal: "0.00",
+        vlvendainfant: "0.00",
+        vlcashbacknormal: "0.00",
+        vlcashbackinfant: "0.00",
         stcodindica: "ati",
         email: "",
+        flpromocional: "n",
+        vldescnormal: "0.00",
+        vlcashbackpromonormal: "0.00",
+        vlcashbackpromoinfant: "0.00",
       }}
       mode="create"
     />

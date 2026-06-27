@@ -274,32 +274,12 @@ export function PainelCodIndicaPage({ data }: Props) {
       </div>
 
       <aside className="grid gap-5 self-start">
-        <div className="rounded-[6px] border border-[#d3e0ec] bg-white p-5 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#5f84a3]">
-            Códigos de indicação
-          </p>
-          <h2 className="mt-2 text-[24px] font-semibold text-[#205a7f]">
-            Gerencie os códigos de indicação
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-[#5d7285]">
-            Cadastre novos códigos, ajuste as mensagens e acompanhe o cashback
-            nesta área.
-          </p>
-          <div className="mt-5 grid gap-3">
-            <Link
-              className="inline-flex items-center justify-center rounded-full bg-[#1f4f7a] px-5 py-3 text-sm font-semibold text-white hover:bg-[#173d61]"
-              href="/painel/cod-indica/cadastro"
-            >
-              Adicionar código
-            </Link>
-            <Link
-              className="inline-flex items-center justify-center rounded-full border border-[#c5d7e6] px-5 py-3 text-sm font-semibold text-[#205a7f]"
-              href="/painel/cod-indica/mensagem"
-            >
-              Editar mensagens
-            </Link>
-          </div>
-        </div>
+        <Link
+          className="inline-flex items-center justify-center rounded-full bg-[#1f4f7a] px-5 py-3 text-sm font-semibold text-white hover:bg-[#173d61]"
+          href="/painel/cod-indica/cadastro"
+        >
+          Adicionar código
+        </Link>
 
         <div className="rounded-[6px] border border-[#d3e0ec] bg-[#f4f8fc] p-4 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
           <h2 className="text-[22px] text-[#205a7f]">Filtrar</h2>
