@@ -191,7 +191,7 @@ export function PainelLoginPage({
   }
 
   return (
-    <section className="min-h-screen bg-[linear-gradient(180deg,#f4f8f1_0%,#ffffff_300px)] px-4 py-8 md:px-6">
+    <section className="min-h-screen bg-[linear-gradient(180deg,#eef5fb_0%,#ffffff_320px)] px-4 py-8 md:px-6">
       {recaptchaSiteKey ? (
         <Script
           src={`https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(
@@ -201,10 +201,10 @@ export function PainelLoginPage({
         />
       ) : null}
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[760px] items-center">
-        <div className="w-full rounded-[28px] border border-[#dbe7d7] bg-white p-8 shadow-[0_22px_52px_rgba(24,67,34,0.12)] md:p-10">
+        <div className="w-full rounded-[28px] border border-[#d3e3f1] bg-white p-8 shadow-[0_22px_52px_rgba(26,61,94,0.12)] md:p-10">
           <PainelBrandLogo compact />
-          <h2 className="mt-6 text-[38px] font-black text-[#17351f]">Entrar</h2>
-          <p className="mt-2 text-sm leading-6 text-[#516956]">
+          <h2 className="mt-6 text-[38px] font-black text-[#123e6f]">Entrar</h2>
+          <p className="mt-2 text-sm leading-6 text-[#516b86]">
             {"Acesse o painel do Rinc\u00e3o."}
           </p>
 
@@ -250,15 +250,15 @@ export function PainelLoginPage({
               <div
                 role="status"
                 aria-live="polite"
-                className="flex items-start gap-3 rounded-2xl border border-[#dbe7d7] bg-[#f7fbf5] px-4 py-3 text-sm text-[#17351f]"
+                className="flex items-start gap-3 rounded-2xl border border-[#d3e3f1] bg-[#f5faff] px-4 py-3 text-sm text-[#123e6f]"
               >
                 <span
                   aria-hidden="true"
-                  className="mt-0.5 inline-block h-4 w-4 shrink-0 rounded-full border-2 border-[#2b8c46] border-t-transparent animate-spin"
+                  className="mt-0.5 inline-block h-4 w-4 shrink-0 rounded-full border-2 border-[#2c5f8f] border-t-transparent animate-spin"
                 />
                 <div>
                   <p className="font-semibold">{feedback.statusTitle}</p>
-                  <p className="mt-1 text-[#516956]">{feedback.statusDescription}</p>
+                  <p className="mt-1 text-[#516b86]">{feedback.statusDescription}</p>
                 </div>
               </div>
             ) : null}
@@ -272,7 +272,7 @@ export function PainelLoginPage({
             <button
               type="submit"
               disabled={isBusy}
-              className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-full bg-[#2b8c46] px-5 py-3 text-sm font-black text-white disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-full bg-[#214f80] px-5 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(33,79,128,0.22)] transition hover:bg-[#173f68] disabled:cursor-wait disabled:opacity-60"
             >
               {isBusy ? (
                 <span
@@ -287,7 +287,7 @@ export function PainelLoginPage({
           <div className="mt-4 text-sm">
             <a
               href="/painel/login/esqueci"
-              className="font-semibold text-[#2b8c46] hover:text-[#1f6b36]"
+              className="font-semibold text-[#214f80] hover:text-[#173f68]"
             >
               esqueci minha senha
             </a>
