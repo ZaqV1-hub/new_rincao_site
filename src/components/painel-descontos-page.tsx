@@ -72,7 +72,7 @@ export function PainelDescontosPage({ data }: Props) {
               Categorias
             </Link>
             <Link
-              className="rounded-[8px] bg-[#17342d] px-3 py-2 text-xs font-semibold text-white"
+              className="rounded-full bg-[#1f4f7a] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#173d61]"
               href="/painel/descontos/novo"
             >
               Novo desconto
@@ -105,7 +105,7 @@ export function PainelDescontosPage({ data }: Props) {
                   <th className="px-3 py-2.5 text-xs font-semibold">ID</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">Categoria</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">Nome</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Aplicacao</th>
+                  <th className="px-3 py-2.5 text-xs font-semibold">Aplicação</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">Valor</th>
                   <th className="px-3 py-2.5 text-xs font-semibold text-right">Acoes</th>
                 </tr>

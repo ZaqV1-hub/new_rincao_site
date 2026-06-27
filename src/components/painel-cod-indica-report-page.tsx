@@ -21,14 +21,17 @@ export function PainelCodIndicaReportPage({ codigo, dtini, dtfim, report, error 
           </Link>{" "}
           <span className="mx-2 text-[#b8b8b8]">&gt;</span>
           <Link className="text-[#1d68a2] underline" href="/painel/cod-indica">
-            Cod Indica
+            Códigos de indicação
           </Link>{" "}
           <span className="mx-2 text-[#b8b8b8]">&gt;</span>
-          <Link className="text-[#1d68a2] underline" href={`/painel/cod-indica/${encodeURIComponent(codigo)}`}>
+          <Link
+            className="text-[#1d68a2] underline"
+            href={`/painel/cod-indica/${encodeURIComponent(codigo)}`}
+          >
             {codigo}
           </Link>{" "}
           <span className="mx-2 text-[#b8b8b8]">&gt;</span>
-          <span>Relatorio</span>
+          <span>Relatório</span>
         </div>
 
         {error ? (
@@ -37,7 +40,11 @@ export function PainelCodIndicaReportPage({ codigo, dtini, dtfim, report, error 
           </div>
         ) : null}
 
-        <form action={`/painel/cod-indica/${encodeURIComponent(codigo)}/relatorio`} className="mt-6 grid gap-4 md:grid-cols-[1fr_1fr_auto]" method="get">
+        <form
+          action={`/painel/cod-indica/${encodeURIComponent(codigo)}/relatorio`}
+          className="mt-6 grid gap-4 md:grid-cols-[1fr_1fr_auto]"
+          method="get"
+        >
           <label className="block text-sm font-semibold text-[#5a5a5a]">
             Dia inicial
             <input
@@ -72,7 +79,7 @@ export function PainelCodIndicaReportPage({ codigo, dtini, dtfim, report, error 
               <div>
                 <h1 className="text-[28px] font-semibold text-[#205a7f]">{report.representante}</h1>
                 <p className="text-sm text-[#5a5a5a]">
-                  Periodo: {report.dateFromLabel} ate {report.dateToLabel}
+                  Período: {report.dateFromLabel} até {report.dateToLabel}
                 </p>
               </div>
               <a
@@ -128,13 +135,16 @@ export function PainelCodIndicaReportPage({ codigo, dtini, dtfim, report, error 
       <aside className="self-start rounded-[6px] border border-[#d7d7d7] bg-[#f6f7f8] p-4 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
         <ul className="space-y-3 text-[15px]">
           <li>
-            <Link className="text-[#1d68a2] underline" href={`/painel/cod-indica/${encodeURIComponent(codigo)}`}>
+            <Link
+              className="text-[#1d68a2] underline"
+              href={`/painel/cod-indica/${encodeURIComponent(codigo)}`}
+            >
               Voltar ao detalhe
             </Link>
           </li>
           <li>
             <Link className="text-[#1d68a2] underline" href="/painel/cod-indica">
-              Lista de codigos
+              Lista de códigos
             </Link>
           </li>
         </ul>

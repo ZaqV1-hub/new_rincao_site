@@ -4,7 +4,7 @@ import { getPainelCodIndicaDetail } from "@/lib/painel-cod-indica";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Detalhe Cod Indica | Rincao",
+  title: "Painel - Detalhe do Código de Indicação | Rincão",
   robots: { index: false, follow: false },
 };
 

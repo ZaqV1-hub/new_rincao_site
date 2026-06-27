@@ -138,7 +138,7 @@ export function PainelCodIndicaPage({ data }: Props) {
             Home
           </Link>{" "}
           <span className="mx-2 text-[#b8b8b8]">&gt;</span>
-          <span>Cod Indica</span>
+          <span>Códigos de indicação</span>
         </div>
 
         {feedback ? (
@@ -279,7 +279,7 @@ export function PainelCodIndicaPage({ data }: Props) {
             Códigos de indicação
           </p>
           <h2 className="mt-2 text-[24px] font-semibold text-[#205a7f]">
-            Gerencie os códigos cadastrados
+            Gerencie os códigos de indicação
           </h2>
           <p className="mt-2 text-sm leading-6 text-[#5d7285]">
             Cadastre novos códigos, ajuste as mensagens e acompanhe o cashback

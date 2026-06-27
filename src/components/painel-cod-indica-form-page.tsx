@@ -56,7 +56,7 @@ export function PainelCodIndicaFormPage({ mode, initialValues, codigo }: Props) 
           | null;
 
         if (!response.ok || !payload?.ok) {
-          throw new Error(payload?.error?.message || "Falha ao salvar o codigo.");
+          throw new Error(payload?.error?.message || "Falha ao salvar o código.");
         }
 
         const targetCode = payload.data?.codigo ?? codigo ?? values.codindica;
@@ -66,9 +66,9 @@ export function PainelCodIndicaFormPage({ mode, initialValues, codigo }: Props) 
           return;
         }
 
-        setFeedback(payload.data?.message || "Codigo salvo com sucesso.");
+        setFeedback(payload.data?.message || "Código salvo com sucesso.");
       } catch (submitError) {
-        setError(submitError instanceof Error ? submitError.message : "Falha ao salvar o codigo.");
+        setError(submitError instanceof Error ? submitError.message : "Falha ao salvar o código.");
       }
     });
   }
@@ -81,7 +81,7 @@ export function PainelCodIndicaFormPage({ mode, initialValues, codigo }: Props) 
         </Link>{" "}
         <span className="mx-2 text-[#b8b8b8]">&gt;</span>
         <Link className="text-[#1d68a2] underline" href="/painel/cod-indica">
-          Cod Indica
+          Códigos de indicação
         </Link>{" "}
         <span className="mx-2 text-[#b8b8b8]">&gt;</span>
         <span>{mode === "edit" ? "Editar" : "Cadastro"}</span>

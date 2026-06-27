@@ -59,10 +59,10 @@ export function PainelCodIndicaMessagePage({ data }: Props) {
         </Link>{" "}
         <span className="mx-2 text-[#b8b8b8]">&gt;</span>
         <Link className="text-[#1d68a2] underline" href="/painel/cod-indica">
-          Cod Indica
+          Códigos de indicação
         </Link>{" "}
         <span className="mx-2 text-[#b8b8b8]">&gt;</span>
-        <span>Mensagem</span>
+        <span>Mensagens</span>
       </div>
 
       {error ? (
@@ -108,7 +108,7 @@ export function PainelCodIndicaMessagePage({ data }: Props) {
             disabled={isPending}
             type="submit"
           >
-            Salvar mensagem
+            Salvar mensagens
           </button>
           <Link
             className="inline-flex items-center justify-center border border-[#c8c8c8] bg-white px-6 py-3 text-sm font-semibold text-[#4a4a4a]"

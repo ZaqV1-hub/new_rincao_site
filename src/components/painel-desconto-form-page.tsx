@@ -120,7 +120,7 @@ export function PainelDescontoFormPage({
         </label>
 
         <label className="block text-sm font-semibold text-[#5a5a5a]">
-          Aplicacao *
+          Aplicação *
           <select
             className="mt-1 w-full max-w-[420px] border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
             defaultValue={initialValues.tipo_aplicacao}
@@ -146,7 +146,7 @@ export function PainelDescontoFormPage({
 
         <div className="flex flex-wrap gap-3">
           <button
-            className="inline-flex items-center justify-center bg-[#4aa329] px-6 py-3 text-sm font-semibold text-white disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-full bg-[#1f4f7a] px-6 py-3 text-sm font-semibold text-white hover:bg-[#173d61] disabled:opacity-60"
             disabled={isPending}
             type="submit"
           >

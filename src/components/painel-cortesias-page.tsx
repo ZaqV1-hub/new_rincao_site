@@ -67,7 +67,7 @@ export function PainelCortesiasPage({ data }: Props) {
             </h1>
           </div>
           <Link
-            className="rounded-[8px] bg-[#17342d] px-3 py-2 text-xs font-semibold text-white"
+            className="rounded-full bg-[#1f4f7a] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#173d61]"
             href="/painel/cortesias/novo"
           >
             Novo autorizador

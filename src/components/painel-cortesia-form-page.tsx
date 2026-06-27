@@ -96,7 +96,7 @@ export function PainelCortesiaFormPage({
 
         <div className="flex flex-wrap gap-3">
           <button
-            className="inline-flex items-center justify-center bg-[#4aa329] px-6 py-3 text-sm font-semibold text-white disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-full bg-[#1f4f7a] px-6 py-3 text-sm font-semibold text-white hover:bg-[#173d61] disabled:opacity-60"
             disabled={isPending}
             type="submit"
           >

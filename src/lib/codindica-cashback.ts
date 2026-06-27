@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool as getIngressoDbPool } from "@/lib/ingresso-db";
 
 type PurchaseCashbackRow = {
   idcompra: number;

@@ -11,6 +11,9 @@ vi.mock("@/lib/ingresso-db", () => ({
   getIngressoDbPool: () => ({
     query: dbQuery,
   }),
+  getIngressoSistemaDbPool: () => ({
+    query: dbQuery,
+  }),
 }));
 
 describe("codindica-cashback", () => {

@@ -1,5 +1,5 @@
 import { processCodindicaCashback } from "@/lib/codindica-cashback";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool as getIngressoDbPool } from "@/lib/ingresso-db";
 
 type RawCodIndicaRow = {
   codindica: string;

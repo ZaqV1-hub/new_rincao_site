@@ -7,7 +7,7 @@ import {
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Editar Cod Indica | Rincao",
+  title: "Painel - Editar Código de Indicação | Rincão",
   robots: { index: false, follow: false },
 };
 
