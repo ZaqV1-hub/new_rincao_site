@@ -67,7 +67,7 @@ describe("PainelClienteFormPage", () => {
     expect(html).toContain("Adicionar data de passeio");
     expect(html).toContain("Data do Passeio");
     expect(html).toContain('type="date"');
-    expect(html).toContain("Acoes");
+    expect(html).toContain("Ações");
     expect(html).toContain("Inativar");
     expect(html).toContain("Remover");
     expect(html).toContain("Estrutura Escolar");

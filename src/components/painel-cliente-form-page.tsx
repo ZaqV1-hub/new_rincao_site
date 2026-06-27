@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { PainelClienteDetailResult } from "@/lib/painel-clientes";
 
@@ -76,6 +76,17 @@ export function PainelClienteFormPage({
   const initialTypeId = client ? String(client.client.typeId) : "";
   const initialName = client?.client.name ?? "";
   const initialStatus = client?.client.active === false ? "0" : "1";
+  const [typeId, setTypeId] = useState(initialTypeId);
+  const [name, setName] = useState(initialName);
+  const [status, setStatus] = useState(initialStatus);
+  const selectedType = typeOptions.find((option) => String(option.id) === typeId) ?? null;
+  const isSelectedSchool = selectedType?.name.trim().toLowerCase() === "escola";
+
+  useEffect(() => {
+    setTypeId(initialTypeId);
+    setName(initialName);
+    setStatus(initialStatus);
+  }, [initialName, initialStatus, initialTypeId]);
 
   function refreshClientEditor(message?: string | null) {
     if (!client) {
@@ -197,11 +208,13 @@ export function PainelClienteFormPage({
     );
   }
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
     const payload = {
-      idtipo: String(formData.get("idtipo") ?? ""),
-      nome: String(formData.get("nome") ?? ""),
-      status: String(formData.get("status") ?? "1"),
+      idtipo: typeId,
+      nome: name,
+      status,
     };
 
     startTransition(async () => {
@@ -288,61 +301,58 @@ export function PainelClienteFormPage({
           </div>
         ) : null}
 
-        <form action={handleSubmit} className="mt-6 grid gap-6">
-          <table className="w-full border-collapse text-[15px]">
-            <tbody>
-              <tr>
-                <th className="w-[20%] border border-[#d7d7d7] bg-[#f4f4f4] px-4 py-3 text-left font-bold text-[#555]">
-                  <label htmlFor="idtipo">Tipo</label>
-                </th>
-                <td className="border border-[#d7d7d7] px-4 py-3">
-                  <select
-                    className="h-10 w-[260px] max-w-full border border-[#d7d7d7] px-3 text-[15px]"
-                    defaultValue={initialTypeId}
-                    id="idtipo"
-                    name="idtipo"
-                  >
-                    <option value="">Selecione</option>
-                    {typeOptions.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.name}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-              </tr>
-              <tr>
-                <th className="border border-[#d7d7d7] bg-[#f4f4f4] px-4 py-3 text-left font-bold text-[#555]">
-                  <label htmlFor="nome">Nome</label>
-                </th>
-                <td className="border border-[#d7d7d7] px-4 py-3">
-                  <input
-                    className="h-10 w-[420px] max-w-full border border-[#d7d7d7] px-3 text-[15px]"
-                    defaultValue={initialName}
-                    id="nome"
-                    name="nome"
-                    type="text"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <th className="border border-[#d7d7d7] bg-[#f4f4f4] px-4 py-3 text-left font-bold text-[#555]">
-                  <label htmlFor="status">Status</label>
-                </th>
-                <td className="border border-[#d7d7d7] px-4 py-3">
-                  <select
-                    className="h-10 w-[160px] max-w-full border border-[#d7d7d7] px-3 text-[15px]"
-                    defaultValue={initialStatus}
-                    id="status"
-                    name="status"
-                  >
-                    <option value="1">Ativo</option>
-                    <option value="0">Inativo</option>
-                  </select>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 grid gap-6">
+          <div className="grid gap-4">
+            <div className="grid gap-2 rounded-[6px] border border-[#d7d7d7] p-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+              <label className="font-bold text-[#555]" htmlFor="idtipo">
+                Tipo
+              </label>
+              <select
+                className="h-11 w-full rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] px-3 text-[15px] text-[#133d63]"
+                id="idtipo"
+                name="idtipo"
+                onChange={(event) => setTypeId(event.target.value)}
+                value={typeId}
+              >
+                <option value="">Selecione</option>
+                {typeOptions.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2 rounded-[6px] border border-[#d7d7d7] p-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+              <label className="font-bold text-[#555]" htmlFor="nome">
+                Nome
+              </label>
+              <input
+                className="h-11 w-full rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] px-3 text-[15px] text-[#133d63]"
+                id="nome"
+                name="nome"
+                onChange={(event) => setName(event.target.value)}
+                type="text"
+                value={name}
+              />
+            </div>
+
+            <div className="grid gap-2 rounded-[6px] border border-[#d7d7d7] p-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+              <label className="font-bold text-[#555]" htmlFor="status">
+                Status
+              </label>
+              <select
+                className="h-11 w-full max-w-[220px] rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] px-3 text-[15px] text-[#133d63]"
+                id="status"
+                name="status"
+                onChange={(event) => setStatus(event.target.value)}
+                value={status}
+              >
+                <option value="1">Ativo</option>
+                <option value="0">Inativo</option>
+              </select>
+            </div>
+          </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -466,7 +476,7 @@ export function PainelClienteFormPage({
             </div>
           </section>
 
-          {client.education ? (
+          {client.education && isSelectedSchool ? (
             <section className="rounded-[6px] bg-white px-8 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
               <h2 className="text-[28px] text-[#3f3f3f]">Estrutura Escolar</h2>
               <p className="mt-2 text-sm text-[#667]">
