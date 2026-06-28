@@ -540,8 +540,8 @@ function validateMutationInput(input: PainelAgendaMutationInput) {
       name: input.actor?.name?.trim() || null,
       cpf: input.actor?.cpf?.trim() || null,
     },
-    passportIds: Array.isArray(input.passportIds) ? input.passportIds : [],
-    addonIds: Array.isArray(input.addonIds) ? input.addonIds : [],
+    passportIds: Array.isArray(input.passportIds) ? input.passportIds : null,
+    addonIds: Array.isArray(input.addonIds) ? input.addonIds : null,
   };
 }
 

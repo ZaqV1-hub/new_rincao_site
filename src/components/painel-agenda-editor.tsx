@@ -11,11 +11,6 @@ import {
   formatPainelAgendaDateLabel,
   getPainelAgendaTypeOptions,
 } from "@/lib/painel-agenda-ui";
-import {
-  getB2cBoxOfficePrice,
-  getB2cSitePrice,
-  type B2cProduct,
-} from "@/lib/b2c-catalog-defaults";
 
 type PainelAgendaEditorProps = {
   data: PainelAgendaScreenData;
@@ -26,7 +21,6 @@ type PainelAgendaEditorProps = {
   mode: "create" | "edit";
   returnHref: string;
   initialType?: PainelAgendaType;
-  products: B2cProduct[];
 };
 
 type RangePreviewState =
@@ -81,7 +75,6 @@ export function PainelAgendaEditor({
   mode,
   returnHref,
   initialType,
-  products,
 }: PainelAgendaEditorProps) {
   const router = useRouter();
   const selectedAgenda = data.selectedDay?.agenda ?? null;
@@ -95,28 +88,8 @@ export function PainelAgendaEditor({
   const [mutationState, setMutationState] = useState<MutationState>({
     status: "idle",
   });
-  const passports = products.filter((product) => product.type === "passport");
-  const addons = products.filter((product) => product.type === "addon");
-  const [selectedPassportIds, setSelectedPassportIds] = useState<string[]>(() =>
-    data.selectedDay?.selectedPassportIds?.length
-      ? data.selectedDay.selectedPassportIds
-      : passports.map((item) => item.id),
-  );
-  const [selectedAddonIds] = useState<string[]>(() =>
-    data.selectedDay?.selectedAddonIds?.length
-      ? data.selectedDay.selectedAddonIds
-      : addons.map((item) => item.id),
-  );
-  const allPassportsSelected =
-    passports.length > 0 && selectedPassportIds.length === passports.length;
-
-  function togglePassportSelection(passportId: string) {
-    setSelectedPassportIds((current) =>
-      current.includes(passportId)
-        ? current.filter((item) => item !== passportId)
-        : [...current, passportId],
-    );
-  }
+  const selectedPassportIds = data.selectedDay?.selectedPassportIds ?? null;
+  const selectedAddonIds = data.selectedDay?.selectedAddonIds ?? null;
 
   useEffect(() => {
     if (!form.startDate || !form.endDate) {
@@ -300,8 +273,8 @@ export function PainelAgendaEditor({
         </h2>
         <p className="mt-2 text-sm text-[#60758d]">
           {mode === "create"
-            ? "Configure a data e os ingressos disponíveis."
-            : "Atualize a data e os ingressos disponíveis."}
+            ? "Configure a data e a tabela de preço disponível."
+            : "Atualize a data e a tabela de preço disponível."}
         </p>
         {mode === "create" ? (
           <p className="mt-2 text-sm text-[#60758d]">
@@ -349,6 +322,47 @@ export function PainelAgendaEditor({
           </label>
         </div>
 
+        <section className="grid gap-3 rounded-[8px] border border-[#d4dfeb] bg-white p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="panel-eyebrow !text-[#4d7398]">Tabela de preço</p>
+              <h3 className="mt-1 text-lg font-black text-[#123b63]">
+                Seleção da tabela
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push("/painel/tabela-preco")}
+              className="rounded-[8px] border border-[#d4dfeb] px-3 py-2 text-xs font-semibold text-[#123b63] hover:bg-[#eef4fb]"
+            >
+              Gerenciar tabelas
+            </button>
+          </div>
+          <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63]">
+            Tabela de preço da agenda
+            <select
+              value={String(form.priceTableId || "")}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  priceTableId: Number(event.target.value),
+                }))
+              }
+              className="rounded-[8px] border border-[#d4dfeb] bg-[#f8fbff] px-3 py-2.5 text-sm font-normal text-[#123b63]"
+            >
+              <option value="">Selecione</option>
+              {data.priceTables.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-sm text-[#60758d]">
+            Essa tela define a tabela de preço da data. A disponibilidade de passaportes continua usando a configuração padrão já existente.
+          </p>
+        </section>
+
         {form.type === "promo" ? (
           <div className="grid gap-3 rounded-[8px] border border-[#d4dfeb] bg-[#f8fbff] p-3">
             <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63]">
@@ -389,63 +403,6 @@ export function PainelAgendaEditor({
             </label>
           </div>
         ) : null}
-
-        <section className="grid gap-3 rounded-[8px] border border-[#d4dfeb] bg-white p-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="panel-eyebrow !text-[#4d7398]">Ingressos</p>
-              <h3 className="mt-1 text-lg font-black text-[#123b63]">
-                Seleção de ingressos
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => router.push("/painel/passaportes-itens")}
-              className="rounded-[8px] border border-[#d4dfeb] px-3 py-2 text-xs font-semibold text-[#123b63] hover:bg-[#eef4fb]"
-            >
-              Gerenciar ingressos
-            </button>
-          </div>
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-            {passports.length > 0 ? (
-              <label className="rounded-[8px] border border-[#d4dfeb] bg-[#eef4fb] px-3 py-2.5 text-sm font-semibold text-[#123b63]">
-                <span className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={allPassportsSelected}
-                    onChange={(event) =>
-                      setSelectedPassportIds(
-                        event.target.checked ? passports.map((item) => item.id) : [],
-                      )
-                    }
-                    className="h-4 w-4"
-                  />
-                  Selecionar todos
-                </span>
-              </label>
-            ) : null}
-            {passports.map((item) => (
-              <label
-                key={item.id}
-                className="rounded-[8px] border border-[#d4dfeb] bg-[#f8fbff] px-3 py-2.5 text-sm font-semibold text-[#123b63]"
-              >
-                <span className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedPassportIds.includes(item.id)}
-                    onChange={() => togglePassportSelection(item.id)}
-                    className="h-4 w-4"
-                  />
-                  {item.title}
-                </span>
-                <span className="mt-1.5 block text-xs text-[#60758d]">
-                  Site R$ {getB2cSitePrice(item).replace(".", ",")} · Bilheteria R${" "}
-                  {getB2cBoxOfficePrice(item).replace(".", ",")}
-                </span>
-              </label>
-            ))}
-          </div>
-        </section>
 
         {rangePreview.status === "error" ? (
           <div className="rounded-[8px] border border-[#f1b1aa] bg-[#fff4f2] px-4 py-3 text-sm text-[#9d3d31]">

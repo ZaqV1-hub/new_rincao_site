@@ -74,10 +74,10 @@ function parseInput(payload: AgendaMutationPayload | null): PainelAgendaMutation
         : null,
     passportIds: Array.isArray(payload?.passportIds)
       ? payload.passportIds.map((item) => String(item).trim()).filter(Boolean)
-      : [],
+      : null,
     addonIds: Array.isArray(payload?.addonIds)
       ? payload.addonIds.map((item) => String(item).trim()).filter(Boolean)
-      : [],
+      : null,
     confirmOverwrite: payload?.confirmOverwrite === true,
     reason: typeof payload?.reason === "string" ? payload.reason : "",
     actor: {

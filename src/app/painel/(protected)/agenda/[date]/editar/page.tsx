@@ -34,9 +34,9 @@ export default async function PainelAgendaEditPage({
     year: queryParams.ano,
     selectedDate: routeParams.date,
   });
-  const content = await readRincaoContent();
 
   if (data.selectedDay?.agenda?.type === "promo") {
+    const content = await readRincaoContent();
     const linkedEvent = content.events.find((event) =>
       event.href.includes(`date=${routeParams.date}`),
     );
@@ -79,7 +79,6 @@ export default async function PainelAgendaEditPage({
         }}
         mode="edit"
         returnHref={returnHref}
-        products={content.products}
       />
     </div>
   );
