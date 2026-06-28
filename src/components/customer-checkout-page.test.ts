@@ -57,7 +57,7 @@ describe("CustomerCheckoutPage", () => {
       }),
     );
 
-    expect(html).toContain("Checkout de Pagamento - Estância");
+    expect(html).toContain("Checkout de Pagamento - Clube Rincão");
     expect(html).toContain("Escolha a forma de pagamento");
     expect(html).toContain("Continuar pagamento");
     expect(html).toContain("Pix");

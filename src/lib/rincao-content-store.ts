@@ -354,7 +354,12 @@ function normalizeManagedProduct(item: B2cProduct, fallback: B2cProduct) {
     sitePrice,
     boxOfficePrice,
     fixedPrice: sitePrice,
-    voucherType: item.voucherType === "infan" || item.voucherType === "espec" ? item.voucherType : fallback.voucherType,
+    voucherType:
+      item.voucherType === "infan" ||
+      item.voucherType === "espec" ||
+      item.voucherType === "isent"
+        ? item.voucherType
+        : fallback.voucherType,
     voucherPrefix: item.voucherPrefix?.trim() || fallback.voucherPrefix,
   };
 }
@@ -694,7 +699,7 @@ export function normalizePrice(value: FormDataEntryValue | null) {
 
 export function normalizeVoucherType(value: FormDataEntryValue | null): B2cVoucherType {
   const raw = String(value ?? "").trim();
-  return raw === "infan" || raw === "espec" ? raw : "norma";
+  return raw === "infan" || raw === "espec" || raw === "isent" ? raw : "norma";
 }
 
 export async function saveUploadedSiteImage(file: FormDataEntryValue | null) {

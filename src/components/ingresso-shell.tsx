@@ -62,14 +62,14 @@ export function IngressoShell({
 
   if (variant === "checkout") {
     return (
-      <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,rgba(235,244,229,0.75),transparent_34%),linear-gradient(180deg,#fffdf8_0%,#ffffff_58%)] text-[#073f35]">
-        <header className="border-b border-[#edf0ec] bg-white/88 shadow-[0_8px_26px_rgba(18,52,45,0.06)] backdrop-blur-md">
+      <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,rgba(227,239,251,0.8),transparent_34%),linear-gradient(180deg,#f9fcff_0%,#ffffff_58%)] text-[#143b63]">
+        <header className="border-b border-[#e5edf6] bg-white/88 shadow-[0_8px_26px_rgba(20,59,99,0.06)] backdrop-blur-md">
           <div className="relative mx-auto flex min-h-[58px] w-[min(960px,calc(100%-20px))] items-center justify-center py-2 sm:w-[min(960px,calc(100%-28px))] lg:min-h-[72px] lg:justify-between">
             <button
               type="button"
               aria-label="Voltar"
               onClick={() => router.back()}
-              className="absolute left-0 grid h-9 w-9 place-items-center rounded-[10px] border border-[#d8dfd7] bg-white text-[24px] font-black leading-none text-[#073f35] shadow-[0_8px_18px_rgba(18,52,45,0.06)] lg:hidden"
+              className="absolute left-0 grid h-9 w-9 place-items-center rounded-[10px] border border-[#d7e3ee] bg-white text-[24px] font-black leading-none text-[#143b63] shadow-[0_8px_18px_rgba(20,59,99,0.06)] lg:hidden"
             >
               ‹
             </button>
@@ -85,18 +85,18 @@ export function IngressoShell({
             <div className="hidden min-w-[240px] items-center justify-end gap-4 text-right lg:flex">
               {user ? (
                 <>
-                  <div className="text-[13px] font-bold text-[#073f35]">
+                  <div className="text-[13px] font-bold text-[#143b63]">
                     <p>{user.name}</p>
                     <button
                       type="button"
                       onClick={handleLogout}
                       disabled={logoutPending}
-                      className="mt-1 text-[13px] font-normal text-[#2d6d43] underline underline-offset-2 disabled:opacity-60"
+                      className="mt-1 text-[13px] font-normal text-[#2f6ea5] underline underline-offset-2 disabled:opacity-60"
                     >
                       {logoutPending ? "saindo..." : "deslogar"}
                     </button>
                   </div>
-                  <span className="grid h-11 w-11 place-items-center rounded-full border border-[#d8dfd7] bg-white text-[#073f35]">
+                  <span className="grid h-11 w-11 place-items-center rounded-full border border-[#d7e3ee] bg-white text-[#143b63]">
                     <svg
                       width="21"
                       height="21"
@@ -124,8 +124,8 @@ export function IngressoShell({
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f8f5ef_0%,#fbfaf7_32%,#ffffff_100%)] text-[#17312d]">
-      <header className="sticky top-0 z-40 border-b border-[rgba(35,73,63,0.08)] bg-white/95 shadow-[0_10px_30px_rgba(21,48,42,0.06)] backdrop-blur-md">
+    <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f4f9ff_0%,#fbfdff_32%,#ffffff_100%)] text-[#143b63]">
+      <header className="sticky top-0 z-40 border-b border-[rgba(20,59,99,0.08)] bg-white/95 shadow-[0_10px_30px_rgba(20,59,99,0.06)] backdrop-blur-md">
         <div className="mx-auto grid min-h-[74px] w-[min(1240px,calc(100%-24px))] grid-cols-1 gap-2 py-2 sm:w-[min(1240px,calc(100%-40px))] lg:min-h-[96px] lg:grid-cols-[220px_1fr_220px] lg:items-center lg:gap-3 lg:py-3">
           <div className="flex justify-center lg:justify-start">
             <RincaoLogo
@@ -138,14 +138,14 @@ export function IngressoShell({
           <div className="flex flex-col items-center gap-2 text-center lg:order-3 lg:items-end lg:text-right">
             {user ? (
               <div className="flex flex-wrap items-center justify-center gap-2 text-[13px] lg:justify-end lg:text-[14px]">
-                <span className="max-w-[220px] truncate font-bold text-[#17351f]">
+                <span className="max-w-[220px] truncate font-bold text-[#143b63]">
                   {user.name}
                 </span>
                 <button
                   type="button"
                   onClick={handleLogout}
                   disabled={logoutPending}
-                  className="text-[#426048] underline underline-offset-2 disabled:opacity-60"
+                  className="text-[#2f6ea5] underline underline-offset-2 disabled:opacity-60"
                 >
                   {logoutPending ? "saindo..." : "deslogar"}
                 </button>
@@ -154,13 +154,13 @@ export function IngressoShell({
               <div className="flex flex-wrap justify-center gap-3 text-[13px] lg:text-[14px]">
                 <Link
                   href="/login"
-                  className="text-[#426048] underline underline-offset-2"
+                  className="text-[#2f6ea5] underline underline-offset-2"
                 >
                   entrar
                 </Link>
                 <Link
                   href="/cadastro"
-                  className="text-[#426048] underline underline-offset-2"
+                  className="text-[#2f6ea5] underline underline-offset-2"
                 >
                   criar conta
                 </Link>
@@ -169,7 +169,7 @@ export function IngressoShell({
 
             <Link
               href="/"
-              className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[rgba(35,73,63,0.12)] bg-[rgba(35,73,63,0.04)] px-4 text-[13px] font-bold text-[#17342d] hover:bg-[#17342d] hover:text-white lg:min-h-[42px] lg:px-5 lg:text-[14px]"
+              className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[rgba(20,59,99,0.12)] bg-[rgba(20,59,99,0.04)] px-4 text-[13px] font-bold text-[#143b63] hover:bg-[#1d6fb8] hover:text-white lg:min-h-[42px] lg:px-5 lg:text-[14px]"
             >
               Voltar para o site
             </Link>
@@ -189,8 +189,8 @@ export function IngressoShell({
                       href={item.href}
                       className={`relative whitespace-nowrap py-1 text-[0.92rem] font-bold transition after:absolute after:bottom-[-4px] after:left-0 after:right-0 after:h-0.5 after:origin-center after:bg-current after:transition lg:text-[0.96rem] ${
                         isActive
-                          ? "text-[#17342d] after:scale-x-100"
-                          : "text-[#5e746e] after:scale-x-0 hover:text-[#17342d] hover:after:scale-x-100"
+                          ? "text-[#143b63] after:scale-x-100"
+                          : "text-[#5f748b] after:scale-x-0 hover:text-[#143b63] hover:after:scale-x-100"
                       }`}
                     >
                       {item.label}

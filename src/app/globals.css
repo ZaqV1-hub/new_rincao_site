@@ -3,20 +3,20 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #28402f;
-  --rincao-green-50: #f4f8f1;
-  --rincao-green-100: #e6f0df;
-  --rincao-green-200: #cfe2c4;
-  --rincao-green-300: #aacb95;
-  --rincao-green-400: #7bc043;
-  --rincao-green-500: #4e9a37;
-  --rincao-green-600: #2b8c46;
-  --rincao-green-700: #1f6b36;
-  --rincao-green-800: #17351f;
-  --rincao-ink: #17351f;
-  --rincao-muted: #516956;
-  --rincao-border: #dbe7d7;
-  --rincao-surface: #f7fbf5;
+  --foreground: #143b63;
+  --rincao-green-50: #f5f9fd;
+  --rincao-green-100: #e7f0f9;
+  --rincao-green-200: #d3e2f0;
+  --rincao-green-300: #a8c6de;
+  --rincao-green-400: #6da6d1;
+  --rincao-green-500: #3f78ab;
+  --rincao-green-600: #1d6fb8;
+  --rincao-green-700: #155990;
+  --rincao-green-800: #143b63;
+  --rincao-ink: #143b63;
+  --rincao-muted: #5f748b;
+  --rincao-border: #d7e3ee;
+  --rincao-surface: #f5f9fd;
   --blue-1: #3498db;
   --blue-2: #1d587e;
   --blue-3: #246b99;
@@ -134,8 +134,8 @@
   }
 
   ::selection {
-    background: rgba(123, 192, 67, 0.32);
-    color: #17351f;
+    background: rgba(29, 111, 184, 0.22);
+    color: #143b63;
   }
 }
 
@@ -149,7 +149,7 @@
     background: #ffffff;
     border: 1px solid var(--rincao-border);
     border-radius: 28px;
-    box-shadow: 0 18px 44px rgba(24, 67, 34, 0.08);
+    box-shadow: 0 18px 44px rgba(20, 59, 99, 0.08);
   }
 
   .rincao-soft-card {
@@ -160,7 +160,7 @@
 
   .rincao-field {
     background: #ffffff;
-    border: 1px solid #cadac4;
+    border: 1px solid #c8d9e8;
     border-radius: 18px;
     color: var(--rincao-ink);
     min-height: 50px;
@@ -171,7 +171,7 @@
 
   .rincao-field:focus {
     border-color: var(--rincao-green-500);
-    box-shadow: 0 0 0 4px rgba(123, 192, 67, 0.16);
+    box-shadow: 0 0 0 4px rgba(29, 111, 184, 0.16);
   }
 
   .rincao-button {

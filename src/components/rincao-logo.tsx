@@ -13,18 +13,12 @@ export function RincaoLogo({
   href = "/",
   className = "",
   compact = false,
-  light = false,
-  stacked = false,
 }: RincaoLogoProps) {
-  const width = stacked ? 220 : compact ? 260 : 500;
-  const height = stacked ? 260 : compact ? 76 : 146;
+  const width = compact ? 340 : 340;
+  const height = compact ? 151 : 151;
   const classes = `inline-flex items-center ${className}`.trim();
-  const src = stacked
-    ? "/brand/rincao-logo-white-stacked.png"
-    : light
-      ? "/brand/rincao-logo-white.png"
-      : "/brand/rincao-logo-dark.png";
-  const label = "Estância e Parque Ecológico das Águas";
+  const src = "/brand/rincao-logo.png";
+  const label = "Clube Rincão";
   const image = (
     <Image
       src={src}

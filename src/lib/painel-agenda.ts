@@ -727,8 +727,8 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
 
     await client.query("COMMIT");
     await setAgendaProductAvailabilityRange(dates, {
-      passportIds: normalized.passportIds,
-      addonIds: normalized.addonIds,
+      passportIds: normalized.passportIds ?? undefined,
+      addonIds: normalized.addonIds ?? undefined,
     });
 
     return {

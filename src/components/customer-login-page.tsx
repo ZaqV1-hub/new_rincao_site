@@ -138,10 +138,10 @@ export function CustomerLoginPage({
       <div className="mx-auto w-full max-w-[760px] px-4 pt-8 md:px-6">
         <div className="rincao-card p-7 text-left md:p-8">
           <RincaoLogo compact />
-          <h2 className="mt-6 text-[32px] font-black leading-tight text-[#17351f]">
+          <h2 className="mt-6 text-[32px] font-black leading-tight text-[#143b63]">
             Entrar
           </h2>
-          <p className="mt-3 text-sm leading-7 text-[#516956]">
+          <p className="mt-3 text-sm leading-7 text-[#5f748b]">
             Acesse sua conta para continuar sua compra e consultar seus ingressos.
           </p>
 
@@ -153,7 +153,7 @@ export function CustomerLoginPage({
             aria-busy={isBusy}
           >
             <label className="block">
-              <span className="text-[13px] font-bold uppercase tracking-[0.16em] text-[#688063]">
+              <span className="text-[13px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">
                 CPF
               </span>
               <input
@@ -169,7 +169,7 @@ export function CustomerLoginPage({
             </label>
 
             <label className="block">
-              <span className="text-[13px] font-bold uppercase tracking-[0.16em] text-[#688063]">
+              <span className="text-[13px] font-bold uppercase tracking-[0.16em] text-[#4f7fa9]">
                 Senha
               </span>
               <input
@@ -189,21 +189,21 @@ export function CustomerLoginPage({
               <div
                 role="status"
                 aria-live="polite"
-                className="flex items-start gap-3 rounded-[22px] border border-[#dbe7d7] bg-[#f7fbf5] px-4 py-3 text-sm text-[#17351f]"
+                className="flex items-start gap-3 rounded-[22px] border border-[#d7e3ee] bg-[#f5f9fd] px-4 py-3 text-sm text-[#143b63]"
               >
                 <span
                   aria-hidden="true"
-                  className="mt-0.5 inline-block h-4 w-4 shrink-0 rounded-full border-2 border-[#2b8c46] border-t-transparent animate-spin"
+                  className="mt-0.5 inline-block h-4 w-4 shrink-0 rounded-full border-2 border-[#1d6fb8] border-t-transparent animate-spin"
                 />
                 <div>
                   <p className="font-semibold">{feedback.statusTitle}</p>
-                  <p className="mt-1 text-[#516956]">{feedback.statusDescription}</p>
+                  <p className="mt-1 text-[#5f748b]">{feedback.statusDescription}</p>
                 </div>
               </div>
             ) : null}
 
             <div className="text-right text-sm">
-              <Link href="/login/esqueci" className="font-semibold text-[#2b8c46] underline">
+              <Link href="/login/esqueci" className="font-semibold text-[#1d6fb8] underline">
                 esqueci minha senha
               </Link>
             </div>
@@ -217,7 +217,7 @@ export function CustomerLoginPage({
             <button
               type="submit"
               disabled={isBusy}
-              className="inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[999px] bg-[#2b8c46] px-5 py-3 text-[15px] font-black text-white shadow-[0_12px_25px_rgba(43,140,70,0.24)] hover:bg-[#1f6b36] disabled:cursor-wait disabled:bg-[#8ebf88]"
+              className="inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[999px] bg-[#1d6fb8] px-5 py-3 text-[15px] font-black text-white shadow-[0_12px_25px_rgba(29,111,184,0.24)] hover:bg-[#155990] disabled:cursor-wait disabled:bg-[#92b9dd]"
             >
               {isBusy ? (
                 <span
@@ -229,13 +229,13 @@ export function CustomerLoginPage({
             </button>
           </form>
 
-          <div className="mt-5 rounded-[22px] border border-[#dbe7d7] bg-[#f7fbf5] px-4 py-4 text-sm text-[#516956]">
+          <div className="mt-5 rounded-[22px] border border-[#d7e3ee] bg-[#f5f9fd] px-4 py-4 text-sm text-[#5f748b]">
             <p>
               Ainda nao tem cadastro?
               {" "}
               <Link
                 href={`/cadastro?redirect=${encodeURIComponent(redirectTo)}`}
-                className="font-semibold text-[#2b8c46] underline"
+                className="font-semibold text-[#1d6fb8] underline"
               >
                 Criar conta
               </Link>

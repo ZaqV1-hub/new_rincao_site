@@ -3,6 +3,7 @@ import { createOnlinePurchase } from "@/lib/purchase-repository";
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
+  systemQuery: vi.fn(),
   clientQuery: vi.fn(),
   release: vi.fn(),
   generateUniqueVoucherNumber: vi.fn(),
@@ -18,6 +19,13 @@ vi.mock("@/lib/agenda-repository", () => ({
 vi.mock("@/lib/ingresso-db", () => ({
   getIngressoDbPool: () => ({
     query: mocks.query,
+    connect: async () => ({
+      query: mocks.clientQuery,
+      release: mocks.release,
+    }),
+  }),
+  getIngressoSistemaDbPool: () => ({
+    query: mocks.systemQuery,
     connect: async () => ({
       query: mocks.clientQuery,
       release: mocks.release,
@@ -46,6 +54,7 @@ describe("purchase-repository", () => {
     });
     mocks.isAgendaDateExpired.mockReturnValue(false);
     mocks.query.mockResolvedValue({ rows: [] });
+    mocks.systemQuery.mockResolvedValue({ rows: [] });
     mocks.generateUniqueVoucherNumber.mockImplementation(async (_client, prefix) => {
       return `${prefix}-0001`;
     });
@@ -60,7 +69,7 @@ describe("purchase-repository", () => {
       }
 
       if (sql.includes("INSERT INTO compra")) {
-        expect(values).toEqual(["52998224725", "345.00", null, null]);
+        expect(values).toEqual(["52998224725", "270.00", null, null]);
         return { rows: [{ idcompra: 901 }] };
       }
 
@@ -78,15 +87,15 @@ describe("purchase-repository", () => {
         123,
         {
           lineItems: [
-            { productId: "passaporte-explorador", quantity: 2 },
-            { productId: "passaporte-infantil", quantity: 1 },
-            { productId: "cafe-da-manha", quantity: 3 },
+            { productId: "ingresso-adulto", quantity: 2 },
+            { productId: "ingresso-crianca", quantity: 1 },
+            { productId: "ingresso-isento", quantity: 3 },
           ],
         },
       ),
     ).resolves.toMatchObject({
       purchaseId: 901,
-      totalValue: "345.00",
+      totalValue: "270.00",
       voucherCount: 6,
     });
 
@@ -95,12 +104,12 @@ describe("purchase-repository", () => {
       expect.arrayContaining([expect.stringContaining("descricao")]),
     );
     expect(voucherInserts.map((insert) => insert.values?.at(-1))).toEqual([
-      "Passaporte Explorador",
-      "Passaporte Explorador",
-      "Passaporte Infantil",
-      "Café da Manhã",
-      "Café da Manhã",
-      "Café da Manhã",
+      "Adulto",
+      "Adulto",
+      "Criança",
+      "Isento",
+      "Isento",
+      "Isento",
     ]);
   });
 });

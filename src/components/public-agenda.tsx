@@ -260,7 +260,7 @@ export function PublicAgenda({
   }
 
   return (
-    <div className="min-h-[calc(100vh-58px)] pb-20 text-[#073f35] lg:pb-6">
+    <div className="min-h-[calc(100vh-58px)] pb-20 text-[#143b63] lg:pb-6">
       <div className="mx-auto w-[min(980px,calc(100%-16px))] py-3 sm:w-[min(980px,calc(100%-24px))] sm:py-4">
         <FlowStepper current="date" />
 
@@ -271,19 +271,18 @@ export function PublicAgenda({
         ) : null}
 
         <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
-          <section className="rounded-[14px] border border-[#dfe8dc] bg-white/86 p-3 text-left shadow-[0_10px_22px_rgba(18,52,45,0.045)] sm:p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#087842] lg:hidden">
+          <section className="rounded-[14px] border border-[#d7e3ee] bg-white/92 p-3 text-left shadow-[0_10px_22px_rgba(20,59,99,0.045)] sm:p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#3f78ab] lg:hidden">
               {getMonthLabel(period.month, period.year)}
             </p>
-            <p className="hidden text-[10px] font-bold uppercase tracking-[0.24em] text-[#087842] lg:block">
+            <p className="hidden text-[10px] font-bold uppercase tracking-[0.24em] text-[#3f78ab] lg:block">
               Agendamento
             </p>
-            <h1 className="mt-2 max-w-[430px] text-[19px] font-extrabold leading-[1.06] text-[#073f35] sm:text-[25px] lg:text-[28px]">
+            <h1 className="mt-2 max-w-[430px] text-[19px] font-extrabold leading-[1.06] text-[#143b63] sm:text-[25px] lg:text-[28px]">
               Escolha a data da visita
             </h1>
-            <p className="mt-2 max-w-[430px] text-[12px] leading-[1.42] text-[#626469] sm:text-[13px] lg:text-[14px]">
-              Selecione o dia em que você deseja visitar a Estância e Parque
-              Ecológico das Águas.
+            <p className="mt-2 max-w-[430px] text-[12px] leading-[1.42] text-[#5f748b] sm:text-[13px] lg:text-[14px]">
+              Selecione o dia em que você deseja visitar o Clube Rincão.
             </p>
 
             <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold">
@@ -298,13 +297,13 @@ export function PublicAgenda({
             </div>
 
             {selectedEvent ? (
-              <div className="mt-3 flex max-w-[320px] items-center gap-2.5 rounded-[10px] border border-[#dce8d8] bg-white p-2.5 shadow-[0_8px_16px_rgba(18,52,45,0.035)]">
+              <div className="mt-3 flex max-w-[320px] items-center gap-2.5 rounded-[10px] border border-[#d7e3ee] bg-white p-2.5 shadow-[0_8px_16px_rgba(20,59,99,0.035)]">
                 <IconBubble name="calendar" className="h-8 w-8 sm:h-9 sm:w-9" />
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#087842]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#3f78ab]">
                     Dia da visita
                   </p>
-                  <strong className="mt-0.5 block text-[14px] font-extrabold text-[#073f35] sm:text-[15px]">
+                  <strong className="mt-0.5 block text-[14px] font-extrabold text-[#143b63] sm:text-[15px]">
                     {selectedDateLabel}
                   </strong>
                   {isPromotionalEvent(selectedEvent) ? (
@@ -316,18 +315,18 @@ export function PublicAgenda({
               </div>
             ) : null}
 
-            <div className="mt-3 rounded-[12px] border border-[#dfe8dc] bg-white p-2 shadow-[0_10px_22px_rgba(18,52,45,0.04)] sm:p-3">
+            <div className="mt-3 rounded-[12px] border border-[#d7e3ee] bg-white p-2 shadow-[0_10px_22px_rgba(20,59,99,0.04)] sm:p-3">
               <div className="grid grid-cols-[30px_1fr_30px] items-center gap-2 sm:grid-cols-[34px_1fr_34px]">
                 <button
                   type="button"
                   aria-label="Mês anterior"
                   disabled={!previousPeriod}
                   onClick={() => previousPeriod && changeMonth(previousPeriod)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#d8dfd7] bg-white text-[17px] font-black leading-none text-[#073f35] hover:border-[#073f35] disabled:cursor-not-allowed disabled:opacity-35 sm:h-8 sm:w-8"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#d7e3ee] bg-white text-[17px] font-black leading-none text-[#143b63] hover:border-[#143b63] disabled:cursor-not-allowed disabled:opacity-35 sm:h-8 sm:w-8"
                 >
                   ‹
                 </button>
-                <h2 className="text-center text-[14px] font-extrabold text-[#073f35] sm:text-[16px] lg:text-[18px]">
+                <h2 className="text-center text-[14px] font-extrabold text-[#143b63] sm:text-[16px] lg:text-[18px]">
                   {getMonthLabel(period.month, period.year)}
                 </h2>
                 <button
@@ -335,7 +334,7 @@ export function PublicAgenda({
                   aria-label="Próximo mês"
                   disabled={!nextPeriod}
                   onClick={() => nextPeriod && changeMonth(nextPeriod)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#d8dfd7] bg-white text-[17px] font-black leading-none text-[#073f35] hover:border-[#073f35] disabled:cursor-not-allowed disabled:opacity-35 sm:h-8 sm:w-8"
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#d7e3ee] bg-white text-[17px] font-black leading-none text-[#143b63] hover:border-[#143b63] disabled:cursor-not-allowed disabled:opacity-35 sm:h-8 sm:w-8"
                 >
                   ›
                 </button>
@@ -345,7 +344,7 @@ export function PublicAgenda({
                 {weekdayLabels.map((weekday) => (
                   <div
                     key={weekday.key}
-                    className="py-0.5 text-[9px] font-bold text-[#073f35] sm:text-[10px]"
+                    className="py-0.5 text-[9px] font-bold text-[#143b63] sm:text-[10px]"
                   >
                     {weekday.label}
                   </div>
@@ -390,7 +389,7 @@ export function PublicAgenda({
                         isSelected
                           ? isPromotional
                             ? "border-[#ef8d32] bg-[#b85c12] text-white shadow-[0_10px_22px_rgba(184,92,18,0.2)]"
-                            : "border-[#18ac26] bg-[#073f35] text-white shadow-[0_10px_22px_rgba(7,63,53,0.2)]"
+                            : "border-[#1d6fb8] bg-[#143b63] text-white shadow-[0_10px_22px_rgba(20,59,99,0.2)]"
                           : isPromotional
                             ? "border-[#f3c699] bg-[#fff3e8] text-[#b85c12] hover:border-[#ef8d32]"
                             : "border-[#cae6c5] bg-[#eef8ec] text-[#087842] hover:border-[#18ac26]"
@@ -404,13 +403,13 @@ export function PublicAgenda({
             </div>
           </section>
 
-          <aside className="hidden h-fit rounded-[14px] border border-[#dfe8dc] bg-white/90 p-4 text-left shadow-[0_10px_22px_rgba(18,52,45,0.045)] lg:block">
+          <aside className="hidden h-fit rounded-[14px] border border-[#d7e3ee] bg-white/90 p-4 text-left shadow-[0_10px_22px_rgba(20,59,99,0.045)] lg:block">
             {state.status === "loading" ? (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#087842]">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#3f78ab]">
                   Consultando
                 </p>
-                <h2 className="mt-2 text-[15px] font-extrabold leading-tight text-[#073f35]">
+                <h2 className="mt-2 text-[15px] font-extrabold leading-tight text-[#143b63]">
                   Carregando agenda
                 </h2>
               </div>
@@ -418,18 +417,17 @@ export function PublicAgenda({
 
             {state.status !== "loading" && !selectedEvent ? (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#087842]">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#3f78ab]">
                   Dia da visita
                 </p>
-                <h2 className="mt-2 text-[15px] font-extrabold leading-tight text-[#073f35]">
+                <h2 className="mt-2 text-[15px] font-extrabold leading-tight text-[#143b63]">
                   {sortedEvents.length > 0
                     ? "Escolha uma data disponível"
                     : "Não há eventos atuais"}
                 </h2>
                 {sortedEvents.length === 0 ? (
-                  <p className="mt-2 text-[12px] leading-5 text-[#626469]">
-                    No momento não existem datas abertas para compra ou
-                    agendamento.
+                  <p className="mt-2 text-[12px] leading-5 text-[#5f748b]">
+                    No momento não existem datas abertas para compra ou agendamento.
                   </p>
                 ) : null}
               </div>
@@ -440,10 +438,10 @@ export function PublicAgenda({
                 <div className="flex items-center gap-3">
                   <IconBubble name="calendar" className="h-10 w-10" />
                   <div>
-                    <p className="text-[13px] font-bold text-[#626469]">
+                    <p className="text-[13px] font-bold text-[#5f748b]">
                       Data selecionada
                     </p>
-                    <strong className="mt-1 block text-[16px] font-extrabold leading-tight text-[#073f35]">
+                    <strong className="mt-1 block text-[16px] font-extrabold leading-tight text-[#143b63]">
                       {selectedDateLabel}
                     </strong>
                     {isPromotionalEvent(selectedEvent) ? (
@@ -474,15 +472,14 @@ export function PublicAgenda({
                   href={buildPublicAgendaPurchaseHref(selectedEvent)}
                   className="mt-4 min-h-[40px] px-3 text-[12px] sm:text-[13px]"
                 >
-                  Continuar para passaportes
+                  Continuar para ingressos
                 </PrimaryFlowButton>
-                <p className="mt-3 flex gap-2 text-[12px] leading-5 text-[#626469]">
+                <p className="mt-3 flex gap-2 text-[12px] leading-5 text-[#5f748b]">
                   <FlowIcon
                     name="leaf"
-                    className="mt-1 h-4 w-4 shrink-0 text-[#20aa1f]"
+                    className="mt-1 h-4 w-4 shrink-0 text-[#1d6fb8]"
                   />
-                  Após escolher a data, você seguirá para a seleção de
-                  passaportes.
+                  Após escolher a data, você seguirá para a seleção de ingressos.
                 </p>
               </div>
             ) : null}
@@ -491,14 +488,14 @@ export function PublicAgenda({
       </div>
 
       {selectedEvent ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 rounded-t-[16px] border border-[#e2e8df] bg-white/96 px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-3 text-left shadow-[0_-10px_28px_rgba(18,52,45,0.11)] backdrop-blur lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 rounded-t-[16px] border border-[#e2e8ef] bg-white/96 px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-3 text-left shadow-[0_-10px_28px_rgba(20,59,99,0.11)] backdrop-blur lg:hidden">
           <div className="mb-3 flex items-center gap-3">
             <IconBubble name="calendar" className="h-9 w-9" />
             <div>
-              <p className="text-[12px] font-bold text-[#626469]">
+              <p className="text-[12px] font-bold text-[#5f748b]">
                 Data selecionada
               </p>
-              <strong className="block text-[14px] font-black text-[#073f35]">
+              <strong className="block text-[14px] font-black text-[#143b63]">
                 {selectedDateLabel}
               </strong>
               {isPromotionalEvent(selectedEvent) ? (
@@ -512,7 +509,7 @@ export function PublicAgenda({
             href={buildPublicAgendaPurchaseHref(selectedEvent)}
             className="min-h-[42px] text-[13px] sm:text-[14px]"
           >
-            Continuar para passaportes
+            Continuar para ingressos
           </PrimaryFlowButton>
         </div>
       ) : null}

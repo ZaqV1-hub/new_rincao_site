@@ -97,7 +97,7 @@ describe("me/purchases BFF route", () => {
     createOnlinePurchase.mockResolvedValue({
       purchaseId: 655,
       legacyEncodedId: "NjU1",
-      totalValue: "345.00",
+      totalValue: "270.00",
       voucherCount: 6,
     });
 
@@ -111,9 +111,9 @@ describe("me/purchases BFF route", () => {
         body: JSON.stringify({
           agendaId: 123,
           lineItems: [
-            { productId: "passaporte-explorador", quantity: 2 },
-            { productId: "passaporte-infantil", quantity: 1 },
-            { productId: "cafe-da-manha", quantity: 3 },
+            { productId: "ingresso-adulto", quantity: 2 },
+            { productId: "ingresso-crianca", quantity: 1 },
+            { productId: "ingresso-isento", quantity: 3 },
           ],
         }),
       }),
@@ -126,9 +126,9 @@ describe("me/purchases BFF route", () => {
       123,
       {
         lineItems: [
-          { productId: "passaporte-explorador", quantity: 2 },
-          { productId: "passaporte-infantil", quantity: 1 },
-          { productId: "cafe-da-manha", quantity: 3 },
+          { productId: "ingresso-adulto", quantity: 2 },
+          { productId: "ingresso-crianca", quantity: 1 },
+          { productId: "ingresso-isento", quantity: 3 },
         ],
       },
       undefined,
@@ -138,7 +138,7 @@ describe("me/purchases BFF route", () => {
       data: {
         purchaseId: 655,
         legacyEncodedId: "NjU1",
-        totalValue: "345.00",
+        totalValue: "270.00",
         voucherCount: 6,
         checkoutRedirect: "/checkout/655",
       },
@@ -225,9 +225,9 @@ describe("me/purchases BFF route", () => {
         body: JSON.stringify({
           agendaId: 123,
           quantities: {
-            discountedNormal: 2,
+            discountedNormal: 1,
             discountedChild: 0,
-            normal: 0,
+            normal: 2,
             child: 0,
             exempt: 0,
           },

@@ -393,7 +393,7 @@ export function CustomerCheckoutPage({
                 </div>
                 <div>
                   <h1 className="text-[20px] font-semibold text-[#111827] sm:text-[22px]">
-                    Checkout de Pagamento - Estância
+                    Checkout de Pagamento - Clube Rincão
                   </h1>
                   <p className="mt-1 text-[14px] text-[#546274] sm:text-[15px]">
                     ID da compra:{" "}

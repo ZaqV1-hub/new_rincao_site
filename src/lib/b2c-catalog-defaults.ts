@@ -1,14 +1,10 @@
 export type B2cProductType = "passport" | "addon";
-export type B2cVoucherType = "norma" | "infan" | "espec";
+export type B2cVoucherType = "norma" | "infan" | "espec" | "isent";
 
 export type B2cProductId =
-  | "passaporte-explorador"
-  | "passaporte-aventura"
-  | "passaporte-infantil"
-  | "almoco-caipira-buffet"
-  | "cafe-da-manha"
-  | "ecobag-algodao"
-  | "kit-bebidas"
+  | "ingresso-adulto"
+  | "ingresso-crianca"
+  | "ingresso-isento"
   | (string & {});
 
 export type B2cProduct = {
@@ -39,12 +35,12 @@ export function getB2cBoxOfficePrice(
 
 export const DEFAULT_B2C_PRODUCTS: B2cProduct[] = [
   {
-    id: "passaporte-explorador",
+    id: "ingresso-adulto",
     type: "passport",
-    title: "Passaporte Explorador",
-    subtitle: "Dia de natureza e lazer",
-    description: "Acesso principal para aproveitar o parque no dia escolhido.",
-    imageSrc: "/photos/day-use.jpg",
+    title: "Adulto",
+    subtitle: "Ingresso adulto",
+    description: "Ingresso adulto para a data selecionada.",
+    imageSrc: "/theme/clube-park-rincao.jpg",
     sitePrice: "100.00",
     boxOfficePrice: "100.00",
     fixedPrice: "100.00",
@@ -54,93 +50,33 @@ export const DEFAULT_B2C_PRODUCTS: B2cProduct[] = [
     sortOrder: 1,
   },
   {
-    id: "passaporte-aventura",
+    id: "ingresso-crianca",
     type: "passport",
-    title: "Passaporte Aventura",
-    subtitle: "Experiência completa",
-    description: "Passaporte para curtir as atrações do parque.",
-    imageSrc: "/photos/estrutura-galeria.jpg",
-    sitePrice: "100.00",
-    boxOfficePrice: "100.00",
-    fixedPrice: "100.00",
-    voucherType: "norma",
-    voucherPrefix: "A",
-    active: true,
-    sortOrder: 2,
-  },
-  {
-    id: "passaporte-infantil",
-    type: "passport",
-    title: "Passaporte Infantil",
-    subtitle: "Passaporte infantil de 3 a 12 anos",
-    description: "Passaporte infantil para a data selecionada.",
-    imageSrc: "/photos/escola.jpg",
+    title: "Criança",
+    subtitle: "Ingresso infantil",
+    description: "Ingresso infantil para a data selecionada.",
+    imageSrc: "/theme/clube-park-rincao.jpg",
     sitePrice: "70.00",
     boxOfficePrice: "70.00",
     fixedPrice: "70.00",
     voucherType: "infan",
     voucherPrefix: "C",
     active: true,
-    sortOrder: 3,
-  },
-  {
-    id: "almoco-caipira-buffet",
-    type: "addon",
-    title: "Almoço Caipira Buffet",
-    subtitle: "Refeição no parque",
-    description: "Adicional de almoço para completar o dia.",
-    imageSrc: "/photos/confraternizacao.jpg",
-    sitePrice: "65.00",
-    boxOfficePrice: "65.00",
-    fixedPrice: "65.00",
-    voucherType: "espec",
-    voucherPrefix: "E",
-    active: true,
-    sortOrder: 1,
-  },
-  {
-    id: "cafe-da-manha",
-    type: "addon",
-    title: "Café da Manhã",
-    subtitle: "Para começar cedo",
-    description: "Adicional de café da manhã para o visitante.",
-    imageSrc: "/photos/day-use.jpg",
-    sitePrice: "25.00",
-    boxOfficePrice: "25.00",
-    fixedPrice: "25.00",
-    voucherType: "espec",
-    voucherPrefix: "E",
-    active: true,
     sortOrder: 2,
   },
   {
-    id: "ecobag-algodao",
-    type: "addon",
-    title: "Ecobag de Algodão",
-    subtitle: "Lembrança útil do passeio",
-    description: "Ecobag personalizada para retirar no parque.",
-    imageSrc: "/photos/estrutura-piscina.jpg",
-    sitePrice: "35.00",
-    boxOfficePrice: "35.00",
-    fixedPrice: "35.00",
-    voucherType: "espec",
-    voucherPrefix: "E",
+    id: "ingresso-isento",
+    type: "passport",
+    title: "Isento",
+    subtitle: "Entrada sem cobrança",
+    description: "Ingresso isento para a data selecionada.",
+    imageSrc: "/theme/clube-park-rincao.jpg",
+    sitePrice: "0.00",
+    boxOfficePrice: "0.00",
+    fixedPrice: "0.00",
+    voucherType: "isent",
+    voucherPrefix: "I",
     active: true,
     sortOrder: 3,
-  },
-  {
-    id: "kit-bebidas",
-    type: "addon",
-    title: "Kit Bebidas",
-    subtitle: "4 unidades",
-    description: "Kit com bebidas para consumo durante a visita.",
-    imageSrc: "/photos/quem-somos.jpg",
-    sitePrice: "32.00",
-    boxOfficePrice: "32.00",
-    fixedPrice: "32.00",
-    voucherType: "espec",
-    voucherPrefix: "E",
-    active: true,
-    sortOrder: 4,
   },
 ];

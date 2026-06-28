@@ -2,20 +2,18 @@
 
 import Link from "next/link";
 
-export type OrderFlowStep = "date" | "passports" | "addons" | "payment";
+export type OrderFlowStep = "date" | "tickets" | "payment";
 
 const steps: Array<{ key: OrderFlowStep; label: string }> = [
   { key: "date", label: "Data" },
-  { key: "passports", label: "Passaportes" },
-  { key: "addons", label: "Adicionais" },
+  { key: "tickets", label: "Ingressos" },
   { key: "payment", label: "Pagamento" },
 ];
 
 const stepIndex: Record<OrderFlowStep, number> = {
   date: 0,
-  passports: 1,
-  addons: 2,
-  payment: 3,
+  tickets: 1,
+  payment: 2,
 };
 
 export function FlowStepper({ current }: { current: OrderFlowStep }) {
@@ -26,11 +24,11 @@ export function FlowStepper({ current }: { current: OrderFlowStep }) {
       aria-label="Etapas da compra"
       className="mx-auto w-full max-w-[430px] px-2 sm:max-w-[540px]"
     >
-      <ol className="relative grid grid-cols-4 gap-0">
-        <span className="absolute left-[12.5%] right-[12.5%] top-[12px] h-px bg-[#d5d8d3] sm:top-[14px]" />
+      <ol className="relative grid grid-cols-3 gap-0">
+        <span className="absolute left-[16.66%] right-[16.66%] top-[12px] h-px bg-[#d7e3ee] sm:top-[14px]" />
         <span
-          className="absolute left-[12.5%] top-[12px] h-px bg-[#25a524] transition-all sm:top-[14px]"
-          style={{ width: `${Math.max(activeIndex, 0) * 25}%` }}
+          className="absolute left-[16.66%] top-[12px] h-px bg-[#1d6fb8] transition-all sm:top-[14px]"
+          style={{ width: `${Math.max(activeIndex, 0) * 33.33}%` }}
         />
         {steps.map((step, index) => {
           const isActive = step.key === current;
@@ -41,17 +39,17 @@ export function FlowStepper({ current }: { current: OrderFlowStep }) {
               className="relative flex flex-col items-center gap-1.5 text-center"
             >
               <span
-                className={`grid h-6 w-6 place-items-center rounded-full border text-[12px] font-bold shadow-[0_7px_16px_rgba(18,52,45,0.055)] sm:h-8 sm:w-8 sm:text-[14px] ${
+                className={`grid h-6 w-6 place-items-center rounded-full border text-[12px] font-bold shadow-[0_7px_16px_rgba(20,59,99,0.055)] sm:h-8 sm:w-8 sm:text-[14px] ${
                   isActive
-                    ? "border-[#063f35] bg-[#063f35] text-white"
-                    : "border-[#cfd4cf] bg-white text-[#6b6f72]"
+                    ? "border-[#143b63] bg-[#143b63] text-white"
+                    : "border-[#d7e3ee] bg-white text-[#6f8295]"
                 }`}
               >
                 {index + 1}
               </span>
               <span
                 className={`text-[9px] font-bold sm:text-[11px] ${
-                  isActive ? "text-[#073f35]" : "text-[#6e7175]"
+                  isActive ? "text-[#143b63]" : "text-[#6f8295]"
                 }`}
               >
                 <span className="sm:hidden">{step.label}</span>
@@ -161,7 +159,7 @@ export function IconBubble({
 }) {
   return (
     <span
-      className={`grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#eaf3e5] text-[#073f35] [&>svg]:h-4 [&>svg]:w-4 sm:h-9 sm:w-9 ${className}`}
+      className={`grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#eaf2fb] text-[#143b63] [&>svg]:h-4 [&>svg]:w-4 sm:h-9 sm:w-9 ${className}`}
     >
       <FlowIcon name={name} />
     </span>
@@ -189,7 +187,7 @@ export function PrimaryFlowButton({
       <span className="text-[18px] leading-none sm:text-[22px]">›</span>
     </>
   );
-  const classes = `inline-flex min-h-[36px] w-full items-center justify-center gap-2 rounded-[10px] bg-[#20aa1f] px-3 text-center text-[12px] font-bold leading-tight text-white shadow-[0_10px_20px_rgba(32,170,31,0.15)] transition hover:bg-[#178b17] disabled:cursor-not-allowed disabled:bg-[#8bcf89] sm:min-h-[40px] sm:px-4 sm:text-[13px] ${className}`;
+  const classes = `inline-flex min-h-[36px] w-full items-center justify-center gap-2 rounded-[10px] bg-[#1d6fb8] px-3 text-center text-[12px] font-bold leading-tight text-white shadow-[0_10px_20px_rgba(29,111,184,0.18)] transition hover:bg-[#155990] disabled:cursor-not-allowed disabled:bg-[#92b9dd] sm:min-h-[40px] sm:px-4 sm:text-[13px] ${className}`;
 
   if (href) {
     return (

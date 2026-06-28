@@ -96,19 +96,10 @@ export async function buildB2cCartSummary(lineItems: B2cCartLineItem[]) {
     });
   }
 
-  const passportQuantity = lines
-    .filter((line) => line.type === "passport")
-    .reduce((total, line) => total + line.quantity, 0);
-  const addonQuantity = lines
-    .filter((line) => line.type === "addon")
-    .reduce((total, line) => total + line.quantity, 0);
+  const ticketQuantity = lines.reduce((total, line) => total + line.quantity, 0);
 
-  if (passportQuantity <= 0) {
-    throw new Error("Selecione pelo menos um passaporte para continuar.");
-  }
-
-  if (addonQuantity > 0 && passportQuantity <= 0) {
-    throw new Error("Adicionais precisam estar vinculados a um passaporte.");
+  if (ticketQuantity <= 0) {
+    throw new Error("Selecione pelo menos um ingresso para continuar.");
   }
 
   const total = lines.reduce(
@@ -118,9 +109,10 @@ export async function buildB2cCartSummary(lineItems: B2cCartLineItem[]) {
 
   return {
     lines,
-    passportQuantity,
-    addonQuantity,
-    voucherCount: passportQuantity + addonQuantity,
+    ticketQuantity,
+    passportQuantity: ticketQuantity,
+    addonQuantity: 0,
+    voucherCount: ticketQuantity,
     totalValue: normalizeMoney(total),
   };
 }

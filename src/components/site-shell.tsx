@@ -38,7 +38,7 @@ export function SiteShell({
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white text-[#17351f]">
+    <div className="min-h-screen overflow-x-hidden bg-white text-[#143b63]">
       <div id="fb-root" />
       <Script
         id="facebook-jssdk"
@@ -63,7 +63,7 @@ export function SiteShell({
       </a>
 
       <header
-        className="fixed inset-x-0 top-0 z-40 border-b border-[rgba(35,73,63,0.08)] bg-white shadow-[0_10px_30px_rgba(21,48,42,0.06)]"
+        className="fixed inset-x-0 top-0 z-40 border-b border-[rgba(20,59,99,0.08)] bg-white shadow-[0_10px_30px_rgba(20,59,99,0.06)]"
       >
         <div className="mx-auto grid min-h-[76px] w-[min(1240px,calc(100%-28px))] grid-cols-[auto_1fr] items-center gap-3 py-2 sm:w-[min(1240px,calc(100%-40px))] lg:min-h-[108px] lg:grid-cols-[220px_1fr_220px] lg:gap-5">
           <RincaoLogo
@@ -76,7 +76,7 @@ export function SiteShell({
             type="button"
             aria-label="Abrir menu"
             onClick={() => setMenuOpen((current) => !current)}
-            className="flex h-[46px] w-[46px] items-center justify-center justify-self-end rounded-[8px] border border-[#d8e0d4] bg-white text-[22px] font-black text-[#17342d] shadow-[0_12px_28px_rgba(22,47,41,0.1)] lg:hidden"
+            className="flex h-[46px] w-[46px] items-center justify-center justify-self-end rounded-[8px] border border-[#d7e3ee] bg-white text-[22px] font-black text-[#143b63] shadow-[0_12px_28px_rgba(20,59,99,0.1)] lg:hidden"
           >
             =
           </button>
@@ -84,7 +84,7 @@ export function SiteShell({
           <nav
             className={`${
               menuOpen ? "block" : "hidden"
-            } absolute left-5 right-5 top-[calc(100%+12px)] rounded-[8px] border border-[rgba(35,73,63,0.08)] bg-white p-4 text-left shadow-[0_24px_48px_rgba(19,48,41,0.14)] lg:static lg:col-start-2 lg:row-start-1 lg:block lg:justify-self-center lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none`}
+            } absolute left-5 right-5 top-[calc(100%+12px)] rounded-[8px] border border-[rgba(20,59,99,0.08)] bg-white p-4 text-left shadow-[0_24px_48px_rgba(20,59,99,0.14)] lg:static lg:col-start-2 lg:row-start-1 lg:block lg:justify-self-center lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none`}
           >
             <ul className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-center lg:gap-[34px]">
               {[
@@ -97,7 +97,7 @@ export function SiteShell({
                 <li key={href}>
                   <Link
                     href={href}
-                    className="relative py-1 text-[1rem] font-medium text-[#17342d] transition after:absolute after:bottom-[-4px] after:left-0 after:right-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-current after:transition hover:after:scale-x-100"
+                    className="relative py-1 text-[1rem] font-medium text-[#143b63] transition after:absolute after:bottom-[-4px] after:left-0 after:right-0 after:h-0.5 after:origin-center after:scale-x-0 after:bg-current after:transition hover:after:scale-x-100"
                     onClick={() => setMenuOpen(false)}
                   >
                     {label}
@@ -112,20 +112,18 @@ export function SiteShell({
 
       <main className={isHome ? "pt-[76px] lg:pt-[108px]" : ""}>{children}</main>
 
-      <footer className="border-t border-[rgba(22,47,41,0.08)] bg-[linear-gradient(180deg,rgba(23,52,45,0.04),rgba(23,52,45,0.08))] px-5 py-10 text-left">
+      <footer className="border-t border-[rgba(20,59,99,0.08)] bg-[linear-gradient(180deg,rgba(20,59,99,0.03),rgba(20,59,99,0.08))] px-5 py-10 text-left">
         <div className="mx-auto grid max-w-[1240px] gap-7 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
           <div>
-            <strong className="block text-[1.1rem] text-[#17342d]">
-              {"Est\u00e2ncia e Parque Ecol\u00f3gico das \u00c1guas"}
+            <strong className="block text-[1.1rem] text-[#143b63]">
+              Clube Rincão
             </strong>
-            <p className="mt-2 max-w-[520px] text-[0.95rem] leading-7 text-[#5e746e]">
-              {
-                "Turismo, lazer, natureza e eventos em uma experi\u00eancia completa."
-              }
+            <p className="mt-2 max-w-[520px] text-[0.95rem] leading-7 text-[#5f748b]">
+              Turismo, lazer e eventos para um dia completo no Clube Rincão.
             </p>
           </div>
 
-          <nav className="flex flex-wrap gap-5 text-[0.96rem] font-bold text-[#17342d]">
+          <nav className="flex flex-wrap gap-5 text-[0.96rem] font-bold text-[#143b63]">
             <Link href="/#inicio">{"In\u00edcio"}</Link>
             <Link href="/#atracoes">{"Atra\u00e7\u00f5es"}</Link>
             <Link href="/#eventos">Eventos</Link>
@@ -133,8 +131,8 @@ export function SiteShell({
             <Link href="/agenda">Comprar ingressos</Link>
           </nav>
 
-          <p className="m-0 text-[0.92rem] leading-7 text-[#5e746e]">
-            {"\u00a9 2026 Est\u00e2ncia. Todos os direitos reservados."}
+          <p className="m-0 text-[0.92rem] leading-7 text-[#5f748b]">
+            {"\u00a9 2026 Clube Rinc\u00e3o. Todos os direitos reservados."}
           </p>
         </div>
       </footer>

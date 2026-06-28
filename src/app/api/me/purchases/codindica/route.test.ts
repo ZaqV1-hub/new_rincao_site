@@ -41,9 +41,9 @@ describe("me/purchases/codindica BFF route", () => {
   it("previews an applied referral code for B2C cart line items", async () => {
     previewOnlinePurchaseCodindica.mockResolvedValue({
       codindica: "ABC123",
-      subtotal: "100.00",
+      subtotal: "200.00",
       discountAmount: "25.00",
-      totalValue: "75.00",
+      totalValue: "175.00",
     });
 
     const { POST } = await import("@/app/api/me/purchases/codindica/route");
@@ -56,10 +56,7 @@ describe("me/purchases/codindica BFF route", () => {
         body: JSON.stringify({
           agendaId: 123,
           codindica: " abc123 ",
-          lineItems: [
-            { productId: "passaporte-explorador", quantity: 2 },
-            { productId: "cafe-da-manha", quantity: 1 },
-          ],
+          lineItems: [{ productId: "ingresso-adulto", quantity: 2 }],
         }),
       }),
     );
@@ -69,10 +66,7 @@ describe("me/purchases/codindica BFF route", () => {
     expect(previewOnlinePurchaseCodindica).toHaveBeenCalledWith(
       123,
       {
-        lineItems: [
-          { productId: "passaporte-explorador", quantity: 2 },
-          { productId: "cafe-da-manha", quantity: 1 },
-        ],
+        lineItems: [{ productId: "ingresso-adulto", quantity: 2 }],
       },
       "ABC123",
     );
@@ -80,9 +74,9 @@ describe("me/purchases/codindica BFF route", () => {
       ok: true,
       data: {
         codindica: "ABC123",
-        subtotal: "100.00",
+        subtotal: "200.00",
         discountAmount: "25.00",
-        totalValue: "75.00",
+        totalValue: "175.00",
       },
     });
   });
@@ -98,7 +92,7 @@ describe("me/purchases/codindica BFF route", () => {
         body: JSON.stringify({
           agendaId: 123,
           codindica: 123456,
-          lineItems: [{ productId: "passaporte-explorador", quantity: 1 }],
+          lineItems: [{ productId: "ingresso-adulto", quantity: 1 }],
         }),
       }),
     );
