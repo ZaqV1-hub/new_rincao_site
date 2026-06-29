@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { StructurePage } from "@/components/structure-page";
+import { InfoPageView } from "@/components/info-page";
 import { buildPageMetadata } from "@/lib/site-metadata";
+import { infoPages } from "@/lib/site-content";
 
 export const metadata: Metadata = buildPageMetadata("estrutura");
 
 export default function EstruturaPage() {
-  return <StructurePage />;
+  return <InfoPageView page={infoPages.estrutura} />;
 }

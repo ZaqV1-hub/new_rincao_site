@@ -55,7 +55,6 @@ type FieldConfig = {
   placeholder?: string;
   options?: string[];
   width?: "full" | "half";
-  date?: boolean;
 };
 
 const groupFields: FieldConfig[] = [
@@ -77,12 +76,11 @@ const coordinatorFields: FieldConfig[] = [
     width: "full",
   },
   {
-    label: "Data nascimento",
+    label: "Data de nascimento",
     name: "birthDate",
     required: false,
     type: "text",
     placeholder: "DD/MM/AAAA",
-    date: true,
   },
   {
     label: "Telefone",
@@ -96,7 +94,7 @@ const coordinatorFields: FieldConfig[] = [
     name: "mobile",
     required: false,
     type: "text",
-    placeholder: "(99) 9999-9999",
+    placeholder: "(99) 99999-9999",
   },
   {
     label: "E-mail",
@@ -173,7 +171,6 @@ const requestFields: FieldConfig[] = [
     required: false,
     type: "text",
     placeholder: "DD/MM/AAAA",
-    date: true,
   },
   {
     label: "Mensagem",
@@ -184,117 +181,94 @@ const requestFields: FieldConfig[] = [
   },
 ];
 
-function renderField(field: FieldConfig, disabled: boolean) {
-  const isFull = field.width === "full";
-  const fieldClassName = [
-    "mb-[14px] float-left text-left",
-    isFull ? "w-full" : "w-full md:w-1/2",
-  ].join(" ");
-  const controlClassName = [
-    "h-10 rounded border-2 border-white bg-[#ebebeb] px-[5px] text-[13px] text-[#333] shadow-[2px_2px_4px_rgba(0,0,0,0.1)] outline-none transition focus:bg-[#ddd] disabled:cursor-not-allowed disabled:bg-[#f2f2f2]",
-    isFull ? "w-full md:w-[97%]" : "w-full md:w-[95%]",
-    field.date ? "bg-[url('/theme/calendar.png')] bg-[right_center] bg-no-repeat pr-10" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+function Field({
+  field,
+  disabled,
+}: {
+  field: FieldConfig;
+  disabled: boolean;
+}) {
+  const wrapperClassName = field.width === "full" ? "md:col-span-2" : "";
+  const controlClassName =
+    "rincao-field min-h-[52px] w-full bg-[#f9fbfd] px-4 text-[14px] text-[#12344f] shadow-none";
 
-  const label = (
-    <label
-      htmlFor={field.name}
-      className="legacy-condensed float-left w-full text-[14px] font-bold uppercase leading-5 text-[#333]"
-    >
-      {field.label}
-      {field.required ? <em className="ml-1 not-italic text-[#c30]">*</em> : null}
-    </label>
-  );
+  return (
+    <div className={wrapperClassName}>
+      <label
+        htmlFor={field.name}
+        className="mb-2 block text-[12px] font-bold uppercase tracking-[0.18em] text-[#5f84a7]"
+      >
+        {field.label}
+        {field.required ? <span className="ml-1 text-[#d25c43]">*</span> : null}
+      </label>
 
-  if (field.type === "textarea") {
-    return (
-      <div key={field.name} className={fieldClassName}>
-        {label}
+      {field.type === "textarea" ? (
         <textarea
           id={field.name}
           name={field.name}
           required={field.required}
           rows={7}
           disabled={disabled}
-          className={`${controlClassName} h-20 min-h-20 py-[5px]`}
+          placeholder={field.placeholder}
+          className={`${controlClassName} min-h-[170px] py-3`}
         />
-      </div>
-    );
-  }
-
-  if (field.type === "select") {
-    return (
-      <div key={field.name} className={fieldClassName}>
-        {label}
-        <span
-          className={[
-            "float-left box-border h-10 rounded border-2 border-white bg-[#ebebeb] px-[10px] pt-1 shadow-[2px_2px_4px_rgba(0,0,0,0.1)]",
-            isFull ? "w-full md:w-[97%]" : "w-full md:w-[95%]",
-          ].join(" ")}
+      ) : field.type === "select" ? (
+        <select
+          id={field.name}
+          name={field.name}
+          required={field.required}
+          defaultValue={field.options?.[0]}
+          disabled={disabled}
+          className={`${controlClassName} appearance-none`}
         >
-          <select
-            id={field.name}
-            name={field.name}
-            required={field.required}
-            defaultValue={field.options?.[0]}
-            disabled={disabled}
-            className="float-left h-[30px] w-full appearance-none bg-transparent text-[13px] text-[#333] outline-none disabled:cursor-not-allowed"
-          >
-            {field.options?.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <div key={field.name} className={fieldClassName}>
-      {label}
-      <input
-        id={field.name}
-        name={field.name}
-        type={field.type}
-        required={field.required}
-        placeholder={field.placeholder}
-        disabled={disabled}
-        className={controlClassName}
-      />
+          {field.options?.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          id={field.name}
+          name={field.name}
+          type={field.type}
+          required={field.required}
+          placeholder={field.placeholder}
+          disabled={disabled}
+          className={controlClassName}
+        />
+      )}
     </div>
   );
 }
 
-function FormColumn({
-  side,
-  children,
+function FormSection({
+  title,
+  description,
+  fields,
+  disabled,
 }: {
-  side: "left" | "right";
-  children: React.ReactNode;
+  title: string;
+  description?: string;
+  fields: FieldConfig[];
+  disabled: boolean;
 }) {
   return (
-    <section
-      className={[
-        "float-left box-border w-full py-5",
-        side === "left"
-          ? "px-4 md:pl-[5%] md:pr-[30px] lg:w-1/2"
-          : "px-4 md:pl-[30px] md:pr-[5%] lg:w-1/2",
-      ].join(" ")}
-    >
-      {children}
+    <section className="rounded-[24px] border border-[#d8e2eb] bg-[#f6f8fb] p-5 md:p-6">
+      <h3 className="font-[var(--font-salsa)] text-[1.7rem] leading-none text-[#12344f]">
+        {title}
+      </h3>
+      {description ? (
+        <p className="mt-3 text-[0.95rem] leading-7 text-[#5c7488]">
+          {description}
+        </p>
+      ) : null}
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        {fields.map((field) => (
+          <Field key={field.name} field={field} disabled={disabled} />
+        ))}
+      </div>
     </section>
-  );
-}
-
-function FormHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="mb-[10px] text-left text-[20px] font-normal leading-6 text-[#7b5f3b]">
-      {children}
-    </h3>
   );
 }
 
@@ -389,114 +363,115 @@ export function GroupRegistrationForm({
 
   const isSubmitting = submitState.status === "submitting";
 
+  if (submitState.status === "success") {
+    return (
+      <section className="text-left">
+        <div className="rounded-[24px] bg-[#1d6fb8] px-6 py-5 text-center text-[1.35rem] font-bold text-white">
+          Solicitacao registrada com sucesso.
+        </div>
+        <div className="mt-6 rounded-[24px] border border-[#d8e2eb] bg-[#f6f8fb] p-6">
+          <h3 className="font-[var(--font-salsa)] text-[1.7rem] leading-none text-[#12344f]">
+            Atendimento iniciado
+          </h3>
+          <p className="mt-4 max-w-[780px] text-[0.98rem] leading-8 text-[#36586f]">
+            {submitState.message}
+          </p>
+          <p className="mt-4 text-[0.98rem] leading-8 text-[#36586f]">
+            <strong className="text-[0.92rem] uppercase tracking-[0.16em] text-[#5f84a7]">
+              Protocolo:
+            </strong>{" "}
+            {submitState.protocol}
+          </p>
+          <p className="text-[0.98rem] leading-8 text-[#36586f]">
+            WhatsApp: {contact.whatsapp.replace("https://wa.me/", "+55 ")} · E-mail:{" "}
+            {contact.email}
+          </p>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <a
+            href={submitState.whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rincao-button"
+          >
+            Continuar no WhatsApp
+          </a>
+          <button
+            type="button"
+            className="rincao-button-secondary"
+            onClick={() =>
+              setSubmitState({
+                status: "idle",
+                message: null,
+              })
+            }
+          >
+            Registrar outro grupo
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <div className="flow-root w-full">
-      {submitState.status === "success" ? (
-        <section className="float-left w-full px-[5%] py-5 text-left">
-          <div className="legacy-condensed box-border w-full bg-[#093] px-5 py-5 text-center text-[22px] font-bold text-white">
-            Solicitacao registrada com sucesso.
-          </div>
-          <div className="mt-5 border-t border-[#eaeaea] pt-5">
-            <FormHeading>Atendimento iniciado</FormHeading>
-            <p className="max-w-[780px] text-[14px] leading-7 text-[#333]">
-              {submitState.message}
-            </p>
-            <p className="mt-3 text-[14px] leading-7 text-[#333]">
-              <strong className="legacy-condensed text-[18px] uppercase text-[#3393d6]">
-                Protocolo:
-              </strong>{" "}
-              {submitState.protocol}
-            </p>
-            <p className="text-[14px] leading-7 text-[#333]">
-              WhatsApp: {contact.whatsapp.replace("https://wa.me/", "+55 ")} · E-mail:{" "}
-              {contact.email}
-            </p>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <a
-              href={submitState.whatsappUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="legacy-button green text-center"
-            >
-              Continuar no WhatsApp
-            </a>
-            <button
-              type="button"
-              className="legacy-button text-center"
-              onClick={() =>
-                setSubmitState({
-                  status: "idle",
-                  message: null,
-                })
-              }
-            >
-              Registrar outro grupo
-            </button>
-          </div>
-        </section>
-      ) : (
-        <form onSubmit={handleSubmit} className="flow-root w-full text-left">
-          <input
-            type="text"
-            name="website"
-            tabIndex={-1}
-            autoComplete="off"
-            className="hidden"
-            aria-hidden="true"
+    <form onSubmit={handleSubmit} className="space-y-6 text-left">
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        className="hidden"
+        aria-hidden="true"
+      />
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <div className="space-y-6">
+          <FormSection
+            title="Dados do grupo"
+            fields={groupFields}
+            disabled={isSubmitting}
           />
+          <FormSection
+            title="Dados do coordenador"
+            fields={coordinatorFields}
+            disabled={isSubmitting}
+          />
+        </div>
 
-          <FormColumn side="left">
-            <FormHeading>Dados do Grupo</FormHeading>
-            <div className="float-left w-full">
-              {groupFields.map((field) => renderField(field, isSubmitting))}
-            </div>
+        <div className="space-y-6">
+          <FormSection
+            title="Endereco do coordenador"
+            fields={addressFields}
+            disabled={isSubmitting}
+          />
+          <FormSection
+            title="Solicitar orcamento ou tirar duvida"
+            description="O envio registra sua solicitacao no atendimento institucional e gera um protocolo antes de qualquer contato por WhatsApp."
+            fields={requestFields}
+            disabled={isSubmitting}
+          />
+        </div>
+      </div>
 
-            <FormHeading>Dados do Coordenador</FormHeading>
-            <div className="float-left w-full">
-              {coordinatorFields.map((field) => renderField(field, isSubmitting))}
-            </div>
-          </FormColumn>
-
-          <FormColumn side="right">
-            <FormHeading>Endereco do Coordenador</FormHeading>
-            <div className="float-left w-full">
-              {addressFields.map((field) => renderField(field, isSubmitting))}
-            </div>
-
-            <div className="float-left w-full">
-              <FormHeading>Solicite um Orcamento / Duvida</FormHeading>
-            </div>
-            <div className="float-left w-full">
-              {requestFields.map((field) => renderField(field, isSubmitting))}
-            </div>
-          </FormColumn>
-
-          <div className="float-left mt-[10px] box-border w-full border-t border-[#eaeaea] px-[5%] pt-[10px] text-left">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-              className="inline-block h-10 cursor-pointer rounded-full border-2 border-white bg-[#1f8a70] px-[15px] text-center font-[var(--font-varela-round)] text-[16px] leading-10 text-white shadow-[2px_2px_5px_rgba(0,0,0,0.2)] transition hover:bg-[#135b49] disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSubmitting ? "Registrando..." : submitLabel}
-              </button>
-            <p className="mt-3 text-left text-[13px] leading-6 text-[#4d4d4d]">
-                O envio registra sua solicitacao no atendimento institucional e gera um
-                protocolo antes de qualquer contato por WhatsApp.
-              </p>
-              {submitState.status === "error" ? (
-              <p className="mt-3 box-border w-full bg-[#f6d9cf] px-4 py-3 text-left text-[13px] leading-6 text-[#8d2a16]">
-                  {submitState.message}
-                </p>
-              ) : null}
-              {submitState.status === "submitting" ? (
-              <p className="mt-3 box-border w-full bg-[#dceee8] px-4 py-3 text-left text-[13px] leading-6 text-[#135b49]">
-                  {submitState.message}
-                </p>
-              ) : null}
-          </div>
-        </form>
-      )}
-    </div>
+      <div className="rounded-[24px] border border-[#d8e2eb] bg-[#f6f8fb] p-5">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="rincao-button min-w-[240px] disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {isSubmitting ? "Registrando..." : submitLabel}
+        </button>
+        {submitState.status === "error" ? (
+          <p className="mt-4 rounded-[18px] bg-[#fde7df] px-4 py-3 text-[0.92rem] leading-7 text-[#8d2a16]">
+            {submitState.message}
+          </p>
+        ) : null}
+        {submitState.status === "submitting" ? (
+          <p className="mt-4 rounded-[18px] bg-[#e6f1fa] px-4 py-3 text-[0.92rem] leading-7 text-[#1d587e]">
+            {submitState.message}
+          </p>
+        ) : null}
+      </div>
+    </form>
   );
 }
