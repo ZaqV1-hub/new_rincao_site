@@ -1,9 +1,16 @@
 import { getPublicAgendaEvents } from "@/lib/agenda-repository";
 
 function getSaoPauloToday() {
-  return new Intl.DateTimeFormat("en-CA", {
+  const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Sao_Paulo",
-  }).format(new Date());
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(new Date());
+  const valueByType = new Map(parts.map((part) => [part.type, part.value]));
+
+  return `${valueByType.get("year")}-${valueByType.get("month")}-${valueByType.get("day")}`;
 }
 
 function isBilheteriaAgendaOpen(status: string | null | undefined) {

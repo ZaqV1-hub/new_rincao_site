@@ -74,7 +74,7 @@ async function resolveInitialMonthYear(params?: {
     availableMonths = await getPublicAgendaMonths();
   } catch (loadError) {
     console.error("agenda-page-months-failed", loadError);
-    error = "Não foi possível consultar a agenda pública agora.";
+    error = "Nao foi possivel consultar a agenda publica agora.";
   }
 
   const navigableMonths = buildNavigableAgendaMonths(
@@ -127,7 +127,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     initialEvents = await getPublicAgendaEvents(initial.month, initial.year);
   } catch (eventsError) {
     console.error("agenda-page-events-failed", eventsError);
-    initialError = "Não foi possível consultar a agenda pública agora.";
+    initialError = "Nao foi possivel consultar a agenda publica agora.";
   }
 
   const initialSelectedAgendaId = resolveSelectedAgendaId(

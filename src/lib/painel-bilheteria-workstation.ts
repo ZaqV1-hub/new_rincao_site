@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoDbPool, getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   formatPainelBilheteriaCpf,
   formatPainelBilheteriaDate,
@@ -56,6 +56,7 @@ type TicketLookupRow = {
   idcompra: number | null;
   dtcompra: string | null;
   dtuso: string | null;
+  numvoucher: string | null;
 };
 
 export type PainelBilheteriaLookupVoucher = {
@@ -149,16 +150,16 @@ const purchaseTypeLabels: Record<string, string> = {
 
 const purchaseStatusLabels: Record<string, string> = {
   pend: "Em processamento",
-  conc: "Concluída",
+  conc: "Concluida",
   canc: "Cancelada",
 };
 
 const paymentMethodLabels: Record<string, string> = {
   dinhe: "Dinheiro",
-  debit: "Débito",
-  credi: "Crédito",
+  debit: "Debito",
+  credi: "Credito",
   chequ: "Cheque",
-  tranb: "Trans. bancária",
+  tranb: "Trans. bancaria",
   corte: "Cortesia",
   pix: "Pix",
   pgseg: "Pagamento Online",
@@ -173,7 +174,7 @@ const voucherTypeLabels: Record<string, string> = {
 };
 
 const voucherStatusLabels: Record<string, string> = {
-  n: "Não usado",
+  n: "Nao usado",
   s: "Usado",
   inv: "Invalidado",
 };
@@ -240,34 +241,39 @@ export async function lookupPainelBilheteriaTicketByVoucherId(
   const lookup = String(rawVoucherId ?? "").trim();
   const voucherId = Number(lookup);
 
-  if (!lookup || !Number.isInteger(voucherId) || voucherId <= 0) {
+  if (!lookup) {
     throw new PainelBilheteriaWorkstationError(
       "invalid_ticket_lookup",
-      "Informe um ID do ingresso valido para consultar.",
+      "Informe um ID ou numero do ingresso para consultar.",
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<TicketLookupRow>(
     `
       SELECT
         voucher.idvoucher,
         voucher.idcompra,
         compra.dtcompra::text AS dtcompra,
-        voucher.dtuso::text AS dtuso
+        voucher.dtuso::text AS dtuso,
+        voucher.numvoucher
       FROM voucher
       LEFT JOIN compra ON compra.idcompra = voucher.idcompra
-      WHERE voucher.idvoucher = $1
+      WHERE (
+        ($1::int IS NOT NULL AND voucher.idvoucher = $1)
+        OR UPPER(COALESCE(voucher.numvoucher, '')) = UPPER($2)
+      )
+      ORDER BY voucher.idvoucher DESC
       LIMIT 1
     `,
-    [voucherId],
+    [Number.isInteger(voucherId) && voucherId > 0 ? voucherId : null, lookup],
   );
   const row = result.rows[0] ?? null;
 
   if (!row) {
     throw new PainelBilheteriaWorkstationError(
       "ticket_not_found",
-      "Ingresso nao encontrado.",
+      "Ingresso nao encontrado no banco de dados.",
       404,
     );
   }
@@ -294,7 +300,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const documentKind = lookup.length === 11 ? "cpf" : "rg";
   let customer: CustomerRow | null = null;
   let cpf = lookup.length === 11 ? lookup : null;
@@ -353,10 +359,10 @@ export async function lookupPainelBilheteriaCustomerDocument(
       FROM compra c
       LEFT JOIN voucher v ON v.idcompra = c.idcompra
       WHERE c.cpf = $1
-        AND c.stcompra = 'conc'
+        AND c.stcompra <> 'canc'
       GROUP BY c.idcompra, c.dtcompra, c.cpf, c.tpcompra, c.stcompra, c.formapag
       ORDER BY c.idcompra DESC
-      LIMIT 20
+      LIMIT 50
     `,
     [cpf],
   );
@@ -439,7 +445,7 @@ export async function lookupPainelBilheteriaTrip(
   if (!lookup) {
     throw new PainelBilheteriaWorkstationError(
       "invalid_trip_code",
-      "Informe um código de passeio para consultar.",
+      "Informe um codigo de passeio para consultar.",
     );
   }
 

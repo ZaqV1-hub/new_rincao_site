@@ -15,6 +15,31 @@ type WorkstationMessage = {
   warnings?: string[];
 };
 
+type ConfirmationState =
+  | {
+      kind: "validate-voucher";
+      title: string;
+      description: string;
+      confirmLabel: string;
+    }
+  | {
+      kind: "validate-selected";
+      purchaseId: number;
+      voucherIds: number[];
+      title: string;
+      description: string;
+      confirmLabel: string;
+    }
+  | {
+      kind: "unvalidate-selected";
+      purchaseId: number;
+      voucherIds: number[];
+      title: string;
+      description: string;
+      confirmLabel: string;
+    }
+  | null;
+
 type VoucherValidationResponse = {
   ok: boolean;
   data?: {
@@ -184,6 +209,7 @@ export function PainelBilheteriaWorkstation({
   const [runningActionKey, setRunningActionKey] = useState<string | null>(null);
   const [submittingVoucher, setSubmittingVoucher] = useState(false);
   const [submittingCustomer, setSubmittingCustomer] = useState(false);
+  const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
   const hasServerDrivenTicketLookup = Boolean(initialTicketLookupState?.isOpen);
 
   function normalizeVoucherIds(voucherIds: number[]) {
@@ -247,7 +273,7 @@ export function PainelBilheteriaWorkstation({
       text:
         data.purchases.length > 0
           ? `${data.purchases.length} compra(s) encontrada(s).`
-          : "Nenhuma compra concluida encontrada para este cliente.",
+          : "Nenhuma compra encontrada para este cliente.",
     });
     return data;
   }
@@ -453,19 +479,7 @@ export function PainelBilheteriaWorkstation({
     }
   }
 
-  async function handleVoucherSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!agendaOpen) {
-      setMessage({
-        tone: "warning",
-        text:
-          agendaWarning ||
-          "Nao existe agenda aberta para hoje. A validacao de ingressos fica indisponivel.",
-      });
-      return;
-    }
-
+  async function executeVoucherSubmit(confirm = false) {
     setSubmittingVoucher(true);
     setCustomerLookup(null);
 
@@ -477,6 +491,7 @@ export function PainelBilheteriaWorkstation({
         },
         body: JSON.stringify({
           voucherNumber,
+          confirm,
           actor: {
             name: actorName,
             cpf: actorCpf,
@@ -504,6 +519,35 @@ export function PainelBilheteriaWorkstation({
     }
   }
 
+  async function handleVoucherSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!agendaOpen) {
+      setMessage({
+        tone: "warning",
+        text:
+          agendaWarning ||
+          "Nao existe agenda aberta para hoje. A validacao de ingressos fica indisponivel.",
+      });
+      return;
+    }
+
+    if (!voucherNumber.trim()) {
+      setMessage({
+        tone: "warning",
+        text: "Informe o numero do voucher antes de validar.",
+      });
+      return;
+    }
+
+    setConfirmationState({
+      kind: "validate-voucher",
+      title: "Confirmar validacao",
+      description: `Deseja validar o ingresso ${voucherNumber.trim()} agora?`,
+      confirmLabel: "Validar ingresso",
+    });
+  }
+
   async function handleCustomerSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmittingCustomer(true);
@@ -521,7 +565,7 @@ export function PainelBilheteriaWorkstation({
     const lookup = ticketLookup.trim();
 
     if (!lookup) {
-      setTicketLookupError("Informe o ID do ingresso para consultar.");
+      setTicketLookupError("Informe o ID ou numero do ingresso para consultar.");
       setTicketLookupResult(null);
       return;
     }
@@ -640,6 +684,34 @@ export function PainelBilheteriaWorkstation({
     }
   }
 
+  async function handleConfirmationSubmit() {
+    const currentConfirmation = confirmationState;
+
+    if (!currentConfirmation) {
+      return;
+    }
+
+    setConfirmationState(null);
+
+    if (currentConfirmation.kind === "validate-voucher") {
+      await executeVoucherSubmit(true);
+      return;
+    }
+
+    if (currentConfirmation.kind === "validate-selected") {
+      await handleValidateSelectedPurchase(
+        currentConfirmation.purchaseId,
+        currentConfirmation.voucherIds,
+      );
+      return;
+    }
+
+    await handleUnvalidateSelectedPurchase(
+      currentConfirmation.purchaseId,
+      currentConfirmation.voucherIds,
+    );
+  }
+
   return (
     <div className="grid gap-6">
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -749,7 +821,7 @@ export function PainelBilheteriaWorkstation({
 
           <div className="mt-6 border-t border-[#d6e1eb] pt-4 text-sm leading-6 text-[#5d7282]">
             <div className="font-semibold text-[#123b63]">
-              {actorName || actorCpf || "Sessão operacional"}
+              {actorName || actorCpf || "Sessao operacional"}
             </div>
           </div>
         </aside>
@@ -793,14 +865,14 @@ export function PainelBilheteriaWorkstation({
               className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d6e1eb] text-[#5d7282]"
               aria-label="Fechar consulta de ingresso"
             >
-              ×
+              x
             </button>
           </div>
 
           <div className="grid gap-4 px-5 py-5">
             <form onSubmit={handleTicketLookupSubmit} className="grid gap-3">
               <label className="grid gap-2 text-sm font-semibold text-[#35576f]">
-                Inserir ID do Ingresso
+                Inserir ID ou numero do ingresso
                 <input
                   value={ticketLookup}
                   onChange={(event) => {
@@ -809,7 +881,7 @@ export function PainelBilheteriaWorkstation({
                     setTicketWhatsappError(null);
                     setTicketWhatsappSuccess(null);
                   }}
-                  placeholder="ID do Ingresso"
+                  placeholder="ID ou numero do ingresso"
                   className="rincao-field min-h-[42px] px-4 py-2.5 text-sm"
                 />
               </label>
@@ -915,7 +987,7 @@ export function PainelBilheteriaWorkstation({
                 Resultado do cliente
               </h2>
               <p className="mt-2 text-sm text-[#5d7282]">
-                {customerLookup.customer?.name || "Cliente não identificado"} •{" "}
+                {customerLookup.customer?.name || "Cliente nao identificado"} -{" "}
                 {customerLookup.customer?.cpfLabel || "-"}
               </p>
             </div>
@@ -926,7 +998,7 @@ export function PainelBilheteriaWorkstation({
 
           {customerLookup.purchases.length === 0 ? (
             <p className="mt-5 text-sm text-[#5d7282]">
-              Nenhuma compra concluida encontrada para este documento.
+              Nenhuma compra encontrada para este documento.
             </p>
           ) : (
             <div className="mt-5 grid gap-4">
@@ -950,8 +1022,8 @@ export function PainelBilheteriaWorkstation({
                               Compra #{purchase.purchaseId}
                             </div>
                             <div className="mt-1 text-sm text-[#5d7282]">
-                              {formatPainelBilheteriaDate(purchase.purchaseDate)} •{" "}
-                              {purchase.purchaseTypeLabel} • {purchase.statusLabel}
+                              {formatPainelBilheteriaDate(purchase.purchaseDate)} -{" "}
+                              {purchase.purchaseTypeLabel} - {purchase.statusLabel}
                             </div>
                           </div>
                           <div className="text-right">
@@ -1031,12 +1103,24 @@ export function PainelBilheteriaWorkstation({
                           <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() =>
-                                void handleValidateSelectedPurchase(
-                                  purchase.purchaseId,
-                                  selectedVoucherIds,
-                                )
-                              }
+                              onClick={() => {
+                                if (selectedVoucherIds.length === 0) {
+                                  setMessage({
+                                    tone: "warning",
+                                    text: "Selecione ao menos um voucher desta compra.",
+                                  });
+                                  return;
+                                }
+
+                                setConfirmationState({
+                                  kind: "validate-selected",
+                                  purchaseId: purchase.purchaseId,
+                                  voucherIds: selectedVoucherIds,
+                                  title: "Confirmar validacao",
+                                  description: `Deseja validar ${selectedVoucherIds.length} ingresso(s) da compra ${purchase.purchaseId}?`,
+                                  confirmLabel: "Validar selecionados",
+                                });
+                              }}
                               disabled={isActionRunning(`validate-purchase-${purchase.purchaseId}`)}
                               className="rounded-[4px] bg-[linear-gradient(180deg,#3e9ce1_0%,#245f88_100%)] px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
                             >
@@ -1045,12 +1129,24 @@ export function PainelBilheteriaWorkstation({
                             {isManager ? (
                               <button
                                 type="button"
-                                onClick={() =>
-                                  void handleUnvalidateSelectedPurchase(
-                                    purchase.purchaseId,
-                                    selectedVoucherIds,
-                                  )
-                                }
+                                onClick={() => {
+                                  if (selectedVoucherIds.length === 0) {
+                                    setMessage({
+                                      tone: "warning",
+                                      text: "Selecione ao menos um voucher desta compra para desvalidar.",
+                                    });
+                                    return;
+                                  }
+
+                                  setConfirmationState({
+                                    kind: "unvalidate-selected",
+                                    purchaseId: purchase.purchaseId,
+                                    voucherIds: selectedVoucherIds,
+                                    title: "Confirmar desvalidacao",
+                                    description: `Deseja desvalidar ${selectedVoucherIds.length} ingresso(s) da compra ${purchase.purchaseId}?`,
+                                    confirmLabel: "Desvalidar selecionados",
+                                  });
+                                }}
                                 disabled={isActionRunning(`unvalidate-purchase-${purchase.purchaseId}`)}
                                 className="rounded-[4px] border border-[#c9d8e3] bg-white px-4 py-2 text-xs font-bold text-[#205a7f] disabled:opacity-60"
                               >
@@ -1110,6 +1206,47 @@ export function PainelBilheteriaWorkstation({
           )}
         </section>
       ) : null}
+
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="painel-bilheteria-confirmation-title"
+        className={`fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,34,53,0.48)] px-4 py-6 transition ${
+          confirmationState ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      >
+        <div className="w-full max-w-[420px] rounded-[24px] border border-[#d6e1eb] bg-white shadow-[0_24px_64px_rgba(20,59,99,0.18)]">
+          <div className="border-b border-[#d6e1eb] px-5 py-4">
+            <h2
+              id="painel-bilheteria-confirmation-title"
+              className="text-lg font-black text-[#123b63]"
+            >
+              {confirmationState?.title || "Confirmar operacao"}
+            </h2>
+          </div>
+
+          <div className="px-5 py-5 text-sm leading-6 text-[#35576f]">
+            {confirmationState?.description || ""}
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-[#d6e1eb] px-5 py-4">
+            <button
+              type="button"
+              onClick={() => setConfirmationState(null)}
+              className="rounded-full border border-[#d6e1eb] px-4 py-2.5 text-sm font-bold text-[#5d7282]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleConfirmationSubmit()}
+              className="rounded-full bg-[#246b99] px-4 py-2.5 text-sm font-bold text-white"
+            >
+              {confirmationState?.confirmLabel || "Confirmar"}
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

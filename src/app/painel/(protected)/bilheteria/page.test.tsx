@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requirePainelAccess = vi.fn();
 const lookupPainelBilheteriaTicketByVoucherId = vi.fn();
-const getPublicAgendaEvents = vi.fn();
+const getBilheteriaAgendaStatusToday = vi.fn();
 const workstationProps = vi.fn();
 
 vi.mock("@/lib/painel-session", () => ({
@@ -15,8 +15,8 @@ vi.mock("@/lib/painel-bilheteria-workstation", () => ({
   lookupPainelBilheteriaTicketByVoucherId,
 }));
 
-vi.mock("@/lib/agenda-repository", () => ({
-  getPublicAgendaEvents,
+vi.mock("@/lib/bilheteria-agenda", () => ({
+  getBilheteriaAgendaStatusToday,
 }));
 
 vi.mock("@/components/painel-bilheteria-page-header", () => ({
@@ -37,14 +37,11 @@ vi.mock("@/components/painel-bilheteria-workstation", () => ({
 describe("/painel/bilheteria overview route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getPublicAgendaEvents.mockResolvedValue([
-      {
-        date: new Intl.DateTimeFormat("en-CA", {
-          timeZone: "America/Sao_Paulo",
-        }).format(new Date()),
-        status: "abe",
-      },
-    ]);
+    getBilheteriaAgendaStatusToday.mockResolvedValue({
+      today: "2026-06-29",
+      hasOpenAgendaToday: true,
+      openAgendas: [{ date: "2026-06-29", status: "abe" }],
+    });
     requirePainelAccess.mockResolvedValue({
       actorName: "Operador Teste",
       actorCpf: "52998224725",
@@ -91,14 +88,11 @@ describe("/painel/bilheteria overview route", () => {
   });
 
   it("mantem a bilheteria aberta quando a agenda do dia estiver lotada", async () => {
-    getPublicAgendaEvents.mockResolvedValue([
-      {
-        date: new Intl.DateTimeFormat("en-CA", {
-          timeZone: "America/Sao_Paulo",
-        }).format(new Date()),
-        status: "lot",
-      },
-    ]);
+    getBilheteriaAgendaStatusToday.mockResolvedValue({
+      today: "2026-06-29",
+      hasOpenAgendaToday: true,
+      openAgendas: [{ date: "2026-06-29", status: "lot" }],
+    });
 
     const page = (await import("@/app/painel/(protected)/bilheteria/page")).default;
     const element = await page({

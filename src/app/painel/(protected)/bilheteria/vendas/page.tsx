@@ -33,7 +33,7 @@ export default async function PainelBilheteriaVendasPage() {
         screen="bilheteria-sales"
         isManager={session.legacyRoleId === 1}
         title="Vendas"
-        description="Monte a compra, aplique descontos e cortesias, e siga para a finalização do pagamento."
+        description="Monte a compra, aplique descontos e cortesias, e siga para a finalizacao do pagamento."
         actorName={session.actorName}
       />
 
