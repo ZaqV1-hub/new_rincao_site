@@ -1,5 +1,5 @@
 import { type PoolClient } from "pg";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { syncTicketValidation } from "@/lib/ticket-service";
 
@@ -574,7 +574,7 @@ export async function validateVoucherByNumber(
   }
 
   const { date, time } = getSaoPauloDateParts();
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -686,7 +686,7 @@ export async function validatePurchaseVouchers(
   }
 
   const { date, time } = getSaoPauloDateParts();
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -849,7 +849,7 @@ export async function validateSelectedVouchers(
   }
 
   const { date, time } = getSaoPauloDateParts();
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -867,9 +867,49 @@ export async function validateSelectedVouchers(
         continue;
       }
 
-      if (voucher.stusado !== "n") {
+      if (voucher.stusado === "s" || voucher.stusado === "inv") {
         warnings.push(
           `Voucher ${voucher.numvoucher ?? voucherId} ja utilizado ou indisponivel para validacao.`,
+        );
+        continue;
+      }
+
+      if (voucher.stusado !== "n") {
+        warnings.push(
+          `Voucher ${voucher.numvoucher ?? voucherId} nao esta disponivel para validacao.`,
+        );
+        continue;
+      }
+
+      if (voucher.tpcompra === "ponli") {
+        if (voucher.stcompra !== "conc") {
+          warnings.push(
+            `Voucher ${voucher.numvoucher ?? voucherId} pendente de pagamento.`,
+          );
+          continue;
+        }
+
+        if (!isOnlinePurchasePaid(voucher)) {
+          warnings.push(
+            `A transacao do voucher ${voucher.numvoucher ?? voucherId} nao esta confirmada para validacao.`,
+          );
+          continue;
+        }
+
+        const usage = evaluateAgendaUsage(voucher, false, date);
+
+        if (usage.status !== "ok") {
+          warnings.push(usage.message);
+          continue;
+        }
+      } else if (voucher.tpcompra === "reser") {
+        if (!isReservationPaid(voucher)) {
+          warnings.push(buildReservationPaymentMessage(voucher));
+          continue;
+        }
+      } else {
+        warnings.push(
+          `Voucher ${voucher.numvoucher ?? voucherId} possui tipo de compra invalido para validacao.`,
         );
         continue;
       }
@@ -950,7 +990,7 @@ export async function validateSchoolTripVouchers(
   }
 
   const { date, time } = getSaoPauloDateParts();
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1093,7 +1133,7 @@ export async function unvalidateSelectedVouchers(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1195,7 +1235,7 @@ export async function unvalidatePurchaseVouchers(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1302,7 +1342,7 @@ export async function invalidateSelectedVouchers(
   }
 
   const { date, time } = getSaoPauloDateParts();
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1405,7 +1445,7 @@ export async function invalidatePurchaseVouchers(
   }
 
   const { date, time } = getSaoPauloDateParts();
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {

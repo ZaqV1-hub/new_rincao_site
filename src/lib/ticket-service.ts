@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   buildTicketsApiHeaders,
   getTicketsApiBaseUrl,
@@ -375,7 +375,7 @@ async function loadTicketValidationVoucher(
   purchaseId: number,
   voucherId: number,
 ) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<TicketValidationVoucherRow>(
     `
       SELECT
@@ -426,7 +426,7 @@ function buildValidationTicketPayload(voucher: TicketValidationVoucherRow) {
 }
 
 async function loadConfirmedPurchase(purchaseId: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const purchase = await pool.query<ConfirmedPurchaseRow>(
     `
       SELECT
@@ -450,7 +450,7 @@ async function loadConfirmedPurchase(purchaseId: number) {
 }
 
 async function loadPendingTicketVouchers(purchaseId: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const vouchers = await pool.query<VoucherTicketRow>(
     `
       SELECT
@@ -481,7 +481,7 @@ async function listPendingTicketDeliveryPurchases(
   recentDays: number,
   limit: number,
 ) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<PendingTicketDeliveryPurchaseRow>(
     `
       SELECT
@@ -521,7 +521,7 @@ async function loadSelectedTicketVouchers(
     return [];
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const vouchers = await pool.query<VoucherTicketRow>(
     `
       SELECT
@@ -539,7 +539,7 @@ async function loadSelectedTicketVouchers(
       LEFT JOIN agenda ON agenda.idagenda = voucher.idagenda
       WHERE voucher.idcompra = $1
         AND voucher.idvoucher = ANY($2::int[])
-        AND voucher.stusado NOT IN ('s', 'inv')
+        AND voucher.stusado <> 'inv'
       ORDER BY voucher.idvoucher ASC
     `,
     [purchaseId, voucherIds],
@@ -553,7 +553,7 @@ async function markVouchersSent(voucherIds: number[]) {
     return;
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
 
   await pool.query(
     `

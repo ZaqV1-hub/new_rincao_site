@@ -18,6 +18,10 @@ vi.mock("@/lib/ingresso-db", () => ({
     query,
     connect,
   }),
+  getIngressoSistemaDbPool: () => ({
+    query,
+    connect,
+  }),
 }));
 
 vi.mock("@/lib/ticket-api", () => ({
@@ -238,9 +242,9 @@ describe("painel-bilheteria", () => {
     expect(release).toHaveBeenCalled();
   });
 
-  it("blocks QR print for used voucher", async () => {
+  it("allows QR print for used voucher", async () => {
     clientQuery.mockImplementation(async (sql: string) => {
-      if (sql === "BEGIN" || sql === "ROLLBACK") {
+      if (sql === "BEGIN" || sql === "COMMIT") {
         return { rows: [] };
       }
 
@@ -267,14 +271,30 @@ describe("painel-bilheteria", () => {
         };
       }
 
+      if (sql.includes("SELECT agenda.dtagenda::text AS dtagenda")) {
+        return {
+          rows: [{ dtagenda: "2026-05-01" }],
+        };
+      }
+
+      if (sql.includes("UPDATE voucher") || sql.includes("INSERT INTO logsistema")) {
+        return { rows: [] };
+      }
+
       return { rows: [] };
     });
-
-    await expect(getPainelBilheteriaVoucherPrintModel(12)).rejects.toMatchObject({
-      code: "voucher_already_used",
-      status: 409,
+    generateVoucherQrcodes.mockResolvedValue({
+      12: "https://qr.example/12.png",
     });
-    expect(generateVoucherQrcodes).not.toHaveBeenCalled();
+    registerOpsAuditLog.mockResolvedValue(1001);
+
+    await expect(getPainelBilheteriaVoucherPrintModel(12)).resolves.toMatchObject({
+      purchaseId: 321,
+      voucherId: 12,
+      voucherNumber: "A1234",
+      qrCodeUrl: "https://qr.example/12.png",
+    });
+    expect(generateVoucherQrcodes).toHaveBeenCalled();
     expect(release).toHaveBeenCalled();
   });
 });

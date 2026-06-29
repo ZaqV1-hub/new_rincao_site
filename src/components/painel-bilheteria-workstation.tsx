@@ -216,6 +216,25 @@ export function PainelBilheteriaWorkstation({
     return [...new Set(voucherIds.filter((voucherId) => voucherId > 0))];
   }
 
+  function resolveValidatableVoucherIds(voucherIds: number[], purchaseId: number) {
+    const purchase = customerLookup?.purchases.find(
+      (currentPurchase) => currentPurchase.purchaseId === purchaseId,
+    );
+
+    if (!purchase) {
+      return voucherIds;
+    }
+
+    const vouchersById = new Map(
+      purchase.vouchers.map((voucher) => [voucher.voucherId, voucher]),
+    );
+
+    return voucherIds.filter((voucherId) => {
+      const voucher = vouchersById.get(voucherId);
+      return voucher?.statusCode === "n";
+    });
+  }
+
   function updateSelectedPurchaseVouchers(purchaseId: number, voucherIds: number[]) {
     setSelectedCustomerVouchers((current) => ({
       ...current,
@@ -609,7 +628,7 @@ export function PainelBilheteriaWorkstation({
   }
 
   function handlePrintTicketLookup() {
-    if (!ticketLookupResult || ticketLookupResult.used) {
+    if (!ticketLookupResult) {
       return;
     }
 
@@ -913,9 +932,10 @@ export function PainelBilheteriaWorkstation({
                   ) : null}
                   {ticketLookupResult.used ? (
                     <p className="mt-3 text-[#8a6100]">
-                      Este ingresso ja foi utilizado. Reemissao e envio estao bloqueados.
+                      Este ingresso ja foi utilizado. Validacao segue bloqueada, mas a consulta permanece disponivel.
                     </p>
-                  ) : ticketLookupResult.purchaseId ? (
+                  ) : null}
+                  {ticketLookupResult.purchaseId ? (
                     <div className="mt-4 grid gap-3">
                       <label className="grid gap-2 text-sm font-semibold text-[#35576f]">
                         Telefone com DDD
@@ -955,7 +975,7 @@ export function PainelBilheteriaWorkstation({
                 <button
                   type="button"
                   onClick={handlePrintTicketLookup}
-                  disabled={!ticketLookupResult || ticketLookupResult.used}
+                  disabled={!ticketLookupResult}
                   className="rounded-full border border-[#d6e1eb] bg-white px-4 py-2.5 text-sm font-bold text-[#205a7f] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Imprimir QR-Code
@@ -966,7 +986,6 @@ export function PainelBilheteriaWorkstation({
                   disabled={
                     sendingTicketWhatsapp ||
                     !ticketLookupResult ||
-                    ticketLookupResult.used ||
                     !ticketLookupResult.purchaseId
                   }
                   className="rounded-full bg-[#246b99] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
@@ -1104,6 +1123,11 @@ export function PainelBilheteriaWorkstation({
                             <button
                               type="button"
                               onClick={() => {
+                                const validatableVoucherIds = resolveValidatableVoucherIds(
+                                  selectedVoucherIds,
+                                  purchase.purchaseId,
+                                );
+
                                 if (selectedVoucherIds.length === 0) {
                                   setMessage({
                                     tone: "warning",
@@ -1112,12 +1136,27 @@ export function PainelBilheteriaWorkstation({
                                   return;
                                 }
 
+                                if (validatableVoucherIds.length === 0) {
+                                  setMessage({
+                                    tone: "warning",
+                                    text: "Os vouchers selecionados ja estao usados, invalidados ou indisponiveis para validacao.",
+                                  });
+                                  return;
+                                }
+
+                                if (validatableVoucherIds.length !== selectedVoucherIds.length) {
+                                  setMessage({
+                                    tone: "warning",
+                                    text: "Somente vouchers nao usados serao enviados para validacao.",
+                                  });
+                                }
+
                                 setConfirmationState({
                                   kind: "validate-selected",
                                   purchaseId: purchase.purchaseId,
-                                  voucherIds: selectedVoucherIds,
+                                  voucherIds: validatableVoucherIds,
                                   title: "Confirmar validacao",
-                                  description: `Deseja validar ${selectedVoucherIds.length} ingresso(s) da compra ${purchase.purchaseId}?`,
+                                  description: `Deseja validar ${validatableVoucherIds.length} ingresso(s) da compra ${purchase.purchaseId}?`,
                                   confirmLabel: "Validar selecionados",
                                 });
                               }}

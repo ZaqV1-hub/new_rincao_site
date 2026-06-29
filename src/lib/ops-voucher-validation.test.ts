@@ -23,6 +23,9 @@ vi.mock("@/lib/ingresso-db", () => ({
   getIngressoDbPool: () => ({
     connect,
   }),
+  getIngressoSistemaDbPool: () => ({
+    connect,
+  }),
 }));
 
 vi.mock("@/lib/ticket-service", () => ({

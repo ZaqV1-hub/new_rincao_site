@@ -17,6 +17,9 @@ vi.mock("@/lib/ingresso-db", () => ({
   getIngressoDbPool: () => ({
     query: dbQuery,
   }),
+  getIngressoSistemaDbPool: () => ({
+    query: dbQuery,
+  }),
 }));
 
 vi.mock("@/lib/ticket-delivery-audit", () => ({

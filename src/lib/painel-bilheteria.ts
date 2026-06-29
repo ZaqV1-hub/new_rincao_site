@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getNativeCieloCheckoutStatus, isCieloEcommerceConfigured } from "@/lib/cielo-ecommerce";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { queuePurchaseConfirmationEmail } from "@/lib/purchase-confirmation-email";
@@ -563,7 +563,7 @@ export function getPainelBilheteriaPaymentOptions(): PainelBilheteriaPaymentMeth
 
 export async function getPainelBilheteriaIndicators(dateInput: string | null | undefined) {
   const date = parseDateInput(dateInput) ?? getSaoPauloToday();
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<{
     compranaousado: string | null;
     comprausado: string | null;
@@ -646,7 +646,7 @@ export async function listPainelBilheteriaHistory(
               ELSE COALESCE(SUM(CASE WHEN v.stusado <> 'inv' THEN v.vlunicompra ELSE 0 END),0)
             END)::numeric,2) = $${params.length + 1}`;
   const paramsWithValue = valueFilter == null ? params : [...params, valueFilter];
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
 
   const rowsResult = await pool.query<PurchaseHistoryRow>(
     `
@@ -760,7 +760,7 @@ export async function getPainelBilheteriaPurchaseDetail(purchaseId: number) {
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const purchaseResult = await pool.query<PurchaseDetailRow>(
     `
       SELECT
@@ -944,7 +944,7 @@ export async function sendPainelBilheteriaVoucherWhatsapp(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1000,14 +1000,6 @@ export async function sendPainelBilheteriaVoucherWhatsapp(
         "voucher_not_found",
         "Voucher nao encontrado para esta compra.",
         404,
-      );
-    }
-
-    if (String(voucher.stusado ?? "").trim() === "s") {
-      throw new PainelBilheteriaError(
-        "voucher_already_used",
-        "Voucher ja utilizado; nao e possivel reenviar por WhatsApp.",
-        409,
       );
     }
 
@@ -1087,7 +1079,7 @@ export async function getPainelBilheteriaVoucherPrintModel(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -1124,14 +1116,6 @@ export async function getPainelBilheteriaVoucherPrintModel(
         "voucher_not_found",
         "Voucher nao encontrado.",
         404,
-      );
-    }
-
-    if (String(voucher.dtuso ?? "").trim()) {
-      throw new PainelBilheteriaError(
-        "voucher_already_used",
-        "Voucher ja utilizado; nao e possivel reemitir/imprimir.",
-        409,
       );
     }
 
@@ -1242,7 +1226,7 @@ export async function getPainelBilheteriaPurchasePrintModel(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const purchaseResult = await pool.query<{ idcompra: number }>(
     `
       SELECT compra.idcompra
@@ -1303,7 +1287,7 @@ export async function getPainelBilheteriaGatewayStatus(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const [purchaseResult, ledgerResult] = await Promise.all([
     pool.query<PurchaseDetailRow>(
       `
@@ -1462,7 +1446,7 @@ export async function payPainelBilheteriaReservation(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
