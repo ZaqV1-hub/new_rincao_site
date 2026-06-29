@@ -286,8 +286,8 @@ export function PublicAgenda({
             </p>
 
             <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#cae6c5] bg-[#eef8ec] px-3 py-1 text-[#087842]">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#18ac26]" />
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#c9def2] bg-[#eef6fd] px-3 py-1 text-[#1d6fb8]">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#1d6fb8]" />
                 Data regular
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-[#f3c699] bg-[#fff3e8] px-3 py-1 text-[#b85c12]">
@@ -369,7 +369,7 @@ export function PublicAgenda({
                           day.inMonth
                             ? "border-transparent bg-[#f4f2ed] text-[#9aa39a]"
                             : "border-[#ece9e2] bg-white text-[#b9b8b4]"
-                        } ${isToday ? "ring-2 ring-[#b6d9ad]" : ""}`}
+                        } ${isToday ? "ring-2 ring-[#9dc5e7]" : ""}`}
                       >
                         {day.day}
                       </span>
@@ -392,8 +392,8 @@ export function PublicAgenda({
                             : "border-[#1d6fb8] bg-[#143b63] text-white shadow-[0_10px_22px_rgba(20,59,99,0.2)]"
                           : isPromotional
                             ? "border-[#f3c699] bg-[#fff3e8] text-[#b85c12] hover:border-[#ef8d32]"
-                            : "border-[#cae6c5] bg-[#eef8ec] text-[#087842] hover:border-[#18ac26]"
-                      } ${isToday ? "ring-2 ring-[#7fcf72]" : ""}`}
+                            : "border-[#c9def2] bg-[#eef6fd] text-[#1d6fb8] hover:border-[#1d6fb8]"
+                      } ${isToday ? "ring-2 ring-[#7aaed8]" : ""}`}
                     >
                       {day.day}
                     </Link>

@@ -13,6 +13,7 @@ type Props = {
   actorName?: string | null;
   isManager: boolean;
   summary: OperationalCashSummary;
+  warningMessage?: string | null;
 };
 
 type FundModalState =
@@ -69,6 +70,7 @@ export function BilheteriaCashFundPage({
   actorName = null,
   isManager,
   summary,
+  warningMessage = null,
 }: Props) {
   const [currentSummary, setCurrentSummary] = useState(summary);
   const [modalState, setModalState] = useState<FundModalState>(null);
@@ -199,10 +201,16 @@ export function BilheteriaCashFundPage({
       />
 
       <section className="panel-section grid gap-5 p-5">
+        {warningMessage ? (
+          <div className="rounded-[8px] border border-[#f0d3a8] bg-[#fff6e3] px-4 py-3 text-sm text-[#8a6100]">
+            {warningMessage}
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="panel-eyebrow">Caixa</p>
-            <h1 className="text-[28px] font-black leading-tight text-[#17351f]">
+            <h1 className="text-[28px] font-black leading-tight text-[#123b63]">
               Fundo de caixa
             </h1>
           </div>
@@ -229,7 +237,7 @@ export function BilheteriaCashFundPage({
           <div
             className={`border px-4 py-3 text-sm ${
               feedback.tone === "success"
-                ? "border-[#b7dfc0] bg-[#edf8f0] text-[#245336]"
+                ? "border-[#c8d9ea] bg-[#eef5fb] text-[#205a7f]"
                 : "border-[#efc0c0] bg-[#fff0f0] text-[#7a2b2b]"
             }`}
           >
@@ -238,19 +246,19 @@ export function BilheteriaCashFundPage({
         ) : null}
 
         <div className="grid gap-4">
-          <div className="rounded-[8px] border border-[#dbe7d7] bg-[#f6faf3] px-4 py-3 text-lg font-extrabold text-[#17351f]">
+          <div className="rounded-[8px] border border-[#d6e1eb] bg-[#f5f9fd] px-4 py-3 text-lg font-extrabold text-[#123b63]">
             Dinheiro do Fundo de Caixa:{" "}
             <span>{formatBilheteriaCashMoney(currentSummary.totals.fund)}</span>
           </div>
-          <div className="rounded-[8px] border border-[#dbe7d7] bg-[#f6faf3] px-4 py-3 text-lg font-extrabold text-[#17351f]">
+          <div className="rounded-[8px] border border-[#d6e1eb] bg-[#f5f9fd] px-4 py-3 text-lg font-extrabold text-[#123b63]">
             Dinheiro total no caixa:{" "}
             <span>{formatBilheteriaCashMoney(currentSummary.totals.cashInDrawer)}</span>
           </div>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <article className="overflow-hidden rounded-[8px] border border-[#dbe7d7] bg-white shadow-none">
-            <div className="border-b border-[#dbe7d7] px-4 py-4 text-lg font-bold text-[#17351f]">
+          <article className="overflow-hidden rounded-[8px] border border-[#d6e1eb] bg-white shadow-none">
+            <div className="border-b border-[#d6e1eb] px-4 py-4 text-lg font-bold text-[#123b63]">
               Fundo de caixa
             </div>
             <div className="overflow-x-auto">
@@ -270,8 +278,8 @@ export function BilheteriaCashFundPage({
             </div>
           </article>
 
-          <article className="overflow-hidden rounded-[8px] border border-[#dbe7d7] bg-white shadow-none">
-            <div className="border-b border-[#dbe7d7] px-4 py-4 text-lg font-bold text-[#17351f]">
+          <article className="overflow-hidden rounded-[8px] border border-[#d6e1eb] bg-white shadow-none">
+            <div className="border-b border-[#d6e1eb] px-4 py-4 text-lg font-bold text-[#123b63]">
               Sangrias
             </div>
             <div className="overflow-x-auto">

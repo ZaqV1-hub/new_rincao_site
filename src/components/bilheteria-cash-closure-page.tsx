@@ -18,6 +18,7 @@ type Props = {
   isManager: boolean;
   printHref: string | null;
   report: BilheteriaCashClosureReportModel;
+  warningMessage?: string | null;
 };
 
 type CloseCashResponse = {
@@ -43,6 +44,7 @@ export function BilheteriaCashClosurePage({
   isManager,
   printHref,
   report,
+  warningMessage = null,
 }: Props) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"resumo" | "detalhado">("resumo");
@@ -169,13 +171,19 @@ export function BilheteriaCashClosurePage({
       />
 
       <section className="panel-section grid gap-5 p-5 print:bg-white print:p-0 print:shadow-none">
+        {warningMessage ? (
+          <div className="rounded-[8px] border border-[#f0d3a8] bg-[#fff6e3] px-4 py-3 text-sm text-[#8a6100]">
+            {warningMessage}
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="panel-eyebrow">Caixa</p>
-            <h1 className="text-[28px] font-black leading-tight text-[#17351f]">
+            <h1 className="text-[28px] font-black leading-tight text-[#123b63]">
               Fechamento de caixa
             </h1>
-            {isHistorical ? <p className="mt-1 text-sm text-[#5a6b5d]">Historico salvo</p> : null}
+            {isHistorical ? <p className="mt-1 text-sm text-[#5d7282]">Historico salvo</p> : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -199,12 +207,12 @@ export function BilheteriaCashClosurePage({
                 </Link>
               </>
             ) : null}
-            <div className="inline-flex rounded-[8px] border border-[#dbe7d7] bg-[#f6faf3] p-1">
+            <div className="inline-flex rounded-[8px] border border-[#d6e1eb] bg-[#f5f9fd] p-1">
               <button
                 className={`rounded-[6px] px-4 py-2 text-sm font-bold ${
                   activeTab === "resumo"
-                    ? "bg-[#2b8c46] text-white"
-                    : "text-[#426048]"
+                    ? "bg-[#246b99] text-white"
+                    : "text-[#4d7398]"
                 }`}
                 onClick={() => setActiveTab("resumo")}
                 type="button"
@@ -214,8 +222,8 @@ export function BilheteriaCashClosurePage({
               <button
                 className={`rounded-[6px] px-4 py-2 text-sm font-bold ${
                   activeTab === "detalhado"
-                    ? "bg-[#2b8c46] text-white"
-                    : "text-[#426048]"
+                    ? "bg-[#246b99] text-white"
+                    : "text-[#4d7398]"
                 }`}
                 onClick={() => setActiveTab("detalhado")}
                 type="button"
@@ -230,7 +238,7 @@ export function BilheteriaCashClosurePage({
           <div
             className={`border px-4 py-3 text-sm ${
               feedback.tone === "success"
-                ? "border-[#b7dfc0] bg-[#edf8f0] text-[#245336]"
+                ? "border-[#c8d9ea] bg-[#eef5fb] text-[#205a7f]"
                 : "border-[#efc0c0] bg-[#fff0f0] text-[#7a2b2b]"
             }`}
           >
@@ -238,7 +246,7 @@ export function BilheteriaCashClosurePage({
           </div>
         ) : null}
 
-        <div className="rounded-[8px] border border-[#dbe7d7] bg-[#f6faf3] px-4 py-3 text-sm text-[#314c36]">
+        <div className="rounded-[8px] border border-[#d6e1eb] bg-[#f5f9fd] px-4 py-3 text-sm text-[#35576f]">
           <strong className="block text-xs uppercase tracking-[0.06em]">
             Periodo considerado
           </strong>

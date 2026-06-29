@@ -84,8 +84,8 @@ function resolveActiveKeys(screen: LegacyPanelScreenContract["screenId"]) {
 
 function actionClasses(active: boolean) {
   return active
-    ? "border-[#1f7a3d] bg-[#23823f] text-white"
-    : "border-[#d9e4d3] bg-white text-[#17351f] hover:bg-[#f7fbf5]";
+    ? "border-[#246b99] bg-[#246b99] text-white"
+    : "border-[#c8d9ea] bg-white text-[#133d63] hover:bg-[#eef5fb]";
 }
 
 function ActionIcon({ actionKey }: { actionKey?: string }) {

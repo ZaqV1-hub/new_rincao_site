@@ -1,7 +1,7 @@
 ﻿import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import { PainelBilheteriaWorkstation } from "@/components/painel-bilheteria-workstation";
-import { getPublicAgendaEvents } from "@/lib/agenda-repository";
+import { getBilheteriaAgendaStatusToday } from "@/lib/bilheteria-agenda";
 import {
   lookupPainelBilheteriaTicketByVoucherId,
   type PainelBilheteriaTicketLookupResult,
@@ -19,16 +19,6 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-function getSaoPauloToday() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date());
-}
-
-function isBilheteriaAgendaOpen(status: string | null | undefined) {
-  return status === "abe" || status === "lot";
-}
-
 export default async function PainelBilheteriaPage({
   searchParams,
 }: {
@@ -39,11 +29,7 @@ export default async function PainelBilheteriaPage({
 }) {
   const session = await requirePainelAccess("vis_bilhet", "/painel/bilheteria");
   const params = await searchParams;
-  const today = getSaoPauloToday();
-  const [year, month] = today.split("-").map(Number);
-  const hasOpenAgendaToday = (await getPublicAgendaEvents(month, year)).some(
-    (agenda) => agenda.date === today && isBilheteriaAgendaOpen(agenda.status),
-  );
+  const { hasOpenAgendaToday } = await getBilheteriaAgendaStatusToday();
   let initialTicketLookupState:
     | {
         isOpen: boolean;
@@ -90,24 +76,30 @@ export default async function PainelBilheteriaPage({
         actorName={session.actorName}
       />
 
-      {hasOpenAgendaToday ? (
-        <PainelBilheteriaWorkstation
-          actorName={session.actorName}
-          actorCpf={session.actorCpf}
-          isManager={session.legacyRoleId === 1}
-          initialTicketLookupState={initialTicketLookupState}
-        />
-      ) : (
+      {!hasOpenAgendaToday ? (
         <section className="panel-section p-6">
           <p className="panel-eyebrow">Bilheteria</p>
-          <h2 className="mt-2 text-[34px] font-black leading-tight text-[#17351f]">
+          <h2 className="mt-2 text-[34px] font-black leading-tight text-[#123b63]">
             Agenda nao aberta
           </h2>
-          <p className="mt-3 text-[15px] leading-7 text-[#5f7564]">
-            A bilheteria so fica ativa quando existe agenda aberta para hoje.
+          <p className="mt-3 text-[15px] leading-7 text-[#5d7282]">
+            Sem uma agenda aberta para hoje, a validacao e a venda ficam bloqueadas. Historicos e consultas administrativas continuam disponiveis.
           </p>
         </section>
-      )}
+      ) : null}
+
+      <PainelBilheteriaWorkstation
+        actorName={session.actorName}
+        actorCpf={session.actorCpf}
+        isManager={session.legacyRoleId === 1}
+        initialTicketLookupState={initialTicketLookupState}
+        agendaOpen={hasOpenAgendaToday}
+        agendaWarning={
+          hasOpenAgendaToday
+            ? null
+            : "Nao existe agenda aberta para hoje. Validacao de ingresso e venda ficam indisponiveis ate abrir uma data."
+        }
+      />
     </div>
   );
 }

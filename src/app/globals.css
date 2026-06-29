@@ -461,6 +461,8 @@
   .rincao-panel .rincao-bilheteria-theme h2,
   .rincao-panel .rincao-bilheteria-theme h3,
   .rincao-panel .rincao-bilheteria-theme [class*="text-[#17351f]"],
+  .rincao-panel .rincao-bilheteria-theme [class*="text-[#1f6b36]"],
+  .rincao-panel .rincao-bilheteria-theme [class*="text-[#2b8c46]"],
   .rincao-panel .rincao-bilheteria-theme [class*="text-[#275330]"],
   .rincao-panel .rincao-bilheteria-theme [class*="text-[#286445]"],
   .rincao-panel .rincao-bilheteria-theme [class*="text-[#244f2c]"],
@@ -503,6 +505,7 @@
   .rincao-panel .rincao-bilheteria-theme [class*="bg-[#f7fbf5]"],
   .rincao-panel .rincao-bilheteria-theme [class*="bg-[#eef9f1]"],
   .rincao-panel .rincao-bilheteria-theme [class*="bg-[#eefaf2]"],
+  .rincao-panel .rincao-bilheteria-theme [class*="bg-[#edf8f0]"],
   .rincao-panel .rincao-bilheteria-theme [class*="bg-[#fcfefd]"] {
     background: var(--bilheteria-soft) !important;
   }
@@ -512,6 +515,7 @@
   .rincao-panel .rincao-bilheteria-theme [class*="border-[#dbe4d7]"],
   .rincao-panel .rincao-bilheteria-theme [class*="border-[#cde2d2]"],
   .rincao-panel .rincao-bilheteria-theme [class*="border-[#b9dec6]"],
+  .rincao-panel .rincao-bilheteria-theme [class*="border-[#b7dfc0]"],
   .rincao-panel .rincao-bilheteria-theme [class*="border-[#3b7e40]"],
   .rincao-panel .rincao-bilheteria-theme [class*="border-[#1f7a3d]"] {
     border-color: var(--bilheteria-border) !important;
@@ -520,9 +524,12 @@
   .rincao-panel .rincao-bilheteria-theme a[class*="bg-[#23823f]"],
   .rincao-panel .rincao-bilheteria-theme a[class*="bg-[#2b8c46]"],
   .rincao-panel .rincao-bilheteria-theme a[class*="bg-[#2f9e5b]"],
+  .rincao-panel .rincao-bilheteria-theme a[class*="bg-[#25D366]"],
   .rincao-panel .rincao-bilheteria-theme button[class*="bg-[#23823f]"],
   .rincao-panel .rincao-bilheteria-theme button[class*="bg-[#2b8c46]"],
   .rincao-panel .rincao-bilheteria-theme button[class*="bg-[#2f9e5b]"],
+  .rincao-panel .rincao-bilheteria-theme button[class*="bg-[#25D366]"],
+  .rincao-panel .rincao-bilheteria-theme [class*="bg-[linear-gradient(135deg,#1f6b36,#7bc043)]"],
   .rincao-panel .rincao-bilheteria-theme [class*="bg-[linear-gradient(180deg,#3e9ce1_0%,#245f88_100%)]"] {
     background: var(--bilheteria-primary) !important;
     border-color: var(--bilheteria-primary) !important;
@@ -533,9 +540,11 @@
   .rincao-panel .rincao-bilheteria-theme a[class*="bg-[#23823f]"]:hover,
   .rincao-panel .rincao-bilheteria-theme a[class*="bg-[#2b8c46]"]:hover,
   .rincao-panel .rincao-bilheteria-theme a[class*="bg-[#2f9e5b]"]:hover,
+  .rincao-panel .rincao-bilheteria-theme a[class*="bg-[#25D366]"]:hover,
   .rincao-panel .rincao-bilheteria-theme button[class*="bg-[#23823f]"]:hover,
   .rincao-panel .rincao-bilheteria-theme button[class*="bg-[#2b8c46]"]:hover,
-  .rincao-panel .rincao-bilheteria-theme button[class*="bg-[#2f9e5b]"]:hover {
+  .rincao-panel .rincao-bilheteria-theme button[class*="bg-[#2f9e5b]"]:hover,
+  .rincao-panel .rincao-bilheteria-theme button[class*="bg-[#25D366]"]:hover {
     background: var(--bilheteria-primary-strong) !important;
   }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getAgendaToneClasses } from "@/components/painel-agenda-manager";
 
 describe("PainelAgendaManager tone helpers", () => {
-  it("keeps open standard agendas green when selected", () => {
+  it("keeps open standard agendas blue when selected", () => {
     const classes = getAgendaToneClasses(
       {
         status: "abe",
@@ -11,7 +11,7 @@ describe("PainelAgendaManager tone helpers", () => {
       true,
     );
 
-    expect(classes).toContain("bg-[#8dc72b]");
+    expect(classes).toContain("bg-[#1d6fb8]");
     expect(classes).toContain("ring-2");
   });
 

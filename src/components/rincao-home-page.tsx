@@ -304,7 +304,7 @@ export function RincaoHomePage({
         >
           <div className="mx-auto w-full max-w-[1240px]">
             <div className="mb-9 text-center">
-              <p className="mb-3 text-[12px] font-bold uppercase tracking-[0.18em] text-[#1f6b36]">
+              <p className="mb-3 text-[12px] font-bold uppercase tracking-[0.18em] text-[#1d6fb8]">
                 Parque
               </p>
               <h2 className="m-0 text-[clamp(2rem,4vw,3.4rem)] font-black leading-none text-[#7a7a7a]">
@@ -314,7 +314,7 @@ export function RincaoHomePage({
 
             {attractions.length === 0 ? (
               <div className="rounded-[8px] border border-[#dbe7d7] bg-white px-6 py-10 text-center shadow-[0_14px_32px_rgba(24,67,34,0.08)]">
-                <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#1f6b36]">
+                <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#1d6fb8]">
                   Parque
                 </p>
                 <h3 className="mt-3 text-[28px] font-black text-[#17342d]">
@@ -405,7 +405,7 @@ export function RincaoHomePage({
 
             {events.length === 0 ? (
               <div className="rounded-[8px] border border-[#dbe7d7] bg-white px-6 py-10 text-center shadow-[0_14px_32px_rgba(24,67,34,0.08)]">
-                <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#1f6b36]">
+                <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#1d6fb8]">
                   Agenda do parque
                 </p>
                 <h3 className="mt-3 text-[28px] font-black text-[#17342d]">

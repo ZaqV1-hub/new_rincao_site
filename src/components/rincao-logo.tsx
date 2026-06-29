@@ -26,8 +26,7 @@ export function RincaoLogo({
       width={width}
       height={height}
       priority={compact}
-      className="h-auto max-w-full object-contain"
-      style={{ width: "auto", height: "auto" }}
+      className="h-full w-auto max-w-full object-contain"
     />
   );
 

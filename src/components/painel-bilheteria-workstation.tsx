@@ -38,6 +38,8 @@ type PainelBilheteriaWorkstationProps = {
   actorName?: string | null;
   actorCpf?: string | null;
   isManager?: boolean;
+  agendaOpen?: boolean;
+  agendaWarning?: string | null;
   initialTicketLookupState?: {
     isOpen: boolean;
     lookup: string;
@@ -48,7 +50,7 @@ type PainelBilheteriaWorkstationProps = {
 
 function messageToneClasses(tone: WorkstationMessage["tone"]) {
   if (tone === "success") {
-    return "border-[#b9dec6] bg-[#eefaf2] text-[#286445]";
+    return "border-[#c8d9ea] bg-[#eef5fb] text-[#205a7f]";
   }
 
   if (tone === "warning") {
@@ -60,12 +62,12 @@ function messageToneClasses(tone: WorkstationMessage["tone"]) {
 
 function actionButtonClasses(active = false) {
   return active
-    ? "border-[#1f7a3d] bg-[#23823f] text-white"
-    : "border border-[#dbe7d7] bg-white text-[#17351f] hover:bg-[#f6faf3]";
+    ? "border-[#246b99] bg-[#246b99] text-white"
+    : "border border-[#c8d9ea] bg-white text-[#133d63] hover:bg-[#eef5fb]";
 }
 
 function WorkstationFormIcon({ formId }: { formId: string }) {
-  const className = "h-8 w-8 text-[#244f2c]";
+  const className = "h-8 w-8 text-[#205a7f]";
 
   switch (formId) {
     case "voucher-validation":
@@ -146,6 +148,8 @@ export function PainelBilheteriaWorkstation({
   actorName = null,
   actorCpf = null,
   isManager = false,
+  agendaOpen = true,
+  agendaWarning = null,
   initialTicketLookupState,
 }: PainelBilheteriaWorkstationProps) {
   const contract = legacyPanelContracts.bilheteriaIndex;
@@ -299,6 +303,16 @@ export function PainelBilheteriaWorkstation({
   }
 
   async function handleValidateSelectedPurchase(purchaseId: number, voucherIds: number[]) {
+    if (!agendaOpen) {
+      setMessage({
+        tone: "warning",
+        text:
+          agendaWarning ||
+          "Nao existe agenda aberta para hoje. A validacao de ingressos fica indisponivel.",
+      });
+      return;
+    }
+
     if (voucherIds.length === 0) {
       setMessage({
         tone: "warning",
@@ -319,6 +333,16 @@ export function PainelBilheteriaWorkstation({
   }
 
   async function handleUnvalidateSelectedPurchase(purchaseId: number, voucherIds: number[]) {
+    if (!agendaOpen) {
+      setMessage({
+        tone: "warning",
+        text:
+          agendaWarning ||
+          "Nao existe agenda aberta para hoje. A validacao de ingressos fica indisponivel.",
+      });
+      return;
+    }
+
     if (voucherIds.length === 0) {
       setMessage({
         tone: "warning",
@@ -431,6 +455,17 @@ export function PainelBilheteriaWorkstation({
 
   async function handleVoucherSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!agendaOpen) {
+      setMessage({
+        tone: "warning",
+        text:
+          agendaWarning ||
+          "Nao existe agenda aberta para hoje. A validacao de ingressos fica indisponivel.",
+      });
+      return;
+    }
+
     setSubmittingVoucher(true);
     setCustomerLookup(null);
 
@@ -498,6 +533,16 @@ export function PainelBilheteriaWorkstation({
   }
 
   function handleOpenTicketLookup() {
+    if (!agendaOpen) {
+      setMessage({
+        tone: "warning",
+        text:
+          agendaWarning ||
+          "Nao existe agenda aberta para hoje. A consulta operacional de ingresso fica indisponivel.",
+      });
+      return;
+    }
+
     setTicketLookupOpen(true);
     setTicketLookupError(null);
     setTicketWhatsappError(null);
@@ -599,6 +644,11 @@ export function PainelBilheteriaWorkstation({
     <div className="grid gap-6">
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid gap-5">
+          {!agendaOpen && agendaWarning ? (
+            <section className="rounded-[10px] border border-[#f0d3a8] bg-[#fff6e3] px-5 py-4 text-sm text-[#8a6100]">
+              {agendaWarning}
+            </section>
+          ) : null}
           {contract.forms
             ?.filter((form) => form.id !== "trip-validation")
             .map((form) => {
@@ -616,12 +666,12 @@ export function PainelBilheteriaWorkstation({
                   onSubmit={(event) => void onSubmit(event)}
                   className="grid gap-5 md:grid-cols-[80px_minmax(0,1fr)]"
                 >
-                  <div className="flex h-18 w-18 items-center justify-center rounded-[8px] bg-[#f1f7f0]">
+                  <div className="flex h-18 w-18 items-center justify-center rounded-[8px] bg-[#eef5fb]">
                     <WorkstationFormIcon formId={form.id} />
                   </div>
 
                   <div>
-                    <h2 className="text-[22px] font-black leading-tight text-[#17351f]">
+                    <h2 className="text-[22px] font-black leading-tight text-[#123b63]">
                       {form.title}
                     </h2>
 
@@ -634,14 +684,14 @@ export function PainelBilheteriaWorkstation({
                       />
                       <button
                         type="submit"
-                        disabled={submitting}
-                        className="inline-flex min-h-[56px] items-center justify-center rounded-[6px] border border-[#3b7e40] bg-white px-5 text-base font-bold text-[#275330] transition hover:bg-[#f7fbf5] disabled:opacity-60"
+                        disabled={submitting || (isVoucher && !agendaOpen)}
+                        className="inline-flex min-h-[56px] items-center justify-center rounded-[6px] border border-[#c8d9ea] bg-white px-5 text-base font-bold text-[#133d63] transition hover:bg-[#eef5fb] disabled:opacity-60"
                       >
                         {submitting ? "Aguarde" : form.submitLabel}
                       </button>
                     </div>
 
-                    <p className="mt-3 text-sm text-[#667c6a]">
+                    <p className="mt-3 text-sm text-[#5d7282]">
                       {form.id === "voucher-validation"
                         ? "Digite o codigo do voucher para validar."
                         : "Digite o RG ou CPF do cliente para consultar."}
@@ -697,8 +747,8 @@ export function PainelBilheteriaWorkstation({
               ))}
           </div>
 
-          <div className="mt-6 border-t border-[#dbe7d7] pt-4 text-sm leading-6 text-[#5a6b5d]">
-            <div className="font-semibold text-[#17351f]">
+          <div className="mt-6 border-t border-[#d6e1eb] pt-4 text-sm leading-6 text-[#5d7282]">
+            <div className="font-semibold text-[#123b63]">
               {actorName || actorCpf || "Sessão operacional"}
             </div>
           </div>
@@ -728,11 +778,11 @@ export function PainelBilheteriaWorkstation({
           ticketLookupOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
-        <div className="w-full max-w-[460px] rounded-[28px] border border-[#dbe7d7] bg-white shadow-[0_24px_64px_rgba(24,67,34,0.2)]">
-          <div className="flex items-center justify-between gap-3 border-b border-[#dbe7d7] px-5 py-4">
+        <div className="w-full max-w-[460px] rounded-[28px] border border-[#d6e1eb] bg-white shadow-[0_24px_64px_rgba(20,59,99,0.18)]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#d6e1eb] px-5 py-4">
             <h2
               id="painel-bilheteria-ticket-lookup-title"
-              className="text-lg font-black text-[#17351f]"
+              className="text-lg font-black text-[#123b63]"
             >
               {contract.modals?.find((modal) => modal.id === "ticket-lookup")?.title ||
                 "Consultar Ingresso"}
@@ -740,7 +790,7 @@ export function PainelBilheteriaWorkstation({
             <button
               type="button"
               onClick={handleCloseTicketLookup}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#dbe7d7] text-[#5d745f]"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d6e1eb] text-[#5d7282]"
               aria-label="Fechar consulta de ingresso"
             >
               ×
@@ -749,7 +799,7 @@ export function PainelBilheteriaWorkstation({
 
           <div className="grid gap-4 px-5 py-5">
             <form onSubmit={handleTicketLookupSubmit} className="grid gap-3">
-              <label className="grid gap-2 text-sm font-semibold text-[#35503b]">
+              <label className="grid gap-2 text-sm font-semibold text-[#35576f]">
                 Inserir ID do Ingresso
                 <input
                   value={ticketLookup}
@@ -771,8 +821,8 @@ export function PainelBilheteriaWorkstation({
               ) : null}
 
               {ticketLookupResult ? (
-                <div className="rounded-[22px] border border-[#dbe7d7] bg-[#f7fbf5] px-4 py-4 text-sm text-[#35503b]">
-                  <div className="text-base font-semibold text-[#286445]">
+                <div className="rounded-[22px] border border-[#d6e1eb] bg-[#f5f9fd] px-4 py-4 text-sm text-[#35576f]">
+                  <div className="text-base font-semibold text-[#205a7f]">
                     Ingresso Encontrado!
                   </div>
                   <p className="mt-3">
@@ -795,7 +845,7 @@ export function PainelBilheteriaWorkstation({
                     </p>
                   ) : ticketLookupResult.purchaseId ? (
                     <div className="mt-4 grid gap-3">
-                      <label className="grid gap-2 text-sm font-semibold text-[#35503b]">
+                      <label className="grid gap-2 text-sm font-semibold text-[#35576f]">
                         Telefone com DDD
                         <input
                           value={ticketWhatsappPhone}
@@ -808,7 +858,7 @@ export function PainelBilheteriaWorkstation({
                         <p className="text-sm text-[#a94442]">{ticketWhatsappError}</p>
                       ) : null}
                       {ticketWhatsappSuccess ? (
-                        <p className="text-sm text-[#286445]">{ticketWhatsappSuccess}</p>
+                        <p className="text-sm text-[#205a7f]">{ticketWhatsappSuccess}</p>
                       ) : null}
                     </div>
                   ) : null}
@@ -819,13 +869,13 @@ export function PainelBilheteriaWorkstation({
                 <button
                   type="button"
                   onClick={handleCloseTicketLookup}
-                  className="rounded-full border border-[#dbe7d7] px-4 py-2.5 text-sm font-bold text-[#5d745f]"
+                  className="rounded-full border border-[#d6e1eb] px-4 py-2.5 text-sm font-bold text-[#5d7282]"
                 >
                   Voltar
                 </button>
                 <button
                   type="submit"
-                  className="rounded-full bg-[#2b8c46] px-4 py-2.5 text-sm font-bold text-white"
+                  className="rounded-full bg-[#246b99] px-4 py-2.5 text-sm font-bold text-white"
                 >
                   {contract.modals?.find((modal) => modal.id === "ticket-lookup")
                     ?.primaryActionLabel || "Procurar"}
@@ -834,7 +884,7 @@ export function PainelBilheteriaWorkstation({
                   type="button"
                   onClick={handlePrintTicketLookup}
                   disabled={!ticketLookupResult || ticketLookupResult.used}
-                  className="rounded-full border border-[#dbe7d7] bg-white px-4 py-2.5 text-sm font-bold text-[#275330] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-full border border-[#d6e1eb] bg-white px-4 py-2.5 text-sm font-bold text-[#205a7f] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Imprimir QR-Code
                 </button>
@@ -847,7 +897,7 @@ export function PainelBilheteriaWorkstation({
                     ticketLookupResult.used ||
                     !ticketLookupResult.purchaseId
                   }
-                  className="rounded-full bg-[#2b8c46] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-full bg-[#246b99] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {sendingTicketWhatsapp ? "Enviando..." : "Enviar no WhatsApp"}
                 </button>
@@ -858,7 +908,7 @@ export function PainelBilheteriaWorkstation({
       </section>
 
       {customerLookup ? (
-        <section className="rounded-[28px] border border-[#dbe7d7] bg-white p-5 shadow-[0_16px_36px_rgba(24,67,34,0.08)]">
+        <section className="rounded-[28px] border border-[#d6e1eb] bg-white p-5 shadow-[0_16px_36px_rgba(20,59,99,0.08)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold text-[#205a7f]">
@@ -1045,7 +1095,7 @@ export function PainelBilheteriaWorkstation({
                                 )
                               }
                               disabled={isActionRunning(`whatsapp-purchase-${purchase.purchaseId}`)}
-                              className="rounded-[4px] bg-[#2f9e5b] px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
+                              className="rounded-[4px] bg-[#246b99] px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
                             >
                               Enviar selecionados no WhatsApp
                             </button>

@@ -1,4 +1,5 @@
 import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { listOpsAdminMasterData } from "@/lib/ops-admin-master-data";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import {
   getAgendaProductAvailability,
@@ -428,17 +429,19 @@ export async function getPainelAgendaDay(date: string) {
 }
 
 export async function listPainelAgendaPriceTables() {
-  const pool = getIngressoDbPool();
-  const result = await pool.query<OptionRow>(
-    `
-      SELECT idtabpreco AS id, nmtabpreco AS label
-      FROM tabpreco
-      WHERE COALESCE(sttabpreco, 'ati') <> 'ina'
-      ORDER BY nmtabpreco ASC
-    `,
-  );
+  const result = await listOpsAdminMasterData("price-tables");
 
-  return result.rows.map((row) => ({ id: Number(row.id), label: row.label }));
+  return (result.items as Array<{
+    idtabpreco: number;
+    nmtabpreco: string | null;
+    sttabpreco: string | null;
+  }>)
+    .filter((row) => String(row.sttabpreco ?? "ati").trim() !== "ina")
+    .map((row) => ({
+      id: Number(row.idtabpreco),
+      label: String(row.nmtabpreco ?? "").trim() || `Tabela #${row.idtabpreco}`,
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label, "pt-BR"));
 }
 
 export async function listPainelAgendaInformationOptions() {

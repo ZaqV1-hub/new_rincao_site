@@ -1,10 +1,10 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import { PainelBilheteriaSalesBuilder } from "@/components/painel-bilheteria-sales-builder";
-import { getManagedB2cProducts } from "@/lib/rincao-content-store";
-import { getPublicAgendaEvents } from "@/lib/agenda-repository";
+import { getBilheteriaAgendaStatusToday } from "@/lib/bilheteria-agenda";
 import { getAgendaProductAvailability } from "@/lib/painel-agenda-product-availability";
 import { requirePainelAccess } from "@/lib/painel-session";
+import { getManagedB2cProducts } from "@/lib/rincao-content-store";
 
 export const metadata: Metadata = {
   title: "Painel - Vendas da Bilheteria | Rincao",
@@ -16,20 +16,11 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-function getSaoPauloToday() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date());
-}
-
 export default async function PainelBilheteriaVendasPage() {
   const session = await requirePainelAccess("vis_bilhet", "/painel/bilheteria/vendas");
   const products = await getManagedB2cProducts("passport");
-  const today = getSaoPauloToday();
-  const [year, month] = today.split("-").map(Number);
-  const agendas = (await getPublicAgendaEvents(month, year)).filter(
-    (agenda) => agenda.date === today && agenda.status === "abe",
-  );
+  const { today, openAgendas } = await getBilheteriaAgendaStatusToday();
+  const agendas = openAgendas.filter((agenda) => agenda.status === "abe");
   const availability = await getAgendaProductAvailability(today);
   const availableProducts = products.filter((product) =>
     availability.passportIds.includes(product.id),
@@ -54,4 +45,3 @@ export default async function PainelBilheteriaVendasPage() {
     </div>
   );
 }
-

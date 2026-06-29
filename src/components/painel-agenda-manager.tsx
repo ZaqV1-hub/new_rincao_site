@@ -62,7 +62,7 @@ function getAgendaBaseToneClasses(entry?: AgendaToneInput) {
     return "border-[#ff6138] bg-[#ff6138] text-white";
   }
 
-  return "border-[#8dc72b] bg-[#8dc72b] text-white";
+  return "border-[#1d6fb8] bg-[#1d6fb8] text-white";
 }
 
 export function getAgendaToneClasses(
@@ -95,7 +95,7 @@ function getSelectedDayCardClasses(entry: AgendaToneInput | undefined) {
     return "border-[#ffd0c0] bg-[#fff4ef] text-[#9f4420]";
   }
 
-  return "border-[#cfe7a1] bg-[#f6fbeb] text-[#355824]";
+  return "border-[#c9def2] bg-[#eef6fd] text-[#123b63]";
 }
 
 function buildQuery(month: number, year: number, selectedDate?: string | null) {
@@ -346,7 +346,7 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
 
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5 text-[11px] text-[#4f6472]">
             <div className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded bg-[#8dc72b]" />
+              <span className="h-3 w-3 rounded bg-[#1d6fb8]" />
               Padrão
             </div>
             <div className="flex items-center gap-2">
