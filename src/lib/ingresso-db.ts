@@ -509,9 +509,7 @@ function createPrefixedPostgresIngressoDbPool(prefix: IngressoDbConfigPrefix): I
 }
 
 export function getIngressoDbPool(): IngressoDbPool {
-  return resolveIngressoDbDialect() === "mysql"
-    ? createMysqlIngressoDbPool()
-    : createPostgresIngressoDbPool();
+  return getIngressoSistemaDbPool();
 }
 
 export function getIngressoSistemaDbPool(): IngressoDbPool {
