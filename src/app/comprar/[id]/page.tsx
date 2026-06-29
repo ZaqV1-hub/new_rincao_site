@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { IngressoShell } from "@/components/ingresso-shell";
 import { PurchasePage } from "@/components/purchase-page";
 import { parseAgendaId } from "@/lib/agenda-id";
-import { listB2cProducts } from "@/lib/b2c-catalog";
 import {
   getPublicAgendaEventById,
   isAgendaDateExpired,
@@ -12,6 +11,7 @@ import {
 import { requireAuthenticatedCustomer } from "@/lib/customer-area";
 import { getAgendaProductAvailability } from "@/lib/painel-agenda-product-availability";
 import { getPurchaseAgendaContext } from "@/lib/purchase-repository";
+import { buildStandardTicketProducts } from "@/lib/standard-ticket-products";
 
 export const metadata: Metadata = {
   title: "Comprar Ingressos | Rincao",
@@ -68,10 +68,12 @@ export default async function BuyRoutePage({ params }: BuyRoutePageProps) {
   }
 
   const availability = await getAgendaProductAvailability(agenda.date);
-  const products = (await listB2cProducts()).filter((product) =>
-    product.type === "passport"
-      ? availability.passportIds.includes(product.id)
-      : availability.addonIds.includes(product.id),
+  const products = buildStandardTicketProducts(
+    {
+      siteNormal: agenda.priceTable.normal,
+      siteChild: agenda.priceTable.child,
+    },
+    availability.passportIds,
   );
 
   return <PurchasePage agenda={agenda} user={customer} products={products} />;

@@ -448,8 +448,8 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
         <div
           className={`mx-auto py-3 sm:py-4 ${
             step === "review"
-              ? "w-[min(1080px,calc(100%-16px))] sm:w-[min(1080px,calc(100%-24px))]"
-              : "w-[min(980px,calc(100%-16px))] sm:w-[min(980px,calc(100%-24px))]"
+              ? "w-[min(1140px,calc(100%-16px))] sm:w-[min(1140px,calc(100%-24px))]"
+              : "w-[min(1220px,calc(100%-16px))] sm:w-[min(1220px,calc(100%-24px))]"
           }`}
         >
           <FlowStepper current={step === "tickets" ? "tickets" : "payment"} />
@@ -461,7 +461,7 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
           ) : null}
 
           {step !== "review" ? (
-            <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-start">
+            <div className="mt-3 grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start">
               <section>
                 <div className="mb-3 inline-flex items-center gap-2.5 rounded-[10px] border border-[#d7e3ee] bg-white px-2.5 py-2 shadow-[0_8px_16px_rgba(20,59,99,0.035)] lg:hidden">
                   <IconBubble name="calendar" className="h-8 w-8" />

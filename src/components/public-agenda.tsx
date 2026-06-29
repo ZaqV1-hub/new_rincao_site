@@ -261,7 +261,7 @@ export function PublicAgenda({
 
   return (
     <div className="min-h-[calc(100vh-58px)] pb-20 text-[#143b63] lg:pb-6">
-      <div className="mx-auto w-[min(980px,calc(100%-16px))] py-3 sm:w-[min(980px,calc(100%-24px))] sm:py-4">
+      <div className="mx-auto w-[min(1180px,calc(100%-16px))] py-3 sm:w-[min(1180px,calc(100%-24px))] sm:py-4">
         <FlowStepper current="date" />
 
         {state.status === "error" ? (
@@ -270,7 +270,7 @@ export function PublicAgenda({
           </div>
         ) : null}
 
-        <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
+        <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
           <section className="rounded-[14px] border border-[#d7e3ee] bg-white/92 p-3 text-left shadow-[0_10px_22px_rgba(20,59,99,0.045)] sm:p-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#3f78ab] lg:hidden">
               {getMonthLabel(period.month, period.year)}

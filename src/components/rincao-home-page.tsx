@@ -293,19 +293,21 @@ export function RincaoHomePage({
           className="scroll-mt-[96px] px-5 py-16 md:py-20 lg:scroll-mt-[132px]"
         >
           <div className="mx-auto max-w-[1240px]">
-            <div className="mb-9 text-center">
-              <p className="mb-3 text-[12px] font-bold uppercase tracking-[0.18em] text-[#1d6fb8]">
-                Parque
-              </p>
-              <h2 className="m-0 text-[clamp(2.1rem,4vw,3.8rem)] font-black leading-none text-[#7a7a7a]">
-                Atracoes
-              </h2>
+            <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="text-left">
+                <p className="text-[12px] font-bold uppercase tracking-[0.24em] text-[#5f84a7]">
+                  Parque
+                </p>
+                <h2 className="mt-4 text-[clamp(2.4rem,5vw,4.1rem)] leading-[0.95] text-[#12344f]">
+                  Atrações
+                </h2>
+              </div>
             </div>
 
             {attractions.length === 0 ? (
               <div className="rounded-[10px] border border-[#d8e2eb] bg-white px-6 py-10 text-center shadow-[0_14px_32px_rgba(18,52,79,0.08)]">
                 <p className="text-[0.98rem] leading-7 text-[#567085]">
-                  Nenhuma atracao publicada no painel neste momento.
+                  Nenhuma atração publicada no painel neste momento.
                 </p>
               </div>
             ) : (
@@ -315,7 +317,7 @@ export function RincaoHomePage({
                     {attractionIndex > 0 ? (
                       <button
                         type="button"
-                        aria-label="Atracao anterior"
+                        aria-label="Atração anterior"
                         onClick={() => moveAttraction(-1)}
                         className="absolute left-0 top-1/2 z-10 hidden h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#12344f] shadow-[0_14px_30px_rgba(18,52,79,0.16)] transition hover:bg-[#12344f] hover:text-white md:flex"
                       >
@@ -325,7 +327,7 @@ export function RincaoHomePage({
                     {attractionIndex < attractions.length - 1 ? (
                       <button
                         type="button"
-                        aria-label="Proxima atracao"
+                        aria-label="Próxima atração"
                         onClick={() => moveAttraction(1)}
                         className="absolute right-0 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-white text-[#12344f] shadow-[0_14px_30px_rgba(18,52,79,0.16)] transition hover:bg-[#12344f] hover:text-white md:flex"
                       >
@@ -384,7 +386,7 @@ export function RincaoHomePage({
                   Segmentos
                 </p>
                 <h2 className="mt-4 text-[clamp(2.4rem,5vw,4.1rem)] leading-[0.95] text-[#12344f]">
-                  Servicos
+                  Serviços
                 </h2>
               </div>
               <Link href="/servicos" className="rincao-button-secondary w-fit">
@@ -395,7 +397,7 @@ export function RincaoHomePage({
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
               {[
                 { title: "Escola", href: "/escola" },
-                { title: "Confraternizacoes", href: "/confraternizacoes" },
+                { title: "Confraternizações", href: "/confraternizacoes" },
                 { title: "Grupos", href: "/servicos" },
                 { title: "Atendimento institucional", href: "/servicos" },
               ].map((item) => (
@@ -411,7 +413,7 @@ export function RincaoHomePage({
                     {item.title}
                   </h3>
                   <span className="mt-5 inline-flex items-center gap-2 text-[0.95rem] font-bold text-[#1d6fb8]">
-                    Abrir pagina
+                    Abrir página
                     <span aria-hidden="true">→</span>
                   </span>
                 </Link>

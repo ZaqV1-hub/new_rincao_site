@@ -4,7 +4,7 @@ import { PainelBilheteriaSalesBuilder } from "@/components/painel-bilheteria-sal
 import { getBilheteriaAgendaStatusToday } from "@/lib/bilheteria-agenda";
 import { getAgendaProductAvailability } from "@/lib/painel-agenda-product-availability";
 import { requirePainelAccess } from "@/lib/painel-session";
-import { getManagedB2cProducts } from "@/lib/rincao-content-store";
+import { buildStandardTicketProducts } from "@/lib/standard-ticket-products";
 
 export const metadata: Metadata = {
   title: "Painel - Vendas da Bilheteria | Rincao",
@@ -18,13 +18,21 @@ export const dynamic = "force-dynamic";
 
 export default async function PainelBilheteriaVendasPage() {
   const session = await requirePainelAccess("vis_bilhet", "/painel/bilheteria/vendas");
-  const products = await getManagedB2cProducts("passport");
   const { today, openAgendas } = await getBilheteriaAgendaStatusToday();
   const agendas = openAgendas.filter((agenda) => agenda.status === "abe");
   const availability = await getAgendaProductAvailability(today);
-  const availableProducts = products.filter((product) =>
-    availability.passportIds.includes(product.id),
-  );
+  const agenda = agendas[0] ?? null;
+  const availableProducts = agenda
+    ? buildStandardTicketProducts(
+        {
+          siteNormal: agenda.priceTable.normal,
+          siteChild: agenda.priceTable.child,
+          gateNormal: agenda.priceTable.gateNormal ?? agenda.priceTable.normal,
+          gateChild: agenda.priceTable.gateChild ?? agenda.priceTable.child,
+        },
+        availability.passportIds,
+      )
+    : [];
 
   return (
     <div className="grid gap-5">
@@ -33,7 +41,7 @@ export default async function PainelBilheteriaVendasPage() {
         screen="bilheteria-sales"
         isManager={session.legacyRoleId === 1}
         title="Vendas"
-        description="Monte a compra, aplique descontos e cortesias, e siga para a finalizacao do pagamento."
+        description="Monte a compra, aplique descontos e cortesias, e siga para a finalização do pagamento."
         actorName={session.actorName}
       />
 

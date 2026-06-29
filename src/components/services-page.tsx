@@ -11,7 +11,7 @@ export function ServicesPage() {
             Segmentos de atendimento
           </p>
           <h1 className="mt-4 text-[clamp(2.5rem,5vw,4.8rem)] leading-[0.95] text-white">
-            Servicos
+            Serviços
           </h1>
         </div>
       </section>
@@ -40,7 +40,7 @@ export function ServicesPage() {
                   {segment.text}
                 </p>
                 <Link href={segment.href} className="rincao-button mt-6 inline-flex">
-                  Abrir pagina
+                  Abrir página
                 </Link>
               </article>
             ))}

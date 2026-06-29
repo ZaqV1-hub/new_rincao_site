@@ -9,11 +9,11 @@ import { RincaoLogo } from "@/components/rincao-logo";
 import { contact } from "@/lib/site-content";
 
 const marketingNav = [
-  { href: "/", label: "Inicio" },
+  { href: "/", label: "Início" },
   { href: "/servicos", label: "Segmentos" },
   { href: "/escola", label: "Escola" },
-  { href: "/confraternizacoes", label: "Confraternizacoes" },
-  { href: "/localizacao", label: "Localizacao" },
+  { href: "/confraternizacoes", label: "Confraternizações" },
+  { href: "/localizacao", label: "Localização" },
 ];
 
 export function SiteShell({
@@ -154,15 +154,16 @@ export function SiteShell({
       <footer className="bg-[#0f2d47] px-5 py-14 text-white">
         <div className="mx-auto grid max-w-[1240px] gap-10 lg:grid-cols-[1.4fr_1fr_1fr_1.1fr]">
           <div className="text-left">
-            <RincaoLogo href="/" compact className="h-[54px] max-w-[220px] brightness-[1.06]" />
-            <p className="mt-5 max-w-[420px] text-[0.95rem] leading-7 text-white/72">
-              Home, segmentos institucionais, agenda publica e compra conectados na mesma frente do site.
-            </p>
+            <RincaoLogo
+              href="/"
+              compact
+              className="h-[54px] max-w-[220px] brightness-[1.06]"
+            />
           </div>
 
           <div className="text-left">
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/48">
-              Paginas
+              Páginas
             </p>
             <div className="mt-4 flex flex-col gap-3 text-[0.95rem] text-white/78">
               {marketingNav.map((item) => (
@@ -200,7 +201,12 @@ export function SiteShell({
             <div className="mt-4 space-y-3 text-[0.95rem] leading-7 text-white/78">
               <p>{contact.address}</p>
               <p>{contact.phones[0]}</p>
-              <a href={contact.whatsapp} target="_blank" rel="noreferrer" className="inline-flex text-white hover:text-[#d99f55]">
+              <a
+                href={contact.whatsapp}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex text-white hover:text-[#d99f55]"
+              >
                 WhatsApp oficial
               </a>
             </div>
@@ -208,7 +214,7 @@ export function SiteShell({
         </div>
 
         <div className="mx-auto mt-10 flex max-w-[1240px] flex-col gap-3 border-t border-white/10 pt-6 text-left text-[0.88rem] text-white/48 md:flex-row md:items-center md:justify-between">
-          <p>© 2026 Clube Rincao. Todos os direitos reservados.</p>
+          <p>© 2026 Clube Rincão. Todos os direitos reservados.</p>
           <div className="flex flex-wrap gap-4">
             <Link href={customerMenuHref} className="hover:text-white">
               Minha conta
