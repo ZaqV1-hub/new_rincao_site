@@ -4,6 +4,8 @@ export type PainelBilheteriaSaleDraftItem = {
   type: "norma" | "infan" | "isent";
   quantity: number;
   label: string;
+  discountId: number | null;
+  discountLabel: string | null;
   baseUnitValue: string;
   unitValue: string;
   totalValue: string;
@@ -23,8 +25,6 @@ export type PainelBilheteriaSaleDraft = {
   cpf: string;
   items: PainelBilheteriaSaleDraftItem[];
   courtesies: PainelBilheteriaSaleDraftCourtesy[];
-  purchaseDiscountId: number | null;
-  purchaseDiscountLabel: string | null;
   discountValue: string;
   subtotalValue: string;
   totalValue: string;

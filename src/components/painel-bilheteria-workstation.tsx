@@ -936,7 +936,7 @@ export function PainelBilheteriaWorkstation({
                                 <th className="border border-[#6f8ea8] px-4 py-3 font-normal">ID</th>
                                 <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Voucher</th>
                                 <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data da visita</th>
-                                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Passaporte</th>
+                                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ingresso</th>
                                 <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
                                 <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
                               </tr>

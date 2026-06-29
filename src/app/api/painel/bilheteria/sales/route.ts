@@ -13,7 +13,6 @@ type BoxOfficeSalePayload = {
   items?: unknown;
   courtesies?: unknown;
   payments?: unknown;
-  purchaseDiscountId?: unknown;
   reason?: unknown;
   idempotencyKey?: unknown;
 };
@@ -39,11 +38,6 @@ export async function POST(request: Request) {
                 label?: string | null;
               }>)
             : [],
-          purchaseDiscountId:
-            Number.isInteger(Number(payload?.purchaseDiscountId)) &&
-            Number(payload?.purchaseDiscountId) > 0
-              ? Number(payload?.purchaseDiscountId)
-              : null,
           courtesies: Array.isArray(payload?.courtesies)
             ? (payload.courtesies as Array<{
                 authorId: number;

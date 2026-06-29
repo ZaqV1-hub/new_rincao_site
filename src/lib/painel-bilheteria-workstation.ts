@@ -165,8 +165,8 @@ const paymentMethodLabels: Record<string, string> = {
 };
 
 const voucherTypeLabels: Record<string, string> = {
-  norma: "Passaporte",
-  infan: "Passaporte Infantil",
+  norma: "Adulto",
+  infan: "Infantil",
   isent: "Isento",
   corte: "Cortesia",
   escol: "Escola",
@@ -208,12 +208,20 @@ function formatVoucherTypeLabel(value: string | null | undefined) {
   return voucherTypeLabels[key] ?? (key || "-");
 }
 
+function normalizeVoucherDescriptionLabel(description: string) {
+  return description
+    .replace(/^Passaporte Infantil\b/i, "Infantil")
+    .replace(/^Passaporte\b/i, "Adulto");
+}
+
 function resolveVoucherDisplayLabel(
   description: string | null | undefined,
   voucherType: string | null | undefined,
 ) {
   const normalizedDescription = String(description ?? "").trim();
-  return normalizedDescription || formatVoucherTypeLabel(voucherType);
+  return normalizedDescription
+    ? normalizeVoucherDescriptionLabel(normalizedDescription)
+    : formatVoucherTypeLabel(voucherType);
 }
 
 function formatVoucherStatusLabel(value: string | null | undefined) {

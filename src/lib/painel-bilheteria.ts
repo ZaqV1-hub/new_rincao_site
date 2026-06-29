@@ -286,8 +286,8 @@ const purchaseTypeLabels: Record<string, string> = {
 };
 
 const voucherTypeLabels: Record<string, string> = {
-  norma: "Passaporte",
-  infan: "Passaporte Infantil",
+  norma: "Adulto",
+  infan: "Infantil",
   isent: "Isento",
   corte: "Cortesia",
   escol: "Escola",
@@ -415,11 +415,19 @@ function formatVoucherTypeLabel(code: string | null | undefined) {
   return normalized ? voucherTypeLabels[normalized] ?? normalized : "-";
 }
 
+function normalizeVoucherDescriptionLabel(description: string) {
+  return description
+    .replace(/^Passaporte Infantil\b/i, "Infantil")
+    .replace(/^Passaporte\b/i, "Adulto");
+}
+
 function resolveVoucherDisplayLabel(
   voucher: Pick<PurchaseVoucherRow, "descricao" | "tpvoucher">,
 ) {
   const description = String(voucher.descricao ?? "").trim();
-  return description || formatVoucherTypeLabel(voucher.tpvoucher);
+  return description
+    ? normalizeVoucherDescriptionLabel(description)
+    : formatVoucherTypeLabel(voucher.tpvoucher);
 }
 
 function formatVoucherStatusLabel(code: string | null | undefined) {

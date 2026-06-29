@@ -107,7 +107,7 @@ describe("ops-box-office-sales", () => {
       }
 
       if (sql.includes("INSERT INTO compra (")) {
-        expect(values).toEqual(["52998224725", "dinhe", "170.00"]);
+        expect(values).toEqual(["52998224725", "dinhe", "170.00", "100.00"]);
         return { rows: [{ idcompra: 321 }] };
       }
 
@@ -128,7 +128,7 @@ describe("ops-box-office-sales", () => {
           "s",
           expect.any(String),
           7,
-          "Passaporte - Professor",
+          "Adulto - Professor",
           null,
           null,
           "n",
@@ -140,7 +140,7 @@ describe("ops-box-office-sales", () => {
           "s",
           expect.any(String),
           7,
-          "Passaporte - Professor",
+          "Adulto - Professor",
           null,
           null,
           "n",
@@ -152,7 +152,7 @@ describe("ops-box-office-sales", () => {
           "n",
           expect.any(String),
           null,
-          "Passaporte Infantil",
+          "Infantil",
           null,
           null,
           "n",

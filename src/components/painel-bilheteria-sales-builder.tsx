@@ -30,6 +30,7 @@ type SaleLineDraft = {
   id: string;
   selection: string;
   quantity: number;
+  discountId: string;
   authorId: string;
   identification: string;
   note: string;
@@ -45,6 +46,7 @@ const emptySaleLineDraft: SaleLineDraft = {
   id: "",
   selection: "",
   quantity: 1,
+  discountId: "",
   authorId: "",
   identification: "",
   note: "",
@@ -114,32 +116,60 @@ function SalesIcon({ kind }: { kind: "ticket" | "discount" | "summary" | "plus" 
   }
 }
 
-function calculatePurchaseDiscount(
-  subtotal: number,
+function readAgendaPrice(product: B2cProduct) {
+  return parseMoney(getB2cBoxOfficePrice(product));
+}
+
+function formatDiscountLabel(discount: OpsDiscount) {
+  return discount.typeDescription
+    ? `${discount.typeDescription} - ${discount.name}`
+    : discount.name;
+}
+
+function calculateDiscountedUnitPrice(
+  basePrice: number,
   discountId: string,
   discounts: OpsDiscount[],
 ) {
   const discount = discounts.find((item) => String(item.id) === discountId.trim());
 
   if (!discount) {
-    return 0;
+    return {
+      unitPrice: basePrice,
+      discountValue: 0,
+      discountLabel: null,
+      discountId: null,
+    };
   }
 
   const value = parseMoney(discount.value);
 
   if (discount.applicationType === "percentual") {
-    return money(subtotal * (value / 100));
+    const unitPrice = money(Math.max(0, basePrice - basePrice * (value / 100)));
+    return {
+      unitPrice,
+      discountValue: money(basePrice - unitPrice),
+      discountLabel: formatDiscountLabel(discount),
+      discountId: discount.id,
+    };
   }
 
   if (discount.applicationType === "valor_fixo") {
-    return Math.min(subtotal, money(value));
+    const unitPrice = money(Math.max(0, basePrice - Math.min(basePrice, value)));
+    return {
+      unitPrice,
+      discountValue: money(basePrice - unitPrice),
+      discountLabel: formatDiscountLabel(discount),
+      discountId: discount.id,
+    };
   }
 
-  return 0;
-}
-
-function readAgendaPrice(product: B2cProduct) {
-  return parseMoney(getB2cBoxOfficePrice(product));
+  return {
+    unitPrice: basePrice,
+    discountValue: 0,
+    discountLabel: null,
+    discountId: null,
+  };
 }
 
 export function PainelBilheteriaSalesBuilder({
@@ -150,7 +180,6 @@ export function PainelBilheteriaSalesBuilder({
   const router = useRouter();
   const agendaId = agendas[0] ? String(agendas[0].id) : "";
   const [saleLines, setSaleLines] = useState<SaleLineDraft[]>([]);
-  const [purchaseDiscountId, setPurchaseDiscountId] = useState("");
   const [discounts, setDiscounts] = useState<OpsDiscount[]>([]);
   const [courtesyAuthors, setCourtesyAuthors] = useState<OpsCourtesyAuthor[]>([]);
   const [loadingReference, setLoadingReference] = useState(true);
@@ -211,20 +240,37 @@ export function PainelBilheteriaSalesBuilder({
         }
 
         const basePrice = readAgendaPrice(product);
-        const totalValue = money(basePrice * line.quantity);
+        const normalizedType =
+          product.voucherType === "infan"
+            ? "infan"
+            : product.voucherType === "isent"
+              ? "isent"
+              : "norma";
+        const isDiscountAllowed = normalizedType !== "isent";
+        const pricing = isDiscountAllowed
+          ? calculateDiscountedUnitPrice(basePrice, line.discountId, discounts)
+          : {
+              unitPrice: basePrice,
+              discountValue: 0,
+              discountLabel: null,
+              discountId: null,
+            };
+        const totalValue = money(pricing.unitPrice * line.quantity);
 
         return [
           {
-            type: product.voucherType === "infan" ? "infan" : "norma",
+            type: normalizedType,
             quantity: line.quantity,
             label: product.title,
+            discountId: pricing.discountId,
+            discountLabel: pricing.discountLabel,
             baseUnitValue: basePrice.toFixed(2),
-            unitValue: basePrice.toFixed(2),
+            unitValue: pricing.unitPrice.toFixed(2),
             totalValue: totalValue.toFixed(2),
           },
         ];
       }),
-    [products, saleLines],
+    [discounts, products, saleLines],
   );
 
   const courtesyDrafts: PainelBilheteriaSaleDraftCourtesy[] = useMemo(
@@ -256,18 +302,36 @@ export function PainelBilheteriaSalesBuilder({
   );
 
   const subtotalValue = useMemo(
+    () =>
+      money(
+        saleItems.reduce(
+          (total, item) =>
+            total + parseMoney(item.baseUnitValue) * item.quantity,
+          0,
+        ),
+      ),
+    [saleItems],
+  );
+  const discountValue = useMemo(
+    () =>
+      money(
+        saleItems.reduce(
+          (total, item) =>
+            total +
+            Math.max(
+              0,
+              parseMoney(item.baseUnitValue) * item.quantity -
+                parseMoney(item.totalValue),
+            ),
+          0,
+        ),
+      ),
+    [saleItems],
+  );
+  const saleTotal = useMemo(
     () => money(saleItems.reduce((total, item) => total + parseMoney(item.totalValue), 0)),
     [saleItems],
   );
-  const selectedDiscount = useMemo(
-    () => discounts.find((item) => String(item.id) === purchaseDiscountId.trim()) ?? null,
-    [discounts, purchaseDiscountId],
-  );
-  const discountValue = useMemo(
-    () => calculatePurchaseDiscount(subtotalValue, purchaseDiscountId, discounts),
-    [discounts, purchaseDiscountId, subtotalValue],
-  );
-  const saleTotal = money(Math.max(0, subtotalValue - discountValue));
   const canProceed =
     selectedAgenda != null && (saleItems.length > 0 || courtesyDrafts.length > 0);
 
@@ -324,12 +388,6 @@ export function PainelBilheteriaSalesBuilder({
       cpf: "",
       items: saleItems,
       courtesies: courtesyDrafts,
-      purchaseDiscountId: selectedDiscount?.id ?? null,
-      purchaseDiscountLabel: selectedDiscount
-        ? selectedDiscount.typeDescription
-          ? `${selectedDiscount.typeDescription} - ${selectedDiscount.name}`
-          : selectedDiscount.name
-        : null,
       discountValue: discountValue.toFixed(2),
       subtotalValue: subtotalValue.toFixed(2),
       totalValue: saleTotal.toFixed(2),
@@ -395,6 +453,32 @@ export function PainelBilheteriaSalesBuilder({
                   : 0;
                 const isCourtesy = line.selection === "courtesy";
                 const hasSelection = line.selection !== "";
+                const lineType = lineProduct?.voucherType ?? null;
+                const isDiscountAllowed =
+                  lineType === "norma" || lineType === "infan";
+                const selectedLineDiscount =
+                  isDiscountAllowed && line.discountId
+                    ? discounts.find(
+                        (discount) => String(discount.id) === line.discountId.trim(),
+                      ) ?? null
+                    : null;
+                const linePricing =
+                  lineProduct && !isCourtesy
+                    ? calculateDiscountedUnitPrice(
+                        lineBaseValue,
+                        isDiscountAllowed ? line.discountId : "",
+                        discounts,
+                      )
+                    : {
+                        unitPrice: lineBaseValue,
+                        discountValue: 0,
+                        discountLabel: null,
+                        discountId: null,
+                      };
+                const lineUnitValue = isCourtesy ? 0 : linePricing.unitPrice;
+                const lineTotal = isCourtesy
+                  ? 0
+                  : money(lineUnitValue * line.quantity);
 
                 return (
                   <div
@@ -417,6 +501,7 @@ export function PainelBilheteriaSalesBuilder({
                           onChange={(event) =>
                             updateLine(line.id, {
                               selection: event.target.value,
+                              discountId: "",
                               authorId: "",
                               identification: "",
                               note: "",
@@ -465,33 +550,60 @@ export function PainelBilheteriaSalesBuilder({
                       ) : null}
 
                       {lineProduct ? (
-                        <div className="grid gap-2 text-sm font-semibold text-[#3d5844]">
-                          Quantidade
-                          <div className="flex items-center gap-4">
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(line.id, line.quantity - 1)}
-                              className="inline-flex h-[54px] w-[54px] items-center justify-center rounded-[6px] bg-[#d93636] text-2xl font-normal text-white shadow-[0_8px_18px_rgba(217,54,54,0.16)]"
-                            >
-                              -
-                            </button>
-                            <input
-                              type="number"
-                              min="1"
-                              value={line.quantity}
-                              onChange={(event) =>
-                                updateQuantity(line.id, Number(event.target.value))
-                              }
-                              className="h-[54px] w-[76px] rounded-[6px] border border-[#dbe7d7] bg-white text-center text-base font-semibold text-[#17351f]"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(line.id, line.quantity + 1)}
-                              className="inline-flex h-[54px] w-[54px] items-center justify-center rounded-[6px] bg-[#13823a] text-2xl font-normal text-white shadow-[0_8px_18px_rgba(19,130,58,0.16)]"
-                            >
-                              +
-                            </button>
+                        <div className="grid gap-4">
+                          <div className="grid gap-2 text-sm font-semibold text-[#205a7f]">
+                            Quantidade
+                            <div className="flex items-center gap-4">
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(line.id, line.quantity - 1)}
+                                className="inline-flex h-[54px] w-[54px] items-center justify-center rounded-[6px] bg-[#d93636] text-2xl font-normal text-white shadow-[0_8px_18px_rgba(217,54,54,0.16)]"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min="1"
+                                value={line.quantity}
+                                onChange={(event) =>
+                                  updateQuantity(line.id, Number(event.target.value))
+                                }
+                                className="h-[54px] w-[76px] rounded-[6px] border border-[#b8d2e4] bg-white text-center text-base font-semibold text-[#14324a]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(line.id, line.quantity + 1)}
+                                className="inline-flex h-[54px] w-[54px] items-center justify-center rounded-[6px] bg-[#205a7f] text-2xl font-normal text-white shadow-[0_8px_18px_rgba(32,90,127,0.18)]"
+                              >
+                                +
+                              </button>
+                            </div>
                           </div>
+
+                          <label className="grid gap-2 text-sm font-semibold text-[#205a7f]">
+                            Desconto por ingresso
+                            <select
+                              value={isDiscountAllowed ? line.discountId : ""}
+                              onChange={(event) =>
+                                updateLine(line.id, { discountId: event.target.value })
+                              }
+                              className="min-h-[54px] rounded-[6px] border border-[#b8d2e4] bg-white px-4 text-sm font-normal text-[#14324a]"
+                              disabled={loadingReference || !isDiscountAllowed}
+                            >
+                              <option value="">
+                                {isDiscountAllowed
+                                  ? "Sem desconto"
+                                  : "Isento nao aceita desconto"}
+                              </option>
+                              {isDiscountAllowed
+                                ? discounts.map((discount) => (
+                                    <option key={discount.id} value={discount.id}>
+                                      {formatDiscountLabel(discount)}
+                                    </option>
+                                  ))
+                                : null}
+                            </select>
+                          </label>
                         </div>
                       ) : null}
                     </div>
@@ -551,34 +663,45 @@ export function PainelBilheteriaSalesBuilder({
                     {hasSelection ? (
                       <div className="mt-5 grid gap-4 border-t border-[#dbe7d7] pt-5 lg:grid-cols-[140px_150px_150px_minmax(0,1fr)] lg:items-end">
                         <div>
-                          <div className="text-sm font-semibold text-[#5f7564]">
+                          <div className="text-sm font-semibold text-[#5d7282]">
                             Valor base
                           </div>
-                          <div className="mt-1 text-[22px] font-black text-[#102f1d]">
+                          <div className="mt-1 text-[22px] font-black text-[#14324a]">
                             {formatMoney(lineBaseValue)}
                           </div>
                         </div>
                         <div>
-                          <div className="text-sm font-semibold text-[#5f7564]">
+                          <div className="text-sm font-semibold text-[#5d7282]">
                             {isCourtesy ? "Valor da cortesia" : "Valor unitário"}
                           </div>
-                          <div className="mt-1 text-[22px] font-black text-[#102f1d]">
-                            {formatMoney(lineBaseValue)}
+                          <div className="mt-1 text-[22px] font-black text-[#14324a]">
+                            {formatMoney(lineUnitValue)}
                           </div>
+                          {selectedLineDiscount ? (
+                            <div className="mt-1 text-xs text-[#205a7f]">
+                              {formatDiscountLabel(selectedLineDiscount)}
+                            </div>
+                          ) : null}
                         </div>
                         <div>
-                          <div className="text-sm font-semibold text-[#5f7564]">
+                          <div className="text-sm font-semibold text-[#5d7282]">
                             Subtotal
                           </div>
-                          <div className="mt-1 text-[22px] font-black text-[#102f1d]">
-                            {formatMoney(lineSubtotal)}
+                          <div className="mt-1 text-[22px] font-black text-[#14324a]">
+                            {formatMoney(lineTotal)}
                           </div>
+                          {!isCourtesy && linePricing.discountValue > 0 ? (
+                            <div className="mt-1 text-xs text-[#205a7f]">
+                              Desconto total:{" "}
+                              {formatMoney(linePricing.discountValue * line.quantity)}
+                            </div>
+                          ) : null}
                         </div>
                         <div className="flex justify-end">
                           <button
                             type="button"
                             onClick={() => removeLine(line.id)}
-                            className="inline-flex min-h-[52px] items-center gap-3 rounded-[6px] border border-[#dbe7d7] bg-white px-5 text-sm font-bold text-[#17351f]"
+                            className="inline-flex min-h-[52px] items-center gap-3 rounded-[6px] border border-[#b8d2e4] bg-white px-5 text-sm font-bold text-[#14324a]"
                           >
                             <svg
                               viewBox="0 0 24 24"
@@ -599,7 +722,7 @@ export function PainelBilheteriaSalesBuilder({
                         <button
                           type="button"
                           onClick={() => removeLine(line.id)}
-                          className="inline-flex min-h-[52px] items-center gap-3 rounded-[6px] border border-[#dbe7d7] bg-white px-5 text-sm font-bold text-[#17351f]"
+                          className="inline-flex min-h-[52px] items-center gap-3 rounded-[6px] border border-[#b8d2e4] bg-white px-5 text-sm font-bold text-[#14324a]"
                         >
                           <svg
                             viewBox="0 0 24 24"
@@ -629,56 +752,6 @@ export function PainelBilheteriaSalesBuilder({
           )}
         </article>
 
-        <article className="panel-section p-6">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-center">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-[8px] bg-[#f1f7f0] text-[#214f2d]">
-                <SalesIcon kind="discount" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-[22px] font-black text-[#17351f]">
-                  Desconto da compra
-                </h3>
-                <label className="mt-4 grid gap-2 text-sm font-semibold text-[#17351f]">
-                  Modalidade
-                  <select
-                    value={purchaseDiscountId}
-                    onChange={(event) => setPurchaseDiscountId(event.target.value)}
-                    className="min-h-[54px] rounded-[6px] border border-[#dbe7d7] px-4 text-sm text-[#17351f]"
-                    disabled={loadingReference}
-                  >
-                    <option value="">Sem desconto</option>
-                    {discounts.map((discount) => (
-                      <option key={discount.id} value={discount.id}>
-                        {discount.typeDescription
-                          ? `${discount.typeDescription} - ${discount.name}`
-                          : discount.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </div>
-
-            <div className="flex min-h-[104px] items-center gap-6 rounded-[8px] border border-dashed border-[#dbe4d7] bg-[#fcfefd] px-6 py-4 text-sm leading-7 text-[#5f7564]">
-              <div className="text-[#6c8b71]">
-                <SalesIcon kind="ticket" />
-              </div>
-              {selectedDiscount ? (
-                <div>
-                  <div className="font-semibold text-[#17351f]">
-                    {selectedDiscount.typeDescription
-                      ? `${selectedDiscount.typeDescription} - ${selectedDiscount.name}`
-                      : selectedDiscount.name}
-                  </div>
-                  <div>Valor aplicado na compra: {selectedDiscount.value}</div>
-                </div>
-              ) : (
-                <div>Nenhum desconto selecionado para a compra.</div>
-              )}
-            </div>
-          </div>
-        </article>
       </div>
 
       <aside className="xl:sticky xl:top-5">
@@ -702,8 +775,13 @@ export function PainelBilheteriaSalesBuilder({
                       <div>
                         <div className="font-semibold text-[#17351f]">{item.label}</div>
                         <div className="mt-1 text-xs text-[#5f7564]">
-                          x{item.quantity} | {formatMoney(parseMoney(item.baseUnitValue))}
+                          x{item.quantity} | {formatMoney(parseMoney(item.unitValue))}
                         </div>
+                        {item.discountLabel ? (
+                          <div className="mt-1 text-xs text-[#205a7f]">
+                            Desconto: {item.discountLabel}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="font-black text-[#17351f]">
                         {formatMoney(parseMoney(item.totalValue))}
@@ -744,18 +822,18 @@ export function PainelBilheteriaSalesBuilder({
 
           <div className="mt-6 space-y-3 border-t border-[#dbe7d7] pt-5 text-sm">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[#5f7564]">Subtotal</span>
-              <strong className="text-[#17351f]">{formatMoney(subtotalValue)}</strong>
+              <span className="text-[#5d7282]">Subtotal</span>
+              <strong className="text-[#14324a]">{formatMoney(subtotalValue)}</strong>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[#5f7564]">Desconto</span>
-              <strong className="text-[#17351f]">- {formatMoney(discountValue)}</strong>
+              <span className="text-[#5d7282]">Descontos</span>
+              <strong className="text-[#14324a]">- {formatMoney(discountValue)}</strong>
             </div>
             <div className="flex items-center justify-between gap-3 border-t border-[#dbe7d7] pt-5">
-              <span className="text-[13px] font-bold uppercase tracking-[0.22em] text-[#2d7b3b]">
+              <span className="text-[13px] font-bold uppercase tracking-[0.22em] text-[#205a7f]">
                 Total
               </span>
-              <strong className="text-[34px] font-black text-[#17351f]">
+              <strong className="text-[34px] font-black text-[#14324a]">
                 {formatMoney(saleTotal)}
               </strong>
             </div>
@@ -771,15 +849,15 @@ export function PainelBilheteriaSalesBuilder({
             type="button"
             onClick={handleProceed}
             disabled={!canProceed || loadingReference}
-            className="mt-5 inline-flex min-h-[56px] w-full items-center justify-center rounded-[14px] bg-[#23823f] px-4 py-3 text-base font-bold text-white shadow-[0_10px_26px_rgba(24,67,34,0.14)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-5 inline-flex min-h-[56px] w-full items-center justify-center rounded-[14px] bg-[#205a7f] px-4 py-3 text-base font-bold text-white shadow-[0_10px_26px_rgba(32,90,127,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Finalizar compra
           </button>
         </article>
 
         <article className="panel-section p-5">
-          <div className="flex items-start gap-4 text-sm text-[#667c6a]">
-            <div className="text-[#6c8b71]">
+          <div className="flex items-start gap-4 text-sm text-[#5d7282]">
+            <div className="text-[#205a7f]">
               <SalesIcon kind="summary" />
             </div>
             <p className="leading-7">

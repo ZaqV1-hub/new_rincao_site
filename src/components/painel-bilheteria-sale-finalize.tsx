@@ -181,8 +181,8 @@ export function PainelBilheteriaSaleFinalize() {
             type: item.type,
             quantity: item.quantity,
             label: item.label,
+            discountId: item.discountId,
           })),
-          purchaseDiscountId: draft.purchaseDiscountId,
           courtesies: draft.courtesies.map((courtesy) => ({
             authorId: courtesy.authorId,
             quantity: courtesy.quantity,
@@ -274,8 +274,13 @@ export function PainelBilheteriaSaleFinalize() {
                   <td className="px-3 py-2.5 text-[#17351f]">
                     <div className="font-semibold">{item.label}</div>
                     <div className="mt-1 text-xs text-[#5f7564]">
-                      {item.quantity} x {formatMoney(parseMoney(item.baseUnitValue))}
+                      {item.quantity} x {formatMoney(parseMoney(item.unitValue))}
                     </div>
+                    {item.discountLabel ? (
+                      <div className="mt-1 text-xs text-[#205a7f]">
+                        Desconto: {item.discountLabel}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2.5 text-right font-semibold text-[#17351f]">
                     {formatMoney(parseMoney(item.totalValue))}
@@ -308,9 +313,7 @@ export function PainelBilheteriaSaleFinalize() {
             </strong>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[#5f7564]">
-              {draft.purchaseDiscountLabel || "Desconto"}
-            </span>
+            <span className="text-[#5f7564]">Descontos</span>
             <strong className="text-[#17351f]">
               - {formatMoney(parseMoney(draft.discountValue))}
             </strong>

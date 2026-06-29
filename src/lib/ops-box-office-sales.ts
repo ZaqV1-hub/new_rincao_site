@@ -81,7 +81,6 @@ export type CreateBoxOfficeSaleInput = {
   agendaId: number;
   cpf?: string | null;
   items?: BoxOfficeSaleItemInput[];
-  purchaseDiscountId?: number | null;
   courtesies?: BoxOfficeSaleCourtesyInput[];
   payments?: BoxOfficeSalePaymentInput[];
   reason?: string | null;
@@ -93,7 +92,7 @@ type NormalizedSaleItem = {
   type: "norma" | "infan" | "isent";
   label: string;
   quantity: number;
-  legacyDiscountId: number | null;
+  discountId: number | null;
 };
 
 type NormalizedCourtesy = {
@@ -234,11 +233,11 @@ function normalizeItemType(value: string) {
 
 function labelForItemType(type: NormalizedSaleItem["type"]) {
   if (type === "norma") {
-    return "Passaporte";
+    return "Adulto";
   }
 
   if (type === "infan") {
-    return "Passaporte Infantil";
+    return "Infantil";
   }
 
   return "Isento";
@@ -271,7 +270,7 @@ function normalizeItems(items: BoxOfficeSaleItemInput[] | undefined) {
         type,
         label: label || labelForItemType(type),
         quantity,
-        legacyDiscountId:
+        discountId:
           Number.isInteger(Number(item.discountId)) && Number(item.discountId) > 0
             ? Number(item.discountId)
             : null,
@@ -547,11 +546,11 @@ function buildPaidVoucherDrafts(
     const basePrice =
       item.type === "norma" ? normalPrice : item.type === "infan" ? childPrice : 0;
     const discount =
-      applyLegacyItemDiscounts && item.legacyDiscountId
-        ? discounts.get(item.legacyDiscountId) ?? null
+      applyLegacyItemDiscounts && item.discountId
+        ? discounts.get(item.discountId) ?? null
         : null;
 
-    if (applyLegacyItemDiscounts && item.legacyDiscountId && !discount) {
+    if (applyLegacyItemDiscounts && item.discountId && !discount) {
       throw new BoxOfficeSaleError(
         "discount_not_found",
         "Desconto informado nao foi encontrado.",
@@ -897,46 +896,35 @@ export async function createOperationalBoxOfficeSale(
       );
     }
 
-    const explicitPurchaseDiscountId =
-      Number.isInteger(Number(input.purchaseDiscountId)) && Number(input.purchaseDiscountId) > 0
-        ? Number(input.purchaseDiscountId)
-        : null;
-    const legacyDiscountIds = Array.from(
-      new Set(items.map((item) => item.legacyDiscountId).filter((id): id is number => id !== null)),
+    const discountIds = Array.from(
+      new Set(items.map((item) => item.discountId).filter((id): id is number => id !== null)),
     );
-    const discountIds = explicitPurchaseDiscountId
-      ? [explicitPurchaseDiscountId]
-      : legacyDiscountIds;
     const courtesyAuthorIds = Array.from(
       new Set(courtesies.map((courtesy) => courtesy.authorId)),
     );
     const discounts = await loadDiscounts(client, discountIds);
     const courtesyAuthors = await loadCourtesyAuthors(client, courtesyAuthorIds);
-    const purchaseDiscount =
-      explicitPurchaseDiscountId && discountIds.length > 0
-        ? discounts.get(discountIds[0]) ?? null
-        : null;
+    const paidDrafts = buildPaidVoucherDrafts(agenda, items, discounts, true);
+    const totalDiscount = money(
+      items.reduce((total, item) => {
+        if (!item.discountId || item.type === "isent") {
+          return total;
+        }
 
-    if (explicitPurchaseDiscountId && !purchaseDiscount) {
-      throw new BoxOfficeSaleError(
-        "discount_not_found",
-        "Desconto informado nao foi encontrado.",
-        404,
-      );
-    }
+        const discount = discounts.get(item.discountId) ?? null;
 
-    const basePaidDrafts = buildPaidVoucherDrafts(
-      agenda,
-      items,
-      discounts,
-      explicitPurchaseDiscountId === null,
+        if (!discount) {
+          return total;
+        }
+
+        const basePrice =
+          item.type === "norma"
+            ? parseMoney(agenda.vlnormalbil) ?? 0
+            : parseMoney(agenda.vlinfantbil) ?? 0;
+        const discountedPrice = calculateDiscountedUnitPrice(basePrice, discount);
+        return total + money((basePrice - discountedPrice) * item.quantity);
+      }, 0),
     );
-    const { drafts: paidDrafts, totalDiscount } = explicitPurchaseDiscountId
-      ? applyPurchaseDiscountToDrafts(basePaidDrafts, purchaseDiscount)
-      : {
-          drafts: basePaidDrafts,
-          totalDiscount: 0,
-        };
     const courtesyDrafts = buildCourtesyVoucherDrafts(courtesies, courtesyAuthors);
     const voucherDrafts = [...paidDrafts, ...courtesyDrafts];
     const totalValue = money(paidDrafts.reduce((total, draft) => total + draft.value, 0));
@@ -1038,7 +1026,6 @@ export async function createOperationalBoxOfficeSale(
         voucherCount: voucherIds.length,
         voucherIds,
         discountIds,
-        purchaseDiscountName: normalizeText(purchaseDiscount?.nome),
         totalDiscount: totalDiscount > 0 ? formatMoney(totalDiscount) : "0.00",
         courtesyAuthorIds,
         idempotencyKey,
