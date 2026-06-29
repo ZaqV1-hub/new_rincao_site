@@ -74,16 +74,8 @@ export function InfoPageView({ page }: { page: InfoPage }) {
     <div className="bg-[#f6f8fb] text-[#12344f]">
       <section className="relative isolate overflow-hidden bg-[#12344f] px-5 pb-18 pt-[118px] text-white md:pb-24">
         <div className="absolute inset-0">
-          {page.heroImage ? (
-            <MediaImage
-              src={page.heroImage.src}
-              alt={page.heroImage.alt}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="h-full w-full bg-[radial-gradient(circle_at_top,#3b6ea3_0%,#173b63_50%,#0d2234_100%)]" />
-          )}
-          <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(8,18,28,0.84)_10%,rgba(8,18,28,0.52)_48%,rgba(8,18,28,0.7)_100%)]" />
+          <div className="h-full w-full bg-[radial-gradient(circle_at_top,#3b6ea3_0%,#173b63_50%,#0d2234_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(8,18,28,0.18)_10%,rgba(8,18,28,0.08)_48%,rgba(8,18,28,0.22)_100%)]" />
         </div>
 
         <div className="relative mx-auto max-w-[1240px]">
@@ -256,19 +248,6 @@ export function InfoPageView({ page }: { page: InfoPage }) {
             </div>
 
             <aside className="space-y-5">
-              {page.heroImage ? (
-                <div className="overflow-hidden rounded-[28px] border border-[#d8e2eb] bg-white shadow-[0_18px_40px_rgba(18,52,79,0.08)]">
-                  <div className="relative h-[280px] bg-[#e8eef4]">
-                    <MediaImage
-                      src={page.heroImage.src}
-                      alt={page.heroImage.alt}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                </div>
-              ) : null}
-
               <div className="rounded-[28px] border border-[#d8e2eb] bg-white p-6 text-left shadow-[0_18px_40px_rgba(18,52,79,0.08)] lg:sticky lg:top-[118px]">
                 <p className="text-[12px] font-bold uppercase tracking-[0.22em] text-[#5f84a7]">
                   Informacoes rapidas

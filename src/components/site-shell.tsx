@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { RincaoLogo } from "@/components/rincao-logo";
 import { contact } from "@/lib/site-content";
 
@@ -40,14 +40,11 @@ export function SiteShell({
     pathname === "/minha-conta" ||
     pathname.startsWith("/minha-conta/");
 
-  const navItems = useMemo(
-    () => [
-      ...marketingNav,
-      { href: customerMenuHref, label: "Minha conta" },
-      { href: "/agenda", label: "Comprar ingressos" },
-    ],
-    [customerMenuHref],
-  );
+  const navItems = [
+    ...marketingNav,
+    { href: customerMenuHref, label: "Minha conta" },
+    { href: "/agenda", label: "Comprar ingressos" },
+  ];
 
   if (usesStandaloneShell) {
     return <>{children}</>;
@@ -77,7 +74,7 @@ export function SiteShell({
         />
       </a>
 
-      <header className="fixed inset-x-0 top-0 z-40 border-b border-[#d8e2eb]/80 bg-white/90 backdrop-blur">
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-[#d8e2eb]/80 bg-white">
         <div className="mx-auto flex min-h-[92px] w-[min(1240px,calc(100%-32px))] items-center justify-between gap-4 py-4">
           <RincaoLogo
             href="/"
@@ -85,13 +82,15 @@ export function SiteShell({
             className="h-[46px] max-w-[184px] md:h-[54px] md:max-w-[220px]"
           />
 
-          <nav className="hidden items-center gap-7 lg:flex">
+          <nav className="hidden items-center gap-8 lg:flex">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`text-[0.95rem] font-semibold transition ${
-                  pathname === item.href ? "text-[#1d6fb8]" : "text-[#12344f] hover:text-[#1d6fb8]"
+                className={`relative py-1 text-[0.95rem] font-semibold transition after:absolute after:bottom-[-6px] after:left-0 after:right-0 after:h-[2px] after:origin-center after:bg-current after:transition ${
+                  pathname === item.href
+                    ? "text-[#1d6fb8] after:scale-x-100"
+                    : "text-[#12344f] hover:text-[#1d6fb8] after:scale-x-0 hover:after:scale-x-100"
                 }`}
               >
                 {item.label}
@@ -104,11 +103,11 @@ export function SiteShell({
               href={contact.whatsapp}
               target="_blank"
               rel="noreferrer"
-              className="rincao-button-secondary"
+              className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-[#d8e2eb] px-7 text-[0.95rem] font-bold text-[#12344f] transition hover:border-[#bed1e1] hover:bg-[#f3f7fb]"
             >
               WhatsApp
             </a>
-            <Link href="/agenda" className="rincao-button">
+            <Link href="/agenda" className="rincao-button min-h-[48px]">
               Agenda e compra
             </Link>
           </div>

@@ -5,11 +5,8 @@ export function RegistrationPage({ page }: { page: RegistrationPageConfig }) {
   return (
     <div className="bg-[#f6f8fb] text-[#12344f]">
       <section className="relative isolate overflow-hidden bg-[#12344f] px-5 pb-18 pt-[118px] text-white md:pb-24">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url('${page.heroImage}')` }}
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(8,18,28,0.78)_0%,rgba(8,18,28,0.45)_48%,rgba(8,18,28,0.72)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#3b6ea3_0%,#173b63_50%,#0d2234_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(8,18,28,0.18)_0%,rgba(8,18,28,0.08)_48%,rgba(8,18,28,0.22)_100%)]" />
 
         <div className="relative mx-auto max-w-[1240px] text-left">
           <p className="text-[12px] font-bold uppercase tracking-[0.24em] text-white/64">
