@@ -348,7 +348,7 @@ async function ticketRequest(
 async function websiteTicketRequest(
   path: string,
   body: unknown,
-  allowedStatuses: number[] = [200],
+  allowedStatuses: number[] = [200, 202],
 ) {
   const baseUrl = getTicketsApiBaseUrl();
   const response = await fetch(`${baseUrl}${path}`, {

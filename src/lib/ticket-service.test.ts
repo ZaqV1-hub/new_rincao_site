@@ -476,7 +476,7 @@ describe("ticket-service", () => {
     });
   });
 
-  it("rejects async accepted whatsapp responses because delivery is not confirmed yet", async () => {
+  it("accepts async accepted whatsapp responses as queued delivery", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -528,7 +528,11 @@ describe("ticket-service", () => {
 
     await expect(
       sendPurchaseTicketsWhatsApp(456, [9001], "(51) 99999-9999"),
-    ).rejects.toThrow("ticket_api_error_202");
+    ).resolves.toEqual({
+      status: "sent",
+      purchaseId: 456,
+      sentVoucherIds: [9001],
+    });
   });
 
   it("uses testing header for whatsapp send when ticket api testing is enabled", async () => {
