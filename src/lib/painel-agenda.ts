@@ -30,6 +30,8 @@ export type PainelAgendaMonthEntry = {
   priceTableName: string | null;
   normalValue: string | null;
   childValue: string | null;
+  gateNormalValue: string | null;
+  gateChildValue: string | null;
   informationId: number | null;
   informationName: string | null;
   promotionName: string | null;
@@ -118,6 +120,8 @@ type AgendaMonthRow = {
   nmtabpreco: string | null;
   vlnormal: string | null;
   vlinfant: string | null;
+  vlnormalbil: string | null;
+  vlinfantbil: string | null;
   informacao_nome: string | null;
   nudia: number;
   numes: number;
@@ -253,6 +257,8 @@ function mapMonthEntry(row: AgendaMonthRow): PainelAgendaMonthEntry {
     priceTableName: row.nmtabpreco,
     normalValue: toMoney(row.vlnormal),
     childValue: toMoney(row.vlinfant),
+    gateNormalValue: toMoney(row.vlnormalbil),
+    gateChildValue: toMoney(row.vlinfantbil),
     informationId: row.idinformacao,
     informationName: row.informacao_nome,
     promotionName: row.nmpromocional,
@@ -340,6 +346,8 @@ export async function listPainelAgendaMonth(month: number, year: number) {
         tabpreco.nmtabpreco,
         tabpreco.vlnormal::text AS vlnormal,
         tabpreco.vlinfant::text AS vlinfant,
+        tabpreco.vlnormalbil::text AS vlnormalbil,
+        tabpreco.vlinfantbil::text AS vlinfantbil,
         informacao.nome AS informacao_nome
       FROM agenda
       LEFT JOIN tabpreco ON tabpreco.idtabpreco = agenda.idtabpreco
@@ -375,6 +383,8 @@ export async function getPainelAgendaDay(date: string) {
           tabpreco.nmtabpreco,
           tabpreco.vlnormal::text AS vlnormal,
           tabpreco.vlinfant::text AS vlinfant,
+          tabpreco.vlnormalbil::text AS vlnormalbil,
+          tabpreco.vlinfantbil::text AS vlinfantbil,
           informacao.nome AS informacao_nome
         FROM agenda
         LEFT JOIN tabpreco ON tabpreco.idtabpreco = agenda.idtabpreco

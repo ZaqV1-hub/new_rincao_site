@@ -35,8 +35,8 @@ function mapPainelAgendaToPublicAgenda(agenda: NonNullable<Awaited<ReturnType<ty
       name: agenda.priceTableName,
       normal: agenda.normalValue,
       child: agenda.childValue,
-      gateNormal: null,
-      gateChild: null,
+      gateNormal: agenda.gateNormalValue,
+      gateChild: agenda.gateChildValue,
     },
     promotional: {
       name: agenda.promotionName,
