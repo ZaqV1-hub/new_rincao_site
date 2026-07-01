@@ -73,4 +73,26 @@ describe("legacy-email queue", () => {
       [123],
     );
   });
+
+  it("fails the queue operation when synchronous SMTP delivery fails", async () => {
+    process.env.PASSWORD_RESET_SEND_SYNC = "true";
+    const smtpError = Object.assign(new Error("Authentication failed"), {
+      code: "EAUTH",
+    });
+    mocks.sendMail.mockRejectedValue(smtpError);
+
+    await expect(
+      queueLegacyEmail({
+        to: "cliente@example.com",
+        toName: "Cliente",
+        subject: "Teste",
+        html: "<p>Teste</p>",
+      }),
+    ).rejects.toThrow("Authentication failed");
+
+    expect(mocks.systemQuery).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE email"),
+      [123, 1],
+    );
+  });
 });

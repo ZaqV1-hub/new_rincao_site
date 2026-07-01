@@ -104,6 +104,8 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
       `,
       [idemail, Math.max(0, config.maxRetries)],
     );
+
+    throw error;
   }
 }
 
