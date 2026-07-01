@@ -1,19 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { query } = vi.hoisted(() => ({
-  query: vi.fn(),
+const { legacyQuery, systemQuery } = vi.hoisted(() => ({
+  legacyQuery: vi.fn(),
+  systemQuery: vi.fn(),
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
   getIngressoDbPool: () => ({
-    query,
+    query: legacyQuery,
+  }),
+  getIngressoSistemaDbPool: () => ({
+    query: systemQuery,
   }),
 }));
 
 describe("agenda-repository SQL timezone rules", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    query.mockResolvedValue({ rows: [] });
+    legacyQuery.mockResolvedValue({ rows: [] });
+    systemQuery.mockResolvedValue({ rows: [] });
   });
 
   it("uses the Sao Paulo business date when listing public agenda events", async () => {
@@ -21,12 +26,13 @@ describe("agenda-repository SQL timezone rules", () => {
 
     await getPublicAgendaEvents(6, 2026);
 
-    expect(query).toHaveBeenCalledWith(
+    expect(systemQuery).toHaveBeenCalledWith(
       expect.stringContaining(
         "agenda.dtagenda >= (now() AT TIME ZONE 'America/Sao_Paulo')::date",
       ),
       [6, 2026],
     );
+    expect(legacyQuery).not.toHaveBeenCalled();
   });
 
   it("uses the Sao Paulo business date when loading same-day reservation details", async () => {
@@ -34,11 +40,12 @@ describe("agenda-repository SQL timezone rules", () => {
 
     await getPublicAgendaReservationById(44);
 
-    expect(query).toHaveBeenCalledWith(
+    expect(systemQuery).toHaveBeenCalledWith(
       expect.stringContaining(
         "agenda.dtagenda >= (now() AT TIME ZONE 'America/Sao_Paulo')::date",
       ),
       [44],
     );
+    expect(legacyQuery).not.toHaveBeenCalled();
   });
 });

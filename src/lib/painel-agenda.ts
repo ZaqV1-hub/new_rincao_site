@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { listOpsAdminMasterData } from "@/lib/ops-admin-master-data";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { formatPainelAgendaDateLabel } from "@/lib/painel-agenda-ui";
@@ -322,7 +322,7 @@ export async function getPainelAgendaScreenData(input: {
 }
 
 export async function listPainelAgendaMonth(month: number, year: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<AgendaMonthRow>(
     `
       SELECT
@@ -356,7 +356,7 @@ export async function listPainelAgendaMonth(month: number, year: number) {
 
 export async function getPainelAgendaDay(date: string) {
   assertIsoDate(date, "a data selecionada");
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const [agendaResult, vouchersResult] = await Promise.all([
     pool.query<AgendaMonthRow>(
       `
@@ -432,7 +432,7 @@ export async function listPainelAgendaPriceTables() {
 }
 
 export async function listPainelAgendaInformationOptions() {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<OptionRow>(
     `
       SELECT idinformacao AS id, nome AS label
@@ -553,7 +553,7 @@ export async function previewPainelAgendaRange(input: {
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<{
     dtagenda: string;
     tpagenda: PainelAgendaType;
@@ -603,7 +603,7 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -762,7 +762,7 @@ export async function deletePainelAgenda(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
