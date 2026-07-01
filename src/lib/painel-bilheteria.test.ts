@@ -239,6 +239,15 @@ describe("painel-bilheteria", () => {
         purchaseLocation: "Bilheteria",
       }),
     ]);
+    expect(registerOpsAuditLog).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        origem: "compra",
+        acao: "editar",
+        compraId: 321,
+      }),
+      "postgres",
+    );
     expect(release).toHaveBeenCalled();
   });
 

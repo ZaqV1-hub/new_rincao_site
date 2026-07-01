@@ -1016,23 +1016,27 @@ export async function sendPainelBilheteriaVoucherWhatsapp(
       [input.voucherId, validUntilText],
     );
 
-    const auditLogId = await registerOpsAuditLog(client, {
-      origem: "compra",
-      acao: "editar",
-      compraId: input.purchaseId,
-      descricao: `Envio operacional de voucher ${input.voucherId} por WhatsApp.`,
-      motivo: "Reenvio de ingresso via WhatsApp no painel.",
-      usuarioNome:
-        [String(input.actor?.name ?? "").trim(), normalizeCpf(input.actor?.cpf ?? "")]
-          .filter(Boolean)
-          .join(" ") || null,
-      detalhes: {
-        via: "apps/web",
-        voucherId: input.voucherId,
-        phoneNumber: normalizedPhone,
-        validUntil: validUntilText,
+    const auditLogId = await registerOpsAuditLog(
+      client,
+      {
+        origem: "compra",
+        acao: "editar",
+        compraId: input.purchaseId,
+        descricao: `Envio operacional de voucher ${input.voucherId} por WhatsApp.`,
+        motivo: "Reenvio de ingresso via WhatsApp no painel.",
+        usuarioNome:
+          [String(input.actor?.name ?? "").trim(), normalizeCpf(input.actor?.cpf ?? "")]
+            .filter(Boolean)
+            .join(" ") || null,
+        detalhes: {
+          via: "apps/web",
+          voucherId: input.voucherId,
+          phoneNumber: normalizedPhone,
+          validUntil: validUntilText,
+        },
       },
-    });
+      "postgres",
+    );
 
     await client.query("COMMIT");
 
@@ -1150,22 +1154,26 @@ export async function getPainelBilheteriaVoucherPrintModel(
       [voucherId, validUntilText],
     );
 
-    await registerOpsAuditLog(client, {
-      origem: "compra",
-      acao: "editar",
-      compraId: voucher.idcompra,
-      descricao: `Impressao operacional do voucher ${voucherId}.`,
-      motivo: "Reemissao de QR individual no painel.",
-      usuarioNome:
-        [String(actor?.name ?? "").trim(), normalizeCpf(actor?.cpf ?? "")]
-          .filter(Boolean)
-          .join(" ") || null,
-      detalhes: {
-        via: "apps/web",
-        voucherId,
-        validUntil: validUntilText,
+    await registerOpsAuditLog(
+      client,
+      {
+        origem: "compra",
+        acao: "editar",
+        compraId: voucher.idcompra,
+        descricao: `Impressao operacional do voucher ${voucherId}.`,
+        motivo: "Reemissao de QR individual no painel.",
+        usuarioNome:
+          [String(actor?.name ?? "").trim(), normalizeCpf(actor?.cpf ?? "")]
+            .filter(Boolean)
+            .join(" ") || null,
+        detalhes: {
+          via: "apps/web",
+          voucherId,
+          validUntil: validUntilText,
+        },
       },
-    });
+      "postgres",
+    );
 
     await client.query("COMMIT");
 
@@ -1554,33 +1562,37 @@ export async function payPainelBilheteriaReservation(
       );
     }
 
-    const auditLogId = await registerOpsAuditLog(client, {
-      origem: "compra",
-      acao: "editar",
-      compraId: input.purchaseId,
-      descricao: `Pagamento de reserva confirmado em ${normalizedPayments
-        .map(
-          (payment) =>
-            `${formatPaymentMethodLabel(payment.method)} ${formatMoney(payment.value)}`,
-        )
-        .join("; ")}`,
-      motivo: "Pagamento operacional da reserva no painel.",
-      usuarioNome:
-        [String(input.actor?.name ?? "").trim(), normalizeCpf(input.actor?.cpf ?? "")]
-          .filter(Boolean)
-          .join(" ") || null,
-      detalhes: {
-        via: "apps/web",
-        paymentMethods: normalizedPayments.map((payment) => ({
-          method: payment.method,
-          value: payment.value.toFixed(2),
-        })),
-        actor: {
-          name: String(input.actor?.name ?? "").trim() || null,
-          cpf: normalizeCpf(input.actor?.cpf ?? "") || null,
+    const auditLogId = await registerOpsAuditLog(
+      client,
+      {
+        origem: "compra",
+        acao: "editar",
+        compraId: input.purchaseId,
+        descricao: `Pagamento de reserva confirmado em ${normalizedPayments
+          .map(
+            (payment) =>
+              `${formatPaymentMethodLabel(payment.method)} ${formatMoney(payment.value)}`,
+          )
+          .join("; ")}`,
+        motivo: "Pagamento operacional da reserva no painel.",
+        usuarioNome:
+          [String(input.actor?.name ?? "").trim(), normalizeCpf(input.actor?.cpf ?? "")]
+            .filter(Boolean)
+            .join(" ") || null,
+        detalhes: {
+          via: "apps/web",
+          paymentMethods: normalizedPayments.map((payment) => ({
+            method: payment.method,
+            value: payment.value.toFixed(2),
+          })),
+          actor: {
+            name: String(input.actor?.name ?? "").trim() || null,
+            cpf: normalizeCpf(input.actor?.cpf ?? "") || null,
+          },
         },
       },
-    });
+      "postgres",
+    );
 
     await client.query("COMMIT");
     await queuePurchaseConfirmationEmail(input.purchaseId).catch(() => undefined);
