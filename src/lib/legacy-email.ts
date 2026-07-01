@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 
 type QueueLegacyEmailInput = {
   to: string;
@@ -61,7 +61,7 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
       html: input.html,
     });
 
-    await getIngressoDbPool().query(
+    await getIngressoSistemaDbPool().query(
       `
         UPDATE email
         SET stemail = 'env',
@@ -74,7 +74,7 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
   } catch (error) {
     console.error("legacy-email-send-failed", error);
 
-    await getIngressoDbPool().query(
+    await getIngressoSistemaDbPool().query(
       `
         UPDATE email
         SET erros = COALESCE(erros, 0) + 1,
@@ -90,7 +90,7 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
 }
 
 export async function queueLegacyEmail(input: QueueLegacyEmailInput) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const config = getLegacyEmailConfig();
   const result = await pool.query<EmailQueueRow>(
     `

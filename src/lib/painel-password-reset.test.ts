@@ -36,15 +36,12 @@ describe("painel-password-reset", () => {
   });
 
   it("requests a panel password reset by email and queues the legacy email", async () => {
-    mocks.legacyQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
+    mocks.systemQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql.includes("SELECT (dtemail::timestamp + hremail) AS sent_at")) {
         expect(values?.[0]).toBe("gestor@example.com");
         return { rows: [] };
       }
 
-      throw new Error(`Unexpected legacy query: ${sql}`);
-    });
-    mocks.systemQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql.includes("FROM usuario") && sql.includes("LOWER(email) = LOWER($1)")) {
         expect(values).toEqual(["gestor@example.com"]);
         return {
@@ -66,6 +63,9 @@ describe("painel-password-reset", () => {
       }
 
       throw new Error(`Unexpected system query: ${sql}`);
+    });
+    mocks.legacyQuery.mockImplementation(async (sql: string) => {
+      throw new Error(`Unexpected legacy query: ${sql}`);
     });
 
     await expect(

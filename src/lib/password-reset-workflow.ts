@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { getIngressoDbPool, getIngressoSistemaDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { queueLegacyEmail } from "@/lib/legacy-email";
 import { hashPasswordForLegacyUser } from "@/lib/password-hashing";
 
@@ -96,7 +96,7 @@ async function checkPasswordResetThrottle(email: string) {
   const windowStart = new Date(
     now - config.attemptWindowMinutes * 60 * 1000,
   ).toISOString();
-  const result = await getIngressoDbPool().query<PasswordResetEmailRow>(
+  const result = await getIngressoSistemaDbPool().query<PasswordResetEmailRow>(
     `
       SELECT (dtemail::timestamp + hremail) AS sent_at
       FROM email
