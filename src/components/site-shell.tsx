@@ -16,6 +16,12 @@ const marketingNav = [
   { href: "/localizacao", label: "Localização" },
 ];
 
+const socialLinks = [
+  { href: contact.tiktok, src: "/brand/tiktok.png", label: "TikTok" },
+  { href: contact.instagram, src: "/brand/instagram.png", label: "Instagram" },
+  { href: contact.facebook, src: "/brand/facebook.png", label: "Facebook" },
+];
+
 export function SiteShell({
   children,
   customerMenuHref,
@@ -110,6 +116,26 @@ export function SiteShell({
             <Link href="/agenda" className="rincao-button min-h-[48px]">
               Agenda e compra
             </Link>
+            <div className="flex items-center gap-2">
+              {socialLinks.map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="grid h-9 w-9 place-items-center transition hover:scale-105"
+                  aria-label={item.label}
+                >
+                  <Image
+                    src={item.src}
+                    alt=""
+                    width={36}
+                    height={36}
+                    className="h-9 w-9"
+                  />
+                </a>
+              ))}
+            </div>
           </div>
 
           <button

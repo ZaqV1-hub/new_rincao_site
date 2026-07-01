@@ -88,8 +88,6 @@ export function PainelAgendaEditor({
   const [mutationState, setMutationState] = useState<MutationState>({
     status: "idle",
   });
-  const selectedPassportIds = data.selectedDay?.selectedPassportIds ?? null;
-  const selectedAddonIds = data.selectedDay?.selectedAddonIds ?? null;
 
   useEffect(() => {
     if (!form.startDate || !form.endDate) {
@@ -186,8 +184,6 @@ export function PainelAgendaEditor({
         body: JSON.stringify({
           agendaId: selectedAgenda?.id ?? null,
           ...form,
-          passportIds: selectedPassportIds,
-          addonIds: selectedAddonIds,
           confirmOverwrite,
           actor,
         }),
@@ -359,7 +355,7 @@ export function PainelAgendaEditor({
             </select>
           </label>
           <p className="text-sm text-[#60758d]">
-            Essa tela define a tabela de preço da data. A disponibilidade de passaportes continua usando a configuração padrão já existente.
+            Essa tela define apenas a data, status e tabela de preço da agenda.
           </p>
         </section>
 
@@ -481,4 +477,3 @@ export function PainelAgendaEditor({
     </section>
   );
 }
-

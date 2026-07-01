@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { authorizePainelApiAccess } from "@/lib/painel-api-auth";
 import type { B2cProduct } from "@/lib/b2c-catalog-defaults";
 import {
+  deleteUploadedSiteImage,
   makeContentId,
   normalizePrice,
   readRincaoContent,
@@ -42,6 +43,21 @@ function revalidateProducts() {
   revalidatePath("/painel/passaportes-itens");
   revalidatePath("/agenda");
   revalidatePath("/comprar/[id]", "page");
+}
+
+function deleteUnusedProductImage(
+  previousImage: string | null | undefined,
+  products: B2cProduct[],
+) {
+  if (!previousImage) {
+    return;
+  }
+
+  const imageStillUsed = products.some((product) => product.imageSrc === previousImage);
+
+  if (!imageStillUsed) {
+    deleteUploadedSiteImage(previousImage);
+  }
 }
 
 export async function POST(request: Request) {
@@ -85,10 +101,13 @@ export async function POST(request: Request) {
       data.products.length + 1,
   };
 
+  const nextProducts = [...data.products.filter((item) => item.id !== id), product];
+
   await writeRincaoContent({
     ...data,
-    products: [...data.products.filter((item) => item.id !== id), product],
+    products: nextProducts,
   });
+  deleteUnusedProductImage(current?.imageSrc, nextProducts);
   revalidateProducts();
 
   return NextResponse.json({ ok: true });
@@ -108,10 +127,14 @@ export async function DELETE(request: Request) {
   }
 
   const data = await readRincaoContent();
+  const current = data.products.find((item) => item.id === payload.id);
+  const nextProducts = data.products.filter((item) => item.id !== payload.id);
+
   await writeRincaoContent({
     ...data,
-    products: data.products.filter((item) => item.id !== payload.id),
+    products: nextProducts,
   });
+  deleteUnusedProductImage(current?.imageSrc, nextProducts);
   revalidateProducts();
 
   return NextResponse.json({ ok: true });

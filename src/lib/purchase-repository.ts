@@ -13,7 +13,6 @@ import {
   normalizeCodindica,
 } from "@/lib/codindica";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
-import { getAgendaProductAvailability } from "@/lib/painel-agenda-product-availability";
 import type {
   CreatePurchaseQuantities,
   CreatePurchaseSelection,
@@ -327,25 +326,9 @@ export async function createOnlinePurchase(
 
   if (isB2cLineItemSelection(selection)) {
     const cart = await buildB2cCartSummary(selection.lineItems);
-    const availability = await getAgendaProductAvailability(agenda.date);
     const pool = getIngressoSistemaDbPool();
     const codindica = normalizeCodindica(codindicaInput);
     let cartCodindicaTotals: ReturnType<typeof calculateCodindicaCartTotals> | null = null;
-
-    for (const line of cart.lines) {
-      const allowedIds =
-        line.type === "passport"
-          ? availability.passportIds
-          : availability.addonIds;
-
-      if (!allowedIds.includes(line.productId)) {
-        throw new PurchaseCreationError(
-          "product_unavailable_for_date",
-          "Um ou mais itens selecionados nao estao disponiveis para esta data.",
-          409,
-        );
-      }
-    }
 
     if (codindica) {
       const [codindicaResult, parametroResult] = await Promise.all([
@@ -840,7 +823,6 @@ export async function previewOnlinePurchaseCodindica(
   }
 
   const cart = await buildB2cCartSummary(selection.lineItems);
-  const availability = await getAgendaProductAvailability(agenda.date);
   const pool = getIngressoSistemaDbPool();
   const codindica = normalizeCodindica(codindicaInput);
 
@@ -850,19 +832,6 @@ export async function previewOnlinePurchaseCodindica(
       "Informe um codigo de indicacao valido.",
       409,
     );
-  }
-
-  for (const line of cart.lines) {
-    const allowedIds =
-      line.type === "passport" ? availability.passportIds : availability.addonIds;
-
-    if (!allowedIds.includes(line.productId)) {
-      throw new PurchaseCreationError(
-        "product_unavailable_for_date",
-        "Um ou mais itens selecionados nao estao disponiveis para esta data.",
-        409,
-      );
-    }
   }
 
   const [codindicaResult, parametroResult] = await Promise.all([

@@ -26,11 +26,11 @@ export function LegacyMuralPage({ requestedSlug }: { requestedSlug?: string | nu
           <div className="text-left">
             <p className="text-[15px] leading-7 text-[#333]">
               {requestedSlug
-                ? `A URL /mural/${requestedSlug} foi preservada, mas o conteudo historico desse album foi consolidado no novo institucional.`
+                ? `A URL /mural/${requestedSlug} foi preservada, mas o conteúdo histórico desse álbum foi consolidado no novo institucional.`
                 : "As URLs antigas de mural agora apontam para um arquivo consolidado dentro do novo institucional."}
             </p>
             <p className="mt-4 text-[15px] leading-7 text-[#333]">
-              No site atual em producao, o bloco de mural ja nao lista albuns ativos na pagina de
+              No site atual em produção, o bloco de mural já não lista álbuns ativos na página de
               {" "}
               <Link href="/melhor-idade-grupos-mistos" className="underline">
                 Melhor Idade &amp; Grupos Mistos
@@ -71,7 +71,7 @@ export function LegacyMuralPage({ requestedSlug }: { requestedSlug?: string | nu
                 Abrir mural no institucional
               </Link>
               <Link href="/servicos" className="legacy-button text-center">
-                Ver servicos
+                Ver serviços
               </Link>
             </div>
           </aside>

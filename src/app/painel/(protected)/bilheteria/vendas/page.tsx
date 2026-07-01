@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import { PainelBilheteriaSalesBuilder } from "@/components/painel-bilheteria-sales-builder";
 import { getBilheteriaAgendaStatusToday } from "@/lib/bilheteria-agenda";
-import { getAgendaProductAvailability } from "@/lib/painel-agenda-product-availability";
 import { requirePainelAccess } from "@/lib/painel-session";
 import { buildStandardTicketProducts } from "@/lib/standard-ticket-products";
 
@@ -20,7 +19,6 @@ export default async function PainelBilheteriaVendasPage() {
   const session = await requirePainelAccess("vis_bilhet", "/painel/bilheteria/vendas");
   const { today, openAgendas } = await getBilheteriaAgendaStatusToday();
   const agendas = openAgendas.filter((agenda) => agenda.status === "abe");
-  const availability = await getAgendaProductAvailability(today);
   const agenda = agendas[0] ?? null;
   const availableProducts = agenda
     ? buildStandardTicketProducts(
@@ -30,7 +28,6 @@ export default async function PainelBilheteriaVendasPage() {
           gateNormal: agenda.priceTable.gateNormal ?? agenda.priceTable.normal,
           gateChild: agenda.priceTable.gateChild ?? agenda.priceTable.child,
         },
-        availability.passportIds,
       )
     : [];
 
