@@ -18,7 +18,7 @@ const {
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbPool: () => ({
     connect,
   }),
 }));

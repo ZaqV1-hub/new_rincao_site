@@ -3,7 +3,7 @@ import {
   processCodindicaCashback,
 } from "@/lib/codindica-cashback";
 import type { PoolClient } from "pg";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { queuePurchaseConfirmationEmail } from "@/lib/purchase-confirmation-email";
 import { registerTicketDeliveryAudit } from "@/lib/ticket-delivery-audit";
 import { processConfirmedPurchaseTickets } from "@/lib/ticket-service";
@@ -620,7 +620,7 @@ export async function reconcilePaymentFromGatewayPayload(
     payload,
     expectedPurchaseId,
   );
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {

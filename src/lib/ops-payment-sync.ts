@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   getNativeCieloCheckoutStatus,
   isCieloEcommerceConfigured,
@@ -103,7 +103,7 @@ async function listPaymentSyncCandidates(
   recentDays: number,
   limit: number,
 ) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -151,7 +151,7 @@ async function listPaymentSyncCandidates(
 }
 
 async function cancelStalePendingPurchase(purchaseId: number) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {

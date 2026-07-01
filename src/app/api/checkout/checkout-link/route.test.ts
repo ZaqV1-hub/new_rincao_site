@@ -32,7 +32,7 @@ vi.mock("@/lib/cielo-ecommerce", () => ({
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbPool: () => ({
     query: dbQuery,
   }),
 }));
