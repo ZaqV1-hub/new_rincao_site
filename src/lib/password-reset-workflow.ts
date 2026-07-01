@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoDbPool, getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { queueLegacyEmail } from "@/lib/legacy-email";
 import { hashPasswordForLegacyUser } from "@/lib/password-hashing";
 
@@ -181,7 +181,7 @@ export async function requestPasswordReset(
   }
 
   const ticket = generateResetTicket();
-  await getIngressoDbPool().query(
+  await getIngressoSistemaDbPool().query(
     `
       INSERT INTO trocasenha (flusado, cpf, ticket)
       VALUES ('n', $1, $2)
@@ -209,7 +209,7 @@ export async function requestPasswordReset(
 }
 
 export async function getPasswordResetTicket(ticket: string) {
-  const result = await getIngressoDbPool().query<PasswordResetTicketRow>(
+  const result = await getIngressoSistemaDbPool().query<PasswordResetTicketRow>(
     `
       SELECT cpf, flusado
       FROM trocasenha
@@ -231,7 +231,7 @@ export async function resetPasswordByTicket(input: {
   ticket: string;
   password: string;
 }) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {

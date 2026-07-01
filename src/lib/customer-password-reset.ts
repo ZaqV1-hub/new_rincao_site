@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   getPasswordResetTicket,
   requestPasswordReset,
@@ -26,7 +26,7 @@ function buildResetEmailHtml(input: {
 }
 
 async function findPublicUserByCpf(cpf: string) {
-  const result = await getIngressoDbPool().query<PublicUserByCpfRow>(
+  const result = await getIngressoSistemaDbPool().query<PublicUserByCpfRow>(
     `
       SELECT cpf, nmusuario, email
       FROM usuario

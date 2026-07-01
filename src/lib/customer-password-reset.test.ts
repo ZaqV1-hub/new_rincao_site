@@ -6,17 +6,21 @@ import {
 } from "@/lib/customer-password-reset";
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
-  clientQuery: vi.fn(),
+  legacyQuery: vi.fn(),
+  systemClientQuery: vi.fn(),
+  systemQuery: vi.fn(),
   release: vi.fn(),
   queueLegacyEmail: vi.fn(),
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
   getIngressoDbPool: () => ({
-    query: mocks.query,
+    query: mocks.legacyQuery,
+  }),
+  getIngressoSistemaDbPool: () => ({
+    query: mocks.systemQuery,
     connect: async () => ({
-      query: mocks.clientQuery,
+      query: mocks.systemClientQuery,
       release: mocks.release,
     }),
   }),
@@ -32,12 +36,15 @@ describe("customer-password-reset", () => {
   });
 
   it("requests a public password reset by cpf and queues the legacy email", async () => {
-    mocks.query.mockImplementation(async (sql: string, values?: unknown[]) => {
+    mocks.legacyQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql.includes("SELECT (dtemail::timestamp + hremail) AS sent_at")) {
         expect(values?.[0]).toBe("cliente@example.com");
         return { rows: [] };
       }
 
+      throw new Error(`Unexpected legacy query: ${sql}`);
+    });
+    mocks.systemQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql.includes("FROM usuario") && sql.includes("WHERE cpf = $1")) {
         expect(values).toEqual(["52998224725"]);
         return {
@@ -57,7 +64,7 @@ describe("customer-password-reset", () => {
         return { rows: [] };
       }
 
-      throw new Error(`Unexpected query: ${sql}`);
+      throw new Error(`Unexpected system query: ${sql}`);
     });
 
     await expect(
@@ -81,7 +88,7 @@ describe("customer-password-reset", () => {
   });
 
   it("blocks public password reset when the throttle window is still active", async () => {
-    mocks.query.mockImplementation(async (sql: string) => {
+    mocks.systemQuery.mockImplementation(async (sql: string) => {
       if (sql.includes("FROM usuario") && sql.includes("WHERE cpf = $1")) {
         return {
           rows: [
@@ -94,13 +101,16 @@ describe("customer-password-reset", () => {
         };
       }
 
+      throw new Error(`Unexpected system query: ${sql}`);
+    });
+    mocks.legacyQuery.mockImplementation(async (sql: string) => {
       if (sql.includes("SELECT (dtemail::timestamp + hremail) AS sent_at")) {
         return {
           rows: [{ sent_at: new Date().toISOString() }],
         };
       }
 
-      throw new Error(`Unexpected query: ${sql}`);
+      throw new Error(`Unexpected legacy query: ${sql}`);
     });
 
     await expect(
@@ -116,7 +126,7 @@ describe("customer-password-reset", () => {
   });
 
   it("reports whether the public reset ticket is valid", async () => {
-    mocks.query.mockResolvedValue({
+    mocks.systemQuery.mockResolvedValue({
       rows: [{ cpf: "52998224725", flusado: "n" }],
     });
 
@@ -128,7 +138,7 @@ describe("customer-password-reset", () => {
   });
 
   it("resets the public password and marks the ticket as used", async () => {
-    mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
+    mocks.systemClientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql === "BEGIN" || sql === "COMMIT") {
         return { rows: [] };
       }

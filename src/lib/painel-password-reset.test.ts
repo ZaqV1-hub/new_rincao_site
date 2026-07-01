@@ -6,17 +6,21 @@ import {
 } from "@/lib/painel-password-reset";
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
-  clientQuery: vi.fn(),
+  legacyQuery: vi.fn(),
+  systemClientQuery: vi.fn(),
+  systemQuery: vi.fn(),
   release: vi.fn(),
   queueLegacyEmail: vi.fn(),
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
   getIngressoDbPool: () => ({
-    query: mocks.query,
+    query: mocks.legacyQuery,
+  }),
+  getIngressoSistemaDbPool: () => ({
+    query: mocks.systemQuery,
     connect: async () => ({
-      query: mocks.clientQuery,
+      query: mocks.systemClientQuery,
       release: mocks.release,
     }),
   }),
@@ -32,12 +36,15 @@ describe("painel-password-reset", () => {
   });
 
   it("requests a panel password reset by email and queues the legacy email", async () => {
-    mocks.query.mockImplementation(async (sql: string, values?: unknown[]) => {
+    mocks.legacyQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql.includes("SELECT (dtemail::timestamp + hremail) AS sent_at")) {
         expect(values?.[0]).toBe("gestor@example.com");
         return { rows: [] };
       }
 
+      throw new Error(`Unexpected legacy query: ${sql}`);
+    });
+    mocks.systemQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql.includes("FROM usuario") && sql.includes("LOWER(email) = LOWER($1)")) {
         expect(values).toEqual(["gestor@example.com"]);
         return {
@@ -58,7 +65,7 @@ describe("painel-password-reset", () => {
         return { rows: [] };
       }
 
-      throw new Error(`Unexpected query: ${sql}`);
+      throw new Error(`Unexpected system query: ${sql}`);
     });
 
     await expect(
@@ -82,7 +89,7 @@ describe("painel-password-reset", () => {
   });
 
   it("reports whether the panel reset ticket is valid", async () => {
-    mocks.query.mockResolvedValue({
+    mocks.systemQuery.mockResolvedValue({
       rows: [{ cpf: "52998224725", flusado: "n" }],
     });
 
@@ -94,7 +101,7 @@ describe("painel-password-reset", () => {
   });
 
   it("resets the panel password and marks the ticket as used", async () => {
-    mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
+    mocks.systemClientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql === "BEGIN" || sql === "COMMIT") {
         return { rows: [] };
       }

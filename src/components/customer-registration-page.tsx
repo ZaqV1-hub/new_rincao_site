@@ -4,10 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IngressoShell } from "@/components/ingresso-shell";
-import type {
-  AuthErrorResponse,
-  AuthRegistrationResponse,
-} from "@/lib/auth-contracts";
+import type { AuthRegistrationResponse } from "@/lib/auth-contracts";
 import type {
   CustomerRegistrationCepResponse,
   CustomerRegistrationLocationsResponse,
@@ -76,10 +73,18 @@ async function readResponseBody<T>(response: Response) {
   }
 }
 
-async function readApiError(response: Response, fallback: string) {
-  const payload = await readResponseBody<AuthErrorResponse>(response);
-
-  if (payload && !payload.ok) {
+function readApiError(payload: unknown, fallback: string) {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "ok" in payload &&
+    payload.ok === false &&
+    "error" in payload &&
+    payload.error &&
+    typeof payload.error === "object" &&
+    "message" in payload.error &&
+    typeof payload.error.message === "string"
+  ) {
     return payload.error.message;
   }
 
@@ -114,8 +119,8 @@ export function CustomerRegistrationPage({
 
         if (!response.ok || !payload?.ok) {
           setError(
-            await readApiError(
-              response,
+            readApiError(
+              payload && !payload.ok ? payload : null,
               "Nao foi possivel carregar os dados de cadastro agora.",
             ),
           );
@@ -164,8 +169,8 @@ export function CustomerRegistrationPage({
 
       if (!response.ok || !payload?.ok) {
         setError(
-          await readApiError(
-            response,
+          readApiError(
+            payload && !payload.ok ? payload : null,
             "Nao foi possivel carregar as cidades agora.",
           ),
         );
@@ -202,8 +207,8 @@ export function CustomerRegistrationPage({
 
       if (!response.ok || !payload?.ok) {
         setError(
-          await readApiError(
-            response,
+          readApiError(
+            payload && !payload.ok ? payload : null,
             "Nao foi possivel consultar o CEP agora.",
           ),
         );
@@ -279,8 +284,8 @@ export function CustomerRegistrationPage({
 
       if (!response.ok || !payload?.ok) {
         setError(
-          await readApiError(
-            response,
+          readApiError(
+            payload && !payload.ok ? payload : null,
             "Nao foi possivel concluir o cadastro agora.",
           ),
         );
