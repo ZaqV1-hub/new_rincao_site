@@ -16,6 +16,7 @@ vi.mock("@/lib/user-repository", () => ({
 describe("auth/password-reset/request route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.NEXT_PUBLIC_SITE_URL;
     sanitizeCpf.mockImplementation((value: string) => value.replace(/\D/g, ""));
     isValidCpf.mockReturnValue(true);
   });
@@ -104,6 +105,31 @@ describe("auth/password-reset/request route", () => {
         code: "user_not_found",
         message: "Nenhum usuario foi encontrado utilizando este CPF.",
       },
+    });
+  });
+
+  it("uses NEXT_PUBLIC_SITE_URL for reset links when behind a proxy", async () => {
+    process.env.NEXT_PUBLIC_SITE_URL = "https://cluberincao.questione.ai/";
+    requestCustomerPasswordReset.mockResolvedValue({
+      blocked: false,
+      userFound: true,
+      email: "cliente@example.com",
+    });
+
+    const { POST } = await import("@/app/api/auth/password-reset/request/route");
+    const response = await POST(
+      new Request("http://localhost:8061/api/auth/password-reset/request", {
+        method: "POST",
+        body: JSON.stringify({
+          cpf: "529.982.247-25",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(requestCustomerPasswordReset).toHaveBeenCalledWith({
+      cpf: "52998224725",
+      origin: "https://cluberincao.questione.ai",
     });
   });
 });

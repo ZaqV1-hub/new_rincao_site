@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requestPainelPasswordReset } from "@/lib/painel-password-reset";
+import { getPublicRequestOrigin } from "@/lib/request-origin";
 
 export const runtime = "nodejs";
 
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   try {
     const result = await requestPainelPasswordReset({
       email,
-      origin: new URL(request.url).origin,
+      origin: getPublicRequestOrigin(request),
     });
 
     if (result.blocked) {

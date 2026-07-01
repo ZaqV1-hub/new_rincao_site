@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requestCustomerPasswordReset } from "@/lib/customer-password-reset";
+import { getPublicRequestOrigin } from "@/lib/request-origin";
 import { isValidCpf, sanitizeCpf } from "@/lib/user-repository";
 
 export const runtime = "nodejs";
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
   try {
     const result = await requestCustomerPasswordReset({
       cpf,
-      origin: new URL(request.url).origin,
+      origin: getPublicRequestOrigin(request),
     });
 
     if (result.blocked) {

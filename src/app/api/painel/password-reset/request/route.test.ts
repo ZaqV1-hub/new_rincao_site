@@ -9,6 +9,7 @@ vi.mock("@/lib/painel-password-reset", () => ({
 describe("painel/password-reset/request route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.NEXT_PUBLIC_SITE_URL;
   });
 
   it("requests a painel password reset by e-mail", async () => {
@@ -103,6 +104,33 @@ describe("painel/password-reset/request route", () => {
         code: "user_not_found",
         message: "Nenhum usuario foi encontrado utilizando este endereco de e-mail.",
       },
+    });
+  });
+
+  it("uses NEXT_PUBLIC_SITE_URL for reset links when behind a proxy", async () => {
+    process.env.NEXT_PUBLIC_SITE_URL = "\"https://cluberincao.questione.ai\"";
+    requestPainelPasswordReset.mockResolvedValue({
+      blocked: false,
+      userFound: true,
+      email: "operador@example.com",
+    });
+
+    const { POST } = await import(
+      "@/app/api/painel/password-reset/request/route"
+    );
+    const response = await POST(
+      new Request("http://localhost:8061/api/painel/password-reset/request", {
+        method: "POST",
+        body: JSON.stringify({
+          email: "operador@example.com",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(requestPainelPasswordReset).toHaveBeenCalledWith({
+      email: "operador@example.com",
+      origin: "https://cluberincao.questione.ai",
     });
   });
 });
