@@ -11,6 +11,24 @@ type EmailQueueRow = {
   idemail: number;
 };
 
+function readBooleanEnv(value: string | undefined, fallback: boolean) {
+  const normalized = value?.trim().toLowerCase();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (["1", "true", "yes", "sim", "s"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "nao", "não", "n"].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+}
+
 function getLegacyEmailConfig() {
   return {
     host: process.env.EMAIL_SMTP_SERVER?.trim() || "smtp.zoho.com",
@@ -24,7 +42,7 @@ function getLegacyEmailConfig() {
     fromName: process.env.EMAIL_FROM_NAME?.trim() || "Rincao",
     replyToEmail:
       process.env.EMAIL_REPLYTO_ADDRESS?.trim() || "ingressos@rincao.local",
-    sendSync: String(process.env.PASSWORD_RESET_SEND_SYNC ?? "1").trim() === "1",
+    sendSync: readBooleanEnv(process.env.PASSWORD_RESET_SEND_SYNC, true),
     maxRetries: Number(process.env.EMAIL_MAX_RETRIES ?? 1),
   };
 }
