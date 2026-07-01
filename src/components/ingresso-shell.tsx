@@ -16,7 +16,7 @@ type IngressoShellProps = {
 const navItems = [
   {
     key: "schedule" as const,
-    label: "Agendamento",
+    label: "Agenda",
     href: "/agenda",
   },
   {

@@ -16,6 +16,8 @@ import {
 } from "@/lib/managed-content-order";
 import { authenticateOperationsRequest } from "@/lib/ops-auth";
 import {
+  type RincaoContentData,
+  deleteUploadedSiteImage,
   makeContentId,
   readRincaoContent,
   saveUploadedSiteImage,
@@ -95,6 +97,28 @@ async function deletePromotionalAgendaByDate(date: string | null, reason: string
   await deletePainelAgenda(agendaDay.agenda.id, { reason });
 }
 
+function collectManagedImageSources(data: RincaoContentData) {
+  return [
+    ...data.homeImages.flatMap((item) => [item.desktopSrc, item.mobileSrc]),
+    ...data.attractions.map((item) => item.imageSrc),
+    ...data.events.map((item) => item.imageSrc),
+    ...data.products.map((item) => item.imageSrc),
+  ].filter(Boolean);
+}
+
+function deleteUnusedUploads(
+  previousSources: Array<string | null | undefined>,
+  nextData: RincaoContentData,
+) {
+  const retainedSources = new Set(collectManagedImageSources(nextData));
+
+  for (const source of new Set(previousSources.filter(Boolean))) {
+    if (!retainedSources.has(String(source))) {
+      deleteUploadedSiteImage(source);
+    }
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const authResponse = await authorize(request);
@@ -130,8 +154,7 @@ export async function POST(request: Request) {
         desktopUpload ??
         current?.desktopSrc ??
         "";
-
-      await writeRincaoContent({
+      const nextData = {
         ...data,
         homeImages: upsertOrderedItem(data.homeImages, {
           id,
@@ -141,7 +164,10 @@ export async function POST(request: Request) {
           active: asBool(formData.get("active")),
           sortOrder: current?.sortOrder ?? data.homeImages.length + 1,
         }),
-      });
+      };
+
+      await writeRincaoContent(nextData);
+      deleteUnusedUploads([current?.desktopSrc, current?.mobileSrc], nextData);
       revalidateSite();
       return NextResponse.json({ ok: true });
     }
@@ -156,7 +182,7 @@ export async function POST(request: Request) {
         return errorResponse("Envie uma imagem para a atração.");
       }
 
-      await writeRincaoContent({
+      const nextData = {
         ...data,
         attractions: upsertOrderedItem(data.attractions, {
           id,
@@ -167,7 +193,10 @@ export async function POST(request: Request) {
           active: asBool(formData.get("active")),
           sortOrder: current?.sortOrder ?? data.attractions.length + 1,
         }),
-      });
+      };
+
+      await writeRincaoContent(nextData);
+      deleteUnusedUploads([current?.imageSrc], nextData);
       revalidateSite();
       return NextResponse.json({ ok: true });
     }
@@ -179,14 +208,6 @@ export async function POST(request: Request) {
       const imageUpload = await saveUploadedSiteImage(formData.get("image"));
       const hasDate = asText(formData.get("eventMode")) === "date";
       const eventDate = asText(formData.get("eventDate"));
-      const passportIds = formData
-        .getAll("passportIds")
-        .map((item) => String(item).trim())
-        .filter(Boolean);
-      const addonIds = formData
-        .getAll("addonIds")
-        .map((item) => String(item).trim())
-        .filter(Boolean);
       const [priceTables, informationOptions] = await Promise.all([
         listPainelAgendaPriceTables(),
         listPainelAgendaInformationOptions(),
@@ -246,8 +267,6 @@ export async function POST(request: Request) {
           promotionName: title || current?.title || "Novo evento",
           promotionDescription:
             asText(formData.get("description")) || current?.description || "",
-          passportIds,
-          addonIds,
           confirmOverwrite: true,
           reason: "Evento do site atualizado pelo painel",
         });
@@ -258,7 +277,7 @@ export async function POST(request: Request) {
         );
       }
 
-      await writeRincaoContent({
+      const nextData = {
         ...data,
         events: upsertOrderedItem(data.events, {
           id,
@@ -274,7 +293,10 @@ export async function POST(request: Request) {
           active: asBool(formData.get("active")),
           sortOrder: current?.sortOrder ?? data.events.length + 1,
         }),
-      });
+      };
+
+      await writeRincaoContent(nextData);
+      deleteUnusedUploads([current?.imageSrc], nextData);
       revalidateSite();
       return NextResponse.json({ ok: true });
     }
@@ -304,15 +326,23 @@ export async function DELETE(request: Request) {
     }
 
     if (payload.section === "home") {
-      await writeRincaoContent({
+      const current = data.homeImages.find((item) => item.id === payload.id);
+      const nextData = {
         ...data,
         homeImages: removeOrderedItem(data.homeImages, payload.id),
-      });
+      };
+
+      await writeRincaoContent(nextData);
+      deleteUnusedUploads([current?.desktopSrc, current?.mobileSrc], nextData);
     } else if (payload.section === "attraction") {
-      await writeRincaoContent({
+      const current = data.attractions.find((item) => item.id === payload.id);
+      const nextData = {
         ...data,
         attractions: removeOrderedItem(data.attractions, payload.id),
-      });
+      };
+
+      await writeRincaoContent(nextData);
+      deleteUnusedUploads([current?.imageSrc], nextData);
     } else if (payload.section === "event") {
       const current = data.events.find((item) => item.id === payload.id);
 
@@ -321,10 +351,13 @@ export async function DELETE(request: Request) {
         "Evento do site removido pelo painel.",
       );
 
-      await writeRincaoContent({
+      const nextData = {
         ...data,
         events: removeOrderedItem(data.events, payload.id),
-      });
+      };
+
+      await writeRincaoContent(nextData);
+      deleteUnusedUploads([current?.imageSrc], nextData);
     } else {
       return errorResponse("Tipo de conteúdo inválido.");
     }

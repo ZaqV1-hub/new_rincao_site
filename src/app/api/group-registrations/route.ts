@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { getRegistrationPage } from "@/lib/group-registration-content";
 import {
-  buildRegistrationWhatsappMessage,
   sanitizeRegistrationInput,
   validateRegistrationInput,
 } from "@/lib/group-registration-form-data";
+import { sendGroupRegistrationEmail } from "@/lib/group-registration-email";
 import { storeRegistrationSubmission } from "@/lib/group-registration-storage";
-import { contact } from "@/lib/site-content";
 
 export const runtime = "nodejs";
 
@@ -59,16 +58,13 @@ export async function POST(request: Request) {
       userAgent: request.headers.get("user-agent"),
     });
 
-    const whatsappNumber = contact.whatsapp.replace("https://wa.me/", "");
-    const whatsappText = buildRegistrationWhatsappMessage(input, submission.protocol);
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappText)}`;
+    await sendGroupRegistrationEmail(input, submission);
 
     return NextResponse.json({
       ok: true,
       protocol: submission.protocol,
       createdAt: submission.createdAt,
       storage: submission.storage,
-      whatsappUrl,
     });
   } catch (error) {
     console.error("group-registration-submit-failed", error);

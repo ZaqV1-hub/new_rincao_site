@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getInfoPage } from "@/lib/site-content";
 
 const productionSiteUrl = "https://www.rincao.local";
-const brandName = "Rincao";
+const brandName = "Rincão";
 
 export function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? productionSiteUrl;

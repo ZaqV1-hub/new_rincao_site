@@ -9,7 +9,6 @@ import {
   isAgendaDateExpired,
 } from "@/lib/agenda-repository";
 import { requireAuthenticatedCustomer } from "@/lib/customer-area";
-import { getAgendaProductAvailability } from "@/lib/painel-agenda-product-availability";
 import { getPurchaseAgendaContext } from "@/lib/purchase-repository";
 import { buildStandardTicketProducts } from "@/lib/standard-ticket-products";
 
@@ -67,13 +66,11 @@ export default async function BuyRoutePage({ params }: BuyRoutePageProps) {
     notFound();
   }
 
-  const availability = await getAgendaProductAvailability(agenda.date);
   const products = buildStandardTicketProducts(
     {
       siteNormal: agenda.priceTable.normal,
       siteChild: agenda.priceTable.child,
     },
-    availability.passportIds,
   );
 
   return <PurchasePage agenda={agenda} user={customer} products={products} />;

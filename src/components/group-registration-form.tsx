@@ -15,25 +15,21 @@ type SubmitState =
       status: "idle";
       message: null;
       protocol?: never;
-      whatsappUrl?: never;
     }
   | {
       status: "submitting";
       message: string;
       protocol?: never;
-      whatsappUrl?: never;
     }
   | {
       status: "success";
       message: string;
       protocol: string;
-      whatsappUrl: string;
     }
   | {
       status: "error";
       message: string;
       protocol?: never;
-      whatsappUrl?: never;
     };
 
 const howHeardOptions = [
@@ -331,10 +327,9 @@ export function GroupRegistrationForm({
         ok: boolean;
         error?: string;
         protocol?: string;
-        whatsappUrl?: string;
       };
 
-      if (!response.ok || !result.ok || !result.protocol || !result.whatsappUrl) {
+      if (!response.ok || !result.ok || !result.protocol) {
         setSubmitState({
           status: "error",
           message:
@@ -348,9 +343,8 @@ export function GroupRegistrationForm({
       setSubmitState({
         status: "success",
         message:
-          "Solicitacao registrada com sucesso. Nossa equipe pode continuar o atendimento a partir deste protocolo.",
+          "Solicitacao registrada com sucesso. Nossa equipe recebeu os dados e pode continuar o atendimento a partir deste protocolo.",
         protocol: result.protocol,
-        whatsappUrl: result.whatsappUrl,
       });
     } catch {
       setSubmitState({
@@ -388,14 +382,6 @@ export function GroupRegistrationForm({
           </p>
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
-          <a
-            href={submitState.whatsappUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rincao-button"
-          >
-            Continuar no WhatsApp
-          </a>
           <button
             type="button"
             className="rincao-button-secondary"
@@ -446,7 +432,7 @@ export function GroupRegistrationForm({
           />
           <FormSection
             title="Solicitar orcamento ou tirar duvida"
-            description="O envio registra sua solicitacao no atendimento institucional e gera um protocolo antes de qualquer contato por WhatsApp."
+            description="O envio registra sua solicitacao no atendimento institucional e gera um protocolo para acompanhamento."
             fields={requestFields}
             disabled={isSubmitting}
           />

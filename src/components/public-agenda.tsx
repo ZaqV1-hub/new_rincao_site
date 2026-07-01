@@ -276,7 +276,7 @@ export function PublicAgenda({
               {getMonthLabel(period.month, period.year)}
             </p>
             <p className="hidden text-[10px] font-bold uppercase tracking-[0.24em] text-[#3f78ab] lg:block">
-              Agendamento
+              Agenda
             </p>
             <h1 className="mt-2 max-w-[430px] text-[19px] font-extrabold leading-[1.06] text-[#143b63] sm:text-[25px] lg:text-[28px]">
               Escolha a data da visita
@@ -427,7 +427,7 @@ export function PublicAgenda({
                 </h2>
                 {sortedEvents.length === 0 ? (
                   <p className="mt-2 text-[12px] leading-5 text-[#5f748b]">
-                    No momento não existem datas abertas para compra ou agendamento.
+                    No momento não existem datas abertas para compra.
                   </p>
                 ) : null}
               </div>

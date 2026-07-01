@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { dirname, extname, join, resolve } from "path";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
+import { dirname, extname, join, resolve, sep } from "path";
 import {
   DEFAULT_B2C_PRODUCTS,
   type B2cProduct,
@@ -77,6 +77,7 @@ export const siteUploadDir = join(storageRoot, "public", "uploads", "site");
 const siteBinaryUploadDir = join(dataDir, "uploads", "site");
 const siteContentKey = "main";
 const runtimeEntry = process.argv[1] ? dirname(resolve(process.argv[1])) : null;
+let ensureDatabaseSeededPromise: Promise<void> | null = null;
 
 const EMPTY_HOME_IMAGE: ManagedHomeImage = {
   id: "",
@@ -604,8 +605,19 @@ async function ensureDatabaseSeeded() {
   );
 }
 
+async function ensureDatabaseSeededOnce() {
+  if (!ensureDatabaseSeededPromise) {
+    ensureDatabaseSeededPromise = ensureDatabaseSeeded().catch((error) => {
+      ensureDatabaseSeededPromise = null;
+      throw error;
+    });
+  }
+
+  return ensureDatabaseSeededPromise;
+}
+
 export async function readRincaoContent() {
-  await ensureDatabaseSeeded();
+  await ensureDatabaseSeededOnce();
 
   const pool = getIngressoDbPool();
   const tableName = getSiteContentTableName();
@@ -633,7 +645,7 @@ export async function readRincaoContent() {
 }
 
 export async function writeRincaoContent(data: RincaoContentData) {
-  await ensureDatabaseSeeded();
+  await ensureDatabaseSeededOnce();
 
   const normalized = normalizeRincaoContent(data);
   await persistRincaoContent(normalized);
@@ -720,6 +732,58 @@ export async function saveUploadedSiteImage(file: FormDataEntryValue | null) {
   }
 
   return `/uploads/site/${fileName}`;
+}
+
+function getManagedUploadFileName(src: string | null | undefined) {
+  const normalized = String(src ?? "").trim().replace(/\\/g, "/");
+  const prefix = "/uploads/site/";
+
+  if (!normalized.startsWith(prefix)) {
+    return null;
+  }
+
+  const fileName = normalized.slice(prefix.length);
+
+  if (
+    !fileName ||
+    fileName === "." ||
+    fileName === ".." ||
+    fileName.includes("/")
+  ) {
+    return null;
+  }
+
+  return fileName;
+}
+
+export function deleteUploadedSiteImage(src: string | null | undefined) {
+  const fileName = getManagedUploadFileName(src);
+
+  if (!fileName) {
+    return;
+  }
+
+  for (const targetDir of getSiteUploadTargets()) {
+    const resolvedDir = resolve(targetDir);
+    const filePath = resolve(targetDir, fileName);
+
+    if (
+      filePath !== resolvedDir &&
+      !filePath.startsWith(`${resolvedDir}${sep}`)
+    ) {
+      continue;
+    }
+
+    if (!existsSync(filePath)) {
+      continue;
+    }
+
+    try {
+      unlinkSync(filePath);
+    } catch (error) {
+      console.error("site-upload-delete-failed", error);
+    }
+  }
 }
 
 export function readUploadedSiteImage(segments: string[]) {

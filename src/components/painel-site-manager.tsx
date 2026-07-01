@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { PainelModal } from "@/components/painel-modal";
 import type {
   ManagedAttraction,
@@ -28,8 +28,6 @@ type EventDatePayload = {
     priceTableId?: number | null;
     informationId?: number | null;
   } | null;
-  selectedPassportIds?: string[];
-  selectedAddonIds?: string[];
 };
 
 const colors = {
@@ -194,22 +192,6 @@ export function PainelSiteManager({
 
     return null;
   })();
-  const passports = useMemo(
-    () => content.products.filter((product) => product.type === "passport"),
-    [content.products],
-  );
-  const addons = useMemo(
-    () => content.products.filter((product) => product.type === "addon"),
-    [content.products],
-  );
-  const defaultPassportIds = useMemo(
-    () => passports.map((product) => product.id),
-    [passports],
-  );
-  const defaultAddonIds = useMemo(
-    () => addons.map((product) => product.id),
-    [addons],
-  );
   const initialEventItem =
     initialEditing?.section === "event"
       ? (initialEditing.item as ManagedEvent | null)
@@ -227,8 +209,6 @@ export function PainelSiteManager({
   const [eventHrefValue, setEventHrefValue] = useState(
     initialEventItem && initialEventMode === "link" ? initialEventItem.href ?? "" : "",
   );
-  const [selectedPassportIds, setSelectedPassportIds] = useState<string[]>(defaultPassportIds);
-  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>(defaultAddonIds);
   const [eventPriceTableId, setEventPriceTableId] = useState<number | null>(
     defaultPriceTableId ?? null,
   );
@@ -264,16 +244,6 @@ export function PainelSiteManager({
           throw new Error(payload?.error?.message || "Não foi possível carregar a data.");
         }
 
-        setSelectedPassportIds(
-          payload.data?.selectedPassportIds?.length
-            ? payload.data.selectedPassportIds
-            : defaultPassportIds,
-        );
-        setSelectedAddonIds(
-          payload.data?.selectedAddonIds?.length
-            ? payload.data.selectedAddonIds
-            : defaultAddonIds,
-        );
         setEventPriceTableId(
           payload.data?.agenda?.priceTableId ?? defaultPriceTableId ?? null,
         );
@@ -285,8 +255,6 @@ export function PainelSiteManager({
           return;
         }
 
-        setSelectedPassportIds(defaultPassportIds);
-        setSelectedAddonIds(defaultAddonIds);
         setEventPriceTableId(defaultPriceTableId ?? null);
         setEventInformationId(defaultInformationId ?? null);
         setError(
@@ -305,9 +273,7 @@ export function PainelSiteManager({
 
     return () => controller.abort();
   }, [
-    defaultAddonIds,
     defaultInformationId,
-    defaultPassportIds,
     defaultPriceTableId,
     editing,
     eventDateValue,
@@ -319,8 +285,6 @@ export function PainelSiteManager({
     setEventMode("date");
     setEventDateValue("");
     setEventHrefValue("");
-    setSelectedPassportIds(defaultPassportIds);
-    setSelectedAddonIds(defaultAddonIds);
     setEventPriceTableId(defaultPriceTableId ?? null);
     setEventInformationId(defaultInformationId ?? null);
     setError(null);
@@ -333,23 +297,9 @@ export function PainelSiteManager({
     setEventMode(nextMode);
     setEventDateValue(resolveEventDate(item));
     setEventHrefValue(nextMode === "link" ? item.href ?? "" : "");
-    setSelectedPassportIds(defaultPassportIds);
-    setSelectedAddonIds(defaultAddonIds);
     setEventPriceTableId(defaultPriceTableId ?? null);
     setEventInformationId(defaultInformationId ?? null);
     setError(null);
-  }
-
-  function toggleSelection(
-    value: string,
-    selectedValues: string[],
-    setSelectedValues: Dispatch<SetStateAction<string[]>>,
-  ) {
-    setSelectedValues(
-      selectedValues.includes(value)
-        ? selectedValues.filter((item) => item !== value)
-        : [...selectedValues, value],
-    );
   }
 
   async function submitForm(event: FormEvent<HTMLFormElement>) {
@@ -364,16 +314,6 @@ export function PainelSiteManager({
         formData.set("eventMode", eventMode);
         formData.set("eventDate", eventDateValue);
         formData.set("href", eventHrefValue);
-        formData.delete("passportIds");
-        formData.delete("addonIds");
-
-        for (const id of selectedPassportIds) {
-          formData.append("passportIds", id);
-        }
-
-        for (const id of selectedAddonIds) {
-          formData.append("addonIds", id);
-        }
 
         if (eventPriceTableId) {
           formData.set("priceTableId", String(eventPriceTableId));
@@ -693,41 +633,11 @@ export function PainelSiteManager({
                           />
                         </Field>
 
-                        <MultiSelectGrid
-                          title="Tipos de passaporte"
-                          description="Escolha quais passaportes ficam disponíveis para esta data promocional."
-                          items={passports.map((product) => ({
-                            id: product.id,
-                            title: product.title,
-                            subtitle: product.subtitle,
-                          }))}
-                          loading={eventAvailabilityLoading}
-                          selectedIds={selectedPassportIds}
-                          onToggle={(id) =>
-                            toggleSelection(
-                              id,
-                              selectedPassportIds,
-                              setSelectedPassportIds,
-                            )
-                          }
-                          onSelectAll={() => setSelectedPassportIds(defaultPassportIds)}
-                        />
-
-                        <MultiSelectGrid
-                          title="Adicionais"
-                          description="Escolha os adicionais liberados para a data promocional."
-                          items={addons.map((product) => ({
-                            id: product.id,
-                            title: product.title,
-                            subtitle: product.subtitle,
-                          }))}
-                          loading={eventAvailabilityLoading}
-                          selectedIds={selectedAddonIds}
-                          onToggle={(id) =>
-                            toggleSelection(id, selectedAddonIds, setSelectedAddonIds)
-                          }
-                          onSelectAll={() => setSelectedAddonIds(defaultAddonIds)}
-                        />
+                        {eventAvailabilityLoading ? (
+                          <p className={`rounded-[8px] border ${colors.border} bg-white px-4 py-3 text-sm ${colors.muted}`}>
+                            Carregando dados da data...
+                          </p>
+                        ) : null}
                       </>
                     ) : (
                       <Field label="Link externo">
@@ -822,79 +732,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {label}
       {children}
     </label>
-  );
-}
-
-function MultiSelectGrid({
-  title,
-  description,
-  items,
-  loading,
-  selectedIds,
-  onToggle,
-  onSelectAll,
-}: {
-  title: string;
-  description: string;
-  items: Array<{ id: string; title: string; subtitle?: string | null }>;
-  loading: boolean;
-  selectedIds: string[];
-  onToggle: (id: string) => void;
-  onSelectAll: () => void;
-}) {
-  return (
-    <section className={`grid gap-3 rounded-[10px] border ${colors.border} bg-white p-4`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className={`text-sm font-black ${colors.ink}`}>{title}</p>
-          <p className={`mt-1 text-xs leading-5 ${colors.muted}`}>{description}</p>
-        </div>
-        <button
-          type="button"
-          onClick={onSelectAll}
-          className={`rounded-[8px] border ${colors.border} px-3 py-2 text-xs font-semibold ${colors.ink}`}
-        >
-          Marcar todos
-        </button>
-      </div>
-
-      {loading ? (
-        <p className={`text-xs ${colors.muted}`}>Carregando configuração desta data...</p>
-      ) : null}
-
-      <div className="grid gap-2 md:grid-cols-2">
-        {items.map((item) => {
-          const checked = selectedIds.includes(item.id);
-
-          return (
-            <label
-              key={item.id}
-              className={`rounded-[8px] border px-3 py-3 text-sm ${
-                checked
-                  ? "border-[#123b63] bg-[#f2f7fc] text-[#123b63]"
-                  : "border-[#d4dfeb] bg-white text-[#123b63]"
-              }`}
-            >
-              <span className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => onToggle(item.id)}
-                />
-                <span className="min-w-0">
-                  <span className="block font-black">{item.title}</span>
-                  {item.subtitle ? (
-                    <span className={`mt-1 block text-xs leading-5 ${colors.muted}`}>
-                      {item.subtitle}
-                    </span>
-                  ) : null}
-                </span>
-              </span>
-            </label>
-          );
-        })}
-      </div>
-    </section>
   );
 }
 

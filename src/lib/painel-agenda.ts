@@ -1,11 +1,6 @@
 import { getIngressoDbPool } from "@/lib/ingresso-db";
 import { listOpsAdminMasterData } from "@/lib/ops-admin-master-data";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
-import {
-  getAgendaProductAvailability,
-  removeAgendaProductAvailability,
-  setAgendaProductAvailabilityRange,
-} from "@/lib/painel-agenda-product-availability";
 import { formatPainelAgendaDateLabel } from "@/lib/painel-agenda-ui";
 
 export type PainelAgendaType =
@@ -64,8 +59,6 @@ export type PainelAgendaDayDetail = {
   selectedDate: string;
   agenda: PainelAgendaMonthEntry | null;
   vouchers: PainelAgendaVoucherEntry[];
-  selectedPassportIds: string[];
-  selectedAddonIds: string[];
 };
 
 export type PainelAgendaScreenData = {
@@ -93,8 +86,6 @@ export type PainelAgendaMutationInput = {
   status: PainelAgendaStatus;
   promotionName?: string | null;
   promotionDescription?: string | null;
-  passportIds?: string[] | null;
-  addonIds?: string[] | null;
   confirmOverwrite?: boolean;
   reason: string;
   actor?: {
@@ -417,14 +408,10 @@ export async function getPainelAgendaDay(date: string) {
     ),
   ]);
 
-  const availability = await getAgendaProductAvailability(date);
-
   return {
     selectedDate: date,
     agenda: agendaResult.rows[0] ? mapMonthEntry(agendaResult.rows[0]) : null,
     vouchers: vouchersResult.rows.map(mapVoucherEntry),
-    selectedPassportIds: availability.passportIds,
-    selectedAddonIds: availability.addonIds,
   } satisfies PainelAgendaDayDetail;
 }
 
@@ -543,8 +530,6 @@ function validateMutationInput(input: PainelAgendaMutationInput) {
       name: input.actor?.name?.trim() || null,
       cpf: input.actor?.cpf?.trim() || null,
     },
-    passportIds: Array.isArray(input.passportIds) ? input.passportIds : null,
-    addonIds: Array.isArray(input.addonIds) ? input.addonIds : null,
   };
 }
 
@@ -722,17 +707,11 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
         informationId: normalized.informationId,
         type: normalized.type,
         status: normalized.status,
-        passportIds: normalized.passportIds,
-        addonIds: normalized.addonIds,
         overwrittenDates: preview.existingDates,
       },
     });
 
     await client.query("COMMIT");
-    await setAgendaProductAvailabilityRange(dates, {
-      passportIds: normalized.passportIds ?? undefined,
-      addonIds: normalized.addonIds ?? undefined,
-    });
 
     return {
       ok: true,
@@ -837,7 +816,6 @@ export async function deletePainelAgenda(
     });
 
     await client.query("COMMIT");
-    removeAgendaProductAvailability(agenda.dtagenda);
 
     return {
       ok: true,

@@ -168,7 +168,7 @@ export function InfoPageView({ page }: { page: InfoPage }) {
               {page.videos?.length ? (
                 <section className="rounded-[28px] border border-[#d8e2eb] bg-white p-7 shadow-[0_18px_40px_rgba(18,52,79,0.08)]">
                   <h2 className="text-left font-[var(--font-salsa)] text-[2rem] leading-[1] text-[#12344f]">
-                    Conteudo em video
+                    Conteúdo em vídeo
                   </h2>
                   <div className="mt-6 grid gap-5 xl:grid-cols-2">
                     {page.videos.map((video) => (
@@ -250,7 +250,7 @@ export function InfoPageView({ page }: { page: InfoPage }) {
             <aside className="space-y-5">
               <div className="rounded-[28px] border border-[#d8e2eb] bg-white p-6 text-left shadow-[0_18px_40px_rgba(18,52,79,0.08)] lg:sticky lg:top-[118px]">
                 <p className="text-[12px] font-bold uppercase tracking-[0.22em] text-[#5f84a7]">
-                  Informacoes rapidas
+                  Informações rápidas
                 </p>
 
                 {page.facts?.length ? (

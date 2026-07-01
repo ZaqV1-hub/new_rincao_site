@@ -267,7 +267,6 @@ export function RincaoHomePage({
                 />
               ))}
             </div>
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,23,38,0.12)_0%,rgba(8,23,38,0.28)_100%)]" />
             <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 gap-2">
               {heroImages.map((image, index) => (
                 <button

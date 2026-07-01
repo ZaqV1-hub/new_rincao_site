@@ -35,16 +35,16 @@ export function LegacyEventPage({
             <div className="text-left">
               <p className="text-[15px] leading-7 text-[#333]">
                 {requestedSlug
-                  ? `A URL /evento/${requestedSlug} foi preservada no novo institucional, mas nao ha mais uma pagina individual ativa para esse slug.`
+                  ? `A URL /evento/${requestedSlug} foi preservada no novo institucional, mas não há mais uma página individual ativa para esse slug.`
                   : "As URLs legadas de evento agora ficam concentradas neste arquivo do novo institucional."}
               </p>
               <p className="mt-4 text-[15px] leading-7 text-[#333]">
-                Para os eventos ainda divulgados na home do site, mantivemos paginas estaticas equivalentes. Para outros slugs antigos, o destino oficial agora e a
+                Para os eventos ainda divulgados na home do site, mantivemos páginas estáticas equivalentes. Para outros slugs antigos, o destino oficial agora é a
                 {" "}
                 <Link href="/agenda" className="underline">
-                  agenda publica
+                  agenda pública
                 </Link>
-                , que abre a compra e o agendamento no frontend novo.
+                , que abre a seleção de data e a compra no frontend novo.
               </p>
 
               <div className="mt-8 grid gap-4 md:grid-cols-2">

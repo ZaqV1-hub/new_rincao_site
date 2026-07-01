@@ -20,8 +20,6 @@ type AgendaMutationPayload = {
   status?: unknown;
   promotionName?: unknown;
   promotionDescription?: unknown;
-  passportIds?: unknown;
-  addonIds?: unknown;
   confirmOverwrite?: unknown;
   reason?: unknown;
   actor?: {
@@ -72,12 +70,6 @@ function parseInput(payload: AgendaMutationPayload | null): PainelAgendaMutation
       typeof payload?.promotionDescription === "string"
         ? payload.promotionDescription
         : null,
-    passportIds: Array.isArray(payload?.passportIds)
-      ? payload.passportIds.map((item) => String(item).trim()).filter(Boolean)
-      : null,
-    addonIds: Array.isArray(payload?.addonIds)
-      ? payload.addonIds.map((item) => String(item).trim()).filter(Boolean)
-      : null,
     confirmOverwrite: payload?.confirmOverwrite === true,
     reason: typeof payload?.reason === "string" ? payload.reason : "",
     actor: {
