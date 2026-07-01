@@ -68,6 +68,13 @@ export async function getB2cProduct(productId: string) {
 }
 
 export async function buildB2cCartSummary(lineItems: B2cCartLineItem[]) {
+  return buildB2cCartSummaryForProducts(lineItems, await listB2cProducts());
+}
+
+export function buildB2cCartSummaryForProducts(
+  lineItems: B2cCartLineItem[],
+  products: B2cProduct[],
+) {
   const lines: B2cCartSummaryLine[] = [];
 
   for (const item of lineItems) {
@@ -75,7 +82,7 @@ export async function buildB2cCartSummary(lineItems: B2cCartLineItem[]) {
       throw new Error("Informe quantidades validas para continuar.");
     }
 
-    const product = await getB2cProduct(item.productId);
+    const product = products.find((current) => current.id === item.productId) ?? null;
 
     if (!product) {
       throw new Error("Produto indisponivel para compra.");

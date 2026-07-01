@@ -3,7 +3,7 @@ import {
   isAgendaDateExpired,
 } from "@/lib/agenda-repository";
 import { encodeLegacyId } from "@/lib/agenda-id";
-import { buildB2cCartSummary } from "@/lib/b2c-catalog";
+import { buildB2cCartSummaryForProducts } from "@/lib/b2c-catalog";
 import {
   calculateCodindicaCartTotals,
   calculateCodindicaTotals,
@@ -20,6 +20,7 @@ import type {
   PurchaseAgendaDetail,
   PurchasePricing,
 } from "@/lib/purchase-contracts";
+import { buildStandardTicketProducts } from "@/lib/standard-ticket-products";
 import { generateUniqueVoucherNumber } from "@/lib/voucher-number";
 
 type ConvenioRow = {
@@ -300,6 +301,19 @@ function resolveVoucherValidityDate(agenda: PurchaseAgendaDetail, now = new Date
   return addMonths(now, 6).toISOString().slice(0, 10);
 }
 
+function buildAgendaCartSummary(
+  agenda: Pick<PurchaseAgendaDetail, "priceTable">,
+  lineItems: NonNullable<CreatePurchaseRequest["lineItems"]>,
+) {
+  return buildB2cCartSummaryForProducts(
+    lineItems,
+    buildStandardTicketProducts({
+      siteNormal: agenda.priceTable.normal,
+      siteChild: agenda.priceTable.child,
+    }),
+  );
+}
+
 export async function createOnlinePurchase(
   cpf: string,
   agendaId: number,
@@ -325,7 +339,7 @@ export async function createOnlinePurchase(
   }
 
   if (isB2cLineItemSelection(selection)) {
-    const cart = await buildB2cCartSummary(selection.lineItems);
+    const cart = buildAgendaCartSummary(agenda, selection.lineItems);
     const pool = getIngressoSistemaDbPool();
     const codindica = normalizeCodindica(codindicaInput);
     let cartCodindicaTotals: ReturnType<typeof calculateCodindicaCartTotals> | null = null;
@@ -822,7 +836,7 @@ export async function previewOnlinePurchaseCodindica(
     );
   }
 
-  const cart = await buildB2cCartSummary(selection.lineItems);
+  const cart = buildAgendaCartSummary(agenda, selection.lineItems);
   const pool = getIngressoSistemaDbPool();
   const codindica = normalizeCodindica(codindicaInput);
 

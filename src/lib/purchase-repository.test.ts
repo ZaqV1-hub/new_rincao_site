@@ -33,6 +33,10 @@ vi.mock("@/lib/ingresso-db", () => ({
   }),
 }));
 
+vi.mock("@/lib/rincao-content-store", () => ({
+  getManagedB2cProducts: vi.fn(async () => []),
+}));
+
 vi.mock("@/lib/voucher-number", () => ({
   generateUniqueVoucherNumber: mocks.generateUniqueVoucherNumber,
 }));
