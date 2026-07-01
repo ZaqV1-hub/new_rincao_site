@@ -58,7 +58,7 @@ describe("painel/bilheteria/vouchers/[voucherId]/whatsapp BFF route", () => {
     expect(response.status).toBe(403);
     expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
-      ["vis_compra", "vis_bilhet"],
+      ["vis_bilhet"],
     );
   });
 
@@ -94,7 +94,7 @@ describe("painel/bilheteria/vouchers/[voucherId]/whatsapp BFF route", () => {
 
     expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
-      ["vis_compra", "vis_bilhet"],
+      ["vis_bilhet"],
     );
     expect(sendPainelBilheteriaVoucherWhatsapp).toHaveBeenCalledWith({
       purchaseId: 10,

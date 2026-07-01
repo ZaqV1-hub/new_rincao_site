@@ -1056,7 +1056,10 @@ export async function sendPainelBilheteriaVoucherWhatsapp(
       voucherId: input.voucherId,
       phoneNumber: normalizedPhone,
       validUntil: validUntilText,
-      message: "Solicitacao enviada para o WhatsApp.",
+      message:
+        result.deliveryStatus === "queued"
+          ? "Solicitacao de envio por WhatsApp enfileirada."
+          : "Solicitacao enviada para o WhatsApp.",
       auditLogId,
     };
   } catch (error) {

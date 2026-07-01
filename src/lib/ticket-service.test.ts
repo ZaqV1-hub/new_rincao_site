@@ -532,6 +532,8 @@ describe("ticket-service", () => {
       status: "sent",
       purchaseId: 456,
       sentVoucherIds: [9001],
+      deliveryStatus: "queued",
+      upstreamStatus: 202,
     });
   });
 

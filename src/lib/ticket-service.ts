@@ -63,6 +63,8 @@ type TicketWhatsappSendResult = {
   purchaseId: number;
   sentVoucherIds: number[];
   skippedReason?: string;
+  deliveryStatus?: "queued";
+  upstreamStatus?: number;
 };
 
 export type TicketValidationAction = "validate" | "unvalidate" | "invalidate";
@@ -362,7 +364,10 @@ async function websiteTicketRequest(
     throw new Error(`ticket_api_error_${response.status}`);
   }
 
-  return response.json().catch(() => ({}));
+  return {
+    payload: await response.json().catch(() => ({})),
+    status: response.status,
+  };
 }
 
 async function authenticate(config: TicketServiceConfig) {
@@ -877,8 +882,10 @@ export async function sendPurchaseTicketsWhatsApp(
     };
   }
 
+  let response: Awaited<ReturnType<typeof websiteTicketRequest>>;
+
   try {
-    await websiteTicketRequest(
+    response = await websiteTicketRequest(
       "/website/tickets/send",
       {
         phoneNumber: normalizedPhone,
@@ -902,6 +909,12 @@ export async function sendPurchaseTicketsWhatsApp(
     status: "sent",
     purchaseId,
     sentVoucherIds: vouchers.map((voucher) => voucher.idvoucher),
+    ...(response.status === 202
+      ? {
+          deliveryStatus: "queued" as const,
+          upstreamStatus: response.status,
+        }
+      : {}),
   };
 }
 

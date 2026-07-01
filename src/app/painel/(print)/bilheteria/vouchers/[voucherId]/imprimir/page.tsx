@@ -44,6 +44,13 @@ export default async function PainelBilheteriaVoucherPrintPage({
     });
   } catch (error) {
     const normalized = asPainelBilheteriaError(error);
+    console.error("painel-bilheteria-voucher-print-failed", {
+      voucherId: id,
+      code: normalized.code,
+      status: normalized.status,
+      message: normalized.message,
+      error,
+    });
 
     if (
       normalized.code === "invalid_voucher_id" ||
@@ -71,4 +78,3 @@ export default async function PainelBilheteriaVoucherPrintPage({
 
   return <PainelBilheteriaVoucherPrintView model={model} />;
 }
-

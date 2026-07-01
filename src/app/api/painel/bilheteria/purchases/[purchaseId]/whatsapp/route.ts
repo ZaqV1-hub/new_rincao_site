@@ -98,7 +98,12 @@ export async function POST(
       return {
         purchaseId: result.purchaseId,
         sentVoucherIds: result.sentVoucherIds,
-        message: "Ingressos enviados por WhatsApp com sucesso.",
+        deliveryStatus: result.deliveryStatus ?? "sent",
+        upstreamStatus: result.upstreamStatus ?? null,
+        message:
+          result.deliveryStatus === "queued"
+            ? "Solicitacao de envio por WhatsApp enfileirada."
+            : "Solicitacao enviada para o WhatsApp.",
       };
     },
     mapError: asWhatsappRouteError,

@@ -44,6 +44,13 @@ export default async function PainelBilheteriaPurchasePrintPage({
     });
   } catch (error) {
     const normalized = asPainelBilheteriaError(error);
+    console.error("painel-bilheteria-purchase-print-failed", {
+      purchaseId: id,
+      code: normalized.code,
+      status: normalized.status,
+      message: normalized.message,
+      error,
+    });
 
     if (
       normalized.code === "invalid_purchase_id" ||
@@ -71,4 +78,3 @@ export default async function PainelBilheteriaPurchasePrintPage({
 
   return <PainelBilheteriaPurchasePrintView model={model} />;
 }
-
