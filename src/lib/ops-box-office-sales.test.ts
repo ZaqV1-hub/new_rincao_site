@@ -246,6 +246,7 @@ describe("ops-box-office-sales", () => {
         motivo: "Venda presencial",
         usuarioNome: "Operador",
       }),
+      "postgres",
     );
     expect(mocks.clientQuery).toHaveBeenCalledWith("COMMIT");
     expect(mocks.processConfirmedPurchaseTickets).toHaveBeenCalledWith(321);
@@ -524,7 +525,10 @@ describe("ops-box-office-sales", () => {
       auditLogId: 9100,
       warnings: ["idempotent_replay"],
     });
-    expect(mocks.ensureOpsAuditLogTable).toHaveBeenCalled();
+    expect(mocks.ensureOpsAuditLogTable).toHaveBeenCalledWith(
+      expect.anything(),
+      "postgres",
+    );
     expect(mocks.getOrCreateOpenCashPeriod).not.toHaveBeenCalled();
     expect(mocks.processConfirmedPurchaseTickets).toHaveBeenCalledWith(400);
   });

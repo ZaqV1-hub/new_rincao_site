@@ -874,7 +874,7 @@ export async function createOperationalBoxOfficeSale(
     await client.query("BEGIN");
 
     if (idempotencyKey) {
-      await ensureOpsAuditLogTable(client);
+      await ensureOpsAuditLogTable(client, "postgres");
       await lockIdempotencyKey(client, idempotencyKey);
       committedSale = await findIdempotentSale(
         client,
@@ -1030,7 +1030,7 @@ export async function createOperationalBoxOfficeSale(
         courtesyAuthorIds,
         idempotencyKey,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
     committedSale = {

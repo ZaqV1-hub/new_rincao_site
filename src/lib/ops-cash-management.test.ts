@@ -14,7 +14,7 @@ const { query, connect, release, registerOpsAuditLog } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbPool: () => ({
     connect,
   }),
 }));
@@ -256,6 +256,7 @@ describe("ops-cash-management", () => {
         periodoId: 7,
         motivo: "Reforco do caixa",
       }),
+      "postgres",
     );
   });
 
@@ -457,6 +458,7 @@ describe("ops-cash-management", () => {
         movimentacaoId: 2,
         movimentacaoTipo: "sangria",
       }),
+      "postgres",
     );
   });
 
@@ -582,6 +584,7 @@ describe("ops-cash-management", () => {
         movimentacaoId: 12,
         movimentacaoTipo: "fundo",
       }),
+      "postgres",
     );
   });
 });

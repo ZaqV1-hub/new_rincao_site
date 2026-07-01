@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 
 type CashPeriodRow = {
@@ -477,7 +477,7 @@ export async function buildOperationalCashSummary(client: PoolClient) {
 }
 
 export async function getOperationalCashSummary(): Promise<OperationalCashSummary> {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -528,7 +528,7 @@ export async function createOperationalCashMovement(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -592,7 +592,7 @@ export async function createOperationalCashMovement(
           createdAt: movement.createdAt,
         },
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -654,7 +654,7 @@ export async function updateOperationalCashMovement(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -742,7 +742,7 @@ export async function updateOperationalCashMovement(
         beforeTotals: beforeSummary.totals,
         afterTotals: summary.totals,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
@@ -783,7 +783,7 @@ export async function deleteOperationalCashMovement(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -823,7 +823,7 @@ export async function deleteOperationalCashMovement(
         beforeTotals: beforeSummary.totals,
         afterTotals: summary.totals,
       },
-    });
+    }, "postgres");
 
     await client.query("COMMIT");
 
