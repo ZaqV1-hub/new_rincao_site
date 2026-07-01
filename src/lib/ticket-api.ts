@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 
 export const defaultTicketsApiBaseUrl =
-  "https://rincaoticketapi.azurewebsites.net";
+  "https://rincaoticketapi-a8buakffcrarc3an.brazilsouth-01.azurewebsites.net";
 
 export type TicketApiVoucherPayload = {
   purchaseId: number;
@@ -32,9 +32,14 @@ export class TicketApiError extends Error {
 
 export function getTicketsApiBaseUrl() {
   return (
-    process.env.TICKETS_API_BASE_URL?.trim().replace(/\/+$/, "") ||
+    normalizeTicketsApiBaseUrl(process.env.TICKETS_API_BASE_URL) ||
+    normalizeTicketsApiBaseUrl(process.env.INGRESSO_TICKET_API_BASE_URL) ||
     defaultTicketsApiBaseUrl
   );
+}
+
+function normalizeTicketsApiBaseUrl(value: string | undefined) {
+  return value?.trim().replace(/\/+$/, "") ?? "";
 }
 
 export function buildTicketsApiHeaders() {
