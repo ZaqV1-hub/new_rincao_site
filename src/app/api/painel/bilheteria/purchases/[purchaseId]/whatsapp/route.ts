@@ -17,6 +17,8 @@ function resolveSkippedWhatsappMessage(skippedReason?: string) {
       return "Servico de envio por WhatsApp nao configurado neste ambiente.";
     case "ticket_auth_failed":
       return "Nao foi possivel autenticar o servico de envio por WhatsApp.";
+    case "ticket_service_unreachable":
+      return "Servico de envio por WhatsApp indisponivel agora.";
     case "phone_not_allowed_for_testing":
       return "Numero nao autorizado para este ambiente.";
     case "invalid_phone_number":

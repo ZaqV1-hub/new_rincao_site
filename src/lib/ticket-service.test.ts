@@ -597,6 +597,64 @@ describe("ticket-service", () => {
     expect(requestInit.headers.get("x-testing")).toBe("true");
   });
 
+  it("skips whatsapp send when the website ticket api is unreachable in testing mode", async () => {
+    process.env.TICKETS_API_TESTING_ENABLED = "true";
+    const fetchMock = vi.fn().mockRejectedValue(
+      Object.assign(new TypeError("fetch failed"), {
+        cause: { code: "ENOTFOUND" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    dbQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
+      if (sql.includes("FROM compra")) {
+        return {
+          rows: [
+            {
+              idcompra: 456,
+              cpf: "52998224725",
+              tpcompra: "bilhe",
+              dtcompra: "2026-04-23",
+              email: "cliente@example.com",
+              nmusuario: "Cliente Teste",
+              celular: "51999999999",
+            },
+          ],
+        };
+      }
+
+      if (sql.includes("voucher.idvoucher = ANY")) {
+        expect(values).toEqual([456, [9001]]);
+
+        return {
+          rows: [
+            {
+              idvoucher: 9001,
+              numvoucher: "123456",
+              tpvoucher: "norma",
+              vlunicompra: "129.90",
+              stusado: "n",
+              voucherenviado: "s",
+              identificacao: null,
+              idagenda: 10,
+              dtagenda: "2026-05-01",
+            },
+          ],
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    await expect(
+      sendPurchaseTicketsWhatsApp(456, [9001], "(51) 99999-9999"),
+    ).resolves.toEqual({
+      status: "skipped",
+      purchaseId: 456,
+      sentVoucherIds: [],
+      skippedReason: "ticket_service_unreachable",
+    });
+  });
+
   it("synchronizes voucher validation with the ticket microservice", async () => {
     const fetchMock = vi
       .fn()

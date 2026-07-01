@@ -297,4 +297,68 @@ describe("painel-bilheteria", () => {
     expect(generateVoucherQrcodes).toHaveBeenCalled();
     expect(release).toHaveBeenCalled();
   });
+
+  it("keeps voucher printing available when QR generation is unavailable", async () => {
+    clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
+      if (sql === "BEGIN" || sql === "COMMIT") {
+        return { rows: [] };
+      }
+
+      if (sql.includes("FROM voucher") && sql.includes("JOIN compra")) {
+        expect(values).toEqual([12]);
+
+        return {
+          rows: [
+            {
+              idvoucher: 12,
+              idcompra: 321,
+              idagenda: 44,
+              numvoucher: "A1234",
+              tpvoucher: "norma",
+              stusado: "n",
+              dtuso: null,
+              vlunicompra: "49.90",
+              desconto_id: null,
+              descricao: "Adulto",
+              dtvalidade: "2026-04-28",
+              cpf: "52998224725",
+              tpcompra: "bilhe",
+              dtcompra: "2026-04-28",
+            },
+          ],
+        };
+      }
+
+      if (sql.includes("FROM agenda")) {
+        return {
+          rows: [{ dtagenda: "2026-05-01" }],
+        };
+      }
+
+      if (sql.includes("UPDATE voucher")) {
+        return { rows: [] };
+      }
+
+      return { rows: [] };
+    });
+    generateVoucherQrcodes.mockRejectedValue(new Error("fetch failed"));
+    registerOpsAuditLog.mockResolvedValue(1001);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    await expect(getPainelBilheteriaVoucherPrintModel(12)).resolves.toMatchObject({
+      purchaseId: 321,
+      voucherId: 12,
+      voucherNumber: "A1234",
+      qrCodeUrl: null,
+    });
+    expect(generateVoucherQrcodes).toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "painel-bilheteria-print-qrcode-failed",
+      expect.any(Error),
+    );
+    consoleErrorSpy.mockRestore();
+    expect(release).toHaveBeenCalled();
+  });
 });

@@ -1177,7 +1177,10 @@ export async function getPainelBilheteriaVoucherPrintModel(
         price: Number(voucher.vlunicompra ?? 0),
         tpcompra: String(voucher.tpcompra ?? "").trim(),
       },
-    ]);
+    ]).catch((error) => {
+      console.error("painel-bilheteria-print-qrcode-failed", error);
+      return {} as Record<string, string>;
+    });
     const qrCodeUrl = qrCodeMap[voucherId] ?? null;
 
     return {

@@ -52,12 +52,22 @@ export function buildTicketsApiHeaders() {
 export async function generateVoucherQrcodes(
   vouchers: TicketApiVoucherPayload[],
 ) {
-  const response = await fetch(`${getTicketsApiBaseUrl()}/generate-qrcodes`, {
-    method: "POST",
-    headers: buildTicketsApiHeaders(),
-    body: JSON.stringify({ vouchers }),
-    cache: "no-store",
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${getTicketsApiBaseUrl()}/generate-qrcodes`, {
+      method: "POST",
+      headers: buildTicketsApiHeaders(),
+      body: JSON.stringify({ vouchers }),
+      cache: "no-store",
+    });
+  } catch {
+    throw new TicketApiError(
+      "ticket_api_unreachable",
+      "Servico de QR Code indisponivel agora.",
+      502,
+    );
+  }
 
   if (!response.ok) {
     throw new TicketApiError(

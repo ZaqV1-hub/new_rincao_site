@@ -236,6 +236,13 @@ function validateWhatsappPhoneForEnvironment(phoneNumber: string) {
   return false;
 }
 
+function isWebsiteTicketApiTesting() {
+  return (
+    process.env.TICKETS_API_TESTING_ENABLED === "true" ||
+    process.env.INGRESSO_TICKET_API_TESTING === "true"
+  );
+}
+
 function resolveVoucherCpf(compraCpf: string | null, voucher: VoucherCpfSource) {
   const purchaseCpf = digitsOnly(compraCpf);
 
@@ -870,13 +877,26 @@ export async function sendPurchaseTicketsWhatsApp(
     };
   }
 
-  await websiteTicketRequest(
-    "/website/tickets/send",
-    {
-      phoneNumber: normalizedPhone,
-      vouchers: buildTicketPayload(purchase, vouchers),
-    },
-  );
+  try {
+    await websiteTicketRequest(
+      "/website/tickets/send",
+      {
+        phoneNumber: normalizedPhone,
+        vouchers: buildTicketPayload(purchase, vouchers),
+      },
+    );
+  } catch (error) {
+    if (isWebsiteTicketApiTesting() && isRetryableTicketServiceError(error)) {
+      return {
+        status: "skipped",
+        purchaseId,
+        sentVoucherIds: [],
+        skippedReason: "ticket_service_unreachable",
+      };
+    }
+
+    throw error;
+  }
 
   return {
     status: "sent",
