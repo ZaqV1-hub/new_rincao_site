@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import type { PoolClient } from "pg";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   ensureOpsAuditLogTable,
   registerOpsAuditLog,
@@ -866,7 +866,7 @@ export async function createOperationalBoxOfficeSale(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
   let committedSale: CommittedBoxOfficeSale | null = null;
 

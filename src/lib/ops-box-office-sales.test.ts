@@ -16,7 +16,7 @@ vi.mock("node:crypto", () => ({
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbPool: () => ({
     connect: async () => ({
       query: mocks.clientQuery,
       release: mocks.release,
