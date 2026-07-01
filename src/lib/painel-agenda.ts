@@ -691,25 +691,29 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
       }
     }
 
-    await registerOpsAuditLog(client, {
-      origem: "painel-agenda",
-      acao: "upsert_range",
-      descricao: `Agenda atualizada de ${formatPainelAgendaDateLabel(
-        normalized.startDate,
-      )} ate ${formatPainelAgendaDateLabel(normalized.endDate)}.`,
-      motivo: normalized.reason,
-      usuarioNome:
-        normalized.actor.name || normalized.actor.cpf || "Painel agenda",
-      detalhes: {
-        startDate: normalized.startDate,
-        endDate: normalized.endDate,
-        priceTableId: normalized.priceTableId,
-        informationId: normalized.informationId,
-        type: normalized.type,
-        status: normalized.status,
-        overwrittenDates: preview.existingDates,
+    await registerOpsAuditLog(
+      client,
+      {
+        origem: "painel-agenda",
+        acao: "upsert_range",
+        descricao: `Agenda atualizada de ${formatPainelAgendaDateLabel(
+          normalized.startDate,
+        )} ate ${formatPainelAgendaDateLabel(normalized.endDate)}.`,
+        motivo: normalized.reason,
+        usuarioNome:
+          normalized.actor.name || normalized.actor.cpf || "Painel agenda",
+        detalhes: {
+          startDate: normalized.startDate,
+          endDate: normalized.endDate,
+          priceTableId: normalized.priceTableId,
+          informationId: normalized.informationId,
+          type: normalized.type,
+          status: normalized.status,
+          overwrittenDates: preview.existingDates,
+        },
       },
-    });
+      "postgres",
+    );
 
     await client.query("COMMIT");
 
@@ -801,19 +805,25 @@ export async function deletePainelAgenda(
 
     await client.query("DELETE FROM agenda WHERE idagenda = $1", [agendaId]);
 
-    await registerOpsAuditLog(client, {
-      origem: "painel-agenda",
-      acao: "delete",
-      descricao: `Agenda do dia ${formatPainelAgendaDateLabel(agenda.dtagenda)} removida.`,
-      motivo: String(input.reason).trim(),
-      usuarioNome:
-        input.actor?.name?.trim() || input.actor?.cpf?.trim() || "Painel agenda",
-      detalhes: {
-        agendaId,
-        date: agenda.dtagenda,
-        type: agenda.tpagenda,
+    await registerOpsAuditLog(
+      client,
+      {
+        origem: "painel-agenda",
+        acao: "delete",
+        descricao: `Agenda do dia ${formatPainelAgendaDateLabel(agenda.dtagenda)} removida.`,
+        motivo: String(input.reason).trim(),
+        usuarioNome:
+          input.actor?.name?.trim() ||
+          input.actor?.cpf?.trim() ||
+          "Painel agenda",
+        detalhes: {
+          agendaId,
+          date: agenda.dtagenda,
+          type: agenda.tpagenda,
+        },
       },
-    });
+      "postgres",
+    );
 
     await client.query("COMMIT");
 
