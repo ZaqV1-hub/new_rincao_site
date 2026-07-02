@@ -195,9 +195,7 @@ export function RincaoHomePage({
       return;
     }
 
-    if (event.pointerType === "mouse") {
-      heroDragRef.current = null;
-      heroClickSuppressedRef.current = false;
+    if (event.pointerType === "mouse" && event.button !== 0) {
       return;
     }
 
@@ -213,10 +211,6 @@ export function RincaoHomePage({
 
   function handleHeroPointerMove(event: PointerEvent<HTMLElement>) {
     if (!hasHeroImages) {
-      return;
-    }
-
-    if (event.pointerType === "mouse") {
       return;
     }
 
@@ -236,10 +230,6 @@ export function RincaoHomePage({
 
   function handleHeroPointerUp(event: PointerEvent<HTMLElement>) {
     if (!hasHeroImages) {
-      return;
-    }
-
-    if (event.pointerType === "mouse") {
       return;
     }
 
@@ -361,7 +351,7 @@ export function RincaoHomePage({
           heroClickSuppressedRef.current = false;
         }}
         style={{ touchAction: "pan-y" }}
-        className="relative h-[68svh] min-h-[460px] scroll-mt-[82px] overflow-hidden bg-[#12344f] lg:scroll-mt-[108px]"
+        className="relative h-[68svh] min-h-[460px] cursor-grab scroll-mt-[82px] overflow-hidden bg-[#12344f] active:cursor-grabbing lg:scroll-mt-[108px]"
       >
         {hasHeroImages ? (
           <>
