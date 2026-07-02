@@ -24,7 +24,7 @@ function getRecipient() {
     process.env.GROUP_REGISTRATION_EMAIL_TO?.trim() ||
     process.env.EMAIL_REPLYTO_ADDRESS?.trim() ||
     process.env.EMAIL_FROM_ADDRESS?.trim() ||
-    "ingressos@rincao.local"
+    "atendimento@cluberincao.com.br"
   );
 }
 

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RegistrationSubmissionInput } from "@/lib/group-registration-form-data";
 
 const { queueLegacyEmail } = vi.hoisted(() => ({
@@ -8,6 +8,11 @@ const { queueLegacyEmail } = vi.hoisted(() => ({
 vi.mock("@/lib/legacy-email", () => ({
   queueLegacyEmail,
 }));
+
+afterEach(() => {
+  delete process.env.GROUP_REGISTRATION_EMAIL_TO;
+  queueLegacyEmail.mockReset();
+});
 
 const baseInput: RegistrationSubmissionInput = {
   slug: "grupo-igreja",
@@ -54,6 +59,24 @@ describe("sendGroupRegistrationEmail", () => {
     expect(queueLegacyEmail.mock.calls[0]?.[0].html).toContain("Igreja Central");
     expect(queueLegacyEmail.mock.calls[0]?.[0].html).toContain(
       "maria@example.com",
+    );
+  });
+
+  it("defaults group form delivery to atendimento when no explicit recipient is configured", async () => {
+    const { sendGroupRegistrationEmail } = await import(
+      "@/lib/group-registration-email"
+    );
+
+    await sendGroupRegistrationEmail(baseInput, {
+      protocol: "GRP-20260701120000-ABCD1234",
+      createdAt: "2026-07-01T12:00:00.000Z",
+      storage: "file",
+    });
+
+    expect(queueLegacyEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "atendimento@cluberincao.com.br",
+      }),
     );
   });
 });
