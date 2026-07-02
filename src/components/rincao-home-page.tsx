@@ -107,7 +107,10 @@ function HeroBannerImage({
   const mobileSrc = image.mobileSrc?.trim() || image.desktopSrc;
   const href = image.href?.trim() || "";
   const imageMarkup = (
-    <picture className="block h-full w-full">
+    <picture
+      className="block h-full w-full select-none"
+      onDragStart={(event) => event.preventDefault()}
+    >
       {mobileSrc !== image.desktopSrc ? (
         <source media="(max-width: 767px)" srcSet={mobileSrc} />
       ) : null}
@@ -118,6 +121,7 @@ function HeroBannerImage({
         loading={preload ? "eager" : "lazy"}
         fetchPriority={preload ? "high" : "auto"}
         draggable={false}
+        onDragStart={(event) => event.preventDefault()}
       />
     </picture>
   );
@@ -136,11 +140,19 @@ function HeroBannerImage({
             rel="noreferrer"
             aria-label={image.alt}
             className="block h-full w-full"
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
           >
             {imageMarkup}
           </a>
         ) : (
-          <Link href={href} aria-label={image.alt} className="block h-full w-full">
+          <Link
+            href={href}
+            aria-label={image.alt}
+            className="block h-full w-full"
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
+          >
             {imageMarkup}
           </Link>
         )
@@ -243,6 +255,7 @@ export function RincaoHomePage({
       return;
     }
 
+    event.preventDefault();
     heroClickSuppressedRef.current = false;
     heroMouseDragRef.current = {
       startX: event.clientX,
@@ -421,7 +434,7 @@ export function RincaoHomePage({
           heroClickSuppressedRef.current = false;
         }}
         style={{ touchAction: "pan-y" }}
-        className="relative h-[68svh] min-h-[460px] cursor-grab scroll-mt-[82px] overflow-hidden bg-[#12344f] active:cursor-grabbing lg:scroll-mt-[108px]"
+        className="relative h-[68svh] min-h-[460px] cursor-grab select-none scroll-mt-[82px] overflow-hidden bg-[#12344f] active:cursor-grabbing lg:scroll-mt-[108px]"
       >
         {hasHeroImages ? (
           <>
