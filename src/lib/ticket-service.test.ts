@@ -218,6 +218,69 @@ describe("ticket-service", () => {
     );
   });
 
+  it("treats asynchronous ticket generation acceptance as sent", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ token: "ticket-token" }))
+      .mockResolvedValueOnce(new Response("Processamento iniciado", { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+    dbQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM compra")) {
+        return {
+          rows: [
+            {
+              idcompra: 456,
+              cpf: "52998224725",
+              tpcompra: "ponli",
+              dtcompra: "2026-04-23",
+              email: "cliente@example.com",
+              nmusuario: "Cliente Teste",
+              celular: "51999999999",
+            },
+          ],
+        };
+      }
+
+      if (sql.includes("FROM voucher")) {
+        return {
+          rows: [
+            {
+              idvoucher: 9001,
+              numvoucher: "123456",
+              tpvoucher: "norma",
+              descricao: "Adulto",
+              vlunicompra: "129.90",
+              stusado: "n",
+              voucherenviado: "n",
+              identificacao: null,
+              idagenda: 10,
+              dtagenda: "2026-05-01",
+            },
+          ],
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    await expect(processConfirmedPurchaseTickets(456)).resolves.toEqual({
+      status: "sent",
+      purchaseId: 456,
+      sentVoucherIds: [9001],
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://tickets.example.test/generate-and-send-tickets",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(dbQuery).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE voucher"),
+      [[9001]],
+    );
+  });
+
   it("prefers the voucher description as ticket title when sending online purchases", async () => {
     const fetchMock = vi
       .fn()

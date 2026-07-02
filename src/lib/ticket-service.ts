@@ -693,6 +693,7 @@ export async function processConfirmedPurchaseTickets(
           nmusuario: purchase.nmusuario,
         },
         token,
+        [200, 202],
       );
     } catch (error) {
       if (shouldSkipTicketServiceError(config, error)) {
