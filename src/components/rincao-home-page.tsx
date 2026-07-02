@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type {
   ManagedAttraction,
   ManagedEvent,
@@ -68,6 +68,10 @@ function releasePointerCapture(
   }
 }
 
+function isExternalHref(href: string) {
+  return /^https?:\/\//i.test(href);
+}
+
 function ChevronIcon({ direction }: { direction: "left" | "right" }) {
   return (
     <svg
@@ -108,6 +112,22 @@ function HeroBannerImage({
   preload: boolean;
 }) {
   const mobileSrc = image.mobileSrc?.trim() || image.desktopSrc;
+  const href = image.href?.trim() || "";
+  const imageMarkup = (
+    <picture className="block h-full w-full">
+      {mobileSrc !== image.desktopSrc ? (
+        <source media="(max-width: 767px)" srcSet={mobileSrc} />
+      ) : null}
+      <img
+        src={image.desktopSrc}
+        alt={image.alt}
+        className="block h-full w-full object-cover object-center"
+        loading={preload ? "eager" : "lazy"}
+        fetchPriority={preload ? "high" : "auto"}
+        draggable={false}
+      />
+    </picture>
+  );
 
   return (
     <div
@@ -115,19 +135,25 @@ function HeroBannerImage({
         active ? "opacity-100" : "pointer-events-none opacity-0"
       }`}
     >
-      <picture className="block h-full w-full">
-        {mobileSrc !== image.desktopSrc ? (
-          <source media="(max-width: 767px)" srcSet={mobileSrc} />
-        ) : null}
-        <img
-          src={image.desktopSrc}
-          alt={image.alt}
-          className="block h-full w-full object-cover object-center"
-          loading={preload ? "eager" : "lazy"}
-          fetchPriority={preload ? "high" : "auto"}
-          draggable={false}
-        />
-      </picture>
+      {href ? (
+        isExternalHref(href) ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={image.alt}
+            className="block h-full w-full"
+          >
+            {imageMarkup}
+          </a>
+        ) : (
+          <Link href={href} aria-label={image.alt} className="block h-full w-full">
+            {imageMarkup}
+          </Link>
+        )
+      ) : (
+        imageMarkup
+      )}
     </div>
   );
 }
@@ -148,17 +174,31 @@ export function RincaoHomePage({
   } | null>(null);
   const attractionsRef = useRef<HTMLDivElement>(null);
   const eventsRef = useRef<HTMLDivElement>(null);
+  const heroClickSuppressedRef = useRef(false);
   const carouselDragRef = useRef<{
     element: HTMLDivElement;
     x: number;
     scrollLeft: number;
   } | null>(null);
 
+  useEffect(() => {
+    if (heroImages.length <= 1) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setHeroIndex((current) => moveIndex(current, 1, heroImages.length));
+    }, 7000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [heroImages.length, heroIndex]);
+
   function handleHeroPointerDown(event: PointerEvent<HTMLElement>) {
     if (!hasHeroImages) {
       return;
     }
 
+    heroClickSuppressedRef.current = false;
     heroDragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -202,6 +242,7 @@ export function RincaoHomePage({
       return;
     }
 
+    heroClickSuppressedRef.current = true;
     setHeroIndex((current) =>
       moveIndex(current, distance < 0 ? 1 : -1, heroImages.length),
     );
@@ -264,6 +305,15 @@ export function RincaoHomePage({
         onPointerCancel={(event) => {
           releasePointerCapture(event.currentTarget, event.pointerId);
           heroDragRef.current = null;
+        }}
+        onClickCapture={(event) => {
+          if (!heroClickSuppressedRef.current) {
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+          heroClickSuppressedRef.current = false;
         }}
         style={{ touchAction: "pan-y" }}
         className="relative h-[68svh] min-h-[460px] scroll-mt-[82px] overflow-hidden bg-[#12344f] lg:scroll-mt-[108px]"

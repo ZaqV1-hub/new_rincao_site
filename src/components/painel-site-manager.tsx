@@ -22,6 +22,7 @@ type DeleteTarget = {
 };
 
 type EventMode = "date" | "link";
+type HomeHeroMode = "with-link" | "without-link";
 
 type EventDatePayload = {
   agenda?: {
@@ -65,6 +66,10 @@ function resolveEventDate(event: ManagedEvent | null | undefined) {
   const match = href.match(/(?:\?|&)date=(\d{4}-\d{2}-\d{2})(?:&|$)/);
 
   return match?.[1] ?? "";
+}
+
+function resolveHomeHeroMode(item: ManagedHomeImage | null | undefined): HomeHeroMode {
+  return item?.href?.trim() ? "with-link" : "without-link";
 }
 
 function ImagePicker({ name, label }: { name: string; label: string }) {
@@ -216,6 +221,8 @@ export function PainelSiteManager({
     defaultInformationId ?? null,
   );
   const [eventAvailabilityLoading, setEventAvailabilityLoading] = useState(false);
+  const [homeHeroMode, setHomeHeroMode] = useState<HomeHeroMode>("without-link");
+  const [homeHeroHrefValue, setHomeHeroHrefValue] = useState("");
   const currentEvent =
     editing?.section === "event" ? (editing.item as ManagedEvent | null) : null;
 
@@ -290,6 +297,20 @@ export function PainelSiteManager({
     setError(null);
   }
 
+  function openCreateHome() {
+    setEditing({ section: "home", item: null });
+    setHomeHeroMode("without-link");
+    setHomeHeroHrefValue("");
+    setError(null);
+  }
+
+  function openEditHome(item: ManagedHomeImage) {
+    setEditing({ section: "home", item });
+    setHomeHeroMode(resolveHomeHeroMode(item));
+    setHomeHeroHrefValue(item.href ?? "");
+    setError(null);
+  }
+
   function openEditEvent(item: ManagedEvent) {
     const nextMode = resolveEventMode(item);
 
@@ -322,6 +343,14 @@ export function PainelSiteManager({
         if (eventInformationId) {
           formData.set("informationId", String(eventInformationId));
         }
+      }
+
+      if (editing?.section === "home") {
+        if (homeHeroMode === "with-link" && !homeHeroHrefValue.trim()) {
+          throw new Error("Informe o link da hero.");
+        }
+
+        formData.set("href", homeHeroMode === "with-link" ? homeHeroHrefValue : "");
       }
 
       const response = await fetch("/api/painel/site-content", {
@@ -429,7 +458,7 @@ export function PainelSiteManager({
           <h3 className={`text-[24px] font-black ${colors.ink}`}>Banners publicados</h3>
           <button
             type="button"
-            onClick={() => setEditing({ section: "home", item: null })}
+            onClick={openCreateHome}
             className={`rounded-full ${colors.buttonBg} px-5 py-3 text-sm font-black text-white`}
           >
             Adicionar imagem
@@ -455,6 +484,9 @@ export function PainelSiteManager({
                   <p className={`text-sm ${colors.muted}`}>
                     {item.active ? "Publicado" : "Oculto"}
                   </p>
+                  <p className={`text-xs ${colors.softText}`}>
+                    {item.href?.trim() ? "Com link" : "Sem link"}
+                  </p>
                 </div>
                 <span
                   className={`rounded-full ${colors.softBg} px-3 py-1 text-xs font-black text-[#28527e]`}
@@ -472,7 +504,7 @@ export function PainelSiteManager({
                 />
                 <button
                   type="button"
-                  onClick={() => setEditing({ section: "home", item })}
+                  onClick={() => openEditHome(item)}
                   className={`rounded-full border ${colors.border} px-4 py-2 text-xs font-black ${colors.ink}`}
                 >
                   Editar
@@ -547,6 +579,49 @@ export function PainelSiteManager({
                     className={`rounded-[8px] border ${colors.border} px-4 py-3`}
                   />
                 </Field>
+                <div className={`grid gap-3 rounded-[10px] border ${colors.border} bg-[#f8fbff] p-4`}>
+                  <div>
+                    <p className={`text-sm font-black ${colors.ink}`}>Link da hero</p>
+                    <p className={`mt-1 text-xs leading-5 ${colors.muted}`}>
+                      Defina se essa imagem da hero pode ser clicada na home.
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setHomeHeroMode("with-link")}
+                      className={`rounded-[8px] border px-4 py-3 text-sm font-black ${
+                        homeHeroMode === "with-link"
+                          ? `${colors.buttonBorder} ${colors.buttonBg} text-white`
+                          : `${colors.border} bg-white ${colors.ink}`
+                      }`}
+                    >
+                      Com link
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHomeHeroMode("without-link")}
+                      className={`rounded-[8px] border px-4 py-3 text-sm font-black ${
+                        homeHeroMode === "without-link"
+                          ? `${colors.buttonBorder} ${colors.buttonBg} text-white`
+                          : `${colors.border} bg-white ${colors.ink}`
+                      }`}
+                    >
+                      Sem link
+                    </button>
+                  </div>
+                </div>
+                {homeHeroMode === "with-link" ? (
+                  <Field label="Link da hero">
+                    <input
+                      name="hrefVisible"
+                      value={homeHeroHrefValue}
+                      onChange={(event) => setHomeHeroHrefValue(event.target.value)}
+                      placeholder="https://site.com.br ou /pagina"
+                      className={`rounded-[8px] border ${colors.border} px-4 py-3`}
+                    />
+                  </Field>
+                ) : null}
                 {editing.item ? (
                   <>
                     <CurrentImagePreview

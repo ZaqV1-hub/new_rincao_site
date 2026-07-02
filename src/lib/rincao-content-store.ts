@@ -13,6 +13,7 @@ export type ManagedHomeImage = {
   desktopSrc: string;
   mobileSrc: string;
   alt: string;
+  href: string;
   active: boolean;
   sortOrder: number;
 };
@@ -84,6 +85,7 @@ const EMPTY_HOME_IMAGE: ManagedHomeImage = {
   desktopSrc: "",
   mobileSrc: "",
   alt: "Imagem da home",
+  href: "",
   active: true,
   sortOrder: 1,
 };
@@ -114,6 +116,7 @@ const legacyDefaultHomeImages: ManagedHomeImage[] = [
     desktopSrc: "/hero/current/banner-site-oficial-1.jpg",
     mobileSrc: "/hero/current/banner-site-oficial-1.jpg",
     alt: "Piscina e area verde da Rincao",
+    href: "",
     active: true,
     sortOrder: 1,
   },
@@ -122,6 +125,7 @@ const legacyDefaultHomeImages: ManagedHomeImage[] = [
     desktopSrc: "/hero/current/banner-onda.jpg",
     mobileSrc: "/hero/current/banner-onda.jpg",
     alt: "Piscina de ondas da Rincao",
+    href: "",
     active: true,
     sortOrder: 2,
   },
@@ -130,6 +134,7 @@ const legacyDefaultHomeImages: ManagedHomeImage[] = [
     desktopSrc: "/hero/current/banner-14-06-2026.jpg",
     mobileSrc: "/hero/current/banner-14-06-2026.jpg",
     alt: "Evento na Rincao",
+    href: "",
     active: true,
     sortOrder: 3,
   },
@@ -314,6 +319,7 @@ function normalizeManagedHomeImage(item: ManagedHomeImage, fallback: ManagedHome
     alt: repairMojibakeText(item.alt, fallback.alt),
     desktopSrc,
     mobileSrc,
+    href: item.href?.trim() || "",
   };
 }
 

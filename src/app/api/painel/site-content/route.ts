@@ -161,6 +161,7 @@ export async function POST(request: Request) {
           desktopSrc,
           mobileSrc,
           alt: asText(formData.get("alt")) || current?.alt || "Imagem da hero",
+          href: asText(formData.get("href")) || "",
           active: asBool(formData.get("active")),
           sortOrder: current?.sortOrder ?? data.homeImages.length + 1,
         }),
