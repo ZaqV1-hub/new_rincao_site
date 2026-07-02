@@ -171,6 +171,7 @@ export function RincaoHomePage({
     pointerId: number;
     startX: number;
     deltaX: number;
+    dragged: boolean;
   } | null>(null);
   const attractionsRef = useRef<HTMLDivElement>(null);
   const eventsRef = useRef<HTMLDivElement>(null);
@@ -203,6 +204,7 @@ export function RincaoHomePage({
       pointerId: event.pointerId,
       startX: event.clientX,
       deltaX: 0,
+      dragged: false,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -220,6 +222,10 @@ export function RincaoHomePage({
     }
 
     heroDragRef.current.deltaX = event.clientX - heroDragRef.current.startX;
+
+    if (Math.abs(heroDragRef.current.deltaX) >= 12) {
+      heroDragRef.current.dragged = true;
+    }
   }
 
   function handleHeroPointerUp(event: PointerEvent<HTMLElement>) {
@@ -235,10 +241,11 @@ export function RincaoHomePage({
     }
 
     const distance = heroDragRef.current.deltaX;
+    const dragged = heroDragRef.current.dragged;
     heroDragRef.current = null;
     releasePointerCapture(event.currentTarget, event.pointerId);
 
-    if (Math.abs(distance) < 34) {
+    if (!dragged || Math.abs(distance) < 34) {
       return;
     }
 
@@ -305,6 +312,7 @@ export function RincaoHomePage({
         onPointerCancel={(event) => {
           releasePointerCapture(event.currentTarget, event.pointerId);
           heroDragRef.current = null;
+          heroClickSuppressedRef.current = false;
         }}
         onClickCapture={(event) => {
           if (!heroClickSuppressedRef.current) {
