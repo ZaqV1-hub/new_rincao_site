@@ -59,6 +59,15 @@ function scrollCarouselToIndex(element: HTMLDivElement | null, index: number) {
   });
 }
 
+function releasePointerCapture(
+  element: HTMLElement,
+  pointerId: number,
+) {
+  if (element.hasPointerCapture(pointerId)) {
+    element.releasePointerCapture(pointerId);
+  }
+}
+
 function ChevronIcon({ direction }: { direction: "left" | "right" }) {
   return (
     <svg
@@ -187,6 +196,7 @@ export function RincaoHomePage({
 
     const distance = heroDragRef.current.deltaX;
     heroDragRef.current = null;
+    releasePointerCapture(event.currentTarget, event.pointerId);
 
     if (Math.abs(distance) < 34) {
       return;
@@ -221,7 +231,8 @@ export function RincaoHomePage({
     event.currentTarget.scrollLeft = drag.scrollLeft - (event.clientX - drag.x);
   }
 
-  function handleCarouselPointerEnd() {
+  function handleCarouselPointerEnd(event: PointerEvent<HTMLDivElement>) {
+    releasePointerCapture(event.currentTarget, event.pointerId);
     carouselDragRef.current = null;
   }
 
@@ -250,9 +261,11 @@ export function RincaoHomePage({
         onPointerDown={handleHeroPointerDown}
         onPointerMove={handleHeroPointerMove}
         onPointerUp={handleHeroPointerUp}
-        onPointerCancel={() => {
+        onPointerCancel={(event) => {
+          releasePointerCapture(event.currentTarget, event.pointerId);
           heroDragRef.current = null;
         }}
+        style={{ touchAction: "pan-y" }}
         className="relative h-[68svh] min-h-[460px] scroll-mt-[82px] overflow-hidden bg-[#12344f] lg:scroll-mt-[108px]"
       >
         {hasHeroImages ? (
@@ -345,6 +358,7 @@ export function RincaoHomePage({
                   onScroll={(event) =>
                     setAttractionIndex(resolveNearestIndex(event.currentTarget))
                   }
+                  style={{ touchAction: "pan-y" }}
                   className="-mx-5 flex cursor-grab select-none snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-5 [scrollbar-width:none] active:cursor-grabbing md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden"
                 >
                   {attractions.map((attraction) => (
@@ -477,6 +491,7 @@ export function RincaoHomePage({
                   onScroll={(event) =>
                     setEventIndex(resolveNearestIndex(event.currentTarget))
                   }
+                  style={{ touchAction: "pan-y" }}
                   className="-mx-5 flex cursor-grab select-none snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-5 [scrollbar-width:none] active:cursor-grabbing md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden"
                 >
                   {events.map((event) => (
