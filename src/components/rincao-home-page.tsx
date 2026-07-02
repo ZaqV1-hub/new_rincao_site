@@ -95,13 +95,6 @@ function ChevronIcon({ direction }: { direction: "left" | "right" }) {
   );
 }
 
-function shouldIgnoreCarouselPointer(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    Boolean(target.closest("a, button, input, textarea, select, label"))
-  );
-}
-
 function HeroBannerImage({
   image,
   active,
@@ -178,9 +171,12 @@ export function RincaoHomePage({
   const heroClickSuppressedRef = useRef(false);
   const carouselDragRef = useRef<{
     element: HTMLDivElement;
+    pointerId: number;
     x: number;
     scrollLeft: number;
+    dragged: boolean;
   } | null>(null);
+  const carouselClickSuppressedRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (heroImages.length <= 1) {
@@ -256,15 +252,17 @@ export function RincaoHomePage({
   }
 
   function handleCarouselPointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (shouldIgnoreCarouselPointer(event.target)) {
-      carouselDragRef.current = null;
+    if (event.pointerType === "mouse" && event.button !== 0) {
       return;
     }
 
+    carouselClickSuppressedRef.current = null;
     carouselDragRef.current = {
       element: event.currentTarget,
+      pointerId: event.pointerId,
       x: event.clientX,
       scrollLeft: event.currentTarget.scrollLeft,
+      dragged: false,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -272,14 +270,39 @@ export function RincaoHomePage({
   function handleCarouselPointerMove(event: PointerEvent<HTMLDivElement>) {
     const drag = carouselDragRef.current;
 
-    if (!drag || drag.element !== event.currentTarget) {
+    if (
+      !drag ||
+      drag.element !== event.currentTarget ||
+      drag.pointerId !== event.pointerId
+    ) {
       return;
     }
 
-    event.currentTarget.scrollLeft = drag.scrollLeft - (event.clientX - drag.x);
+    const distance = event.clientX - drag.x;
+
+    if (Math.abs(distance) >= 10) {
+      drag.dragged = true;
+    }
+
+    if (!drag.dragged) {
+      return;
+    }
+
+    event.currentTarget.scrollLeft = drag.scrollLeft - distance;
   }
 
   function handleCarouselPointerEnd(event: PointerEvent<HTMLDivElement>) {
+    const drag = carouselDragRef.current;
+
+    if (
+      drag &&
+      drag.element === event.currentTarget &&
+      drag.pointerId === event.pointerId &&
+      drag.dragged
+    ) {
+      carouselClickSuppressedRef.current = event.currentTarget;
+    }
+
     releasePointerCapture(event.currentTarget, event.pointerId);
     carouselDragRef.current = null;
   }
@@ -413,6 +436,15 @@ export function RincaoHomePage({
                   onPointerMove={handleCarouselPointerMove}
                   onPointerUp={handleCarouselPointerEnd}
                   onPointerCancel={handleCarouselPointerEnd}
+                  onClickCapture={(event) => {
+                    if (carouselClickSuppressedRef.current !== event.currentTarget) {
+                      return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+                    carouselClickSuppressedRef.current = null;
+                  }}
                   onScroll={(event) =>
                     setAttractionIndex(resolveNearestIndex(event.currentTarget))
                   }
@@ -546,6 +578,15 @@ export function RincaoHomePage({
                   onPointerMove={handleCarouselPointerMove}
                   onPointerUp={handleCarouselPointerEnd}
                   onPointerCancel={handleCarouselPointerEnd}
+                  onClickCapture={(event) => {
+                    if (carouselClickSuppressedRef.current !== event.currentTarget) {
+                      return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+                    carouselClickSuppressedRef.current = null;
+                  }}
                   onScroll={(event) =>
                     setEventIndex(resolveNearestIndex(event.currentTarget))
                   }
@@ -561,7 +602,6 @@ export function RincaoHomePage({
                         href={event.href}
                         className="block overflow-hidden bg-white"
                         aria-label={event.title}
-                        onPointerDown={(pointerEvent) => pointerEvent.stopPropagation()}
                       >
                         <img
                           src={event.imageSrc}
@@ -582,7 +622,6 @@ export function RincaoHomePage({
                         <Link
                           href={event.href}
                           className="mt-7 inline-flex min-h-[52px] w-fit items-center justify-center rounded-full bg-[#086eb8] px-8 text-[0.95rem] font-black text-white shadow-[0_16px_28px_rgba(8,110,184,0.18)] transition hover:-translate-y-0.5 hover:bg-[#045d9e]"
-                          onPointerDown={(pointerEvent) => pointerEvent.stopPropagation()}
                         >
                           {event.buttonLabel}
                         </Link>
