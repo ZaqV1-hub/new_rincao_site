@@ -741,7 +741,7 @@ export const infoPages: Record<string, InfoPage> = {
     seoDescription:
       "Conheça a proposta escolar do Rincão, com alimentação, atividades e acesso à operação de ingresso estudantil.",
     summary:
-      "O segmento escolar continua com operação própria, mas a nova camada institucional preserva o conteúdo de alimentação, atividades e contatos para escolas.",
+      "A modalidade escolar do Rincão foi pensada para passeios educativos e recreativos, com estrutura preparada para receber alunos, professores e grupos em um dia completo de convivência, lazer e atividades.",
     highlights: [
       "Café da manhã, almoço e lanche da tarde como parte da proposta escolar.",
       "Atividades com piscinas, trilha, parque, trenzinho e monitoria.",
@@ -775,13 +775,6 @@ export const infoPages: Record<string, InfoPage> = {
           "Toboáguas, playground aquático, quadra poliesportiva e campo society.",
           "Trilha ecológica, kid-play coberto, casa de bolinhas, mini-fazenda e parque de diversão.",
           "Passeio de trenzinho, salão de jogos, quadra de vôlei e tirolesa pequena.",
-        ],
-      },
-      {
-        title: "Fluxo atual",
-        paragraphs: [
-          "A operação escolar usa cadastro específico, compra estudantil e acompanhamento no frontend atual.",
-          "A parte pública concentra a proposta do passeio e os acessos do fluxo escolar em um único domínio.",
         ],
       },
     ],
