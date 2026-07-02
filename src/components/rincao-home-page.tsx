@@ -195,6 +195,12 @@ export function RincaoHomePage({
       return;
     }
 
+    if (event.pointerType === "mouse") {
+      heroDragRef.current = null;
+      heroClickSuppressedRef.current = false;
+      return;
+    }
+
     heroClickSuppressedRef.current = false;
     heroDragRef.current = {
       pointerId: event.pointerId,
@@ -207,6 +213,10 @@ export function RincaoHomePage({
 
   function handleHeroPointerMove(event: PointerEvent<HTMLElement>) {
     if (!hasHeroImages) {
+      return;
+    }
+
+    if (event.pointerType === "mouse") {
       return;
     }
 
@@ -226,6 +236,10 @@ export function RincaoHomePage({
 
   function handleHeroPointerUp(event: PointerEvent<HTMLElement>) {
     if (!hasHeroImages) {
+      return;
+    }
+
+    if (event.pointerType === "mouse") {
       return;
     }
 
