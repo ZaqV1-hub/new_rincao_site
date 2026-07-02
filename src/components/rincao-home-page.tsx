@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 import type {
   ManagedAttraction,
   ManagedEvent,
@@ -160,6 +160,11 @@ export function RincaoHomePage({
   const [heroIndex, setHeroIndex] = useState(0);
   const [attractionIndex, setAttractionIndex] = useState(0);
   const [eventIndex, setEventIndex] = useState(0);
+  const heroMouseDragRef = useRef<{
+    startX: number;
+    deltaX: number;
+    dragged: boolean;
+  } | null>(null);
   const heroDragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -190,12 +195,68 @@ export function RincaoHomePage({
     return () => window.clearTimeout(timeoutId);
   }, [heroImages.length, heroIndex]);
 
+  useEffect(() => {
+    function handleWindowMouseMove(event: MouseEvent | globalThis.MouseEvent) {
+      const drag = heroMouseDragRef.current;
+
+      if (!drag) {
+        return;
+      }
+
+      drag.deltaX = event.clientX - drag.startX;
+
+      if (Math.abs(drag.deltaX) >= 12) {
+        drag.dragged = true;
+      }
+    }
+
+    function handleWindowMouseUp() {
+      const drag = heroMouseDragRef.current;
+
+      if (!drag) {
+        return;
+      }
+
+      heroMouseDragRef.current = null;
+
+      if (!drag.dragged || Math.abs(drag.deltaX) < 34) {
+        return;
+      }
+
+      heroClickSuppressedRef.current = true;
+      setHeroIndex((current) =>
+        moveIndex(current, drag.deltaX < 0 ? 1 : -1, heroImages.length),
+      );
+    }
+
+    window.addEventListener("mousemove", handleWindowMouseMove);
+    window.addEventListener("mouseup", handleWindowMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleWindowMouseMove);
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+    };
+  }, [heroImages.length]);
+
+  function handleHeroMouseDown(event: MouseEvent<HTMLElement>) {
+    if (!hasHeroImages || event.button !== 0) {
+      return;
+    }
+
+    heroClickSuppressedRef.current = false;
+    heroMouseDragRef.current = {
+      startX: event.clientX,
+      deltaX: 0,
+      dragged: false,
+    };
+  }
+
   function handleHeroPointerDown(event: PointerEvent<HTMLElement>) {
     if (!hasHeroImages) {
       return;
     }
 
-    if (event.pointerType === "mouse" && event.button !== 0) {
+    if (event.pointerType === "mouse") {
       return;
     }
 
@@ -211,6 +272,10 @@ export function RincaoHomePage({
 
   function handleHeroPointerMove(event: PointerEvent<HTMLElement>) {
     if (!hasHeroImages) {
+      return;
+    }
+
+    if (event.pointerType === "mouse") {
       return;
     }
 
@@ -230,6 +295,10 @@ export function RincaoHomePage({
 
   function handleHeroPointerUp(event: PointerEvent<HTMLElement>) {
     if (!hasHeroImages) {
+      return;
+    }
+
+    if (event.pointerType === "mouse") {
       return;
     }
 
@@ -333,6 +402,7 @@ export function RincaoHomePage({
     <div className="min-h-screen bg-[#f6f8fb] text-[#12344f]">
       <section
         id="inicio"
+        onMouseDown={handleHeroMouseDown}
         onPointerDown={handleHeroPointerDown}
         onPointerMove={handleHeroPointerMove}
         onPointerUp={handleHeroPointerUp}
