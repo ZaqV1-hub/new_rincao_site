@@ -72,6 +72,13 @@ function isExternalHref(href: string) {
   return /^https?:\/\//i.test(href);
 }
 
+function shouldIgnoreCarouselPointer(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    Boolean(target.closest("a, button, input, textarea, select, label"))
+  );
+}
+
 function ChevronIcon({ direction }: { direction: "left" | "right" }) {
   return (
     <svg
@@ -339,6 +346,12 @@ export function RincaoHomePage({
 
   function handleCarouselPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    if (shouldIgnoreCarouselPointer(event.target)) {
+      carouselDragRef.current = null;
+      carouselClickSuppressedRef.current = null;
       return;
     }
 
