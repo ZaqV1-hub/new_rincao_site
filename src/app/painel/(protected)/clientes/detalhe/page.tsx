@@ -1,6 +1,6 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { PainelClienteDetailPage } from "@/components/painel-cliente-detail-page";
-import { getPainelClientDetail } from "@/lib/painel-clientes";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
@@ -16,14 +16,16 @@ export const dynamic = "force-dynamic";
 export default async function PainelClientesDetalhePage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    id?: string;
-  }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await requirePainelAccess(["vis_clientes", "vis_escola"], "/painel/clientes/detalhe");
-  const params = await searchParams;
-  const data = await getPainelClientDetail(params.id ?? "");
+  const params = (await searchParams) ?? {};
+  const idValue = Array.isArray(params.id) ? params.id[0] : params.id;
+  const clientId = Number(idValue);
 
-  return <PainelClienteDetailPage data={data} />;
+  if (!Number.isInteger(clientId) || clientId <= 0) {
+    redirect("/painel/clientes");
+  }
+
+  return <PainelClienteDetailPage clientId={clientId} />;
 }
-

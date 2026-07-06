@@ -1,5 +1,6 @@
 import {
   asPainelClientesError,
+  getPainelClientDetail,
   removePainelClient,
   updatePainelClient,
 } from "@/lib/painel-clientes";
@@ -13,6 +14,17 @@ type ClientPayload = {
   nome?: unknown;
   status?: unknown;
 };
+
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ clientId: string }> },
+) {
+  return runPainelClientesRoute(request, context, {
+    run: ({ params }) => getPainelClientDetail(params.clientId),
+    mapError: asPainelClientesError,
+    logTag: "painel-clientes-detail-bff-failed",
+  });
+}
 
 export async function PATCH(
   request: Request,

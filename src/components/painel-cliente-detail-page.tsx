@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { PainelClienteDetailResult } from "@/lib/painel-clientes";
 
 type PainelClienteDetailPageProps = {
-  data: PainelClienteDetailResult;
+  clientId?: number;
+  data?: PainelClienteDetailResult | null;
 };
 
 function formatDate(value: string | null, withTime = false) {
@@ -37,9 +41,11 @@ function formatDate(value: string | null, withTime = false) {
   }).format(date);
 }
 
-export function PainelClienteDetailPage({
+function PainelClienteDetailContent({
   data,
-}: PainelClienteDetailPageProps) {
+}: {
+  data: PainelClienteDetailResult;
+}) {
   return (
     <div className="grid gap-5">
       <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
@@ -79,7 +85,7 @@ export function PainelClienteDetailPage({
                   className="border border-[#d7e3ee] px-4 py-3 text-left font-bold text-[#133d63]"
                   colSpan={3}
                 >
-                  Informações
+                  Informacoes
                 </th>
               </tr>
               <tr className="bg-[#f8fbfe]">
@@ -109,7 +115,7 @@ export function PainelClienteDetailPage({
       </section>
 
       <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
-        <h2 className="text-[28px] text-[#123b63]">Histórico de Datas de Passeio</h2>
+        <h2 className="text-[28px] text-[#123b63]">Historico de Datas de Passeio</h2>
         <div className="mt-4 overflow-x-auto rounded-[6px] border border-[#d7e3ee]">
           <table className="min-w-full border-collapse text-[15px]">
             <thead className="bg-[#eef5fb] text-left text-[#133d63]">
@@ -141,7 +147,7 @@ export function PainelClienteDetailPage({
               ) : (
                 <tr>
                   <td className="border border-[#d7e3ee] px-4 py-5 text-center text-[#355066]" colSpan={2}>
-                    Não há dados
+                    Nao ha dados
                   </td>
                 </tr>
               )}
@@ -167,7 +173,7 @@ export function PainelClienteDetailPage({
                     {classItem.periods.length > 0 ? (
                       classItem.periods.map((period) => period.name).join(", ")
                     ) : (
-                      <span>Nenhum período cadastrado.</span>
+                      <span>Nenhum periodo cadastrado.</span>
                     )}
                   </div>
                 </div>
@@ -180,4 +186,96 @@ export function PainelClienteDetailPage({
       ) : null}
     </div>
   );
+}
+
+export function PainelClienteDetailPage({
+  clientId,
+  data: initialData = null,
+}: PainelClienteDetailPageProps) {
+  const [data, setData] = useState<PainelClienteDetailResult | null>(initialData);
+  const [loading, setLoading] = useState(!initialData && Boolean(clientId));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialData || !clientId) {
+      return;
+    }
+
+    let active = true;
+
+    async function loadClient() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`/api/painel/clientes/${clientId}`, {
+          credentials: "same-origin",
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              ok?: boolean;
+              data?: PainelClienteDetailResult;
+              error?: { message?: string };
+            }
+          | null;
+
+        if (!response.ok || !payload?.ok || !payload.data) {
+          throw new Error(
+            payload?.error?.message || "Nao foi possivel carregar o cliente agora.",
+          );
+        }
+
+        if (!active) {
+          return;
+        }
+
+        setData(payload.data);
+      } catch (fetchError) {
+        if (!active) {
+          return;
+        }
+
+        setError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Nao foi possivel carregar o cliente agora.",
+        );
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadClient();
+
+    return () => {
+      active = false;
+    };
+  }, [clientId, initialData]);
+
+  if (loading) {
+    return (
+      <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
+        <p className="text-[17px] text-[#355066]">Carregando cliente...</p>
+      </section>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
+        <div className="border border-[#efc0c0] bg-[#fff0f0] px-4 py-3 text-sm text-[#7a2b2b]">
+          {error || "Nao foi possivel carregar o cliente agora."}
+        </div>
+        <div className="mt-4">
+          <Link className="text-[#1868d6] underline" href="/painel/clientes">
+            Voltar para clientes
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  return <PainelClienteDetailContent data={data} />;
 }
