@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calculateCodindicaCartTotals,
   calculateCodindicaTotals,
   CodindicaValidationError,
 } from "@/lib/codindica";
@@ -72,6 +73,41 @@ describe("codindica", () => {
     expect(result.reportedDiscountTotal).toBe(0);
     expect(result.totalPaid).toBe(120);
     expect(result.fixedPriceMode).toBe(true);
+  });
+
+  it("returns signed cart adjustments for adult and child unit prices", () => {
+    const result = calculateCodindicaCartTotals({
+      code: "ISAQUE",
+      record: {
+        codindica: "ISAQUE",
+        stcodindica: "ati",
+        validade: "2099-12-31",
+        nmrepresentante: "Equipe",
+        tpdesconto: "fixo",
+        flpromocional: "n",
+        vldescnormal: "0.00",
+        vldescinfant: "0.00",
+        vldescpromonormal: "0.00",
+        vldescpromoinfant: "0.00",
+        vlvendanormal: "105.00",
+        vlvendainfant: "55.00",
+        vlcashback: "0.00",
+        vlcashbacknormal: "1.00",
+        vlcashbackinfant: "1.00",
+      },
+      parameters: [],
+      agendaType: "padra",
+      normalUnitPrice: 80,
+      childUnitPrice: 50,
+      normalQuantity: 1,
+      childQuantity: 1,
+    });
+
+    expect(result.normal.paidUnitPrice).toBe(105);
+    expect(result.child.paidUnitPrice).toBe(55);
+    expect(result.totalGross).toBe(130);
+    expect(result.totalPaid).toBe(160);
+    expect(result.totalAdjustment).toBe(30);
   });
 
   it("blocks promotional agendas when the code does not allow them", () => {

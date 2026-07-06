@@ -25,6 +25,10 @@ const painelAgendaStatusLabels: Record<PainelAgendaStatus, string> = {
   lot: "Esgotada",
 };
 
+function buildDateOnlyValue(year: number, month: number, day: number) {
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 export function buildPainelAgendaCalendar(month: number, year: number) {
   const firstDay = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -33,22 +37,21 @@ export function buildPainelAgendaCalendar(month: number, year: number) {
 
   for (let offset = firstDay - 1; offset >= 0; offset -= 1) {
     const day = previousMonthDays - offset;
-    const date = new Date(year, month - 2, day);
+    const previousMonth = month === 1 ? 12 : month - 1;
+    const previousMonthYear = month === 1 ? year - 1 : year;
 
     cells.push({
       key: `prev-${day}`,
-      date: date.toISOString().slice(0, 10),
+      date: buildDateOnlyValue(previousMonthYear, previousMonth, day),
       day,
       inMonth: false,
     });
   }
 
   for (let day = 1; day <= daysInMonth; day += 1) {
-    const date = new Date(year, month - 1, day);
-
     cells.push({
       key: `current-${day}`,
-      date: date.toISOString().slice(0, 10),
+      date: buildDateOnlyValue(year, month, day),
       day,
       inMonth: true,
     });
@@ -57,11 +60,12 @@ export function buildPainelAgendaCalendar(month: number, year: number) {
   let nextMonthDay = 1;
 
   while (cells.length % 7 !== 0) {
-    const date = new Date(year, month, nextMonthDay);
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextMonthYear = month === 12 ? year + 1 : year;
 
     cells.push({
       key: `next-${nextMonthDay}`,
-      date: date.toISOString().slice(0, 10),
+      date: buildDateOnlyValue(nextMonthYear, nextMonth, nextMonthDay),
       day: nextMonthDay,
       inMonth: false,
     });

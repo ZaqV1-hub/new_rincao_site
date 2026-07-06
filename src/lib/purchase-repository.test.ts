@@ -116,4 +116,95 @@ describe("purchase-repository", () => {
       "Isento",
     ]);
   });
+  it("applies codindica unit prices to B2C adult and child vouchers", async () => {
+    const voucherInserts: Array<unknown[] | undefined> = [];
+
+    mocks.systemQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM codindica")) {
+        return {
+          rows: [
+            {
+              codindica: "ISAQUE",
+              stcodindica: "ati",
+              validade: "2099-12-31",
+              nmrepresentante: "Equipe",
+              tpdesconto: "fixo",
+              flpromocional: "n",
+              vldescnormal: "0.00",
+              vldescinfant: "0.00",
+              vldescpromonormal: "0.00",
+              vldescpromoinfant: "0.00",
+              vlvendanormal: "50.00",
+              vlvendainfant: "105.00",
+              vlcashback: "0.00",
+              vlcashbacknormal: "1.00",
+              vlcashbackinfant: "1.00",
+            },
+          ],
+        };
+      }
+
+      return { rows: [] };
+    });
+
+    mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
+      if (sql === "BEGIN" || sql === "COMMIT") {
+        return { rows: [] };
+      }
+
+      if (sql.includes("INSERT INTO compra")) {
+        expect(values).toEqual(["52998224725", "155.00", "15.00", "ISAQUE"]);
+        return { rows: [{ idcompra: 902 }] };
+      }
+
+      if (sql.includes("INSERT INTO voucher")) {
+        voucherInserts.push(values);
+        return { rows: [] };
+      }
+
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    await expect(
+      createOnlinePurchase(
+        "52998224725",
+        123,
+        {
+          lineItems: [
+            { productId: "ingresso-adulto", quantity: 1 },
+            { productId: "ingresso-crianca", quantity: 1 },
+          ],
+        },
+        "ISAQUE",
+      ),
+    ).resolves.toMatchObject({
+      purchaseId: 902,
+      totalValue: "155.00",
+      voucherCount: 2,
+    });
+
+    expect(voucherInserts).toHaveLength(2);
+    expect(voucherInserts[0]).toEqual([
+      902,
+      "A-0001",
+      123,
+      "norma",
+      "50.00",
+      "-50.00",
+      "ISAQUE",
+      "2027-01-06",
+      "Adulto",
+    ]);
+    expect(voucherInserts[1]).toEqual([
+      902,
+      "C-0001",
+      123,
+      "infan",
+      "105.00",
+      "35.00",
+      "ISAQUE",
+      "2027-01-06",
+      "Criança",
+    ]);
+  });
 });

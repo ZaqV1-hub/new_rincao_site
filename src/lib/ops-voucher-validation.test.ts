@@ -115,7 +115,7 @@ describe("ops-voucher-validation", () => {
     );
   });
 
-  it("rejects online validation outside the visit date without confirmation", async () => {
+  it("validates online voucher even when the visit date is different", async () => {
     query.mockImplementation(async (sql: string) => {
       if (sql === "BEGIN") {
         return { rows: [] };
@@ -149,11 +149,20 @@ describe("ops-voucher-validation", () => {
       return { rows: [] };
     });
 
-    await expect(validateVoucherByNumber("A1234")).rejects.toMatchObject({
-      code: "voucher_confirmation_required",
-      status: 409,
+    const result = await validateVoucherByNumber("A1234");
+
+    expect(result).toEqual({
+      action: "validate",
+      mode: "voucher_number",
+      processedCount: 1,
+      affectedVoucherIds: [9001],
+      warnings: [],
+      message: "A1234 - Voucher Validado com sucesso! Entrada permitida",
     });
-    expect(syncTicketValidation).not.toHaveBeenCalled();
+    expect(syncTicketValidation).toHaveBeenCalledWith(
+      [{ purchaseId: 456, voucherId: 9001 }],
+      "validate",
+    );
   });
 
   it("validates a selection and reports skipped vouchers as warnings", async () => {
@@ -272,7 +281,7 @@ describe("ops-voucher-validation", () => {
     );
   });
 
-  it("validates only same-day vouchers in purchase mode without confirmation", async () => {
+  it("validates all purchase vouchers even when the visit date is different", async () => {
     query.mockImplementation(async (sql: string) => {
       if (sql === "BEGIN" || sql === "COMMIT") {
         return { rows: [] };
@@ -321,10 +330,9 @@ describe("ops-voucher-validation", () => {
     expect(result).toEqual({
       action: "validate",
       mode: "purchase",
-      processedCount: 1,
-      affectedVoucherIds: [9001],
-      warnings: ["Ignorados por data diferente: A9999."],
-      skippedVoucherNumbers: ["A9999"],
+      processedCount: 2,
+      affectedVoucherIds: [9001, 9002],
+      warnings: [],
       message: "Vouchers validados com sucesso! Entrada permitida.",
     });
   });

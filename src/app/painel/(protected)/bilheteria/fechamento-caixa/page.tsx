@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { BilheteriaCashClosurePage } from "@/components/bilheteria-cash-closure-page";
-import { getBilheteriaAgendaStatusToday } from "@/lib/bilheteria-agenda";
 import { getBilheteriaCashClosureReport } from "@/lib/bilheteria-cash-data";
 import { buildBilheteriaCashClosureReportModel } from "@/lib/bilheteria-cash-view-model";
 import { requirePainelAccess } from "@/lib/painel-session";
@@ -25,10 +24,6 @@ export default async function PainelBilheteriaFechamentoCaixaPage({
   const session = await requirePainelAccess("vis_bilhet", "/painel/bilheteria/fechamento-caixa");
   const params = await searchParams;
   const closureId = Number(params.fechamento_id ?? 0);
-  const { hasOpenAgendaToday } = await getBilheteriaAgendaStatusToday();
-  let warningMessage: string | null = hasOpenAgendaToday
-    ? null
-    : "Nao existe agenda aberta para hoje. O fechamento continua acessivel, mas venda e validacao ficam indisponiveis.";
   let data;
 
   try {
@@ -36,8 +31,6 @@ export default async function PainelBilheteriaFechamentoCaixaPage({
       Number.isInteger(closureId) && closureId > 0 ? closureId : null,
     );
   } catch {
-    warningMessage =
-      "Nao foi possivel montar o fechamento de caixa agora. A rota foi mantida acessivel para evitar erro de navegacao.";
     data = {
       closureId: null,
       isHistorical: false,
@@ -71,7 +64,6 @@ export default async function PainelBilheteriaFechamentoCaixaPage({
       isManager={session.legacyRoleId === 1}
       printHref={data.printHref}
       report={data.report}
-      warningMessage={warningMessage}
     />
   );
 }

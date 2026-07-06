@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { PainelClienteDetailResult } from "@/lib/painel-clientes";
 
@@ -19,7 +19,16 @@ function formatDate(value: string | null) {
     return "";
   }
 
-  const date = new Date(value);
+  const normalizedValue = value.trim();
+  const dateOnlyMatch = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const date = dateOnlyMatch
+    ? new Date(
+        Number(dateOnlyMatch[1]),
+        Number(dateOnlyMatch[2]) - 1,
+        Number(dateOnlyMatch[3]),
+        12,
+      )
+    : new Date(normalizedValue);
   if (Number.isNaN(date.getTime())) {
     return value;
   }
@@ -81,12 +90,6 @@ export function PainelClienteFormPage({
   const [status, setStatus] = useState(initialStatus);
   const selectedType = typeOptions.find((option) => String(option.id) === typeId) ?? null;
   const isSelectedSchool = selectedType?.name.trim().toLowerCase() === "escola";
-
-  useEffect(() => {
-    setTypeId(initialTypeId);
-    setName(initialName);
-    setStatus(initialStatus);
-  }, [initialName, initialStatus, initialTypeId]);
 
   function refreshClientEditor(message?: string | null) {
     if (!client) {

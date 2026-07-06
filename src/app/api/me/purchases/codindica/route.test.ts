@@ -44,6 +44,14 @@ describe("me/purchases/codindica BFF route", () => {
       subtotal: "200.00",
       discountAmount: "25.00",
       totalValue: "175.00",
+      lines: [
+        {
+          productId: "ingresso-adulto",
+          unitPrice: "87.50",
+          totalValue: "175.00",
+          adjustmentValue: "-25.00",
+        },
+      ],
     });
 
     const { POST } = await import("@/app/api/me/purchases/codindica/route");
@@ -77,6 +85,14 @@ describe("me/purchases/codindica BFF route", () => {
         subtotal: "200.00",
         discountAmount: "25.00",
         totalValue: "175.00",
+        lines: [
+          {
+            productId: "ingresso-adulto",
+            unitPrice: "87.50",
+            totalValue: "175.00",
+            adjustmentValue: "-25.00",
+          },
+        ],
       },
     });
   });

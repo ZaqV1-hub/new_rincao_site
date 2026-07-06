@@ -49,6 +49,12 @@ type PurchaseInsertRow = {
 };
 
 type CodindicaQueryRow = CodindicaRow;
+type CartCodindicaLine = {
+  productId: string;
+  unitPrice: string;
+  totalValue: string;
+  adjustmentValue: string;
+};
 
 export class PurchaseCreationError extends Error {
   code: string;
@@ -314,6 +320,41 @@ function buildAgendaCartSummary(
   );
 }
 
+function buildCartCodindicaPricing(input: {
+  cart: ReturnType<typeof buildAgendaCartSummary>;
+  codindicaTotals: ReturnType<typeof calculateCodindicaCartTotals>;
+}) {
+  const lineMap = new Map<string, CartCodindicaLine>();
+
+  for (const line of input.cart.lines) {
+    let paidUnitPrice = Number(line.unitPrice);
+
+    if (line.productId === "ingresso-adulto") {
+      paidUnitPrice = input.codindicaTotals.normal.paidUnitPrice;
+    } else if (line.productId === "ingresso-crianca") {
+      paidUnitPrice = input.codindicaTotals.child.paidUnitPrice;
+    }
+
+    const originalUnitPrice = Number(line.unitPrice);
+    const totalValue = paidUnitPrice * line.quantity;
+    const adjustmentValue = paidUnitPrice - originalUnitPrice;
+
+    lineMap.set(line.productId, {
+      productId: line.productId,
+      unitPrice: normalizeMoney(paidUnitPrice),
+      totalValue: normalizeMoney(totalValue),
+      adjustmentValue: normalizeMoney(adjustmentValue),
+    });
+  }
+
+  return {
+    lines: [...lineMap.values()],
+    subtotal: normalizeMoney(input.codindicaTotals.totalGross),
+    totalAdjustment: normalizeMoney(input.codindicaTotals.totalAdjustment),
+    totalValue: normalizeMoney(input.codindicaTotals.totalPaid),
+  };
+}
+
 export async function createOnlinePurchase(
   cpf: string,
   agendaId: number,
@@ -343,6 +384,9 @@ export async function createOnlinePurchase(
     const pool = getIngressoSistemaDbPool();
     const codindica = normalizeCodindica(codindicaInput);
     let cartCodindicaTotals: ReturnType<typeof calculateCodindicaCartTotals> | null = null;
+    let cartCodindicaPricing:
+      | ReturnType<typeof buildCartCodindicaPricing>
+      | null = null;
 
     if (codindica) {
       const [codindicaResult, parametroResult] = await Promise.all([
@@ -384,7 +428,21 @@ export async function createOnlinePurchase(
           code: codindica,
           record: codindicaResult.rows[0] ?? null,
           parameters: parametroResult.rows,
-          totalValue: Number(cart.totalValue),
+          agendaType: agenda.type,
+          normalUnitPrice: Number(
+            cart.lines.find((line) => line.productId === "ingresso-adulto")?.unitPrice ?? 0,
+          ),
+          childUnitPrice: Number(
+            cart.lines.find((line) => line.productId === "ingresso-crianca")?.unitPrice ?? 0,
+          ),
+          normalQuantity:
+            cart.lines.find((line) => line.productId === "ingresso-adulto")?.quantity ?? 0,
+          childQuantity:
+            cart.lines.find((line) => line.productId === "ingresso-crianca")?.quantity ?? 0,
+        });
+        cartCodindicaPricing = buildCartCodindicaPricing({
+          cart,
+          codindicaTotals: cartCodindicaTotals,
         });
       } catch (error) {
         if (error instanceof CodindicaValidationError) {
@@ -435,7 +493,7 @@ export async function createOnlinePurchase(
             ? normalizeMoney(cartCodindicaTotals.totalPaid)
             : cart.totalValue,
           cartCodindicaTotals
-            ? normalizeMoney(cartCodindicaTotals.discountAmount)
+            ? normalizeMoney(cartCodindicaTotals.totalGross - cartCodindicaTotals.totalPaid)
             : null,
           cartCodindicaTotals?.code ?? null,
         ],
@@ -447,6 +505,10 @@ export async function createOnlinePurchase(
       }
 
       for (const line of cart.lines) {
+        const codindicaLine =
+          cartCodindicaPricing?.lines.find((item) => item.productId === line.productId) ??
+          null;
+
         for (let index = 0; index < line.quantity; index += 1) {
           const voucherNumber = await generateUniqueVoucherNumber(
             client,
@@ -468,14 +530,16 @@ export async function createOnlinePurchase(
                 dtvalidade,
                 descricao
               )
-              VALUES ($1, $2, $3, $4, $5, NULL, NULL, 'n', 'n', $6, $7)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, 'n', 'n', $8, $9)
             `,
             [
               purchaseId,
               voucherNumber,
               agendaId,
               line.voucherType,
-              line.unitPrice,
+              codindicaLine?.unitPrice ?? line.unitPrice,
+              codindicaLine?.adjustmentValue ?? null,
+              cartCodindicaTotals?.code ?? null,
               validityDate,
               line.description,
             ],
@@ -488,7 +552,7 @@ export async function createOnlinePurchase(
       return {
         purchaseId,
         legacyEncodedId: encodeLegacyId(purchaseId),
-        totalValue: cart.totalValue,
+        totalValue: cartCodindicaPricing?.totalValue ?? cart.totalValue,
         voucherCount: cart.voucherCount,
       };
     } catch (error) {
@@ -623,11 +687,13 @@ export async function createOnlinePurchase(
         )
         RETURNING idcompra
       `,
-      [
-        cpf,
-        totalValue,
-        codindicaTotals ? normalizeMoney(codindicaTotals.reportedDiscountTotal) : null,
-        codindicaTotals?.code ?? null,
+        [
+          cpf,
+          totalValue,
+          codindicaTotals
+            ? normalizeMoney(codindicaTotals.totalGross - codindicaTotals.totalPaid)
+            : null,
+          codindicaTotals?.code ?? null,
       ],
     );
     const purchaseId = purchaseResult.rows[0]?.idcompra;
@@ -697,13 +763,11 @@ export async function createOnlinePurchase(
     for (let index = 0; index < quantities.normal; index += 1) {
       const voucherNumber = await generateUniqueVoucherNumber(client, "A");
       const normalVoucherPrice = codindicaTotals
-        ? codindicaTotals.normal.unitPrice
+        ? codindicaTotals.normal.paidUnitPrice
         : standardNormal;
       const normalVoucherDiscount = codindicaTotals
         ? normalizeMoney(
-            codindicaTotals.fixedPriceMode
-              ? 0
-              : codindicaTotals.normal.discountUnitPrice,
+            codindicaTotals.normal.paidUnitPrice - codindicaTotals.normal.unitPrice,
           )
         : null;
 
@@ -738,13 +802,11 @@ export async function createOnlinePurchase(
     for (let index = 0; index < quantities.child; index += 1) {
       const voucherNumber = await generateUniqueVoucherNumber(client, "C");
       const childVoucherPrice = codindicaTotals
-        ? codindicaTotals.child.unitPrice
+        ? codindicaTotals.child.paidUnitPrice
         : standardChild;
       const childVoucherDiscount = codindicaTotals
         ? normalizeMoney(
-            codindicaTotals.fixedPriceMode
-              ? 0
-              : codindicaTotals.child.discountUnitPrice,
+            codindicaTotals.child.paidUnitPrice - codindicaTotals.child.unitPrice,
           )
         : null;
 
@@ -887,14 +949,29 @@ export async function previewOnlinePurchaseCodindica(
       code: codindica,
       record: codindicaResult.rows[0] ?? null,
       parameters: parametroResult.rows,
-      totalValue: Number(cart.totalValue),
+      agendaType: agenda.type,
+      normalUnitPrice: Number(
+        cart.lines.find((line) => line.productId === "ingresso-adulto")?.unitPrice ?? 0,
+      ),
+      childUnitPrice: Number(
+        cart.lines.find((line) => line.productId === "ingresso-crianca")?.unitPrice ?? 0,
+      ),
+      normalQuantity:
+        cart.lines.find((line) => line.productId === "ingresso-adulto")?.quantity ?? 0,
+      childQuantity:
+        cart.lines.find((line) => line.productId === "ingresso-crianca")?.quantity ?? 0,
+    });
+    const pricing = buildCartCodindicaPricing({
+      cart,
+      codindicaTotals: totals,
     });
 
     return {
       codindica: totals.code,
-      subtotal: normalizeMoney(totals.totalGross),
-      discountAmount: normalizeMoney(totals.discountAmount),
-      totalValue: normalizeMoney(totals.totalPaid),
+      subtotal: pricing.subtotal,
+      discountAmount: pricing.totalAdjustment,
+      totalValue: pricing.totalValue,
+      lines: pricing.lines,
     };
   } catch (error) {
     if (error instanceof CodindicaValidationError) {

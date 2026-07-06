@@ -46,9 +46,11 @@ export type CodindicaCalculation = {
 
 export type CodindicaCartCalculation = {
   code: string;
-  discountAmount: number;
   totalGross: number;
+  totalAdjustment: number;
   totalPaid: number;
+  normal: TicketTotals;
+  child: TicketTotals;
 };
 
 export class CodindicaValidationError extends Error {
@@ -362,26 +364,29 @@ export function calculateCodindicaCartTotals(input: {
   code: string;
   record: CodindicaRow | null;
   parameters: CodindicaParametroRow[];
-  totalValue: number;
+  agendaType?: string | null;
+  normalUnitPrice: number;
+  childUnitPrice: number;
+  normalQuantity: number;
+  childQuantity: number;
 }) {
-  const totalGross = normalizeMoney(input.totalValue);
-
-  if (totalGross <= 0) {
-    throw new CodindicaValidationError(
-      "Selecione pelo menos um ingresso pago para continuar.",
-    );
-  }
-
-  assertRecordIsUsable(input);
-  const record = input.record as CodindicaRow;
-
-  const configuredDiscount = readMoney(record.vldescnormal ?? record.vlvendanormal);
-  const discountAmount = Math.min(normalizeMoney(configuredDiscount), totalGross);
+  const totals = calculateCodindicaTotals({
+    code: input.code,
+    record: input.record,
+    parameters: input.parameters,
+    agendaType: input.agendaType ?? null,
+    normalUnitPrice: input.normalUnitPrice,
+    childUnitPrice: input.childUnitPrice,
+    normalQuantity: input.normalQuantity,
+    childQuantity: input.childQuantity,
+  });
 
   return {
-    code: input.code,
-    discountAmount,
-    totalGross,
-    totalPaid: normalizeMoney(totalGross - discountAmount),
+    code: totals.code,
+    totalGross: totals.totalGross,
+    totalAdjustment: normalizeMoney(totals.totalPaid - totals.totalGross),
+    totalPaid: totals.totalPaid,
+    normal: totals.normal,
+    child: totals.child,
   } satisfies CodindicaCartCalculation;
 }

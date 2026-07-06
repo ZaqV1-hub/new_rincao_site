@@ -9,6 +9,7 @@ import type {
 } from "@/lib/painel-agenda";
 import {
   formatPainelAgendaDateLabel,
+  getPainelAgendaStatusOptions,
   getPainelAgendaTypeOptions,
 } from "@/lib/painel-agenda-ui";
 
@@ -169,6 +170,7 @@ export function PainelAgendaEditor({
   const typeOptions = getPainelAgendaTypeOptions(
     mode === "create" ? "padra" : (selectedAgenda?.type ?? null),
   );
+  const statusOptions = getPainelAgendaStatusOptions();
   const overwriteRequired = rangePreview.existingDates.length > 0;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -317,6 +319,26 @@ export function PainelAgendaEditor({
             </select>
           </label>
         </div>
+
+        <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63] lg:max-w-[340px]">
+          Status da agenda
+          <select
+            value={form.status}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                status: event.target.value as PainelAgendaStatus,
+              }))
+            }
+            className="rounded-[8px] border border-[#d4dfeb] px-3 py-2.5 text-sm font-normal text-[#123b63]"
+          >
+            {statusOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <section className="grid gap-3 rounded-[8px] border border-[#d4dfeb] bg-white p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">

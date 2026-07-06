@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CurrencyInput } from "@/components/currency-input";
 import { IngressoShell } from "@/components/ingresso-shell";
 import type { AuthUser } from "@/lib/auth-contracts";
 import type {
@@ -745,14 +746,19 @@ export function SchoolPurchasePage({
                 <label className="legacy-rounded text-[13px] uppercase tracking-[0.18em] text-[#6d8497]">
                   Valor do Passeio
                 </label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={payload.value}
-                  onChange={(event) => updatePayload("value", event.target.value)}
-                  placeholder="Ex.: 49,90"
-                  className="mt-2 w-full rounded-[18px] border border-[#cad9e4] px-4 py-3 text-[15px] text-[#1f4f6c] outline-none placeholder:text-[#90a4b6] focus:border-[#3498db]"
-                />
+                <div className="relative mt-2">
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-[#5f7688]">
+                    R$
+                  </span>
+                  <CurrencyInput
+                    className="w-full rounded-[18px] border border-[#cad9e4] py-3 pl-12 pr-4 text-[15px] text-[#1f4f6c] outline-none placeholder:text-[#90a4b6] focus:border-[#3498db]"
+                    defaultValue={payload.value || "0,00"}
+                    name="value"
+                    onValueChange={(value) => updatePayload("value", value)}
+                    placeholder="0,00"
+                    required
+                  />
+                </div>
                 <p className="mt-2 text-[13px] leading-6 text-[#6d8497]">
                   Informe o valor exato conforme a autorizacao do passeio.
                 </p>

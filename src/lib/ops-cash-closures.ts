@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { ensureOpsAuditLogTable, registerOpsAuditLog } from "@/lib/ops-audit-log";
 import {
   buildOperationalCashSummary,
@@ -272,7 +272,7 @@ export async function listOperationalCashClosures(input?: {
 }): Promise<OperationalCashClosureList> {
   const limit = Number.isInteger(input?.limit) ? Math.min(Math.max(input!.limit!, 1), 100) : 20;
   const offset = Number.isInteger(input?.offset) ? Math.max(input!.offset!, 0) : 0;
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -770,7 +770,7 @@ export async function getOperationalCashClosureDetail(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -805,7 +805,7 @@ export async function closeOperationalCashClosure(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
@@ -890,7 +890,7 @@ export async function autoCloseOperationalCashClosures(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {

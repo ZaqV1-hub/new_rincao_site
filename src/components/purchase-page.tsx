@@ -93,6 +93,12 @@ type CodindicaPreviewResponse =
         subtotal: string;
         discountAmount: string;
         totalValue: string;
+        lines: Array<{
+          productId: string;
+          unitPrice: string;
+          totalValue: string;
+          adjustmentValue: string;
+        }>;
       };
     }
   | {
@@ -170,7 +176,18 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
   const [quantities, setQuantities] = useState<Quantities>({});
   const [codindica, setCodindica] = useState("");
   const [appliedCodindica, setAppliedCodindica] = useState<string | null>(null);
-  const [appliedDiscount, setAppliedDiscount] = useState("0.00");
+  const [codindicaPreview, setCodindicaPreview] = useState<{
+    codindica: string;
+    subtotal: string;
+    discountAmount: string;
+    totalValue: string;
+    lines: Array<{
+      productId: string;
+      unitPrice: string;
+      totalValue: string;
+      adjustmentValue: string;
+    }>;
+  } | null>(null);
   const [isApplyingCodindica, setIsApplyingCodindica] = useState(false);
   const [codindicaFeedback, setCodindicaFeedback] = useState<{
     tone: "success" | "error";
@@ -204,9 +221,21 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
   const totalQuantity =
     cart?.lines.reduce((total, line) => total + line.quantity, 0) ?? 0;
   const totalValue = cart?.totalValue ?? "0.00";
-  const totalValueWithDiscount = appliedCodindica
-    ? Math.max(Number(totalValue) - Number(appliedDiscount), 0).toFixed(2)
-    : totalValue;
+  const renderedLines =
+    cart?.lines.map((line) => {
+      const previewLine =
+        codindicaPreview?.lines.find((item) => item.productId === line.productId) ?? null;
+
+      return {
+        ...line,
+        unitPrice: previewLine?.unitPrice ?? line.unitPrice,
+        totalValue: previewLine?.totalValue ?? line.totalValue,
+        adjustmentValue: previewLine?.adjustmentValue ?? "0.00",
+      };
+    }) ?? [];
+  const subtotalValue = codindicaPreview?.subtotal ?? totalValue;
+  const totalAdjustment = codindicaPreview?.discountAmount ?? "0.00";
+  const finalTotalValue = codindicaPreview?.totalValue ?? totalValue;
 
   function setProductQuantity(productId: string, delta: number) {
     setQuantities((current) => ({
@@ -214,7 +243,7 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
       [productId]: Math.max((current[productId] ?? 0) + delta, 0),
     }));
     setAppliedCodindica(null);
-    setAppliedDiscount("0.00");
+    setCodindicaPreview(null);
     setCodindicaFeedback(null);
   }
 
@@ -299,7 +328,7 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
 
     if (normalizedCode.length !== 6) {
       setAppliedCodindica(null);
-      setAppliedDiscount("0.00");
+      setCodindicaPreview(null);
       setCodindicaFeedback({
         tone: "error",
         message: "Informe um código de indicação válido.",
@@ -333,7 +362,7 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
       }
 
       setAppliedCodindica(payload.data.codindica);
-      setAppliedDiscount(payload.data.discountAmount);
+      setCodindicaPreview(payload.data);
       setCodindica(payload.data.codindica);
       setCodindicaFeedback({
         tone: "success",
@@ -341,7 +370,7 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
       });
     } catch (applyError) {
       setAppliedCodindica(null);
-      setAppliedDiscount("0.00");
+      setCodindicaPreview(null);
       setCodindicaFeedback({
         tone: "error",
         message:
@@ -393,8 +422,8 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
     return (
       <>
         <div className={compact ? "space-y-2.5" : "mt-3 space-y-3"}>
-          {cart?.lines.length ? (
-            cart.lines.map((line) => (
+          {renderedLines.length ? (
+            renderedLines.map((line) => (
               <div
                 key={line.productId}
                 className={`gap-3 ${
@@ -409,7 +438,7 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
                   </strong>
                   {!compact ? (
                     <span className="mt-1 block text-[12px] text-[#5f748b]">
-                      x{line.quantity}
+                      x{line.quantity} • {formatCurrency(line.unitPrice)}
                     </span>
                   ) : null}
                 </div>
@@ -427,14 +456,15 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
         <div className="mt-3 flex items-center justify-between border-t border-[#d7e3ee] pt-3 text-[#143b63]">
           <span className="text-[15px] font-black sm:text-[16px]">Subtotal</span>
           <strong className="text-[17px] font-black sm:text-[18px]">
-            {formatCurrency(totalValue)}
+            {formatCurrency(subtotalValue)}
           </strong>
         </div>
         {appliedCodindica ? (
           <div className="mt-3 flex items-center justify-between text-[#1d6fb8]">
             <span className="text-[14px] font-black sm:text-[15px]">Desconto</span>
             <strong className="text-[15px] font-black sm:text-[16px]">
-              - {formatCurrency(appliedDiscount)}
+              {Number(totalAdjustment) >= 0 ? "+" : "-"}
+              {formatCurrency(Math.abs(Number(totalAdjustment)))}
             </strong>
           </div>
         ) : null}
@@ -537,7 +567,7 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
                                 setCodindica(nextValue);
                                 if (appliedCodindica && nextValue !== appliedCodindica) {
                                   setAppliedCodindica(null);
-                                  setAppliedDiscount("0.00");
+                                  setCodindicaPreview(null);
                                 }
                                 setCodindicaFeedback(null);
                               }}
@@ -571,7 +601,7 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
                             Total
                           </span>
                           <strong className="text-[20px] font-black text-[#143b63]">
-                            {formatCurrency(totalValueWithDiscount)}
+                            {formatCurrency(finalTotalValue)}
                           </strong>
                         </div>
                       </div>
@@ -638,7 +668,7 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
                     Total
                   </span>
                   <strong className="text-[22px] font-black text-[#143b63]">
-                    {formatCurrency(totalValueWithDiscount)}
+                    {formatCurrency(finalTotalValue)}
                   </strong>
                 </div>
                 <PrimaryFlowButton
@@ -666,7 +696,7 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
                     Total da compra
                   </p>
                   <strong className="mt-1 block truncate text-[18px] font-black text-[#143b63] sm:text-[22px]">
-                    {formatCurrency(totalValueWithDiscount)}
+                    {formatCurrency(finalTotalValue)}
                   </strong>
                 </div>
                 <PrimaryFlowButton

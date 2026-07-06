@@ -119,7 +119,9 @@ export function BilheteriaCashClosurePage({
         });
         setShowCloseModal(false);
         openPrintWindow(`/painel/fechamentos/${payload.data.closure.id}/imprimir`);
-        router.refresh();
+        router.push(
+          `/painel/bilheteria/fechamento-caixa?fechamento_id=${payload.data.closure.id}`,
+        );
       } catch (error) {
         setFeedback({
           tone: "error",

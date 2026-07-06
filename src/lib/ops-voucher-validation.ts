@@ -45,6 +45,16 @@ type VoucherOperationInputActor = {
   cpf?: string | null;
 };
 
+type VoucherAgendaUsageResult =
+  | {
+      status: "ok";
+    }
+  | {
+      status: "invalid" | "confirmation_required";
+      code: string;
+      message: string;
+    };
+
 class VoucherOperationError extends Error {
   code: string;
   status: number;
@@ -318,9 +328,9 @@ function buildAlreadyUsedMessage(row: VoucherValidationRow) {
 
 function evaluateAgendaUsage(
   row: VoucherValidationRow,
-  confirm: boolean,
+  _confirm: boolean,
   todayDate: string,
-) {
+): VoucherAgendaUsageResult {
   const visitDate = String(row.dtagenda ?? "").slice(0, 10);
 
   if (!visitDate) {
@@ -329,30 +339,14 @@ function evaluateAgendaUsage(
     };
   }
 
-  if (isPromotionalAgenda(row.tpagenda)) {
-    if (visitDate !== todayDate) {
-      return {
-        status: "invalid" as const,
-        code: "voucher_invalid_visit_date",
-        message: `Voucher valido apenas no dia da visita para data promocional: ${formatDateBr(row.dtagenda)}`,
-      };
-    }
-
-    return {
-      status: "ok" as const,
-    };
-  }
-
-  if (visitDate === todayDate || confirm) {
+  if (visitDate === todayDate || isPromotionalAgenda(row.tpagenda)) {
     return {
       status: "ok" as const,
     };
   }
 
   return {
-    status: "confirmation_required" as const,
-    code: "voucher_confirmation_required",
-    message: `${row.numvoucher ?? ""} - Voucher valido, porem a data agendada e: ${formatDateBr(row.dtagenda)}`,
+    status: "ok" as const,
   };
 }
 
@@ -702,8 +696,7 @@ export async function validatePurchaseVouchers(
     }
 
     const affectedVoucherIds: number[] = [];
-    const skippedVoucherNumbers: string[] = [];
-    const warnings: string[] = [];
+  const warnings: string[] = [];
 
     for (const voucher of vouchers) {
       if (voucher.stusado === "s" || voucher.stusado === "inv") {
@@ -737,11 +730,6 @@ export async function validatePurchaseVouchers(
         if (usage.status === "invalid") {
           throw new VoucherOperationError(usage.code, usage.message, 409);
         }
-
-        if (usage.status === "confirmation_required") {
-          skippedVoucherNumbers.push(voucher.numvoucher ?? String(voucher.idvoucher));
-          continue;
-        }
       } else if (voucher.tpcompra === "reser") {
         if (!isReservationPaid(voucher)) {
           throw new VoucherOperationError(
@@ -762,14 +750,6 @@ export async function validatePurchaseVouchers(
       affectedVoucherIds.push(voucher.idvoucher);
     }
 
-    if (affectedVoucherIds.length === 0 && skippedVoucherNumbers.length > 0) {
-      throw new VoucherOperationError(
-        "voucher_confirmation_required",
-        `Os vouchers da compra exigem confirmacao para uso fora da data: ${skippedVoucherNumbers.join(", ")}`,
-        409,
-      );
-    }
-
     if (affectedVoucherIds.length === 0) {
       throw new VoucherOperationError(
         "voucher_validation_unavailable",
@@ -785,7 +765,6 @@ export async function validatePurchaseVouchers(
       vouchers,
       affectedVoucherIds,
       warnings,
-      skippedVoucherNumbers,
       explicitPurchaseId: purchaseId,
     });
     await client.query("COMMIT");
@@ -794,7 +773,6 @@ export async function validatePurchaseVouchers(
       mode: "purchase",
       purchaseId,
       affectedVoucherIds,
-      skippedVoucherNumbers,
       actorName: String(actor?.name ?? "").trim() || null,
       actorCpf: normalizeCpfDigits(actor?.cpf ?? "") || null,
       auditLogId,
@@ -811,19 +789,12 @@ export async function validatePurchaseVouchers(
         })),
     );
 
-    if (skippedVoucherNumbers.length > 0) {
-      warningsWithTickets.push(
-        `Ignorados por data diferente: ${skippedVoucherNumbers.join(", ")}.`,
-      );
-    }
-
     return {
       action: "validate",
       mode: "purchase",
       processedCount: affectedVoucherIds.length,
       affectedVoucherIds,
       warnings: warningsWithTickets,
-      skippedVoucherNumbers,
       message: "Vouchers validados com sucesso! Entrada permitida.",
     };
   } catch (error) {

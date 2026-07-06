@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getOperationalCashClosureDetail, listOperationalCashClosures } from "@/lib/ops-cash-closures";
 import {
   buildOperationalCashSummary,
@@ -368,7 +368,7 @@ export async function getBilheteriaCashClosureReport(
       throw new Error("Fechamento sem periodo valido para consulta.");
     }
 
-    const client = await getIngressoDbPool().connect();
+    const client = await getIngressoSistemaDbPool().connect();
     try {
       const raw = await buildClosureRawRangeData(client, openedAt, closedAt);
       return {
@@ -382,7 +382,7 @@ export async function getBilheteriaCashClosureReport(
     }
   }
 
-  const client = await getIngressoDbPool().connect();
+  const client = await getIngressoSistemaDbPool().connect();
   try {
     await ensureCashPeriodsTable(client);
     const { summary } = await buildOperationalCashSummary(client);
@@ -436,7 +436,7 @@ export async function listBilheteriaCashEdits(input?: {
   const page = input?.page && input.page > 0 ? input.page : 1;
   const pageSize = input?.pageSize && input.pageSize > 0 ? input.pageSize : 50;
   const offset = (page - 1) * pageSize;
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
