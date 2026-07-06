@@ -18,6 +18,9 @@ vi.mock("@/lib/ingresso-db", () => ({
   getIngressoDbPool: () => ({
     connect,
   }),
+  getIngressoSistemaDbPool: () => ({
+    connect,
+  }),
 }));
 
 vi.mock("@/lib/ops-audit-log", () => ({
@@ -394,6 +397,7 @@ describe("ops-cash-closures", () => {
         periodoId: 7,
         folhaId: 44,
       }),
+      "postgres",
     );
   });
 
@@ -591,6 +595,7 @@ describe("ops-cash-closures", () => {
         periodoId: 6,
         folhaId: 55,
       }),
+      "postgres",
     );
   });
 });

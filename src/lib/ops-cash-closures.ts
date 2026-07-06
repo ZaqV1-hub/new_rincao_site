@@ -731,7 +731,7 @@ async function closeCashPeriodInternal(
     options.openedAt,
     options.closedAt,
   );
-  await ensureOpsAuditLogTable(client);
+  await ensureOpsAuditLogTable(client, "postgres");
   await bindAuditLogsToClosure(client, options.periodId, closureId);
 
   const auditLogId = await registerOpsAuditLog(client, {
@@ -749,7 +749,7 @@ async function closeCashPeriodInternal(
       closedAt: options.closedAt,
       automatic: options.automatic,
     },
-  });
+  }, "postgres");
 
   return {
     closureId,
@@ -898,7 +898,7 @@ export async function autoCloseOperationalCashClosures(
 
     await ensureCashPeriodsTable(client);
     await ensureCashClosuresTable(client);
-    await ensureOpsAuditLogTable(client);
+    await ensureOpsAuditLogTable(client, "postgres");
 
     const closedPeriodIds: number[] = [];
     const closureIds: number[] = [];

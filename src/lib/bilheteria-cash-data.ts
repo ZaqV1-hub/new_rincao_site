@@ -440,7 +440,7 @@ export async function listBilheteriaCashEdits(input?: {
   const client = await pool.connect();
 
   try {
-    await ensureOpsAuditLogTable(client);
+    await ensureOpsAuditLogTable(client, "postgres");
 
     let periodId: number | null = null;
     let sheetId: number | null = null;

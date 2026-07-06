@@ -305,7 +305,7 @@ async function registerVoucherOperationAuditLog(
         cpf: normalizeCpfDigits(input.actor?.cpf ?? "") || null,
       },
     },
-  });
+  }, "postgres");
 }
 
 function isOnlinePurchasePaid(row: VoucherValidationRow) {
@@ -501,7 +501,16 @@ async function appendTicketWarnings(
     return warnings;
   }
 
-  const result = await syncTicketValidation(pairs, action);
+  let result;
+
+  try {
+    result = await syncTicketValidation(pairs, action);
+  } catch {
+    return [
+      ...warnings,
+      "Aviso: sincronizacao com o servico de tickets nao concluida (ticket_sync_failed).",
+    ];
+  }
 
   if (result.status === "sent") {
     return warnings;

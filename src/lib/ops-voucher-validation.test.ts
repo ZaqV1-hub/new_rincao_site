@@ -112,6 +112,7 @@ describe("ops-voucher-validation", () => {
         acao: "validar",
         compraId: 456,
       }),
+      "postgres",
     );
   });
 
@@ -278,6 +279,7 @@ describe("ops-voucher-validation", () => {
         compraId: 456,
         usuarioNome: "Gestor Teste (52998224725)",
       }),
+      "postgres",
     );
   });
 
@@ -412,6 +414,7 @@ describe("ops-voucher-validation", () => {
           warnings: ["Voucher A5678 nao esta validado."],
         }),
       }),
+      "postgres",
     );
   });
 
@@ -516,6 +519,7 @@ describe("ops-voucher-validation", () => {
         compraId: 456,
         usuarioNome: "Gestor Teste (52998224725)",
       }),
+      "postgres",
     );
   });
 
@@ -571,6 +575,7 @@ describe("ops-voucher-validation", () => {
           affectedVoucherIds: [9001],
         }),
       }),
+      "postgres",
     );
   });
 
