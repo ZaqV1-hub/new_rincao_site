@@ -20,12 +20,7 @@ function escapeHtml(value: string) {
 }
 
 function getRecipient() {
-  return (
-    process.env.GROUP_REGISTRATION_EMAIL_TO?.trim() ||
-    process.env.EMAIL_REPLYTO_ADDRESS?.trim() ||
-    process.env.EMAIL_FROM_ADDRESS?.trim() ||
-    "atendimento@cluberincao.com.br"
-  );
+  return "atendimento@cluberincao.com.br";
 }
 
 export function buildGroupRegistrationEmailHtml(

@@ -65,7 +65,7 @@ export type InfoPage = {
 };
 
 export const contact = {
-  email: "contato@rincao.local",
+  email: "atendimento@cluberincao.com.br",
   whatsapp: "https://wa.me/5511947040718",
   instagram: "https://www.instagram.com/cluberincao/",
   tiktok: "https://www.tiktok.com/@cluberincao",

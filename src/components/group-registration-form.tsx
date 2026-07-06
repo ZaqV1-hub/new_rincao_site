@@ -48,6 +48,7 @@ type FieldConfig = {
   name: RegistrationFieldName;
   required: boolean;
   type: "text" | "email" | "textarea" | "select";
+  format?: "date" | "phone" | "mobile";
   placeholder?: string;
   options?: string[];
   width?: "full" | "half";
@@ -76,6 +77,7 @@ const coordinatorFields: FieldConfig[] = [
     name: "birthDate",
     required: false,
     type: "text",
+    format: "date",
     placeholder: "DD/MM/AAAA",
   },
   {
@@ -83,6 +85,7 @@ const coordinatorFields: FieldConfig[] = [
     name: "phone",
     required: false,
     type: "text",
+    format: "phone",
     placeholder: "(99) 9999-9999",
   },
   {
@@ -90,6 +93,7 @@ const coordinatorFields: FieldConfig[] = [
     name: "mobile",
     required: false,
     type: "text",
+    format: "mobile",
     placeholder: "(99) 99999-9999",
   },
   {
@@ -143,7 +147,7 @@ const addressFields: FieldConfig[] = [
   {
     label: "Complemento",
     name: "complement",
-    required: true,
+    required: false,
     type: "text",
   },
   {
@@ -166,6 +170,7 @@ const requestFields: FieldConfig[] = [
     name: "interestDate",
     required: false,
     type: "text",
+    format: "date",
     placeholder: "DD/MM/AAAA",
   },
   {
@@ -176,6 +181,77 @@ const requestFields: FieldConfig[] = [
     width: "full",
   },
 ];
+
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function formatDateInput(value: string) {
+  const digits = digitsOnly(value).slice(0, 8);
+
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  if (digits.length <= 4) {
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  }
+
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function formatPhoneWithLength(value: string, localLength: 8 | 9) {
+  const digits = digitsOnly(value).slice(0, localLength + 2);
+  const areaCode = digits.slice(0, 2);
+  const localNumber = digits.slice(2);
+
+  if (!areaCode) {
+    return "";
+  }
+
+  if (digits.length <= 2) {
+    return `(${areaCode}`;
+  }
+
+  const firstChunkLength = localLength === 9 ? 5 : 4;
+  const firstChunk = localNumber.slice(0, firstChunkLength);
+  const secondChunk = localNumber.slice(firstChunkLength, localLength);
+
+  if (!firstChunk) {
+    return `(${areaCode}) `;
+  }
+
+  if (!secondChunk) {
+    return `(${areaCode}) ${firstChunk}`;
+  }
+
+  return `(${areaCode}) ${firstChunk}-${secondChunk}`;
+}
+
+function formatPhoneInput(value: string) {
+  const digits = digitsOnly(value).slice(0, 11);
+  return formatPhoneWithLength(digits, digits.length > 10 ? 9 : 8);
+}
+
+function formatMobileInput(value: string) {
+  return formatPhoneWithLength(value, 9);
+}
+
+function applyFieldFormat(value: string, format?: FieldConfig["format"]) {
+  if (!format) {
+    return value;
+  }
+
+  if (format === "date") {
+    return formatDateInput(value);
+  }
+
+  if (format === "mobile") {
+    return formatMobileInput(value);
+  }
+
+  return formatPhoneInput(value);
+}
 
 function Field({
   field,
@@ -231,6 +307,14 @@ function Field({
           required={field.required}
           placeholder={field.placeholder}
           disabled={disabled}
+          inputMode={field.format ? "numeric" : undefined}
+          maxLength={field.format === "date" ? 10 : field.format ? 15 : undefined}
+          onInput={(event) => {
+            event.currentTarget.value = applyFieldFormat(
+              event.currentTarget.value,
+              field.format,
+            );
+          }}
           className={controlClassName}
         />
       )}
