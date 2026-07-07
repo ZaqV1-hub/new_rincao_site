@@ -1,3 +1,5 @@
+import { formatCpf, sanitizeCpf } from "@/lib/cpf";
+
 function readSingleValue(value: unknown) {
   if (Array.isArray(value)) {
     for (const entry of value) {
@@ -45,4 +47,51 @@ export function normalizePainelCompraScalarFilterValue(value: unknown) {
 
 export function normalizePainelCompraDateFilterValue(value: unknown) {
   return normalizeDateValue(value);
+}
+
+export function formatPainelCompraCpfFilterInput(value: unknown) {
+  return formatCpf(String(value ?? ""));
+}
+
+export function buildPainelCompraFilterSearchParams(
+  entries: Iterable<[string, FormDataEntryValue]>,
+) {
+  const params = new URLSearchParams();
+
+  for (const [name, rawValue] of entries) {
+    const value = String(rawValue ?? "").trim();
+
+    if (
+      !value ||
+      value === "-1" ||
+      value.toLowerCase() === "undefined" ||
+      value.toLowerCase() === "null"
+    ) {
+      continue;
+    }
+
+    if (name === "cpf") {
+      const cpf = sanitizeCpf(value);
+
+      if (cpf) {
+        params.set("cpf", cpf);
+      }
+
+      continue;
+    }
+
+    if (name === "idcompra") {
+      const purchaseId = value.replace(/\D+/g, "");
+
+      if (purchaseId) {
+        params.set("idcompra", purchaseId);
+      }
+
+      continue;
+    }
+
+    params.set(name, value);
+  }
+
+  return params;
 }

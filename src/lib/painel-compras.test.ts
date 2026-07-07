@@ -14,6 +14,10 @@ import {
   type PainelPurchaseListResult,
   type PainelPurchaseVoucherListResult,
 } from "@/lib/painel-compras";
+import {
+  buildPainelCompraFilterSearchParams,
+  formatPainelCompraCpfFilterInput,
+} from "@/lib/painel-compras-format";
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
@@ -59,6 +63,38 @@ describe("normalizePainelPurchaseListFilters", () => {
     expect(filters.dateFrom).toBe("01/05/2026");
     expect(filters.dateTo).toBe("07/05/2026");
     expect(filters.ticketPaymentMethod).toBe("pix");
+  });
+});
+
+describe("painel compras filter helpers", () => {
+  it("formats cpf input in the painel mask pattern", () => {
+    expect(formatPainelCompraCpfFilterInput("22181922845")).toBe("221.819.228-45");
+  });
+
+  it("builds a clean query string ignoring empty and sentinel values", () => {
+    const params = buildPainelCompraFilterSearchParams([
+      ["idcompra", ""],
+      ["tpcompra", "-1"],
+      ["stcompra", "-1"],
+      ["payment", "-1"],
+      ["status", "-1"],
+      ["cpf", "221.819.228-45"],
+      ["nmusuario", ""],
+      ["dtcompra[de]", ""],
+      ["dtcompra[ate]", ""],
+    ]);
+
+    expect(params.toString()).toBe("cpf=22181922845");
+  });
+
+  it("keeps isolated purchase id filters valid", () => {
+    const params = buildPainelCompraFilterSearchParams([
+      ["idcompra", "551"],
+      ["cpf", ""],
+      ["tpcompra", "-1"],
+    ]);
+
+    expect(params.toString()).toBe("idcompra=551");
   });
 });
 

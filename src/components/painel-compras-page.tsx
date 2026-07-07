@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import Link from "next/link";
-import { formatCpf } from "@/lib/cpf";
+import { PainelComprasFiltersForm } from "@/components/painel-compras-filters-form";
 import type { PainelPurchaseListResult } from "@/lib/painel-compras";
 
 type PainelComprasPageProps = {
@@ -115,46 +115,8 @@ function buildComprasHref(
   return query ? `/painel/compras?${query}` : "/painel/compras";
 }
 
-function renderSelect(
-  name: string,
-  value: string | null,
-  options: ReadonlyArray<{ value: string; label: string }>,
-) {
-  return (
-    <select
-      className="rincao-field w-full rounded-[8px] px-3 py-2 text-sm"
-      defaultValue={value ?? "-1"}
-      name={name}
-    >
-      <option value="-1">Todos</option>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 function hasActiveFilters(filters: PainelPurchaseListResult["filters"]) {
   return Object.values(filters).some((value) => value != null && value !== "");
-}
-
-function toDateInputValue(value: string | null) {
-  if (!value) {
-    return "";
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value;
-  }
-
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
-    const [day, month, year] = value.split("/");
-    return `${year}-${month}-${day}`;
-  }
-
-  return "";
 }
 
 function buildLegacyUserHref(cpf: string) {
@@ -223,102 +185,15 @@ export function PainelComprasPage({
         </div>
       ) : null}
 
-      <form action="/painel/compras" className="panel-section p-4" method="get">
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
-          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
-            De
-            <input
-              className="rincao-field rounded-[8px] px-3 py-2 text-sm"
-              defaultValue={toDateInputValue(result.filters.dateFrom ?? null)}
-              name="dtcompra[de]"
-              type="date"
-            />
-          </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
-            Até
-            <input
-              className="rincao-field rounded-[8px] px-3 py-2 text-sm"
-              defaultValue={toDateInputValue(result.filters.dateTo ?? null)}
-              name="dtcompra[ate]"
-              type="date"
-            />
-          </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
-            ID
-            <input
-              className="rincao-field rounded-[8px] px-3 py-2 text-sm"
-              defaultValue={result.filters.purchaseId ?? ""}
-              min={0}
-              name="idcompra"
-              type="number"
-            />
-          </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
-            Tipo
-            {renderSelect("tpcompra", result.filters.type, typeOptions)}
-          </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
-            Status
-            {renderSelect("stcompra", result.filters.purchaseStatus, purchaseStatusOptions)}
-          </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
-            Forma de pgto
-            {renderSelect(
-              "payment",
-              result.filters.paymentMethod ??
-                (result.filters.gatewayPaymentMethod
-                  ? `gateway:${result.filters.gatewayPaymentMethod}`
-                  : result.filters.ticketPaymentMethod
-                    ? `ticket:${result.filters.ticketPaymentMethod}`
-                    : null),
-              paymentMethodOptions,
-            )}
-          </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
-            Pagamento
-            {renderSelect("status", result.filters.gatewayStatus, gatewayStatusOptions)}
-          </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
-            CPF
-            <input
-              className="rincao-field rounded-[8px] px-3 py-2 text-sm"
-              defaultValue={formatCpf(result.filters.cpf ?? "")}
-              inputMode="numeric"
-              maxLength={14}
-              name="cpf"
-              type="text"
-            />
-          </label>
-          <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
-            Usuário
-            <input
-              className="rincao-field rounded-[8px] px-3 py-2 text-sm"
-              defaultValue={result.filters.userName ?? ""}
-              name="nmusuario"
-              type="text"
-            />
-          </label>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-[#58728b]">
-            {result.total} registro(s) no total
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {canRefreshPurchases ? (
-              <span className="rounded-[8px] border border-[#d7e3ee] bg-[#f2f7fc] px-3 py-2 text-xs text-[#58728b]">
-                Atualização manual em fase futura
-              </span>
-            ) : null}
-            <button
-              className="inline-flex items-center justify-center rounded-[8px] bg-[#133d63] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#184b79]"
-              type="submit"
-            >
-              Filtrar
-            </button>
-          </div>
-        </div>
-      </form>
+      <PainelComprasFiltersForm
+        filters={result.filters}
+        total={result.total}
+        canRefreshPurchases={canRefreshPurchases}
+        typeOptions={typeOptions}
+        purchaseStatusOptions={purchaseStatusOptions}
+        paymentMethodOptions={paymentMethodOptions}
+        gatewayStatusOptions={gatewayStatusOptions}
+      />
 
       <div className="panel-section overflow-hidden p-0">
         {result.items.length === 0 ? (

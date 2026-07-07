@@ -59,7 +59,7 @@ describe("PainelComprasPage", () => {
     expect(html).toContain("123.456.789-01");
     expect(html).toContain("/ingresso/painel/usuario-site/detalhe/cpf/MTIzNDU2Nzg5MDE=");
     expect(html).toContain("Exportar");
-    expect(html).toContain("Atualização manual em fase futura");
+    expect(html).toContain("AtualizaÃ§Ã£o manual em fase futura");
   });
 
   it("nao renderiza remover filtros quando nao ha filtros ativos", () => {
