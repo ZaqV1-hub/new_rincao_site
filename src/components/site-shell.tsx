@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import Script from "next/script";
 import { useState } from "react";
 import { RincaoLogo } from "@/components/rincao-logo";
+import { ScrollToTopOnRouteChange } from "@/components/scroll-to-top-on-route-change";
 import { contact } from "@/lib/site-content";
 
 const marketingNav = [
@@ -51,11 +52,17 @@ export function SiteShell({
   ];
 
   if (usesStandaloneShell) {
-    return <>{children}</>;
+    return (
+      <>
+        <ScrollToTopOnRouteChange />
+        {children}
+      </>
+    );
   }
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f6f8fb] text-[#12344f]">
+      <ScrollToTopOnRouteChange />
       <div id="fb-root" />
       <Script
         id="facebook-jssdk"

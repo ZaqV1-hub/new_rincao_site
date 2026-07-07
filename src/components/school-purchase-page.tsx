@@ -120,24 +120,24 @@ export function SchoolPurchasePage({
     ? {
         title: "Passeio Estudantil - Compra Online (Educador)",
         subtitle: "Selecione a unidade escolar, informe os dados do educador e conclua o pagamento online.",
-        roleCardTitle: "Funcao do educador",
-        roleCardBody: "Selecione a funcao conforme o fluxo legado para gerar o voucher escolar correto.",
+        roleCardTitle: "Função do educador",
+        roleCardBody: "Selecione a função conforme o fluxo legado para gerar o voucher escolar correto.",
         formTitle: "Preencha os dados do educador",
         formDescription: "O pagamento segue para o checkout seguro assim que a compra escolar for criada.",
         participantLabel: "Nome do Educador",
-        participantErrorFallback: "Nao foi possivel iniciar a compra do educador agora.",
+        participantErrorFallback: "Não foi possível iniciar a compra do educador agora.",
         schoolSearchPlaceholder: "Digite ao menos 2 letras",
         contextSummary: "Selecione a escola para carregar as datas de passeio abertas.",
       }
     : {
         title: "Passeio Estudantil - Compra Online",
         subtitle: "Selecione a unidade escolar, informe os dados do aluno e conclua o pagamento online.",
-        roleCardTitle: "Valor da autorizacao",
-        roleCardBody: "Informe o valor exato do passeio conforme a autorizacao enviada pela escola.",
+        roleCardTitle: "Valor da autorização",
+        roleCardBody: "Informe o valor exato do passeio conforme a autorização enviada pela escola.",
         formTitle: "Preencha os dados",
         formDescription: "O pagamento segue para o checkout seguro assim que a compra escolar for criada.",
         participantLabel: "Nome do Aluno",
-        participantErrorFallback: "Nao foi possivel iniciar a compra estudantil agora.",
+        participantErrorFallback: "Não foi possível iniciar a compra estudantil agora.",
         schoolSearchPlaceholder: "Digite ao menos 2 letras",
         contextSummary: "Selecione a escola para carregar as datas de passeio abertas.",
       };
@@ -187,7 +187,7 @@ export function SchoolPurchasePage({
           throw new Error(
             responseBody && !responseBody.ok
               ? responseBody.error.message
-              : "Nao foi possivel carregar as datas do passeio agora.",
+              : "Não foi possível carregar as datas do passeio agora.",
           );
         }
 
@@ -219,7 +219,7 @@ export function SchoolPurchasePage({
         setError(
           contextError instanceof Error
             ? contextError.message
-            : "Nao foi possivel carregar as datas do passeio agora.",
+            : "Não foi possível carregar as datas do passeio agora.",
         );
       })
       .finally(() => {
@@ -263,7 +263,7 @@ export function SchoolPurchasePage({
             throw new Error(
               responseBody && !responseBody.ok
                 ? responseBody.error.message
-                : "Nao foi possivel buscar escolas agora.",
+                : "Não foi possível buscar escolas agora.",
             );
           }
 
@@ -487,16 +487,9 @@ export function SchoolPurchasePage({
                 Ajuda para comprar
               </strong>
               <p className="mt-3 text-[15px] leading-7 text-[#dceaf4]">
-                Se a unidade ainda nao estiver cadastrada ou nao houver uma data de passeio liberada, use o cadastro institucional para o time comercial organizar a operacao escolar.
+                Se a unidade ainda não estiver cadastrada ou não houver uma data de passeio liberada, use o cadastro institucional para o time comercial organizar a operação escolar.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Link
-                  href="/escola/procedimento-pdf"
-                  target="_blank"
-                  className="legacy-rounded inline-flex min-h-[46px] items-center justify-center rounded-full border border-white px-5 text-[15px] text-white hover:bg-white/10"
-                >
-                  Procedimento PDF
-                </Link>
                 <Link
                   href="/grupo-escola"
                   className="legacy-rounded inline-flex min-h-[46px] items-center justify-center rounded-full border border-white px-5 text-[15px] text-white hover:bg-white/10"
@@ -507,7 +500,7 @@ export function SchoolPurchasePage({
                   href="/escola"
                   className="legacy-rounded inline-flex min-h-[46px] items-center justify-center rounded-full border border-white px-5 text-[15px] text-white hover:bg-white/10"
                 >
-                  Voltar ao servico escola
+                  Voltar ao serviço escola
                 </Link>
               </div>
             </div>
@@ -592,7 +585,7 @@ export function SchoolPurchasePage({
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="legacy-rounded text-[13px] uppercase tracking-[0.18em] text-[#6d8497]">
-                      Funcao
+                      Função
                     </label>
                     <select
                       value={payload.educatorRole}
@@ -760,7 +753,7 @@ export function SchoolPurchasePage({
                   />
                 </div>
                 <p className="mt-2 text-[13px] leading-6 text-[#6d8497]">
-                  Informe o valor exato conforme a autorizacao do passeio.
+                  Informe o valor exato conforme a autorização do passeio.
                 </p>
               </div>
 

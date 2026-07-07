@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PAINEL_BILHETERIA_SALE_DRAFT_KEY,
   type PainelBilheteriaSaleDraft,
@@ -94,6 +94,8 @@ function readSaleDraftFromSessionStorage() {
 
 export function PainelBilheteriaSaleFinalize() {
   const router = useRouter();
+  const autoConfirmedCourtesySaleRef = useRef(false);
+  const confirmPaymentRef = useRef<() => Promise<void>>(async () => {});
   const [draft] = useState<PainelBilheteriaSaleDraft | null>(() =>
     readSaleDraftFromSessionStorage(),
   );
@@ -228,6 +230,23 @@ export function PainelBilheteriaSaleFinalize() {
     }
   }
 
+  useEffect(() => {
+    confirmPaymentRef.current = handleConfirmPayment;
+  });
+
+  useEffect(() => {
+    if (!isCourtesyOnlyZeroSale || !draft || success || submitting) {
+      return;
+    }
+
+    if (autoConfirmedCourtesySaleRef.current) {
+      return;
+    }
+
+    autoConfirmedCourtesySaleRef.current = true;
+    void confirmPaymentRef.current();
+  }, [draft, isCourtesyOnlyZeroSale, submitting, success]);
+
   async function handleSendWhatsapp() {
     if (!success) {
       return;
@@ -352,8 +371,8 @@ export function PainelBilheteriaSaleFinalize() {
             </h2>
 
             {isCourtesyOnlyZeroSale ? (
-              <div className="mt-3 rounded-[12px] border border-[#dbe7d7] bg-[#f7fbf5] px-4 py-3 text-sm text-[#5f7564]">
-                Esta venda possui somente cortesias e total zerado. Ao confirmar, a compra sera concluida diretamente.
+              <div className="mt-3 rounded-[12px] border border-[#dbe7d7] bg-[#f7fbf5] px-4 py-4 text-sm text-[#5f7564]">
+                Registrando a venda de cortesia e liberando os atalhos finais.
               </div>
             ) : (
               <>
@@ -445,26 +464,46 @@ export function PainelBilheteriaSaleFinalize() {
               </div>
             ) : null}
 
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
-              <Link
-                href="/painel/bilheteria/vendas"
-                className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm font-semibold text-[#17351f]"
-              >
-                Voltar
-              </Link>
-              <button
-                type="button"
-                onClick={() => void handleConfirmPayment()}
-                disabled={submitting}
-                className="rounded-[8px] bg-[#2b8c46] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {submitting
-                  ? "Confirmando..."
-                  : isCourtesyOnlyZeroSale
-                    ? "Concluir venda"
-                    : "Confirmar pagamento"}
-              </button>
-            </div>
+            {isCourtesyOnlyZeroSale ? (
+              errorMessage ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
+                  <Link
+                    href="/painel/bilheteria/vendas"
+                    className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm font-semibold text-[#17351f]"
+                  >
+                    Voltar
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      autoConfirmedCourtesySaleRef.current = false;
+                      void handleConfirmPayment();
+                    }}
+                    disabled={submitting}
+                    className="rounded-[8px] bg-[#2b8c46] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {submitting ? "Confirmando..." : "Tentar novamente"}
+                  </button>
+                </div>
+              ) : null
+            ) : (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
+                <Link
+                  href="/painel/bilheteria/vendas"
+                  className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm font-semibold text-[#17351f]"
+                >
+                  Voltar
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmPayment()}
+                  disabled={submitting}
+                  className="rounded-[8px] bg-[#2b8c46] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {submitting ? "Confirmando..." : "Confirmar pagamento"}
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <>
