@@ -1,10 +1,6 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { PainelComprasPage } from "@/components/painel-compras-page";
-import {
-  listPainelPurchases,
-  normalizePainelPurchaseListFilters,
-  type PainelPurchaseListResult,
-} from "@/lib/painel-compras";
+import { normalizePainelPurchaseListFilters } from "@/lib/painel-compras";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
@@ -24,35 +20,18 @@ export default async function PainelComprasPageRoute({
 }) {
   const session = await requirePainelAccess("vis_compra", "/painel/compras");
   const query = await searchParams;
-  let loadErrorMessage: string | null = null;
-  let result: PainelPurchaseListResult;
-
-  try {
-    result = await listPainelPurchases({
-      page: Array.isArray(query.page) ? query.page[0] : query.page,
-      filters: query,
-    });
-  } catch (error) {
-    console.error("painel-compras-page-load-failed", error);
-    loadErrorMessage =
-      "Nao foi possivel carregar as compras com os filtros informados agora. Ajuste a busca e tente novamente.";
-    result = {
-      items: [],
-      total: 0,
-      page: 1,
-      perPage: 30,
-      totalPages: 1,
-      filters: normalizePainelPurchaseListFilters(query),
-    };
-  }
+  const initialPage = Math.max(
+    1,
+    Number(Array.isArray(query.page) ? query.page[0] : query.page) || 1,
+  );
+  const initialFilters = normalizePainelPurchaseListFilters(query);
 
   return (
     <PainelComprasPage
       actorCpf={session.actorCpf}
       actorName={session.actorName}
-      loadErrorMessage={loadErrorMessage}
-      result={result}
+      initialFilters={initialFilters}
+      initialPage={initialPage}
     />
   );
 }
-

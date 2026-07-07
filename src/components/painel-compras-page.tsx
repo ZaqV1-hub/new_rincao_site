@@ -1,13 +1,12 @@
-import { Buffer } from "node:buffer";
 import Link from "next/link";
-import { PainelComprasFiltersForm } from "@/components/painel-compras-filters-form";
-import type { PainelPurchaseListResult } from "@/lib/painel-compras";
+import { PainelComprasPageContent } from "@/components/painel-compras-page-content";
+import type { PainelPurchaseListFilters } from "@/lib/painel-compras";
 
 type PainelComprasPageProps = {
   actorName: string | null;
   actorCpf: string | null;
-  loadErrorMessage?: string | null;
-  result: PainelPurchaseListResult;
+  initialFilters: PainelPurchaseListFilters;
+  initialPage: number;
 };
 
 const typeOptions = [
@@ -61,10 +60,7 @@ const gatewayStatusOptions = [
   { value: "9", label: "Em contestação" },
 ];
 
-function buildComprasHref(
-  filters: PainelPurchaseListResult["filters"],
-  page: number,
-) {
+function buildComprasHref(filters: PainelPurchaseListFilters, page: number) {
   const params = new URLSearchParams();
 
   if (filters.dateFrom) {
@@ -115,34 +111,18 @@ function buildComprasHref(
   return query ? `/painel/compras?${query}` : "/painel/compras";
 }
 
-function hasActiveFilters(filters: PainelPurchaseListResult["filters"]) {
+function hasActiveFilters(filters: PainelPurchaseListFilters) {
   return Object.values(filters).some((value) => value != null && value !== "");
-}
-
-function buildLegacyUserHref(cpf: string) {
-  const normalizedCpf = cpf.replace(/\D+/g, "");
-
-  return `/ingresso/painel/usuario-site/detalhe/cpf/${Buffer.from(
-    normalizedCpf,
-    "utf8",
-  ).toString("base64")}`;
 }
 
 export function PainelComprasPage({
   actorName,
   actorCpf,
-  loadErrorMessage = null,
-  result,
+  initialFilters,
+  initialPage,
 }: PainelComprasPageProps) {
-  const previousHref =
-    result.page > 1 ? buildComprasHref(result.filters, result.page - 1) : null;
-  const nextHref =
-    result.page < result.totalPages
-      ? buildComprasHref(result.filters, result.page + 1)
-      : null;
-  const canRefreshPurchases = actorCpf === "00000000191";
-  const filtersActive = hasActiveFilters(result.filters);
-  const exportHref = buildComprasHref(result.filters, 1).replace(
+  const filtersActive = hasActiveFilters(initialFilters);
+  const exportHref = buildComprasHref(initialFilters, 1).replace(
     "/painel/compras",
     "/api/painel/compras/export",
   );
@@ -179,106 +159,15 @@ export function PainelComprasPage({
         </div>
       </div>
 
-      {loadErrorMessage ? (
-        <div className="panel-section border border-[#efc0c0] bg-[#fff0f0] p-4 text-sm text-[#7a2b2b]">
-          {loadErrorMessage}
-        </div>
-      ) : null}
-
-      <PainelComprasFiltersForm
-        filters={result.filters}
-        total={result.total}
-        canRefreshPurchases={canRefreshPurchases}
+      <PainelComprasPageContent
+        actorCpf={actorCpf}
+        initialFilters={initialFilters}
+        initialPage={initialPage}
         typeOptions={typeOptions}
         purchaseStatusOptions={purchaseStatusOptions}
         paymentMethodOptions={paymentMethodOptions}
         gatewayStatusOptions={gatewayStatusOptions}
       />
-
-      <div className="panel-section overflow-hidden p-0">
-        {result.items.length === 0 ? (
-          <div className="px-4 py-6 text-sm text-[#58728b]">
-            Nenhuma compra encontrada.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-[#eef5fb] text-left text-[#36536b]">
-                <tr>
-                  <th className="px-3 py-2.5 text-xs font-semibold">ID</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Data</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Tipo</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Status</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Forma</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Pagamento</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">CPF</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Usuário</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold text-right">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.items.map((item, index) => (
-                  <tr
-                    className={index % 2 === 1 ? "bg-[#f8fbff]" : "bg-white"}
-                    key={item.purchaseId}
-                  >
-                    <td className="px-3 py-3 align-top font-semibold text-[#133d63]">
-                      <Link
-                        className="underline decoration-[#7aa7cf] underline-offset-2"
-                        href={`/painel/compras/${item.purchaseId}`}
-                      >
-                        {item.purchaseId}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-3 align-top">{item.purchaseDate ?? "-"}</td>
-                    <td className="px-3 py-3 align-top">{item.typeLabel}</td>
-                    <td className="px-3 py-3 align-top">{item.statusLabel}</td>
-                    <td className="px-3 py-3 align-top">{item.paymentMethodLabel}</td>
-                    <td className="px-3 py-3 align-top">{item.paymentLabel}</td>
-                    <td className="px-3 py-3 align-top">{item.cpf ?? "-"}</td>
-                    <td className="px-3 py-3 align-top">
-                      {item.userName && item.cpf ? (
-                        <a
-                          className="underline decoration-[#7aa7cf] underline-offset-2"
-                          href={buildLegacyUserHref(item.cpf)}
-                        >
-                          {item.userName}
-                        </a>
-                      ) : (
-                        item.userName ?? "-"
-                      )}
-                    </td>
-                    <td className="px-3 py-3 align-top text-right font-semibold text-[#133d63]">
-                      {item.totalValue}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {result.totalPages > 1 ? (
-        <div className="flex flex-wrap justify-end gap-2">
-          {previousHref ? (
-            <Link
-              className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-sm font-semibold text-[#133d63]"
-              href={previousHref}
-            >
-              Página anterior
-            </Link>
-          ) : null}
-          {nextHref ? (
-            <Link
-              className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-sm font-semibold text-[#133d63]"
-              href={nextHref}
-            >
-              Próxima página
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
     </section>
   );
 }
