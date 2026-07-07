@@ -42,6 +42,12 @@ const howHeardOptions = [
 ];
 
 const sexOptions = ["Selecione", "Masculino", "Feminino"];
+const visitedParkOptions = [
+  "Selecione",
+  "Sim",
+  "N\u00e3o",
+  "N\u00e3o me lembro",
+];
 
 type FieldConfig = {
   label: string;
@@ -115,6 +121,13 @@ const coordinatorFields: FieldConfig[] = [
     required: false,
     type: "select",
     options: howHeardOptions,
+  },
+  {
+    label: "J\u00e1 veio ao parque?",
+    name: "visitedParkBefore",
+    required: true,
+    type: "select",
+    options: visitedParkOptions,
   },
 ];
 
@@ -365,6 +378,7 @@ function buildPayload(formData: FormData, slug: string, pageTitle: string) {
     email: String(formData.get("email") ?? ""),
     sex: String(formData.get("sex") ?? ""),
     howHeard: String(formData.get("howHeard") ?? ""),
+    visitedParkBefore: String(formData.get("visitedParkBefore") ?? ""),
     address: String(formData.get("address") ?? ""),
     number: String(formData.get("number") ?? ""),
     cep: String(formData.get("cep") ?? ""),

@@ -78,6 +78,13 @@ const navItems: PainelNavItem[] = [
     resources: ["vis_tabpre"],
   },
   {
+    href: "/painel/usuario",
+    label: "Administrativo",
+    icon: "admin",
+    roles: [1, 2],
+    resources: ["vis_usu"],
+  },
+  {
     href: "/painel/cod-indica",
     label: "C\u00f3digos de indica\u00e7\u00e3o",
     icon: "share",

@@ -35,6 +35,10 @@ const cfdbFieldMap: Array<{
   { fieldName: "your-email", getValue: (record) => record.email },
   { fieldName: "sexo", getValue: (record) => record.sex },
   { fieldName: "conheceu", getValue: (record) => record.howHeard },
+  {
+    fieldName: "ja-veio-ao-parque",
+    getValue: (record) => record.visitedParkBefore,
+  },
   { fieldName: "endereco", getValue: (record) => record.address },
   { fieldName: "numero", getValue: (record) => record.number },
   { fieldName: "cep", getValue: (record) => record.cep },

@@ -25,6 +25,7 @@ const baseInput: RegistrationSubmissionInput = {
   email: "maria@example.com",
   sex: "Feminino",
   howHeard: "Google",
+  visitedParkBefore: "Sim",
   address: "Rua A",
   number: "123",
   cep: "04870-020",
@@ -60,6 +61,8 @@ describe("sendGroupRegistrationEmail", () => {
     expect(queueLegacyEmail.mock.calls[0]?.[0].html).toContain(
       "maria@example.com",
     );
+    expect(queueLegacyEmail.mock.calls[0]?.[0].html).toContain("Ja veio ao parque");
+    expect(queueLegacyEmail.mock.calls[0]?.[0].html).toContain("Sim");
   });
 
   it("defaults group form delivery to atendimento when no explicit recipient is configured", async () => {

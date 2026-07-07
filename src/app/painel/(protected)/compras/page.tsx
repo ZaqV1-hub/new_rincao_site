@@ -1,6 +1,10 @@
 ﻿import type { Metadata } from "next";
 import { PainelComprasPage } from "@/components/painel-compras-page";
-import { listPainelPurchases } from "@/lib/painel-compras";
+import {
+  listPainelPurchases,
+  normalizePainelPurchaseListFilters,
+  type PainelPurchaseListResult,
+} from "@/lib/painel-compras";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
@@ -20,15 +24,33 @@ export default async function PainelComprasPageRoute({
 }) {
   const session = await requirePainelAccess("vis_compra", "/painel/compras");
   const query = await searchParams;
-  const result = await listPainelPurchases({
-    page: Array.isArray(query.page) ? query.page[0] : query.page,
-    filters: query,
-  });
+  let loadErrorMessage: string | null = null;
+  let result: PainelPurchaseListResult;
+
+  try {
+    result = await listPainelPurchases({
+      page: Array.isArray(query.page) ? query.page[0] : query.page,
+      filters: query,
+    });
+  } catch (error) {
+    console.error("painel-compras-page-load-failed", error);
+    loadErrorMessage =
+      "Nao foi possivel carregar as compras com os filtros informados agora. Ajuste a busca e tente novamente.";
+    result = {
+      items: [],
+      total: 0,
+      page: 1,
+      perPage: 30,
+      totalPages: 1,
+      filters: normalizePainelPurchaseListFilters(query),
+    };
+  }
 
   return (
     <PainelComprasPage
       actorCpf={session.actorCpf}
       actorName={session.actorName}
+      loadErrorMessage={loadErrorMessage}
       result={result}
     />
   );

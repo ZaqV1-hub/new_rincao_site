@@ -191,7 +191,7 @@ export function SiteShell({
             <RincaoLogo
               href="/"
               compact
-              className="h-[54px] max-w-[220px] brightness-[1.06]"
+              className="h-[62px] max-w-[250px] brightness-[1.06] md:h-[70px] md:max-w-[290px]"
             />
           </div>
 

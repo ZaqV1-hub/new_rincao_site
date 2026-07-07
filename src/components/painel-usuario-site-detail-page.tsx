@@ -64,7 +64,7 @@ export function PainelUsuarioSiteDetailPage({
         <PainelAdminBreadcrumb
           items={[
             { href: "/painel", label: "Home" },
-            { href: "/painel/administrativo", label: "Acessos" },
+            { href: "/painel/usuario", label: "Administrativo" },
             { href: "/painel/usuario-site", label: "Usuários do site" },
             { label: data.name },
           ]}

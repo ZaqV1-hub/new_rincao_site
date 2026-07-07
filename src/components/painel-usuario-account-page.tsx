@@ -78,7 +78,7 @@ export function PainelUsuarioAccountPage({
         <PainelAdminBreadcrumb
           items={[
             { href: "/painel", label: "Home" },
-            { href: "/painel/administrativo", label: "Acessos" },
+            { href: "/painel/usuario", label: "Administrativo" },
             { href: "/painel/usuario", label: "Usuarios" },
             { label: "Minha conta" },
           ]}

@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { formatCpf } from "@/lib/cpf";
 import {
   getNativeCieloCheckoutStatus,
   isCieloEcommerceConfigured,
@@ -701,7 +702,7 @@ function buildPurchaseListItem(row: PainelPurchaseListRow): PainelPurchaseListIt
     statusLabel: formatPurchaseStatusLabel(status),
     paymentMethodLabel: resolvePaymentMethodLabel(row),
     paymentLabel: resolvePaymentLabel(row),
-    cpf: row.cpf,
+    cpf: row.cpf ? formatCpf(row.cpf) : null,
     userName: row.nmusuario,
     totalValue: formatMoneyLabel(row.vltotcompra),
   };
@@ -720,7 +721,7 @@ export function normalizePainelPurchaseListFilters(
     ticketPaymentMethod: normalizePainelCompraScalarFilterValue(input.formapag),
     gatewayPaymentMethod: normalizePainelCompraScalarFilterValue(input.paymentmethodtype),
     gatewayStatus: normalizePainelCompraScalarFilterValue(input.status),
-    cpf: normalizePainelCompraScalarFilterValue(input.cpf),
+    cpf: normalizeCpf(normalizePainelCompraScalarFilterValue(input.cpf)),
     userName: normalizePainelCompraScalarFilterValue(input.nmusuario),
     dateFrom: resolveDateRangeValue(input, "de"),
     dateTo: resolveDateRangeValue(input, "ate"),
@@ -802,7 +803,7 @@ export function buildPainelPurchaseListWhere(
   }
 
   if (normalizedFilters.cpf) {
-    clauses.push(`usuario.cpf = '${escapeSqlLiteral(normalizedFilters.cpf)}'`);
+    clauses.push(`compra.cpf = '${escapeSqlLiteral(normalizedFilters.cpf)}'`);
   }
 
   if (normalizedFilters.userName) {
@@ -1337,7 +1338,7 @@ export async function getPainelPurchaseDetail(
     paymentDate: formatDateLabel(purchase.dtpagamento),
     paymentTime: purchase.hrpagamento ? String(purchase.hrpagamento).slice(0, 8) : null,
     totalValue: formatMoneyLabel(purchase.vltotcompra),
-    cpf: purchase.cpf,
+    cpf: purchase.cpf ? formatCpf(purchase.cpf) : null,
     userName: purchase.nmusuario,
     referralCode: String(purchase.codindica ?? "").trim() || null,
     gatewayPaymentId: purchase.idpagseguro ? String(purchase.idpagseguro) : null,

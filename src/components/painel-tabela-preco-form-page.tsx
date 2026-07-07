@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PainelAdminBreadcrumb } from "@/components/painel-admin-breadcrumb";
-import { PainelAdminSidebar } from "@/components/painel-admin-sidebar";
 import type {
   PainelTabelaPrecoFormValues,
   PainelTabelaPrecoItem,
@@ -18,7 +17,6 @@ type PainelTabelaPrecoFormPageProps = {
 };
 
 export function PainelTabelaPrecoFormPage({
-  legacyResources,
   mode,
   table,
 }: PainelTabelaPrecoFormPageProps) {
@@ -98,13 +96,12 @@ export function PainelTabelaPrecoFormPage({
         <PainelAdminBreadcrumb
           items={[
             { href: "/painel", label: "Home" },
-            { href: "/painel/administrativo", label: "Acessos" },
             { href: "/painel/tabela-preco", label: "Tabela de Preço" },
             { label: title },
           ]}
         />
 
-        <div className="mt-7 grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="mt-7">
           <section className="min-w-0">
             <h1 className="text-[42px] leading-none text-[#205a7f]">{title}</h1>
 
@@ -222,11 +219,6 @@ export function PainelTabelaPrecoFormPage({
               </div>
             </form>
           </section>
-
-          <PainelAdminSidebar
-            currentHref="/painel/tabela-preco"
-            legacyResources={legacyResources}
-          />
         </div>
       </section>
     </div>

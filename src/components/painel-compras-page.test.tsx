@@ -39,7 +39,7 @@ describe("PainelComprasPage", () => {
               statusLabel: "Concluida",
               paymentMethodLabel: "PIX",
               paymentLabel: "Bilheteria",
-              cpf: "12345678901",
+              cpf: "123.456.789-01",
               userName: "DEV",
               totalValue: "80,00",
             },
@@ -56,9 +56,10 @@ describe("PainelComprasPage", () => {
     expect(html).toContain("Filtrar");
     expect(html).toContain("Bilheteria");
     expect(html).toContain("DEV");
+    expect(html).toContain("123.456.789-01");
     expect(html).toContain("/ingresso/painel/usuario-site/detalhe/cpf/MTIzNDU2Nzg5MDE=");
     expect(html).toContain("Exportar");
-    expect(html).toContain("Atualizacao manual em fase futura");
+    expect(html).toContain("Atualização manual em fase futura");
   });
 
   it("nao renderiza remover filtros quando nao ha filtros ativos", () => {
@@ -93,5 +94,37 @@ describe("PainelComprasPage", () => {
     expect(html).not.toContain("Limpar filtros");
     expect(html).toContain("Lista de compras e reservas");
     expect(html).toContain("Exportar");
+  });
+
+  it("renderiza aviso amigavel quando a busca falha", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(PainelComprasPage, {
+        actorName: "Operador",
+        actorCpf: "11111111111",
+        loadErrorMessage: "Nao foi possivel carregar as compras com os filtros informados agora. Ajuste a busca e tente novamente.",
+        result: {
+          total: 0,
+          page: 1,
+          perPage: 30,
+          totalPages: 1,
+          filters: {
+            purchaseId: null,
+            type: null,
+            purchaseStatus: null,
+            paymentMethod: null,
+            ticketPaymentMethod: null,
+            gatewayPaymentMethod: null,
+            gatewayStatus: null,
+            cpf: null,
+            userName: null,
+            dateFrom: null,
+            dateTo: null,
+          },
+          items: [],
+        },
+      }),
+    );
+
+    expect(html).toContain("Nao foi possivel carregar as compras com os filtros informados agora. Ajuste a busca e tente novamente.");
   });
 });

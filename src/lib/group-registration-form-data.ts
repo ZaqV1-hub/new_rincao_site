@@ -7,6 +7,7 @@ export type RegistrationFieldName =
   | "email"
   | "sex"
   | "howHeard"
+  | "visitedParkBefore"
   | "address"
   | "number"
   | "cep"
@@ -34,6 +35,7 @@ export const registrationFieldOrder: Array<{
   { label: "E-mail", name: "email" },
   { label: "Sexo", name: "sex" },
   { label: "Como nos conheceu", name: "howHeard" },
+  { label: "Ja veio ao parque", name: "visitedParkBefore" },
   { label: "Endereco completo", name: "address" },
   { label: "Numero", name: "number" },
   { label: "CEP", name: "cep" },
@@ -49,6 +51,7 @@ export const requiredRegistrationFields: RegistrationFieldName[] = [
   "groupName",
   "coordinatorName",
   "email",
+  "visitedParkBefore",
   "address",
   "number",
   "cep",

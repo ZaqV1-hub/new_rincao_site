@@ -1,10 +1,12 @@
 import { Buffer } from "node:buffer";
 import Link from "next/link";
+import { formatCpf } from "@/lib/cpf";
 import type { PainelPurchaseListResult } from "@/lib/painel-compras";
 
 type PainelComprasPageProps = {
   actorName: string | null;
   actorCpf: string | null;
+  loadErrorMessage?: string | null;
   result: PainelPurchaseListResult;
 };
 
@@ -156,8 +158,10 @@ function toDateInputValue(value: string | null) {
 }
 
 function buildLegacyUserHref(cpf: string) {
+  const normalizedCpf = cpf.replace(/\D+/g, "");
+
   return `/ingresso/painel/usuario-site/detalhe/cpf/${Buffer.from(
-    cpf,
+    normalizedCpf,
     "utf8",
   ).toString("base64")}`;
 }
@@ -165,6 +169,7 @@ function buildLegacyUserHref(cpf: string) {
 export function PainelComprasPage({
   actorName,
   actorCpf,
+  loadErrorMessage = null,
   result,
 }: PainelComprasPageProps) {
   const previousHref =
@@ -211,6 +216,12 @@ export function PainelComprasPage({
           </div>
         </div>
       </div>
+
+      {loadErrorMessage ? (
+        <div className="panel-section border border-[#efc0c0] bg-[#fff0f0] p-4 text-sm text-[#7a2b2b]">
+          {loadErrorMessage}
+        </div>
+      ) : null}
 
       <form action="/painel/compras" className="panel-section p-4" method="get">
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
@@ -271,7 +282,9 @@ export function PainelComprasPage({
             CPF
             <input
               className="rincao-field rounded-[8px] px-3 py-2 text-sm"
-              defaultValue={result.filters.cpf ?? ""}
+              defaultValue={formatCpf(result.filters.cpf ?? "")}
+              inputMode="numeric"
+              maxLength={14}
               name="cpf"
               type="text"
             />

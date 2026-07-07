@@ -84,8 +84,9 @@ function ImagePicker({ name, label }: { name: string; label: string }) {
       />
       <span className={`text-xs font-medium ${colors.softText}`}>
         Clique em escolher arquivo para enviar a imagem.
+        {name === "desktopImage" ? " Formato recomendado: 1920x768 px." : ""}
         {name === "mobileImage"
-          ? " Se não enviar a versão mobile, a imagem desktop será usada no celular."
+          ? " Formato recomendado: 1080x1350 px. Se não enviar a versão mobile, a imagem desktop será usada no celular."
           : ""}
       </span>
     </label>

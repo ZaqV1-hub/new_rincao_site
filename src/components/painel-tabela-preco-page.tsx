@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PainelAdminBreadcrumb } from "@/components/painel-admin-breadcrumb";
-import { PainelAdminSidebar } from "@/components/painel-admin-sidebar";
 import type { PainelTabelaPrecoListResult } from "@/lib/painel-tabela-preco";
 
 type PainelTabelaPrecoPageProps = {
@@ -36,7 +35,6 @@ function buildListHref(
 
 export function PainelTabelaPrecoPage({
   data,
-  legacyResources,
 }: PainelTabelaPrecoPageProps) {
   const router = useRouter();
   const [feedback, setFeedback] = useState<{
@@ -152,7 +150,6 @@ export function PainelTabelaPrecoPage({
         <PainelAdminBreadcrumb
           items={[
             { href: "/painel", label: "Home" },
-            { href: "/painel/administrativo", label: "Acessos" },
             { label: "Tabela de Preço" },
           ]}
         />
@@ -342,11 +339,6 @@ export function PainelTabelaPrecoPage({
                 </button>
               </form>
             </section>
-
-            <PainelAdminSidebar
-              currentHref="/painel/tabela-preco"
-              legacyResources={legacyResources}
-            />
           </aside>
         </div>
       </section>

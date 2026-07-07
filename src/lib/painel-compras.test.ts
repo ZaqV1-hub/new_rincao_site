@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbPool: () => ({
     query: mocks.query,
   }),
 }));
@@ -158,7 +158,7 @@ describe("buildPainelPurchaseListWhere", () => {
         AND compra.stcompra = 'conc'
         AND pagpagseguro.paymentmethodtype = '4'
         AND pagpagseguro.status = '3'
-        AND usuario.cpf = '12345678900'
+        AND compra.cpf = '12345678900'
         AND usuario.nmusuario ILIKE '%Maria Silva%'
         AND compra.dtcompra >= TO_DATE('01/05/2026', 'DD/MM/YYYY')
         AND compra.dtcompra <= TO_DATE('07/05/2026', 'DD/MM/YYYY')`),
@@ -222,7 +222,7 @@ describe("mapPainelPurchaseListExportRows", () => {
           statusLabel: "Concluida",
           paymentMethodLabel: "PIX",
           paymentLabel: "Paga",
-          cpf: "12345678901",
+          cpf: "123.456.789-01",
           userName: "DEV",
           totalValue: "80,00",
         },
@@ -267,7 +267,7 @@ describe("mapPainelPurchaseListExportRows", () => {
         "07/05/2026",
         "14:32:11",
         "80,00",
-        "12345678901",
+        "123.456.789-01",
         "DEV",
       ],
     ]);
@@ -407,7 +407,7 @@ describe("listPainelPurchases", () => {
           statusLabel: "Concluida",
           paymentMethodLabel: "PIX",
           paymentLabel: "Bilheteria",
-          cpf: "12345678901",
+          cpf: "123.456.789-01",
           userName: "DEV",
           totalValue: "80,00",
         },
@@ -522,7 +522,7 @@ describe("getPainelPurchaseDetail", () => {
       paymentDate: "07/05/2026",
       paymentTime: "14:32:11",
       totalValue: "80,00",
-      cpf: "12345678901",
+      cpf: "123.456.789-01",
       userName: "DEV",
       referralCode: null,
       gatewayPaymentId: "pay-551",

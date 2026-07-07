@@ -32,6 +32,7 @@ const validPayload: RegistrationSubmissionInput & { website: string } = {
   email: "maria@example.com",
   sex: "Feminino",
   howHeard: "Google",
+  visitedParkBefore: "Sim",
   address: "Rua A",
   number: "123",
   cep: "04870-020",
