@@ -1,4 +1,5 @@
 import { getIngressoDbPool, getIngressoSistemaDbPool } from "@/lib/ingresso-db";
+import { isPainelBilheteriaVoucherVisibleForValidation } from "@/lib/painel-bilheteria-validation";
 import {
   formatPainelBilheteriaCpf,
   formatPainelBilheteriaDate,
@@ -18,6 +19,7 @@ type CustomerPurchaseRow = {
   tpcompra: string | null;
   stcompra: string | null;
   formapag: string | null;
+  payment_status: number | null;
   total_venda: string | null;
 };
 
@@ -86,6 +88,8 @@ export type PainelBilheteriaCustomerLookupPurchase = {
   cpfLabel: string;
   purchaseTypeCode: string | null;
   statusCode: string | null;
+  paymentMethodCode: string | null;
+  paymentStatusCode: number | null;
   purchaseTypeLabel: string;
   statusLabel: string;
   paymentLabel: string;
@@ -355,12 +359,27 @@ export async function lookupPainelBilheteriaCustomerDocument(
         c.tpcompra,
         c.stcompra,
         c.formapag,
-        COALESCE(SUM(CASE WHEN v.stusado <> 'inv' THEN v.vlunicompra ELSE 0 END), 0)::text AS total_venda
+        pagpagseguro.status AS payment_status,
+        COALESCE(voucher_totals.total_venda, '0') AS total_venda
       FROM compra c
-      LEFT JOIN voucher v ON v.idcompra = c.idcompra
+      LEFT JOIN LATERAL (
+        SELECT status
+        FROM pagpagseguro
+        WHERE pagpagseguro.idcompra = c.idcompra
+        ORDER BY pagpagseguro.date DESC NULLS LAST, pagpagseguro.idpagseguro DESC
+        LIMIT 1
+      ) pagpagseguro ON true
+      LEFT JOIN LATERAL (
+        SELECT
+          COALESCE(
+            SUM(CASE WHEN v.stusado <> 'inv' THEN v.vlunicompra ELSE 0 END),
+            0
+          )::text AS total_venda
+        FROM voucher v
+        WHERE v.idcompra = c.idcompra
+      ) voucher_totals ON true
       WHERE c.cpf = $1
         AND c.stcompra <> 'canc'
-      GROUP BY c.idcompra, c.dtcompra, c.cpf, c.tpcompra, c.stcompra, c.formapag
       ORDER BY c.idcompra DESC
       LIMIT 50
     `,
@@ -405,6 +424,42 @@ export async function lookupPainelBilheteriaCustomerDocument(
     }
   }
 
+  const purchases = purchasesResult.rows
+    .map((row) => {
+      const purchase = {
+        purchaseId: row.idcompra,
+        purchaseDate: row.dtcompra ? row.dtcompra.slice(0, 10) : null,
+        cpf: row.cpf,
+        cpfLabel: formatPainelBilheteriaCpf(row.cpf),
+        purchaseTypeCode: row.tpcompra,
+        statusCode: row.stcompra,
+        paymentMethodCode: row.formapag,
+        paymentStatusCode:
+          Number.isInteger(Number(row.payment_status)) ? Number(row.payment_status) : null,
+        purchaseTypeLabel: formatPurchaseTypeLabel(row.tpcompra),
+        statusLabel: formatPurchaseStatusLabel(row.stcompra),
+        paymentLabel: formatPaymentLabel(row.formapag),
+        totalValue: formatPainelBilheteriaMoney(row.total_venda),
+        vouchers: (vouchersByPurchaseId.get(row.idcompra) ?? []).filter((voucher) =>
+          isPainelBilheteriaVoucherVisibleForValidation(
+            {
+              purchaseTypeCode: row.tpcompra,
+              statusCode: row.stcompra,
+              paymentMethodCode: row.formapag,
+              paymentStatusCode:
+                Number.isInteger(Number(row.payment_status))
+                  ? Number(row.payment_status)
+                  : null,
+            },
+            voucher,
+          ),
+        ),
+      } satisfies PainelBilheteriaCustomerLookupPurchase;
+
+      return purchase;
+    })
+    .filter((purchase) => purchase.vouchers.length > 0);
+
   return {
     lookup,
     documentKind,
@@ -421,19 +476,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
           name: null,
           rg: null,
         },
-    purchases: purchasesResult.rows.map((row) => ({
-      purchaseId: row.idcompra,
-      purchaseDate: row.dtcompra ? row.dtcompra.slice(0, 10) : null,
-      cpf: row.cpf,
-      cpfLabel: formatPainelBilheteriaCpf(row.cpf),
-      purchaseTypeCode: row.tpcompra,
-      statusCode: row.stcompra,
-      purchaseTypeLabel: formatPurchaseTypeLabel(row.tpcompra),
-      statusLabel: formatPurchaseStatusLabel(row.stcompra),
-      paymentLabel: formatPaymentLabel(row.formapag),
-      totalValue: formatPainelBilheteriaMoney(row.total_venda),
-      vouchers: vouchersByPurchaseId.get(row.idcompra) ?? [],
-    })),
+    purchases,
   };
 }
 

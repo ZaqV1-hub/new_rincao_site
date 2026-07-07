@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { legacyPanelContracts } from "@/lib/legacy-panel-contracts";
 import { formatPainelBilheteriaDate } from "@/lib/painel-bilheteria-format";
+import { getPainelBilheteriaSelectionCapabilities } from "@/lib/painel-bilheteria-validation";
 import {
   type PainelBilheteriaCustomerLookupResult,
   type PainelBilheteriaTicketLookupResult,
@@ -211,6 +212,26 @@ export function PainelBilheteriaWorkstation({
   const [submittingCustomer, setSubmittingCustomer] = useState(false);
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
   const hasServerDrivenTicketLookup = Boolean(initialTicketLookupState?.isOpen);
+  const messageRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!message || typeof window === "undefined") {
+      return;
+    }
+
+    const element = messageRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    const top = Math.max(0, window.scrollY + element.getBoundingClientRect().top - 120);
+
+    window.scrollTo({
+      top,
+      behavior: "smooth",
+    });
+  }, [message]);
 
   function normalizeVoucherIds(voucherIds: number[]) {
     return [...new Set(voucherIds.filter((voucherId) => voucherId > 0))];
@@ -232,6 +253,25 @@ export function PainelBilheteriaWorkstation({
     return voucherIds.filter((voucherId) => {
       const voucher = vouchersById.get(voucherId);
       return voucher?.statusCode === "n";
+    });
+  }
+
+  function resolveUnvalidatableVoucherIds(voucherIds: number[], purchaseId: number) {
+    const purchase = customerLookup?.purchases.find(
+      (currentPurchase) => currentPurchase.purchaseId === purchaseId,
+    );
+
+    if (!purchase) {
+      return [];
+    }
+
+    const vouchersById = new Map(
+      purchase.vouchers.map((voucher) => [voucher.voucherId, voucher]),
+    );
+
+    return voucherIds.filter((voucherId) => {
+      const voucher = vouchersById.get(voucherId);
+      return voucher?.statusCode === "s";
     });
   }
 
@@ -260,7 +300,12 @@ export function PainelBilheteriaWorkstation({
     return runningActionKey === actionKey;
   }
 
-  async function loadCustomerLookup(document: string) {
+  async function loadCustomerLookup(
+    document: string,
+    options?: {
+      preserveMessage?: boolean;
+    },
+  ) {
     const response = await fetch("/api/painel/bilheteria/customer-lookup", {
       method: "POST",
       headers: {
@@ -287,13 +332,17 @@ export function PainelBilheteriaWorkstation({
     setSelectedCustomerVouchers(
       Object.fromEntries(data.purchases.map((purchase) => [purchase.purchaseId, []])),
     );
-    setMessage({
-      tone: data.purchases.length > 0 ? "success" : "warning",
-      text:
-        data.purchases.length > 0
-          ? `${data.purchases.length} compra(s) encontrada(s).`
-          : "Nenhuma compra encontrada para este cliente.",
-    });
+
+    if (!options?.preserveMessage) {
+      setMessage({
+        tone: data.purchases.length > 0 ? "success" : "warning",
+        text:
+          data.purchases.length > 0
+            ? `${data.purchases.length} compra(s) encontrada(s).`
+            : "Nenhuma compra encontrada para este cliente.",
+      });
+    }
+
     return data;
   }
 
@@ -341,7 +390,7 @@ export function PainelBilheteriaWorkstation({
     setSubmittingCustomer(true);
 
     try {
-      await loadCustomerLookup(customerDocument);
+      await loadCustomerLookup(customerDocument, { preserveMessage: true });
     } finally {
       setSubmittingCustomer(false);
     }
@@ -848,6 +897,7 @@ export function PainelBilheteriaWorkstation({
 
       {message ? (
         <section
+          ref={messageRef}
           className={`rounded-[10px] border px-5 py-4 text-sm ${messageToneClasses(message.tone)}`}
         >
           <p>{message.text}</p>
@@ -1029,6 +1079,18 @@ export function PainelBilheteriaWorkstation({
                   {(() => {
                     const purchaseVoucherIds = purchase.vouchers.map((voucher) => voucher.voucherId);
                     const selectedVoucherIds = selectedCustomerVouchers[purchase.purchaseId] ?? [];
+                    const selectionCapabilities = getPainelBilheteriaSelectionCapabilities(
+                      purchase.vouchers,
+                      selectedVoucherIds,
+                    );
+                    const validatableVoucherIds = resolveValidatableVoucherIds(
+                      selectedVoucherIds,
+                      purchase.purchaseId,
+                    );
+                    const unvalidatableVoucherIds = resolveUnvalidatableVoucherIds(
+                      selectedVoucherIds,
+                      purchase.purchaseId,
+                    );
                     const allSelected =
                       purchaseVoucherIds.length > 0 &&
                       selectedVoucherIds.length === purchaseVoucherIds.length;
@@ -1123,11 +1185,6 @@ export function PainelBilheteriaWorkstation({
                             <button
                               type="button"
                               onClick={() => {
-                                const validatableVoucherIds = resolveValidatableVoucherIds(
-                                  selectedVoucherIds,
-                                  purchase.purchaseId,
-                                );
-
                                 if (selectedVoucherIds.length === 0) {
                                   setMessage({
                                     tone: "warning",
@@ -1136,19 +1193,12 @@ export function PainelBilheteriaWorkstation({
                                   return;
                                 }
 
-                                if (validatableVoucherIds.length === 0) {
+                                if (!selectionCapabilities.canValidate || validatableVoucherIds.length === 0) {
                                   setMessage({
                                     tone: "warning",
-                                    text: "Os vouchers selecionados ja estao usados, invalidados ou indisponiveis para validacao.",
+                                    text: "Selecione somente vouchers nao usados para validar.",
                                   });
                                   return;
-                                }
-
-                                if (validatableVoucherIds.length !== selectedVoucherIds.length) {
-                                  setMessage({
-                                    tone: "warning",
-                                    text: "Somente vouchers nao usados serao enviados para validacao.",
-                                  });
                                 }
 
                                 setConfirmationState({
@@ -1160,7 +1210,10 @@ export function PainelBilheteriaWorkstation({
                                   confirmLabel: "Validar selecionados",
                                 });
                               }}
-                              disabled={isActionRunning(`validate-purchase-${purchase.purchaseId}`)}
+                              disabled={
+                                isActionRunning(`validate-purchase-${purchase.purchaseId}`) ||
+                                !selectionCapabilities.canValidate
+                              }
                               className="rounded-[4px] bg-[linear-gradient(180deg,#3e9ce1_0%,#245f88_100%)] px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
                             >
                               Validar selecionados
@@ -1177,16 +1230,27 @@ export function PainelBilheteriaWorkstation({
                                     return;
                                   }
 
+                                  if (!selectionCapabilities.canUnvalidate || unvalidatableVoucherIds.length === 0) {
+                                    setMessage({
+                                      tone: "warning",
+                                      text: "Selecione somente vouchers ja validados para desvalidar.",
+                                    });
+                                    return;
+                                  }
+
                                   setConfirmationState({
                                     kind: "unvalidate-selected",
                                     purchaseId: purchase.purchaseId,
-                                    voucherIds: selectedVoucherIds,
+                                    voucherIds: unvalidatableVoucherIds,
                                     title: "Confirmar desvalidacao",
-                                    description: `Deseja desvalidar ${selectedVoucherIds.length} ingresso(s) da compra ${purchase.purchaseId}?`,
+                                    description: `Deseja desvalidar ${unvalidatableVoucherIds.length} ingresso(s) da compra ${purchase.purchaseId}?`,
                                     confirmLabel: "Desvalidar selecionados",
                                   });
                                 }}
-                                disabled={isActionRunning(`unvalidate-purchase-${purchase.purchaseId}`)}
+                                disabled={
+                                  isActionRunning(`unvalidate-purchase-${purchase.purchaseId}`) ||
+                                  !selectionCapabilities.canUnvalidate
+                                }
                                 className="rounded-[4px] border border-[#c9d8e3] bg-white px-4 py-2 text-xs font-bold text-[#205a7f] disabled:opacity-60"
                               >
                                 Desvalidar selecionados
@@ -1195,6 +1259,7 @@ export function PainelBilheteriaWorkstation({
                             <button
                               type="button"
                               onClick={() => handlePrintSelectedPurchase(selectedVoucherIds)}
+                              disabled={!selectionCapabilities.canPrint}
                               className="rounded-[4px] border border-[#c9d8e3] bg-white px-4 py-2 text-xs font-bold text-[#205a7f]"
                             >
                               Imprimir selecionados
@@ -1229,7 +1294,10 @@ export function PainelBilheteriaWorkstation({
                                   selectedVoucherIds,
                                 )
                               }
-                              disabled={isActionRunning(`whatsapp-purchase-${purchase.purchaseId}`)}
+                              disabled={
+                                isActionRunning(`whatsapp-purchase-${purchase.purchaseId}`) ||
+                                !selectionCapabilities.canWhatsapp
+                              }
                               className="rounded-[4px] bg-[#246b99] px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
                             >
                               Enviar selecionados no WhatsApp

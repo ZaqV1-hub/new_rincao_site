@@ -97,9 +97,23 @@ export function PainelBilheteriaSaleFinalize() {
   const [draft] = useState<PainelBilheteriaSaleDraft | null>(() =>
     readSaleDraftFromSessionStorage(),
   );
+  const isCourtesyOnlyZeroSale =
+    draft != null &&
+    draft.items.length === 0 &&
+    draft.courtesies.length > 0 &&
+    parseMoney(draft.totalValue) === 0;
   const [paymentRows, setPaymentRows] = useState<PaymentRow[]>(() => {
     const initialDraft = readSaleDraftFromSessionStorage();
-    return initialDraft ? [createRow("0", initialDraft.totalValue, "")] : [];
+    if (!initialDraft) {
+      return [];
+    }
+
+    const isZeroCourtesyOnly =
+      initialDraft.items.length === 0 &&
+      initialDraft.courtesies.length > 0 &&
+      parseMoney(initialDraft.totalValue) === 0;
+
+    return isZeroCourtesyOnly ? [] : [createRow("0", initialDraft.totalValue, "")];
   });
   const [cashReceived, setCashReceived] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -155,12 +169,12 @@ export function PainelBilheteriaSaleFinalize() {
       }))
       .filter((payment) => payment.method && parseMoney(payment.value) > 0);
 
-    if (normalizedPayments.length === 0) {
+    if (!isCourtesyOnlyZeroSale && normalizedPayments.length === 0) {
       setErrorMessage("Informe ao menos uma forma de pagamento.");
       return;
     }
 
-    if (Math.abs(difference) > 0.01) {
+    if (!isCourtesyOnlyZeroSale && Math.abs(difference) > 0.01) {
       setErrorMessage("O total informado precisa bater com o total da compra.");
       return;
     }
@@ -189,7 +203,7 @@ export function PainelBilheteriaSaleFinalize() {
             identification: courtesy.identification,
             note: courtesy.note,
           })),
-          payments: normalizedPayments,
+          payments: isCourtesyOnlyZeroSale ? [] : normalizedPayments,
           reason: draft.reason,
           idempotencyKey: createId(),
         }),
@@ -337,58 +351,66 @@ export function PainelBilheteriaSaleFinalize() {
               Finalizar compra
             </h2>
 
-            <button
-              type="button"
-              onClick={addPaymentRow}
-              className="mt-3 rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-xs font-semibold text-[#17351f]"
-            >
-              Adicionar forma
-            </button>
-
-            <div className="mt-3 space-y-2">
-              {paymentRows.map((payment, index) => (
-                <div
-                  key={payment.id}
-                  className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px_auto]"
+            {isCourtesyOnlyZeroSale ? (
+              <div className="mt-3 rounded-[12px] border border-[#dbe7d7] bg-[#f7fbf5] px-4 py-3 text-sm text-[#5f7564]">
+                Esta venda possui somente cortesias e total zerado. Ao confirmar, a compra sera concluida diretamente.
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={addPaymentRow}
+                  className="mt-3 rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-xs font-semibold text-[#17351f]"
                 >
-                  <select
-                    value={payment.method}
-                    onChange={(event) =>
-                      updatePaymentRow(payment.id, { method: event.target.value })
-                    }
-                    className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm text-[#17351f]"
-                  >
-                    <option value="">Selecione</option>
-                    {paymentOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={payment.value}
-                    onChange={(event) =>
-                      updatePaymentRow(payment.id, { value: event.target.value })
-                    }
-                    readOnly={index === 0 && paymentRows.length === 1}
-                    className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm text-[#17351f]"
-                  />
-                  {paymentRows.length > 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => removePaymentRow(payment.id)}
-                      className="rounded-[8px] border border-[#ecd2d0] px-2.5 py-1.5 text-xs font-semibold text-[#b24239]"
-                    >
-                      Remover
-                    </button>
-                  ) : (
-                    <div />
-                  )}
-                </div>
-              ))}
-            </div>
+                  Adicionar forma
+                </button>
 
-            {showCashReceived ? (
+                <div className="mt-3 space-y-2">
+                  {paymentRows.map((payment, index) => (
+                    <div
+                      key={payment.id}
+                      className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px_auto]"
+                    >
+                      <select
+                        value={payment.method}
+                        onChange={(event) =>
+                          updatePaymentRow(payment.id, { method: event.target.value })
+                        }
+                        className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm text-[#17351f]"
+                      >
+                        <option value="">Selecione</option>
+                        {paymentOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        value={payment.value}
+                        onChange={(event) =>
+                          updatePaymentRow(payment.id, { value: event.target.value })
+                        }
+                        readOnly={index === 0 && paymentRows.length === 1}
+                        className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm text-[#17351f]"
+                      />
+                      {paymentRows.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => removePaymentRow(payment.id)}
+                          className="rounded-[8px] border border-[#ecd2d0] px-2.5 py-1.5 text-xs font-semibold text-[#b24239]"
+                        >
+                          Remover
+                        </button>
+                      ) : (
+                        <div />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {showCashReceived && !isCourtesyOnlyZeroSale ? (
               <div className="mt-3 grid gap-2 rounded-[12px] border border-[#dbe7d7] bg-[#f7fbf5] p-3">
                 <label className="grid gap-1.5 text-[13px] font-semibold text-[#17351f]">
                   Valor entregue
@@ -407,7 +429,9 @@ export function PainelBilheteriaSaleFinalize() {
             <div className="mt-3 rounded-[12px] border border-[#dbe7d7] bg-[#f7fbf5] px-3 py-3 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[#5f7564]">Total informado</span>
-                <strong className="text-[#17351f]">{formatMoney(totalInformed)}</strong>
+                <strong className="text-[#17351f]">
+                  {formatMoney(isCourtesyOnlyZeroSale ? 0 : totalInformed)}
+                </strong>
               </div>
               <div className="mt-2 flex items-center justify-between gap-3">
                 <span className="text-[#5f7564]">Total da compra</span>
@@ -434,7 +458,11 @@ export function PainelBilheteriaSaleFinalize() {
                 disabled={submitting}
                 className="rounded-[8px] bg-[#2b8c46] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
               >
-                {submitting ? "Confirmando..." : "Confirmar pagamento"}
+                {submitting
+                  ? "Confirmando..."
+                  : isCourtesyOnlyZeroSale
+                    ? "Concluir venda"
+                    : "Confirmar pagamento"}
               </button>
             </div>
           </>

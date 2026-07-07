@@ -586,14 +586,14 @@ export function RincaoHomePage({
             <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div className="text-left">
                 <p className="text-[12px] font-bold uppercase tracking-[0.24em] text-[#5f84a7]">
-                  Segmentos
+                  Serviços
                 </p>
                 <h2 className="mt-4 text-[clamp(2.4rem,5vw,4.1rem)] leading-[0.95] text-[#12344f]">
                   Serviços
                 </h2>
               </div>
               <Link href="/servicos" className="rincao-button-secondary w-fit">
-                Ver segmentos
+                Ver todos os serviços
               </Link>
             </div>
 
@@ -602,7 +602,7 @@ export function RincaoHomePage({
                 { title: "Escola", href: "/escola" },
                 { title: "Confraternizações", href: "/confraternizacoes" },
                 { title: "Grupos", href: "/servicos" },
-                { title: "Atendimento institucional", href: "/servicos" },
+                { title: "Igreja", href: "/igreja" },
               ].map((item) => (
                 <Link
                   key={item.title}

@@ -10,9 +10,7 @@ import { contact } from "@/lib/site-content";
 
 const marketingNav = [
   { href: "/", label: "Início" },
-  { href: "/servicos", label: "Segmentos" },
-  { href: "/escola", label: "Escola" },
-  { href: "/confraternizacoes", label: "Confraternizações" },
+  { href: "/servicos", label: "Serviços" },
   { href: "/localizacao", label: "Localização" },
 ];
 
@@ -113,7 +111,10 @@ export function SiteShell({
             >
               WhatsApp
             </a>
-            <Link href="/agenda" className="rincao-button min-h-[48px]">
+            <Link
+              href="/agenda"
+              className="rincao-button min-h-[48px] shrink-0 whitespace-nowrap px-5 text-[0.92rem]"
+            >
               Agenda e compra
             </Link>
             <div className="flex items-center gap-2">
