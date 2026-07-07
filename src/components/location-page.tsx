@@ -1,7 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { contact } from "@/lib/site-content";
+
+const googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+  "Clube Rincão Av. do Jaceguava 2222 São Paulo SP",
+)}`;
 
 const busRoute = [
   {
@@ -154,7 +157,7 @@ export function LocationPage() {
             </p>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div className="rounded-[28px] border border-white/12 bg-white/10 p-6 backdrop-blur-[6px]">
               <p className="legacy-rounded text-[12px] uppercase tracking-[0.24em] text-white/65">
                 Endereço do clube
@@ -167,24 +170,24 @@ export function LocationPage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3 lg:justify-end">
+            <div className="grid grid-cols-2 gap-3 sm:max-w-[420px] lg:ml-auto lg:w-full lg:max-w-[560px] lg:grid-cols-3">
               <a
                 href="#roteiro-metro"
-                className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-white/20 bg-white px-6 text-[0.96rem] font-bold text-[#1d5b80] shadow-[0_14px_30px_rgba(8,36,58,0.14)] transition hover:bg-[#f3f8fc]"
+                className="inline-flex min-h-[56px] items-center justify-center rounded-full border border-white/20 bg-white px-5 text-center text-[0.96rem] font-bold leading-tight text-[#1d5b80] shadow-[0_14px_30px_rgba(8,36,58,0.14)] transition hover:bg-[#f3f8fc] max-sm:col-span-2 lg:min-h-[52px] lg:px-6"
               >
                 Roteiro Metrô / Trem
               </a>
               <a
                 href="#roteiro-onibus"
-                className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-white/20 bg-white px-6 text-[0.96rem] font-bold text-[#1d5b80] shadow-[0_14px_30px_rgba(8,36,58,0.14)] transition hover:bg-[#f3f8fc]"
+                className="inline-flex min-h-[56px] items-center justify-center rounded-full border border-white/20 bg-white px-5 text-center text-[0.96rem] font-bold leading-tight text-[#1d5b80] shadow-[0_14px_30px_rgba(8,36,58,0.14)] transition hover:bg-[#f3f8fc] lg:min-h-[52px] lg:px-6"
               >
                 Roteiro Ônibus
               </a>
               <a
-                href={contact.map}
+                href={googleMapsLink}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-[#d99f55] px-6 text-[0.96rem] font-bold text-white shadow-[0_14px_30px_rgba(217,159,85,0.3)] transition hover:bg-[#c88a39]"
+                className="inline-flex min-h-[56px] items-center justify-center rounded-full bg-[#d99f55] px-5 text-center text-[0.96rem] font-bold leading-tight text-white shadow-[0_14px_30px_rgba(217,159,85,0.3)] transition hover:bg-[#c88a39] lg:min-h-[52px] lg:px-6"
               >
                 Ver Mapa
               </a>
