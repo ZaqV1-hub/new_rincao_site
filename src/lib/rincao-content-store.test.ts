@@ -21,6 +21,7 @@ async function importStoreWithTempRoot() {
 describe("deleteUploadedSiteImage", () => {
   afterEach(() => {
     delete process.env.RINCAO_SITE_STORAGE_ROOT;
+    vi.doUnmock("@/lib/ingresso-db");
     vi.resetModules();
 
     for (const root of tempRoots.splice(0)) {
@@ -52,5 +53,47 @@ describe("deleteUploadedSiteImage", () => {
     store.deleteUploadedSiteImage("https://example.com/banner.jpg");
 
     expect(existsSync(publicFile)).toBe(true);
+  });
+});
+
+describe("readRincaoContent", () => {
+  afterEach(() => {
+    delete process.env.RINCAO_SITE_STORAGE_ROOT;
+    vi.doUnmock("@/lib/ingresso-db");
+    vi.resetModules();
+
+    for (const root of tempRoots.splice(0)) {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to local content when the database read fails", async () => {
+    vi.doMock("@/lib/ingresso-db", () => ({
+      getIngressoDbPool: () => ({
+        query: vi.fn().mockRejectedValue(new Error("database unavailable")),
+      }),
+    }));
+
+    const { root, store } = await importStoreWithTempRoot();
+    writeFileSync(
+      join(root, ".data", "rincao-content.json"),
+      JSON.stringify({
+        homeImages: [
+          {
+            id: "fallback-home",
+            desktopSrc: "/hero/current/banner-site-oficial-1.jpg",
+            mobileSrc: "/hero/current/banner-site-oficial-1.jpg",
+            alt: "Banner fallback",
+            href: "",
+            active: true,
+            sortOrder: 1,
+          },
+        ],
+      }),
+    );
+
+    await expect(store.getActiveHomeImages()).resolves.toMatchObject([
+      { id: "fallback-home" },
+    ]);
   });
 });

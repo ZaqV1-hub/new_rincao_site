@@ -623,31 +623,36 @@ async function ensureDatabaseSeededOnce() {
 }
 
 export async function readRincaoContent() {
-  await ensureDatabaseSeededOnce();
+  try {
+    await ensureDatabaseSeededOnce();
 
-  const pool = getIngressoDbPool();
-  const tableName = getSiteContentTableName();
-  const result = await pool.query<{ content_json: Partial<RincaoContentData> }>(
-    `
-      SELECT content_json
-      FROM ${tableName}
-      WHERE content_key = $1
-      LIMIT 1
-    `,
-    [siteContentKey],
-  );
+    const pool = getIngressoDbPool();
+    const tableName = getSiteContentTableName();
+    const result = await pool.query<{ content_json: Partial<RincaoContentData> }>(
+      `
+        SELECT content_json
+        FROM ${tableName}
+        WHERE content_key = $1
+        LIMIT 1
+      `,
+      [siteContentKey],
+    );
 
-  const storedContent = result.rows[0]?.content_json ?? null;
-  const data = removeLegacyHardcodedContent(
-    normalizeRincaoContent(storedContent),
-  );
+    const storedContent = result.rows[0]?.content_json ?? null;
+    const data = removeLegacyHardcodedContent(
+      normalizeRincaoContent(storedContent),
+    );
 
-  if (hasNormalizedDifference(storedContent, data)) {
-    await persistRincaoContent(data);
+    if (hasNormalizedDifference(storedContent, data)) {
+      await persistRincaoContent(data);
+    }
+
+    writeLegacyRincaoContentBackup(data);
+    return data;
+  } catch (error) {
+    console.error("rincao-content-db-read-failed", error);
+    return removeLegacyHardcodedContent(readLegacyRincaoContent());
   }
-
-  writeLegacyRincaoContentBackup(data);
-  return data;
 }
 
 export async function writeRincaoContent(data: RincaoContentData) {
