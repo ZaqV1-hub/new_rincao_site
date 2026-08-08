@@ -8,8 +8,8 @@ import { readJsonPayload, runOpsRoute } from "@/lib/ops-route-utils";
 export const runtime = "nodejs";
 
 type ApprovalPayload = {
-  confirmerName?: unknown;
-  confirmerRole?: unknown;
+  representativeLogin?: unknown;
+  representativePassword?: unknown;
 };
 
 export async function POST(
@@ -26,8 +26,8 @@ export async function POST(
     () =>
       confirmSchoolContract({
         token: id,
-        confirmerName: payload?.confirmerName,
-        confirmerRole: payload?.confirmerRole,
+        representativeLogin: payload?.representativeLogin,
+        representativePassword: payload?.representativePassword,
         ipAddress,
       }),
     {

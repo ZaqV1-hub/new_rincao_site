@@ -32,7 +32,7 @@ describe("school-contracts", () => {
     queueLegacyEmail.mockResolvedValue(10);
   });
 
-  it("creates a pending contract and sends invite emails", async () => {
+  it("creates a pending contract without selecting a representative", async () => {
     query.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (
         sql === "BEGIN" ||
@@ -58,23 +58,13 @@ describe("school-contracts", () => {
         };
       }
 
-      if (sql.includes("FROM contrato_escolar_representante")) {
-        return {
-          rows: [
-            {
-              idrepresentante: 5,
-              escola_id: 12,
-              nome: "Maria Escola",
-              email: "maria@escola.test",
-            },
-          ],
-        };
-      }
-
       if (sql.includes("INSERT INTO contrato_escolar_agendamento")) {
         expect(values?.[0]).toBe(12);
         expect(values?.[1]).toBe(44);
         expect(values?.[2]).toBe("2026-09-10");
+        expect(values?.[3]).toBeNull();
+        expect(values?.[4]).toBe("Representante da escola");
+        expect(values?.[5]).toBe("resp@escola.test");
         expect(values?.[7]).toBe("Responsavel");
         expect(values?.[9]).toBe("resp@escola.test");
         return { rows: [] };
@@ -86,7 +76,6 @@ describe("school-contracts", () => {
     const result = await createSchoolContract({
       schoolId: 12,
       visitDate: "2026-09-10",
-      representativeId: 5,
       responsibleName: "Responsavel",
       responsiblePhone: "11999999999",
       responsibleEmail: "resp@escola.test",
@@ -96,7 +85,7 @@ describe("school-contracts", () => {
 
     expect(result.approvalPath).toMatch(/^\/contrato\/aprovacao\/.+/);
     expect(result.approvalUrl).toContain("https://cluberincao.test/contrato/aprovacao/");
-    expect(queueLegacyEmail).toHaveBeenCalledTimes(2);
+    expect(queueLegacyEmail).toHaveBeenCalledTimes(1);
   });
 
   it("loads an approval contract by token", async () => {
@@ -228,7 +217,8 @@ describe("school-contracts", () => {
       if (sql.includes("UPDATE contrato_escolar_agendamento")) {
         expect(values?.[0]).toBe(token);
         expect(values?.[1]).toBe(77);
-        expect(values?.[2]).toBe("Diretora");
+        expect(values?.[2]).toBe("Representante 12345");
+        expect(values?.[3]).toBe("Representante");
         return { rows: [] };
       }
 
@@ -238,8 +228,8 @@ describe("school-contracts", () => {
     await expect(
       confirmSchoolContract({
         token,
-        confirmerName: "Diretora",
-        confirmerRole: "Direcao",
+        representativeLogin: "12345",
+        representativePassword: "12345",
         ipAddress: "127.0.0.1",
       }),
     ).resolves.toMatchObject({

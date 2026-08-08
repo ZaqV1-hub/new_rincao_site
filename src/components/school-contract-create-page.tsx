@@ -28,10 +28,6 @@ export function SchoolContractCreatePage({
   const [schoolId, setSchoolId] = useState("");
   const [isNewSchool, setIsNewSchool] = useState(false);
   const [newSchoolName, setNewSchoolName] = useState("");
-  const [representativeId, setRepresentativeId] = useState("");
-  const [isNewRepresentative, setIsNewRepresentative] = useState(false);
-  const [representativeName, setRepresentativeName] = useState("");
-  const [representativeEmail, setRepresentativeEmail] = useState("");
   const [visitDate, setVisitDate] = useState("");
   const [observation, setObservation] = useState("");
   const [responsibleName, setResponsibleName] = useState("");
@@ -41,13 +37,9 @@ export function SchoolContractCreatePage({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedSchoolId = Number(schoolId);
-  const representatives = useMemo(
-    () =>
-      options.representatives.filter(
-        (representative) => representative.schoolId === selectedSchoolId,
-      ),
-    [options.representatives, selectedSchoolId],
+  const selectedSchoolName = useMemo(
+    () => options.schools.find((school) => String(school.id) === schoolId)?.name ?? "",
+    [options.schools, schoolId],
   );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -67,9 +59,6 @@ export function SchoolContractCreatePage({
           schoolId: isNewSchool ? null : schoolId,
           newSchoolName: isNewSchool ? newSchoolName : "",
           visitDate,
-          representativeId: isNewRepresentative ? null : representativeId,
-          representativeName: isNewRepresentative ? representativeName : "",
-          representativeEmail: isNewRepresentative ? representativeEmail : "",
           observation,
           responsibleName,
           responsiblePhone,
@@ -132,7 +121,6 @@ export function SchoolContractCreatePage({
                 disabled={isNewSchool}
                 onChange={(event) => {
                   setSchoolId(event.target.value);
-                  setRepresentativeId("");
                 }}
                 value={schoolId}
               >
@@ -151,8 +139,6 @@ export function SchoolContractCreatePage({
                 onChange={(event) => {
                   setIsNewSchool(event.target.checked);
                   setSchoolId("");
-                  setRepresentativeId("");
-                  setIsNewRepresentative(true);
                 }}
                 type="checkbox"
               />
@@ -181,57 +167,10 @@ export function SchoolContractCreatePage({
             </label>
           </section>
 
-          <section className="grid gap-4 border-t border-[#d9e3eb] pt-5 md:grid-cols-2">
-            <label className="grid gap-2 text-sm font-semibold">
-              <span>Representante da escola</span>
-              <select
-                className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                disabled={isNewRepresentative || isNewSchool || !schoolId}
-                onChange={(event) => setRepresentativeId(event.target.value)}
-                value={representativeId}
-              >
-                <option value="">Selecione...</option>
-                {representatives.map((representative) => (
-                  <option key={representative.id} value={representative.id}>
-                    {representative.name} - {representative.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="mt-7 flex items-center gap-3 text-sm font-semibold">
-              <input
-                checked={isNewRepresentative}
-                onChange={(event) => {
-                  setIsNewRepresentative(event.target.checked);
-                  setRepresentativeId("");
-                }}
-                type="checkbox"
-              />
-              Adicionar novo representante
-            </label>
-
-            {isNewRepresentative || isNewSchool ? (
-              <>
-                <label className="grid gap-2 text-sm font-semibold">
-                  <span>Nome do representante</span>
-                  <input
-                    className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                    onChange={(event) => setRepresentativeName(event.target.value)}
-                    value={representativeName}
-                  />
-                </label>
-                <label className="grid gap-2 text-sm font-semibold">
-                  <span>E-mail do representante</span>
-                  <input
-                    className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                    onChange={(event) => setRepresentativeEmail(event.target.value)}
-                    type="email"
-                    value={representativeEmail}
-                  />
-                </label>
-              </>
-            ) : null}
+          <section className="rounded-[8px] border border-[#d9e3eb] bg-[#f8fbfd] px-4 py-3 text-sm text-[#345062]">
+            O representante confirma depois com login e senha no link de aprovacao. Para teste,
+            use login 12345 e senha 12345.
+            {selectedSchoolName ? ` Escola selecionada: ${selectedSchoolName}.` : ""}
           </section>
 
           <section className="grid gap-4 border-t border-[#d9e3eb] pt-5 md:grid-cols-3">

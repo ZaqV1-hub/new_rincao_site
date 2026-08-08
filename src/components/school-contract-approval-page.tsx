@@ -38,8 +38,8 @@ function StatusMessage({ approval }: { approval: SchoolContractApproval }) {
 export function SchoolContractApprovalPage({
   approval,
 }: SchoolContractApprovalPageProps) {
-  const [confirmerName, setConfirmerName] = useState("");
-  const [confirmerRole, setConfirmerRole] = useState("");
+  const [representativeLogin, setRepresentativeLogin] = useState("");
+  const [representativePassword, setRepresentativePassword] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,8 +59,8 @@ export function SchoolContractApprovalPage({
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          confirmerName,
-          confirmerRole,
+          representativeLogin,
+          representativePassword,
         }),
       });
       const payload = (await response.json().catch(() => null)) as ApiPayload;
@@ -161,19 +161,20 @@ export function SchoolContractApprovalPage({
             onSubmit={handleSubmit}
           >
             <label className="grid gap-2 text-sm font-semibold">
-              <span>Nome de quem confirma</span>
+              <span>Login do representante</span>
               <input
                 className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                onChange={(event) => setConfirmerName(event.target.value)}
-                value={confirmerName}
+                onChange={(event) => setRepresentativeLogin(event.target.value)}
+                value={representativeLogin}
               />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
-              <span>Cargo</span>
+              <span>Senha</span>
               <input
                 className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                onChange={(event) => setConfirmerRole(event.target.value)}
-                value={confirmerRole}
+                onChange={(event) => setRepresentativePassword(event.target.value)}
+                type="password"
+                value={representativePassword}
               />
             </label>
             <div className="flex justify-end md:col-span-2">

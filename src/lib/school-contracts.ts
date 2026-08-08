@@ -89,8 +89,8 @@ export type CreateSchoolContractInput = {
 
 export type ConfirmSchoolContractInput = {
   token?: unknown;
-  confirmerName?: unknown;
-  confirmerRole?: unknown;
+  representativeLogin?: unknown;
+  representativePassword?: unknown;
   ipAddress?: string | null;
 };
 
@@ -221,6 +221,14 @@ function getContractTerms() {
     "A confirmacao digital registra nome, cargo, data, horario e IP de quem confirmou o agendamento.",
     "Alteracoes posteriores de data, participantes ou condicoes devem ser tratadas diretamente com a equipe do Clube Rincao.",
   ].join("\n\n");
+}
+
+function getRepresentativeTestCredentials() {
+  return {
+    login: process.env.SCHOOL_CONTRACT_REPRESENTATIVE_TEST_LOGIN?.trim() || "12345",
+    password:
+      process.env.SCHOOL_CONTRACT_REPRESENTATIVE_TEST_PASSWORD?.trim() || "12345",
+  };
 }
 
 function getBaseUrl(inputUrl?: string | null) {
@@ -824,12 +832,22 @@ export async function createSchoolContract(
       school.idcliente == null
         ? await findClientIdForSchool(client, school.nmescola)
         : Number(school.idcliente);
-    const representative = await getOrCreateRepresentative(client, {
-      schoolId: Number(school.idescola),
-      representativeId,
-      name: normalizeText(input.representativeName),
-      email: normalizeEmail(input.representativeEmail),
-    });
+    const representative =
+      representativeId ||
+      normalizeText(input.representativeName) ||
+      normalizeEmail(input.representativeEmail)
+        ? await getOrCreateRepresentative(client, {
+            schoolId: Number(school.idescola),
+            representativeId,
+            name: normalizeText(input.representativeName),
+            email: normalizeEmail(input.representativeEmail),
+          })
+        : {
+            idrepresentante: null,
+            escola_id: Number(school.idescola),
+            nome: "Representante da escola",
+            email: responsibleEmail,
+          };
     const token = randomUUID();
 
     await client.query(
@@ -950,22 +968,26 @@ export async function getSchoolContractApproval(
 
 export async function confirmSchoolContract(input: ConfirmSchoolContractInput) {
   const token = normalizeText(input.token);
-  const confirmerName = normalizeText(input.confirmerName);
-  const confirmerRole = normalizeText(input.confirmerRole);
+  const representativeLogin = normalizeText(input.representativeLogin);
+  const representativePassword = normalizeText(input.representativePassword);
+  const testCredentials = getRepresentativeTestCredentials();
 
-  if (!confirmerName) {
+  if (!representativeLogin || !representativePassword) {
     throw new SchoolContractError(
       "school_contract_invalid_confirmer",
-      "Informe o nome de quem esta confirmando.",
+      "Informe login e senha do representante.",
       400,
     );
   }
 
-  if (!confirmerRole) {
+  if (
+    representativeLogin !== testCredentials.login ||
+    representativePassword !== testCredentials.password
+  ) {
     throw new SchoolContractError(
-      "school_contract_invalid_confirmer",
-      "Informe o cargo de quem esta confirmando.",
-      400,
+      "school_contract_invalid_credentials",
+      "Login ou senha do representante invalidos.",
+      401,
     );
   }
 
@@ -1044,8 +1066,8 @@ export async function confirmSchoolContract(input: ConfirmSchoolContractInput) {
       [
         token,
         agendaId,
-        confirmerName,
-        confirmerRole,
+        `Representante ${representativeLogin}`,
+        "Representante",
         normalizeText(input.ipAddress) || null,
       ],
     );
@@ -1059,8 +1081,8 @@ export async function confirmSchoolContract(input: ConfirmSchoolContractInput) {
       responsibleEmail: row.responsavel_email,
       schoolName: row.escola_nome,
       visitDateLabel: row.data_passeio_fmt || formatDateLabel(row.data_passeio),
-      confirmerName,
-      confirmerRole,
+      confirmerName: `Representante ${representativeLogin}`,
+      confirmerRole: "Representante",
     });
 
     return {
