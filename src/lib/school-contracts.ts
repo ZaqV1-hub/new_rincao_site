@@ -89,8 +89,8 @@ export type CreateSchoolContractInput = {
 
 export type ConfirmSchoolContractInput = {
   token?: unknown;
-  representativeLogin?: unknown;
-  representativePassword?: unknown;
+  confirmerName?: unknown;
+  confirmerRole?: unknown;
   ipAddress?: string | null;
 };
 
@@ -167,7 +167,7 @@ function parseOptionalPositiveInteger(value: unknown) {
     return null;
   }
 
-  return assertPositiveInteger(raw, "Selecione um registro valido.");
+  return assertPositiveInteger(raw, "Selecione um registro válido.");
 }
 
 function parseDateInput(value: unknown) {
@@ -176,7 +176,7 @@ function parseDateInput(value: unknown) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     throw new SchoolContractError(
       "school_contract_invalid_date",
-      "Informe uma data valida para o passeio.",
+      "Informe uma data válida para o passeio.",
       400,
     );
   }
@@ -195,7 +195,7 @@ function ensureTodayOrFuture(date: string) {
   if (date < todayIso) {
     throw new SchoolContractError(
       "school_contract_invalid_date",
-      "A data do passeio nao pode ser anterior a hoje.",
+      "A data do passeio não pode ser anterior a hoje.",
       400,
     );
   }
@@ -217,18 +217,10 @@ function getContractTerms() {
   }
 
   return [
-    "A escola declara ciencia da data agendada, das orientacoes operacionais e da responsabilidade pelos dados informados para o passeio escolar.",
-    "A confirmacao digital registra nome, cargo, data, horario e IP de quem confirmou o agendamento.",
-    "Alteracoes posteriores de data, participantes ou condicoes devem ser tratadas diretamente com a equipe do Clube Rincao.",
+    "A escola declara ciência da data agendada, das orientações operacionais e da responsabilidade pelos dados informados para o passeio escolar.",
+    "A confirmação digital registra nome, cargo, data, horário e IP de quem confirmou o agendamento.",
+    "Alterações posteriores de data, participantes ou condições devem ser tratadas diretamente com a equipe do Clube Rincão.",
   ].join("\n\n");
-}
-
-function getRepresentativeTestCredentials() {
-  return {
-    login: process.env.SCHOOL_CONTRACT_REPRESENTATIVE_TEST_LOGIN?.trim() || "12345",
-    password:
-      process.env.SCHOOL_CONTRACT_REPRESENTATIVE_TEST_PASSWORD?.trim() || "12345",
-  };
 }
 
 function getBaseUrl(inputUrl?: string | null) {
@@ -370,7 +362,7 @@ async function getSchoolById(client: DbClientLike, schoolId: number) {
   if (!row) {
     throw new SchoolContractError(
       "school_contract_school_not_found",
-      "Escola nao encontrada.",
+      "Escola não encontrada.",
       404,
     );
   }
@@ -455,7 +447,7 @@ async function getOrCreateRepresentative(
     if (!row) {
       throw new SchoolContractError(
         "school_contract_representative_not_found",
-        "Representante nao encontrado para esta escola.",
+        "Representante não encontrado para esta escola.",
         404,
       );
     }
@@ -466,7 +458,7 @@ async function getOrCreateRepresentative(
   const name = normalizeText(input.name);
   const email = validateEmail(
     normalizeEmail(input.email),
-    "Informe um e-mail valido para o representante.",
+    "Informe um e-mail válido para o representante.",
   );
 
   if (!name) {
@@ -659,9 +651,9 @@ async function sendContractInviteEmails(input: {
   schoolName: string;
   visitDateLabel: string;
 }) {
-  const subject = `Confirmacao de passeio escolar - ${input.schoolName}`;
+  const subject = `Confirmação de passeio escolar - ${input.schoolName}`;
   const html = `
-    <p>Ola,</p>
+    <p>Olá,</p>
     <p>clique no link abaixo para finalizar o agendamento do passeio escolar de <strong>${escapeHtml(input.schoolName)}</strong> em <strong>${escapeHtml(input.visitDateLabel)}</strong>.</p>
     <p><a href="${escapeHtml(input.approvalUrl)}">${escapeHtml(input.approvalUrl)}</a></p>
   `;
@@ -717,7 +709,7 @@ async function sendContractConfirmedEmails(input: {
     },
     {
       email: "financeiro@cluberincao.com.br",
-      name: "Financeiro Clube Rincao",
+      name: "Financeiro Clube Rincão",
     },
   ].filter(
     (recipient, index, list) =>
@@ -781,8 +773,6 @@ export async function getSchoolContractOptions(): Promise<SchoolContractOptions>
 export async function createSchoolContract(
   input: CreateSchoolContractInput,
 ): Promise<CreateSchoolContractResult> {
-  const pool = getIngressoSistemaDbPool();
-  const client = await pool.connect();
   const visitDate = parseDateInput(input.visitDate);
   const schoolId = parseOptionalPositiveInteger(input.schoolId);
   const newSchoolName = normalizeText(input.newSchoolName);
@@ -791,7 +781,7 @@ export async function createSchoolContract(
   const responsiblePhone = normalizeText(input.responsiblePhone);
   const responsibleEmail = validateEmail(
     normalizeEmail(input.responsibleEmail),
-    "Informe um e-mail valido para o responsavel.",
+    "Informe um e-mail válido para o responsável.",
   );
   const observation = normalizeMultiline(input.observation);
 
@@ -808,7 +798,7 @@ export async function createSchoolContract(
   if (!responsibleName) {
     throw new SchoolContractError(
       "school_contract_invalid_responsible",
-      "Informe o nome do responsavel.",
+      "Informe o nome do responsável.",
       400,
     );
   }
@@ -816,10 +806,13 @@ export async function createSchoolContract(
   if (!responsiblePhone) {
     throw new SchoolContractError(
       "school_contract_invalid_responsible",
-      "Informe o telefone do responsavel.",
+      "Informe o telefone do responsável.",
       400,
     );
   }
+
+  const pool = getIngressoSistemaDbPool();
+  const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
@@ -832,22 +825,12 @@ export async function createSchoolContract(
       school.idcliente == null
         ? await findClientIdForSchool(client, school.nmescola)
         : Number(school.idcliente);
-    const representative =
-      representativeId ||
-      normalizeText(input.representativeName) ||
-      normalizeEmail(input.representativeEmail)
-        ? await getOrCreateRepresentative(client, {
-            schoolId: Number(school.idescola),
-            representativeId,
-            name: normalizeText(input.representativeName),
-            email: normalizeEmail(input.representativeEmail),
-          })
-        : {
-            idrepresentante: null,
-            escola_id: Number(school.idescola),
-            nome: "Representante da escola",
-            email: responsibleEmail,
-          };
+    const representative = await getOrCreateRepresentative(client, {
+      schoolId: Number(school.idescola),
+      representativeId,
+      name: normalizeText(input.representativeName),
+      email: normalizeEmail(input.representativeEmail),
+    });
     const token = randomUUID();
 
     await client.query(
@@ -968,26 +951,14 @@ export async function getSchoolContractApproval(
 
 export async function confirmSchoolContract(input: ConfirmSchoolContractInput) {
   const token = normalizeText(input.token);
-  const representativeLogin = normalizeText(input.representativeLogin);
-  const representativePassword = normalizeText(input.representativePassword);
-  const testCredentials = getRepresentativeTestCredentials();
+  const confirmerName = normalizeText(input.confirmerName);
+  const confirmerRole = normalizeText(input.confirmerRole);
 
-  if (!representativeLogin || !representativePassword) {
+  if (!confirmerName || !confirmerRole) {
     throw new SchoolContractError(
       "school_contract_invalid_confirmer",
-      "Informe login e senha do representante.",
+      "Informe nome e cargo de quem está confirmando.",
       400,
-    );
-  }
-
-  if (
-    representativeLogin !== testCredentials.login ||
-    representativePassword !== testCredentials.password
-  ) {
-    throw new SchoolContractError(
-      "school_contract_invalid_credentials",
-      "Login ou senha do representante invalidos.",
-      401,
     );
   }
 
@@ -1003,7 +974,7 @@ export async function confirmSchoolContract(input: ConfirmSchoolContractInput) {
     if (!row) {
       throw new SchoolContractError(
         "school_contract_not_found",
-        "Link de confirmacao invalido.",
+        "Link de confirmação inválido.",
         404,
       );
     }
@@ -1021,7 +992,7 @@ export async function confirmSchoolContract(input: ConfirmSchoolContractInput) {
     if (approval.status === "confirmed") {
       throw new SchoolContractError(
         "school_contract_already_confirmed",
-        `Este passeio ja foi confirmado em ${approval.confirmedAt ?? "data anterior"}.`,
+        `Este passeio já foi confirmado em ${approval.confirmedAt ?? "data anterior"}.`,
         409,
       );
     }
@@ -1039,7 +1010,7 @@ export async function confirmSchoolContract(input: ConfirmSchoolContractInput) {
     if (!agendaId) {
       throw new SchoolContractError(
         "school_contract_agenda_failed",
-        "Nao foi possivel criar a agenda do passeio.",
+        "Não foi possível criar a agenda do passeio.",
         502,
       );
     }
@@ -1066,8 +1037,8 @@ export async function confirmSchoolContract(input: ConfirmSchoolContractInput) {
       [
         token,
         agendaId,
-        `Representante ${representativeLogin}`,
-        "Representante",
+        confirmerName,
+        confirmerRole,
         normalizeText(input.ipAddress) || null,
       ],
     );
@@ -1081,8 +1052,8 @@ export async function confirmSchoolContract(input: ConfirmSchoolContractInput) {
       responsibleEmail: row.responsavel_email,
       schoolName: row.escola_nome,
       visitDateLabel: row.data_passeio_fmt || formatDateLabel(row.data_passeio),
-      confirmerName: `Representante ${representativeLogin}`,
-      confirmerRole: "Representante",
+      confirmerName,
+      confirmerRole,
     });
 
     return {
@@ -1105,7 +1076,7 @@ export function asSchoolContractError(error: unknown) {
 
   return new SchoolContractError(
     "school_contract_failed",
-    "Nao foi possivel concluir o fluxo de contrato escolar agora.",
+    "Não foi possível concluir o fluxo de contrato escolar agora.",
     500,
   );
 }

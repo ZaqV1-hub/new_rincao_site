@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SchoolContractOptions } from "@/lib/school-contracts";
@@ -29,6 +30,10 @@ export function SchoolContractCreatePage({
   const [isNewSchool, setIsNewSchool] = useState(false);
   const [newSchoolName, setNewSchoolName] = useState("");
   const [visitDate, setVisitDate] = useState("");
+  const [representativeId, setRepresentativeId] = useState("");
+  const [isNewRepresentative, setIsNewRepresentative] = useState(false);
+  const [representativeName, setRepresentativeName] = useState("");
+  const [representativeEmail, setRepresentativeEmail] = useState("");
   const [observation, setObservation] = useState("");
   const [responsibleName, setResponsibleName] = useState("");
   const [responsiblePhone, setResponsiblePhone] = useState("");
@@ -41,6 +46,15 @@ export function SchoolContractCreatePage({
     () => options.schools.find((school) => String(school.id) === schoolId)?.name ?? "",
     [options.schools, schoolId],
   );
+  const filteredRepresentatives = useMemo(
+    () =>
+      options.representatives.filter(
+        (representative) => String(representative.schoolId) === schoolId,
+      ),
+    [options.representatives, schoolId],
+  );
+  const shouldShowRepresentativeFields =
+    isNewSchool || isNewRepresentative || filteredRepresentatives.length === 0;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,6 +73,10 @@ export function SchoolContractCreatePage({
           schoolId: isNewSchool ? null : schoolId,
           newSchoolName: isNewSchool ? newSchoolName : "",
           visitDate,
+          representativeId:
+            shouldShowRepresentativeFields || isNewSchool ? null : representativeId,
+          representativeName: shouldShowRepresentativeFields ? representativeName : "",
+          representativeEmail: shouldShowRepresentativeFields ? representativeEmail : "",
           observation,
           responsibleName,
           responsiblePhone,
@@ -69,7 +87,7 @@ export function SchoolContractCreatePage({
 
       if (!response.ok || !payload?.ok || !payload.data?.approvalPath) {
         throw new Error(
-          payload?.error?.message || "Nao foi possivel enviar o contrato agora.",
+          payload?.error?.message || "Não foi possível enviar o contrato agora.",
         );
       }
 
@@ -80,7 +98,7 @@ export function SchoolContractCreatePage({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel enviar o contrato agora.",
+          : "Não foi possível enviar o contrato agora.",
       );
     } finally {
       setIsSubmitting(false);
@@ -88,7 +106,22 @@ export function SchoolContractCreatePage({
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f8fc] px-4 py-6 text-[#133d63] md:px-8">
+    <main className="min-h-screen bg-[#f4f8fc] text-[#133d63]">
+      <header className="border-b border-[#d9e3eb] bg-white px-4 py-4 md:px-8">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#55718a]">
+            Clube Rincão
+          </p>
+          <Link
+            className="rounded-[6px] border border-[#c9d8e3] px-4 py-2 text-sm font-bold text-[#246b99] transition hover:bg-[#f4f8fc]"
+            href="/"
+          >
+            Voltar para o site
+          </Link>
+        </div>
+      </header>
+
+      <div className="px-4 py-6 md:px-8">
       <div className="mx-auto max-w-5xl">
         <header className="mb-6">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#55718a]">
@@ -121,6 +154,8 @@ export function SchoolContractCreatePage({
                 disabled={isNewSchool}
                 onChange={(event) => {
                   setSchoolId(event.target.value);
+                  setRepresentativeId("");
+                  setIsNewRepresentative(false);
                 }}
                 value={schoolId}
               >
@@ -139,6 +174,8 @@ export function SchoolContractCreatePage({
                 onChange={(event) => {
                   setIsNewSchool(event.target.checked);
                   setSchoolId("");
+                  setRepresentativeId("");
+                  setIsNewRepresentative(event.target.checked);
                 }}
                 type="checkbox"
               />
@@ -167,15 +204,70 @@ export function SchoolContractCreatePage({
             </label>
           </section>
 
+          <section className="grid gap-4 border-t border-[#d9e3eb] pt-5 md:grid-cols-2">
+            {!shouldShowRepresentativeFields ? (
+              <label className="grid gap-2 text-sm font-semibold">
+                <span>Representante da escola</span>
+                <select
+                  className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
+                  onChange={(event) => setRepresentativeId(event.target.value)}
+                  value={representativeId}
+                >
+                  <option value="">Selecione...</option>
+                  {filteredRepresentatives.map((representative) => (
+                    <option key={representative.id} value={representative.id}>
+                      {representative.name} - {representative.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            {!isNewSchool && filteredRepresentatives.length > 0 ? (
+              <label className="mt-7 flex items-center gap-3 text-sm font-semibold">
+                <input
+                  checked={isNewRepresentative}
+                  onChange={(event) => {
+                    setIsNewRepresentative(event.target.checked);
+                    setRepresentativeId("");
+                  }}
+                  type="checkbox"
+                />
+                Adicionar novo representante
+              </label>
+            ) : null}
+
+            {shouldShowRepresentativeFields ? (
+              <>
+                <label className="grid gap-2 text-sm font-semibold">
+                  <span>Nome do representante</span>
+                  <input
+                    className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
+                    onChange={(event) => setRepresentativeName(event.target.value)}
+                    value={representativeName}
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-semibold">
+                  <span>E-mail do representante</span>
+                  <input
+                    className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
+                    onChange={(event) => setRepresentativeEmail(event.target.value)}
+                    type="email"
+                    value={representativeEmail}
+                  />
+                </label>
+              </>
+            ) : null}
+          </section>
+
           <section className="rounded-[8px] border border-[#d9e3eb] bg-[#f8fbfd] px-4 py-3 text-sm text-[#345062]">
-            O representante confirma depois com login e senha no link de aprovacao. Para teste,
-            use login 12345 e senha 12345.
+            O representante ou responsável confirma depois pelo link de aprovação.
             {selectedSchoolName ? ` Escola selecionada: ${selectedSchoolName}.` : ""}
           </section>
 
           <section className="grid gap-4 border-t border-[#d9e3eb] pt-5 md:grid-cols-3">
             <label className="grid gap-2 text-sm font-semibold">
-              <span>Nome do responsavel</span>
+              <span>Nome do responsável</span>
               <input
                 className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
                 onChange={(event) => setResponsibleName(event.target.value)}
@@ -183,7 +275,7 @@ export function SchoolContractCreatePage({
               />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
-              <span>Telefone do responsavel</span>
+              <span>Telefone do responsável</span>
               <input
                 className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
                 onChange={(event) => setResponsiblePhone(event.target.value)}
@@ -191,7 +283,7 @@ export function SchoolContractCreatePage({
               />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
-              <span>E-mail do responsavel</span>
+              <span>E-mail do responsável</span>
               <input
                 className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
                 onChange={(event) => setResponsibleEmail(event.target.value)}
@@ -202,7 +294,7 @@ export function SchoolContractCreatePage({
           </section>
 
           <label className="grid gap-2 border-t border-[#d9e3eb] pt-5 text-sm font-semibold">
-            <span>Observacao</span>
+            <span>Observação</span>
             <textarea
               className="min-h-28 rounded-[6px] border border-[#c9d8e3] px-3 py-3 text-sm"
               onChange={(event) => setObservation(event.target.value)}
@@ -220,6 +312,7 @@ export function SchoolContractCreatePage({
             </button>
           </div>
         </form>
+      </div>
       </div>
     </main>
   );

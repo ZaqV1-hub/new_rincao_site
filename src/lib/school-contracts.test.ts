@@ -32,7 +32,7 @@ describe("school-contracts", () => {
     queueLegacyEmail.mockResolvedValue(10);
   });
 
-  it("creates a pending contract without selecting a representative", async () => {
+  it("creates a pending contract and emails the representative and responsible", async () => {
     query.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (
         sql === "BEGIN" ||
@@ -62,12 +62,26 @@ describe("school-contracts", () => {
         expect(values?.[0]).toBe(12);
         expect(values?.[1]).toBe(44);
         expect(values?.[2]).toBe("2026-09-10");
-        expect(values?.[3]).toBeNull();
-        expect(values?.[4]).toBe("Representante da escola");
-        expect(values?.[5]).toBe("resp@escola.test");
+        expect(values?.[3]).toBe(5);
+        expect(values?.[4]).toBe("Maria Escola");
+        expect(values?.[5]).toBe("maria@escola.test");
         expect(values?.[7]).toBe("Responsavel");
         expect(values?.[9]).toBe("resp@escola.test");
         return { rows: [] };
+      }
+
+      if (sql.includes("FROM contrato_escolar_representante")) {
+        expect(values).toEqual([5, 12]);
+        return {
+          rows: [
+            {
+              idrepresentante: 5,
+              escola_id: 12,
+              nome: "Maria Escola",
+              email: "maria@escola.test",
+            },
+          ],
+        };
       }
 
       throw new Error(`Unexpected query: ${sql}`);
@@ -76,6 +90,7 @@ describe("school-contracts", () => {
     const result = await createSchoolContract({
       schoolId: 12,
       visitDate: "2026-09-10",
+      representativeId: 5,
       responsibleName: "Responsavel",
       responsiblePhone: "11999999999",
       responsibleEmail: "resp@escola.test",
@@ -85,7 +100,13 @@ describe("school-contracts", () => {
 
     expect(result.approvalPath).toMatch(/^\/contrato\/aprovacao\/.+/);
     expect(result.approvalUrl).toContain("https://cluberincao.test/contrato/aprovacao/");
-    expect(queueLegacyEmail).toHaveBeenCalledTimes(1);
+    expect(queueLegacyEmail).toHaveBeenCalledTimes(2);
+    expect(queueLegacyEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "maria@escola.test" }),
+    );
+    expect(queueLegacyEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "resp@escola.test" }),
+    );
   });
 
   it("loads an approval contract by token", async () => {
@@ -217,8 +238,8 @@ describe("school-contracts", () => {
       if (sql.includes("UPDATE contrato_escolar_agendamento")) {
         expect(values?.[0]).toBe(token);
         expect(values?.[1]).toBe(77);
-        expect(values?.[2]).toBe("Representante 12345");
-        expect(values?.[3]).toBe("Representante");
+        expect(values?.[2]).toBe("Isaque Diretor");
+        expect(values?.[3]).toBe("Diretor");
         return { rows: [] };
       }
 
@@ -228,8 +249,8 @@ describe("school-contracts", () => {
     await expect(
       confirmSchoolContract({
         token,
-        representativeLogin: "12345",
-        representativePassword: "12345",
+        confirmerName: "Isaque Diretor",
+        confirmerRole: "Diretor",
         ipAddress: "127.0.0.1",
       }),
     ).resolves.toMatchObject({
@@ -238,5 +259,14 @@ describe("school-contracts", () => {
       message: "Passeio agendado com sucesso.",
     });
     expect(queueLegacyEmail).toHaveBeenCalledTimes(3);
+    expect(queueLegacyEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "resp@escola.test" }),
+    );
+    expect(queueLegacyEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "maria@escola.test" }),
+    );
+    expect(queueLegacyEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "financeiro@cluberincao.com.br" }),
+    );
   });
 });

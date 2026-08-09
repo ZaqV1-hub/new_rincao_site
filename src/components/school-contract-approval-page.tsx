@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { SchoolContractApproval } from "@/lib/school-contracts";
 
@@ -25,7 +26,7 @@ function StatusMessage({ approval }: { approval: SchoolContractApproval }) {
   }
 
   if (approval.status === "confirmed") {
-    return `Este passeio ja foi confirmado em ${approval.confirmedAt ?? "data anterior"}.`;
+    return `Este passeio já foi confirmado em ${approval.confirmedAt ?? "data anterior"}.`;
   }
 
   if (approval.status === "invalidated") {
@@ -38,8 +39,8 @@ function StatusMessage({ approval }: { approval: SchoolContractApproval }) {
 export function SchoolContractApprovalPage({
   approval,
 }: SchoolContractApprovalPageProps) {
-  const [representativeLogin, setRepresentativeLogin] = useState("");
-  const [representativePassword, setRepresentativePassword] = useState("");
+  const [confirmerName, setConfirmerName] = useState("");
+  const [confirmerRole, setConfirmerRole] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,15 +60,15 @@ export function SchoolContractApprovalPage({
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          representativeLogin,
-          representativePassword,
+          confirmerName,
+          confirmerRole,
         }),
       });
       const payload = (await response.json().catch(() => null)) as ApiPayload;
 
       if (!response.ok || !payload?.ok) {
         throw new Error(
-          payload?.error?.message || "Nao foi possivel confirmar o agendamento.",
+          payload?.error?.message || "Não foi possível confirmar o agendamento.",
         );
       }
 
@@ -76,7 +77,7 @@ export function SchoolContractApprovalPage({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel confirmar o agendamento.",
+          : "Não foi possível confirmar o agendamento.",
       );
     } finally {
       setIsSubmitting(false);
@@ -84,11 +85,26 @@ export function SchoolContractApprovalPage({
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f8fc] px-4 py-6 text-[#133d63] md:px-8">
+    <main className="min-h-screen bg-[#f4f8fc] text-[#133d63]">
+      <header className="border-b border-[#d9e3eb] bg-white px-4 py-4 md:px-8">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
+          <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#55718a]">
+            Clube Rincão
+          </p>
+          <Link
+            className="rounded-[6px] border border-[#c9d8e3] px-4 py-2 text-sm font-bold text-[#246b99] transition hover:bg-[#f4f8fc]"
+            href="/"
+          >
+            Voltar para o site
+          </Link>
+        </div>
+      </header>
+
+      <div className="px-4 py-6 md:px-8">
       <div className="mx-auto max-w-4xl">
         <header className="mb-6">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#55718a]">
-            Confirmacao digital
+            Confirmação digital
           </p>
           <h1 className="mt-2 text-3xl font-bold">Agendamento de passeio escolar</h1>
         </header>
@@ -116,7 +132,7 @@ export function SchoolContractApprovalPage({
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#55718a]">
-                Responsavel
+                Responsável
               </p>
               <p className="mt-1 font-semibold">{approval.responsibleName}</p>
               <p className="text-sm text-[#55718a]">{approval.responsibleEmail}</p>
@@ -161,20 +177,21 @@ export function SchoolContractApprovalPage({
             onSubmit={handleSubmit}
           >
             <label className="grid gap-2 text-sm font-semibold">
-              <span>Login do representante</span>
+              <span>Nome de quem confirma</span>
               <input
                 className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                onChange={(event) => setRepresentativeLogin(event.target.value)}
-                value={representativeLogin}
+                onChange={(event) => setConfirmerName(event.target.value)}
+                required
+                value={confirmerName}
               />
             </label>
             <label className="grid gap-2 text-sm font-semibold">
-              <span>Senha</span>
+              <span>Cargo</span>
               <input
                 className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                onChange={(event) => setRepresentativePassword(event.target.value)}
-                type="password"
-                value={representativePassword}
+                onChange={(event) => setConfirmerRole(event.target.value)}
+                required
+                value={confirmerRole}
               />
             </label>
             <div className="flex justify-end md:col-span-2">
@@ -188,6 +205,8 @@ export function SchoolContractApprovalPage({
             </div>
           </form>
         ) : null}
+
+      </div>
       </div>
     </main>
   );

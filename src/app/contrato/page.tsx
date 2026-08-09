@@ -6,7 +6,7 @@ import { requirePainelAccess } from "@/lib/painel-session";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Contrato Escolar | Rincao",
+  title: "Contrato Escolar | Rincão",
   robots: {
     index: false,
     follow: false,

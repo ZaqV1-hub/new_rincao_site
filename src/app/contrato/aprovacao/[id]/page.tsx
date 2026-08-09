@@ -6,7 +6,7 @@ import { getSchoolContractApproval } from "@/lib/school-contracts";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Aprovacao de Contrato Escolar | Rincao",
+  title: "Aprovação de Contrato Escolar | Rincão",
   robots: {
     index: false,
     follow: false,

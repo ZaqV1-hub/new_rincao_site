@@ -34,6 +34,7 @@ export function SiteShell({
   const usesStandaloneShell =
     pathname.startsWith("/painel") ||
     pathname === "/agenda" ||
+    pathname.startsWith("/contrato") ||
     pathname === "/ingresso/escola" ||
     pathname === "/ingresso/educador" ||
     pathname.startsWith("/agendar/") ||
