@@ -11,6 +11,10 @@ const painelLoginErrorMessages: Record<string, string> = {
 };
 
 export function sanitizePainelRedirect(value: string | undefined) {
+  if (value === "/contrato") {
+    return value;
+  }
+
   if (!value || !value.startsWith("/painel")) {
     return defaultPainelRedirect;
   }

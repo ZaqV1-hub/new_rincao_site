@@ -135,6 +135,7 @@ describe("painel/session BFF route", () => {
         body: JSON.stringify({
           login: "isaque@cluberincao.com.br",
           senha: "5979249495",
+          redirect: "/contrato",
         }),
       }),
     );
@@ -238,7 +239,56 @@ describe("painel/session BFF route", () => {
       ok: false,
       error: {
         code: "invalid_credentials",
-        message: "CPF, e-mail ou senha invalidos.",
+        message: "CPF ou senha invalidos.",
+      },
+    });
+  });
+
+  it("rejects email login outside the contract flow", async () => {
+    const { POST } = await import("@/app/api/painel/session/route");
+    const response = await POST(
+      new Request("https://example.com/api/painel/session", {
+        method: "POST",
+        body: JSON.stringify({
+          login: "isaque@cluberincao.com.br",
+          senha: "5979249495",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(authenticatePanelUser).not.toHaveBeenCalled();
+    expect(body).toEqual({
+      ok: false,
+      error: {
+        code: "invalid_credentials",
+        message: "CPF ou senha invalidos.",
+      },
+    });
+  });
+
+  it("rejects cpf login in the contract flow", async () => {
+    const { POST } = await import("@/app/api/painel/session/route");
+    const response = await POST(
+      new Request("https://example.com/api/painel/session", {
+        method: "POST",
+        body: JSON.stringify({
+          login: "52998224725",
+          senha: "senha",
+          redirect: "/contrato",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(authenticatePanelUser).not.toHaveBeenCalled();
+    expect(body).toEqual({
+      ok: false,
+      error: {
+        code: "invalid_credentials",
+        message: "E-mail ou senha invalidos.",
       },
     });
   });
@@ -304,7 +354,7 @@ describe("painel/session BFF route", () => {
       ok: false,
       error: {
         code: "invalid_credentials",
-        message: "CPF, e-mail ou senha invalidos.",
+        message: "CPF ou senha invalidos.",
       },
     });
   });

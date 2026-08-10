@@ -118,6 +118,7 @@ export async function POST(request: Request) {
   const login = rawLogin.trim();
   const cpf = sanitizeCpf(login);
   const isEmailLogin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(login);
+  const isContractLogin = redirectTo === "/contrato";
   const password =
     typeof payload?.senha === "string"
       ? payload.senha
@@ -127,7 +128,15 @@ export async function POST(request: Request) {
   const recaptchaToken =
     typeof payload?.recaptchaToken === "string" ? payload.recaptchaToken : "";
 
-  if ((!isEmailLogin && !isValidCpf(cpf)) || password.length < 1 || password.length > 20) {
+  const isPanelSeedLogin = cpf === "22181922845";
+  const invalidLogin = isContractLogin
+    ? !isEmailLogin
+    : !isValidCpf(cpf) && !isPanelSeedLogin;
+  const invalidMessage = isContractLogin
+    ? "E-mail ou senha invalidos."
+    : "CPF ou senha invalidos.";
+
+  if (invalidLogin || password.length < 1 || password.length > 20) {
     if (nativeFormSubmit) {
       return painelLoginRedirectResponse(
         request.url,
@@ -138,7 +147,7 @@ export async function POST(request: Request) {
 
     return errorResponse(
       "invalid_credentials",
-      "CPF, e-mail ou senha invalidos.",
+      invalidMessage,
       401,
     );
   }
@@ -166,7 +175,7 @@ export async function POST(request: Request) {
       return errorResponse(recaptcha.code, recaptcha.message, 400);
     }
 
-    const user = await authenticatePanelUser(isEmailLogin ? login : cpf, password);
+    const user = await authenticatePanelUser(isContractLogin ? login : cpf, password);
 
     if (!user || user.roleId === null) {
       if (nativeFormSubmit) {
@@ -179,7 +188,7 @@ export async function POST(request: Request) {
 
       return errorResponse(
         "invalid_credentials",
-        "CPF, e-mail ou senha invalidos.",
+        invalidMessage,
         401,
       );
     }

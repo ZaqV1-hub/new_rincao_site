@@ -129,21 +129,26 @@ export function PainelLoginPage({
   const activePhase = isNavigating && phase === "idle" ? "redirecting" : phase;
   const feedback = getPainelLoginFeedback(activePhase);
   const isBusy = activePhase !== "idle";
+  const isContractLogin = redirectTo === "/contrato";
+  const loginLabel = isContractLogin ? "E-mail" : "CPF";
+  const loginPlaceholder = isContractLogin ? "email@exemplo.com" : "000.000.000-00";
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const rawLogin = login.trim();
     const normalizedCpf = sanitizeCpf(rawLogin);
-    const normalizedLogin = rawLogin.includes("@") ? rawLogin : normalizedCpf;
+    const normalizedLogin = isContractLogin ? rawLogin : normalizedCpf;
 
     const isPanelSeedLogin = normalizedCpf === "22181922845";
     const isEmailLogin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawLogin);
     if (
-      (!isEmailLogin && !isValidCpf(normalizedCpf) && !isPanelSeedLogin) ||
+      (isContractLogin
+        ? !isEmailLogin
+        : !isValidCpf(normalizedCpf) && !isPanelSeedLogin) ||
       password.length < 1 ||
       password.length > 20
     ) {
-      setError("CPF, e-mail ou senha invalidos.");
+      setError(isContractLogin ? "E-mail ou senha invalidos." : "CPF ou senha invalidos.");
       return;
     }
 
@@ -164,6 +169,7 @@ export function PainelLoginPage({
         body: JSON.stringify({
           login: normalizedLogin,
           senha: password,
+          redirect: redirectTo,
           recaptchaToken,
         }),
       });
@@ -223,18 +229,18 @@ export function PainelLoginPage({
             aria-busy={isBusy}
           >
             <label className="flex flex-col gap-2 text-sm font-semibold text-[#35576f]">
-              CPF ou e-mail
+              {loginLabel}
               <input
-                type="text"
-                inputMode="email"
+                type={isContractLogin ? "email" : "text"}
+                inputMode={isContractLogin ? "email" : "numeric"}
                 autoComplete="username"
                 name="login"
                 value={login}
                 onChange={(event) => {
                   const value = event.target.value;
-                  setLogin(value.includes("@") ? value : formatCpf(value));
+                  setLogin(isContractLogin ? value : formatCpf(value));
                 }}
-                placeholder="CPF ou e-mail"
+                placeholder={loginPlaceholder}
                 disabled={isBusy}
                 className="rincao-field"
               />
