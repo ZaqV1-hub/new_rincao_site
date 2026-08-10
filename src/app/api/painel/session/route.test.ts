@@ -109,7 +109,7 @@ describe("painel/session BFF route", () => {
       status: "ati",
       roleId: 4,
       roleName: "Representante",
-      legacyResources: ["vis_contrato"],
+      legacyResources: ["vis_contra"],
       operationsRole: "operator",
       permissions: ["ops.read"],
     });
@@ -122,7 +122,7 @@ describe("painel/session BFF route", () => {
       authSource: "panel",
       legacyRoleId: 4,
       legacyRoleName: "Representante",
-      legacyResources: ["vis_contrato"],
+      legacyResources: ["vis_contra"],
     });
 
     const { POST } = await import("@/app/api/painel/session/route");

@@ -30,7 +30,7 @@ export type LegacyPanelResource =
   | "vis_ingesp"
   | "vis_clientes"
   | "vis_bilhet"
-  | "vis_contrato";
+  | "vis_contra";
 
 const allLegacyPanelResources: LegacyPanelResource[] = [
   "vis_usu",
@@ -50,7 +50,7 @@ const allLegacyPanelResources: LegacyPanelResource[] = [
   "vis_ingesp",
   "vis_clientes",
   "vis_bilhet",
-  "vis_contrato",
+  "vis_contra",
 ];
 
 const legacyPanelResources: Record<LegacyPanelRoleId, LegacyPanelResource[]> = {
@@ -72,7 +72,7 @@ const legacyPanelResources: Record<LegacyPanelRoleId, LegacyPanelResource[]> = {
     "vis_ingesp",
     "vis_clientes",
     "vis_bilhet",
-    "vis_contrato",
+    "vis_contra",
   ],
   2: [
     "vis_agenda",
@@ -82,7 +82,7 @@ const legacyPanelResources: Record<LegacyPanelRoleId, LegacyPanelResource[]> = {
     "vis_bilhet",
   ],
   3: ["vis_bilhet"],
-  4: ["vis_contrato"],
+  4: ["vis_contra"],
 };
 
 export function isLegacyPanelRoleId(value: number | null | undefined): value is LegacyPanelRoleId {
