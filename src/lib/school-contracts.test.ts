@@ -13,6 +13,7 @@ const { connect, query, release, queueLegacyEmail } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
+  getIngressoSistemaDbDialect: () => "postgres",
   getIngressoSistemaDbPool: () => ({
     connect,
   }),

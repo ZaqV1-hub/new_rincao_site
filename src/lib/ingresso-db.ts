@@ -59,6 +59,42 @@ function resolveIngressoDbDialect(): IngressoDbDialect {
   return "postgres";
 }
 
+function normalizeIngressoDbDialect(value: string | undefined) {
+  const normalized = (value ?? "").trim().toLowerCase();
+
+  if (normalized === "mysql") {
+    return "mysql";
+  }
+
+  if (normalized === "postgres" || normalized === "pg") {
+    return "postgres";
+  }
+
+  return null;
+}
+
+function resolvePrefixedIngressoDbDialect(
+  prefix: IngressoDbConfigPrefix,
+): IngressoDbDialect {
+  const explicit = normalizeIngressoDbDialect(
+    process.env[`${prefix}_CLIENT`] ?? process.env[`${prefix}_DIALECT`],
+  );
+
+  if (explicit) {
+    return explicit;
+  }
+
+  if (process.env[`${prefix}_URL`]) {
+    return "postgres";
+  }
+
+  if (process.env[`${prefix}_HOST`]?.toLowerCase().includes("mysql")) {
+    return "mysql";
+  }
+
+  return prefix === "INGRESSO_DB" ? resolveIngressoDbDialect() : "postgres";
+}
+
 function getPgPoolConfig(): PgPoolConfig {
   const connectionString = process.env.INGRESSO_DATABASE_URL;
 
@@ -138,6 +174,58 @@ function getMysqlPoolConfig(): MysqlPoolOptions {
   };
 }
 
+function getPrefixedMysqlPoolConfig(
+  prefix: IngressoDbConfigPrefix,
+): MysqlPoolOptions {
+  const host =
+    process.env[`${prefix}_HOST`] ??
+    process.env.INGRESSO_DB_HOST ??
+    process.env.WP_DB_HOST;
+  const database =
+    process.env[`${prefix}_NAME`] ??
+    process.env.INGRESSO_DB_NAME ??
+    process.env.WP_DB_NAME;
+  const user =
+    process.env[`${prefix}_USER`] ??
+    process.env.INGRESSO_DB_USER ??
+    process.env.WP_DB_USER;
+  const password =
+    process.env[`${prefix}_PASSWORD`] ??
+    process.env.INGRESSO_DB_PASSWORD ??
+    process.env.WP_DB_PASSWORD;
+  const port = Number(
+    process.env[`${prefix}_PORT`] ??
+      process.env.INGRESSO_DB_PORT ??
+      process.env.WP_DB_PORT ??
+      3306,
+  );
+  const sslEnabled =
+    process.env[`${prefix}_SSL`] === "true" ||
+    process.env.INGRESSO_DB_SSL === "true" ||
+    process.env.WP_DB_SSL === "true" ||
+    host?.toLowerCase().includes("azure.com");
+
+  if (!host || !database || !user) {
+    throw new Error(
+      `Configure ${prefix}_HOST/NAME/USER/PASSWORD para usar o MySQL do sistema.`,
+    );
+  }
+
+  return {
+    host,
+    port,
+    database,
+    user,
+    password,
+    charset: "utf8mb4",
+    waitForConnections: true,
+    connectionLimit: Number(
+      process.env[`${prefix}_POOL_MAX`] ?? process.env.INGRESSO_DB_POOL_MAX ?? 4,
+    ),
+    ssl: sslEnabled ? { rejectUnauthorized: false } : undefined,
+  };
+}
+
 function normalizeMysqlStatement(sql: string) {
   return sql.replace(/\r\n/g, "\n").trim();
 }
@@ -147,7 +235,10 @@ function convertPgDateFormatToMysql(format: string) {
     .replace(/DD/g, "%d")
     .replace(/MM/g, "%m")
     .replace(/YYYY/g, "%Y")
-    .replace(/YY/g, "%y");
+    .replace(/YY/g, "%y")
+    .replace(/HH24/g, "%H")
+    .replace(/MI/g, "%i")
+    .replace(/SS/g, "%s");
 }
 
 function translateCountFilter(sql: string) {
@@ -235,9 +326,16 @@ function buildMysqlPreparedQuery(
   sql = translateCountFilter(sql);
   sql = sql.replace(/\bILIKE\b/gi, "LIKE");
   sql = sql.replace(/\bTRUE\b/g, "1").replace(/\bFALSE\b/g, "0");
+  sql = sql.replace(/\bUUID\b/gi, "CHAR(36)");
   sql = sql.replace(/\bTIMESTAMPTZ\b/gi, "DATETIME");
+  sql = sql.replace(/\btimestamp\s+without\s+time\s+zone\b/gi, "DATETIME");
+  sql = sql.replace(
+    /\binteger\s+GENERATED\s+BY\s+DEFAULT\s+AS\s+IDENTITY\b/gi,
+    "integer AUTO_INCREMENT",
+  );
   sql = sql.replace(/table_schema\s*=\s*'public'/gi, "table_schema = DATABASE()");
   sql = sql.replace(/\s+AT\s+TIME\s+ZONE\s+'[^']+'/gi, "");
+  sql = sql.replace(/\bbtrim\(/gi, "TRIM(");
   sql = sql.replace(
     /([A-Za-z0-9_."()]+)\s+(ASC|DESC)\s+NULLS\s+LAST/gi,
     "$1 IS NULL, $1 $2",
@@ -411,6 +509,53 @@ function createMysqlIngressoDbPool(): IngressoDbPool {
   return wrapper as unknown as IngressoDbPool;
 }
 
+function createPrefixedMysqlIngressoDbPool(
+  prefix: IngressoDbConfigPrefix,
+): IngressoDbPool {
+  const cacheKey =
+    prefix === "INGRESSO_SISTEMA_DB"
+      ? "__ingressoSistemaDbMysqlPool"
+      : "__ingressoDbPrefixedMysqlPool";
+  const globalForMysql = globalThis as typeof globalThis & {
+    __ingressoSistemaDbMysqlPool?: MysqlPool;
+    __ingressoDbPrefixedMysqlPool?: MysqlPool;
+  };
+
+  if (!globalForMysql[cacheKey]) {
+    globalForMysql[cacheKey] = createMysqlPool(
+      getPrefixedMysqlPoolConfig(prefix),
+    );
+  }
+
+  const pool = globalForMysql[cacheKey]!;
+
+  const wrapper = {
+    query<T extends QueryResultRow = QueryResultRow>(
+      sql: string,
+      values?: unknown[],
+    ) {
+      return executeMysqlQuery<T>(pool, sql, values);
+    },
+    async connect() {
+      const connection = await pool.getConnection();
+
+      return {
+        query<T extends QueryResultRow = QueryResultRow>(
+          sql: string,
+          values?: unknown[],
+        ) {
+          return executeMysqlQuery<T>(connection, sql, values);
+        },
+        release() {
+          connection.release();
+        },
+      } as unknown as IngressoDbClient;
+    },
+  };
+
+  return wrapper as unknown as IngressoDbPool;
+}
+
 function createPostgresIngressoDbPool(): IngressoDbPool {
   const globalForPg = globalThis as typeof globalThis & {
     __ingressoDbPool?: PgPool;
@@ -515,5 +660,11 @@ export function getIngressoDbPool(): IngressoDbPool {
 }
 
 export function getIngressoSistemaDbPool(): IngressoDbPool {
-  return createPrefixedPostgresIngressoDbPool("INGRESSO_SISTEMA_DB");
+  return resolvePrefixedIngressoDbDialect("INGRESSO_SISTEMA_DB") === "mysql"
+    ? createPrefixedMysqlIngressoDbPool("INGRESSO_SISTEMA_DB")
+    : createPrefixedPostgresIngressoDbPool("INGRESSO_SISTEMA_DB");
+}
+
+export function getIngressoSistemaDbDialect(): IngressoDbDialect {
+  return resolvePrefixedIngressoDbDialect("INGRESSO_SISTEMA_DB");
 }
