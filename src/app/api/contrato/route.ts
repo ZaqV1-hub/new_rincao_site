@@ -40,23 +40,11 @@ export async function POST(request: Request) {
     return access.response;
   }
 
-  if (access.session.legacyRoleId !== 4) {
-    return Response.json(
-      {
-        ok: false,
-        error: {
-          code: "painel_forbidden",
-          message: "Somente representantes podem criar contratos por esta rota.",
-        },
-      },
-      { status: 403 },
-    );
-  }
-
   const payload = await readJsonPayload<ContractPayload>(request);
   const actorUser = access.session.actorCpf
     ? await getActivePublicUserByCpf(access.session.actorCpf)
     : null;
+  const isRepresentativeSession = access.session.legacyRoleId === 4;
 
   return runOpsRoute(
     () =>
@@ -65,8 +53,12 @@ export async function POST(request: Request) {
         newSchoolName: payload?.newSchoolName,
         visitDate: payload?.visitDate,
         representativeId: payload?.representativeId,
-        representativeName: actorUser?.name ?? access.session.actorName,
-        representativeEmail: actorUser?.email ?? "",
+        representativeName: isRepresentativeSession
+          ? actorUser?.name ?? access.session.actorName
+          : payload?.representativeName,
+        representativeEmail: isRepresentativeSession
+          ? actorUser?.email ?? ""
+          : payload?.representativeEmail,
         observation: payload?.observation,
         responsibleName: payload?.responsibleName,
         responsiblePhone: payload?.responsiblePhone,

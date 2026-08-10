@@ -54,19 +54,6 @@ export default async function PainelLoginRoute({
     : null;
 
   if (session) {
-    if (redirectTo === "/contrato" && session.legacyRoleId !== 4) {
-      return (
-        <PainelLoginPage
-          redirectTo={redirectTo}
-          initialError={initialError}
-          recaptchaSiteKey={resolvePainelRecaptchaSiteKey(
-            getRecaptchaSiteKey(),
-            requestUrl,
-          )}
-        />
-      );
-    }
-
     redirect(
       redirectTo === "/painel"
         ? getDefaultPainelPath(session.legacyRoleId)

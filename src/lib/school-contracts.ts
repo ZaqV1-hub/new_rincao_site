@@ -74,6 +74,14 @@ type ClientTypeRow = {
   idtipo: number;
 };
 
+type ExistsRow = {
+  exists: boolean | number | string | null;
+};
+
+type NextIdRow = {
+  next_id: number | string | null;
+};
+
 export type SchoolContractOptions = {
   schools: Array<{
     id: number;
@@ -344,6 +352,49 @@ function mapApproval(row: ContractRow): SchoolContractApproval {
   };
 }
 
+let agendaExtrasNeedsManualId: boolean | null = null;
+
+async function hasColumn(
+  client: DbClientLike,
+  tableName: string,
+  columnName: string,
+) {
+  const result = await client.query<ExistsRow>(
+    `
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = $1
+          AND column_name = $2
+      ) AS exists
+    `,
+    [tableName, columnName],
+  );
+
+  return Boolean(result.rows[0]?.exists);
+}
+
+async function agendaExtrasRequireManualId(client: DbClientLike) {
+  if (agendaExtrasNeedsManualId !== null) {
+    return agendaExtrasNeedsManualId;
+  }
+
+  agendaExtrasNeedsManualId = await hasColumn(client, "agenda_extras", "idextra");
+  return agendaExtrasNeedsManualId;
+}
+
+async function getNextAgendaExtraId(client: DbClientLike) {
+  const result = await client.query<NextIdRow>(
+    `
+      SELECT COALESCE(MAX(idextra), 0) + 1 AS next_id
+      FROM agenda_extras
+    `,
+  );
+
+  return Number(result.rows[0]?.next_id ?? 1);
+}
+
 async function ensureContractTables(client: DbClientLike) {
   const isMysql = getIngressoSistemaDbDialect() === "mysql";
 
@@ -519,7 +570,7 @@ async function ensureSchoolRecordForClient(
     } satisfies SchoolRow;
   }
 
-  const created = await client.query<SchoolRow>(
+  const created = await client.query<{ idescola: number }>(
     `
       INSERT INTO escola (
         nmescola,
@@ -528,17 +579,34 @@ async function ensureSchoolRecordForClient(
         hrcadastro
       )
       VALUES ($1, 'ati', CURRENT_DATE, CURRENT_TIME)
-      RETURNING idescola, nmescola, stescola
+      RETURNING idescola
     `,
     [schoolName],
   );
 
-  return {
-    idescola: Number(created.rows[0]?.idescola ?? 0),
-    nmescola: created.rows[0]?.nmescola ?? schoolName,
-    stescola: created.rows[0]?.stescola ?? "ati",
-    idcliente: clientId,
-  } satisfies SchoolRow;
+  const createdSchoolId = Number(created.rows[0]?.idescola ?? 0);
+
+  if (createdSchoolId > 0) {
+    return {
+      ...(await getSchoolById(client, createdSchoolId)),
+      idcliente: clientId,
+    } satisfies SchoolRow;
+  }
+
+  const insertedSchool = await findSchoolByName(client, schoolName);
+
+  if (insertedSchool) {
+    return {
+      ...insertedSchool,
+      idcliente: insertedSchool.idcliente ?? clientId,
+    } satisfies SchoolRow;
+  }
+
+  throw new SchoolContractError(
+    "school_contract_school_create_failed",
+    "Não foi possível criar a escola.",
+    500,
+  );
 }
 
 async function getSchoolFromSelection(client: DbClientLike, schoolSelectionId: number) {
@@ -867,6 +935,29 @@ async function ensureSchoolTripBinding(
     return;
   }
 
+  if (getIngressoSistemaDbDialect() === "mysql") {
+    const nextId = await getNextAgendaExtraId(client);
+
+    await client.query(
+      `
+        INSERT INTO agenda_extras (
+          idagenda,
+          idcliente,
+          aceita_familia,
+          slug,
+          foto,
+          criado_em,
+          atualizado_em,
+          idextra,
+          stagenda_cli
+        )
+        VALUES ($1, $2, false, $3, NULL, NOW(), NOW(), $4, 'abe')
+      `,
+      [input.agendaId, input.clientId, randomUUID().replace(/-/g, ""), nextId],
+    );
+    return;
+  }
+
   await client.query(
     `
       INSERT INTO agenda_extras (
@@ -1077,6 +1168,15 @@ export async function createSchoolContract(
     const school = schoolId
       ? await getSchoolFromSelection(client, schoolId)
       : await createSchool(client, newSchoolName);
+
+    if (Number(school.idescola) <= 0) {
+      throw new SchoolContractError(
+        "school_contract_school_create_failed",
+        "Não foi possível localizar a escola do contrato.",
+        500,
+      );
+    }
+
     const clientId =
       school.idcliente == null
         ? await findClientIdForSchool(client, school.nmescola)

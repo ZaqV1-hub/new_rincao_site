@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { SchoolContractApproval } from "@/lib/school-contracts";
 
@@ -26,6 +27,14 @@ function StatusMessage({ approval }: { approval: SchoolContractApproval }) {
   }
 
   if (approval.status === "confirmed") {
+    const confirmedBy = [approval.confirmerName, approval.confirmerRole]
+      .filter(Boolean)
+      .join(" - ");
+
+    if (confirmedBy) {
+      return `Este passeio já foi confirmado por ${confirmedBy} em ${approval.confirmedAt ?? "data anterior"}.`;
+    }
+
     return `Este passeio já foi confirmado em ${approval.confirmedAt ?? "data anterior"}.`;
   }
 
@@ -39,6 +48,7 @@ function StatusMessage({ approval }: { approval: SchoolContractApproval }) {
 export function SchoolContractApprovalPage({
   approval,
 }: SchoolContractApprovalPageProps) {
+  const router = useRouter();
   const [confirmerName, setConfirmerName] = useState("");
   const [confirmerRole, setConfirmerRole] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -73,6 +83,7 @@ export function SchoolContractApprovalPage({
       }
 
       setSuccessMessage(payload.data?.message || "Passeio agendado com sucesso.");
+      router.refresh();
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -156,6 +167,21 @@ export function SchoolContractApprovalPage({
         {statusMessage ? (
           <section className="mt-5 rounded-[8px] border border-[#fecaca] bg-[#fff1f2] p-5 text-sm font-semibold text-[#991b1b]">
             {statusMessage}
+          </section>
+        ) : null}
+
+        {approval.status === "confirmed" ? (
+          <section className="mt-5 rounded-[8px] border border-[#d9e3eb] bg-white p-5 text-sm text-[#345062] shadow-[0_12px_34px_rgba(31,67,98,0.08)]">
+            <p>
+              <strong>Confirmado por:</strong>{" "}
+              {approval.confirmerName ?? "Não identificado"}
+            </p>
+            <p className="mt-2">
+              <strong>Cargo:</strong> {approval.confirmerRole ?? "-"}
+            </p>
+            <p className="mt-2">
+              <strong>Data:</strong> {approval.confirmedAt ?? "-"}
+            </p>
           </section>
         ) : null}
 

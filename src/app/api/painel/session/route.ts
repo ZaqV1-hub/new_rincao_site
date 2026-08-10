@@ -130,10 +130,10 @@ export async function POST(request: Request) {
 
   const isPanelSeedLogin = cpf === "22181922845";
   const invalidLogin = isContractLogin
-    ? !isEmailLogin
+    ? !isEmailLogin && !isValidCpf(cpf) && !isPanelSeedLogin
     : !isValidCpf(cpf) && !isPanelSeedLogin;
   const invalidMessage = isContractLogin
-    ? "E-mail ou senha invalidos."
+    ? "CPF, e-mail ou senha invalidos."
     : "CPF ou senha invalidos.";
 
   if (invalidLogin || password.length < 1 || password.length > 20) {
@@ -175,25 +175,9 @@ export async function POST(request: Request) {
       return errorResponse(recaptcha.code, recaptcha.message, 400);
     }
 
-    const user = await authenticatePanelUser(isContractLogin ? login : cpf, password);
+    const user = await authenticatePanelUser(isEmailLogin ? login : cpf, password);
 
     if (!user || user.roleId === null) {
-      if (nativeFormSubmit) {
-        return painelLoginRedirectResponse(
-          request.url,
-          redirectTo,
-          "invalid_credentials",
-        );
-      }
-
-      return errorResponse(
-        "invalid_credentials",
-        invalidMessage,
-        401,
-      );
-    }
-
-    if (isContractLogin && user.roleId !== 4) {
       if (nativeFormSubmit) {
         return painelLoginRedirectResponse(
           request.url,

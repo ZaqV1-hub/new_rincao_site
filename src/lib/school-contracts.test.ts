@@ -12,8 +12,10 @@ const { connect, query, release, queueLegacyEmail } = vi.hoisted(() => ({
   queueLegacyEmail: vi.fn(),
 }));
 
+const getIngressoSistemaDbDialect = vi.hoisted(() => vi.fn(() => "postgres"));
+
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoSistemaDbDialect: () => "postgres",
+  getIngressoSistemaDbDialect,
   getIngressoSistemaDbPool: () => ({
     connect,
   }),
@@ -26,6 +28,7 @@ vi.mock("@/lib/legacy-email", () => ({
 describe("school-contracts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getIngressoSistemaDbDialect.mockReturnValue("postgres");
     connect.mockResolvedValue({
       query,
       release,
@@ -39,9 +42,12 @@ describe("school-contracts", () => {
         sql === "BEGIN" ||
         sql === "COMMIT" ||
         sql.includes("CREATE TABLE IF NOT EXISTS") ||
-        sql.includes("CREATE UNIQUE INDEX IF NOT EXISTS") ||
-        sql.includes("UPDATE contrato_escolar_agendamento")
+        sql.includes("CREATE UNIQUE INDEX")
       ) {
+        return { rows: [] };
+      }
+
+      if (sql.includes("UPDATE contrato_escolar_agendamento")) {
         return { rows: [] };
       }
 
@@ -124,7 +130,7 @@ describe("school-contracts", () => {
     query.mockImplementation(async (sql: string) => {
       if (
         sql.includes("CREATE TABLE IF NOT EXISTS") ||
-        sql.includes("CREATE UNIQUE INDEX IF NOT EXISTS")
+        sql.includes("CREATE UNIQUE INDEX")
       ) {
         return { rows: [] };
       }
@@ -175,13 +181,14 @@ describe("school-contracts", () => {
 
   it("confirms a contract and creates the school trip binding", async () => {
     const token = "11111111-1111-4111-8111-111111111111";
+    getIngressoSistemaDbDialect.mockReturnValue("mysql");
 
     query.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (
         sql === "BEGIN" ||
         sql === "COMMIT" ||
         sql.includes("CREATE TABLE IF NOT EXISTS") ||
-        sql.includes("CREATE UNIQUE INDEX IF NOT EXISTS")
+        sql.includes("CREATE UNIQUE INDEX")
       ) {
         return { rows: [] };
       }
@@ -234,13 +241,18 @@ describe("school-contracts", () => {
         return { rows: [] };
       }
 
-      if (sql.includes("FROM agenda_extras")) {
-        return { rows: [] };
+      if (sql.includes("SELECT COALESCE(MAX(idextra), 0) + 1 AS next_id")) {
+        return { rows: [{ next_id: 81 }] };
       }
 
       if (sql.includes("INSERT INTO agenda_extras")) {
         expect(values?.[0]).toBe(77);
         expect(values?.[1]).toBe(44);
+        expect(values?.[3]).toBe(81);
+        return { rows: [] };
+      }
+
+      if (sql.includes("FROM agenda_extras")) {
         return { rows: [] };
       }
 

@@ -272,27 +272,6 @@ export function SchoolContractCreatePage({
             </section>
 
             <section className="grid gap-4 border-t border-[#d9e3eb] pt-5 md:grid-cols-2">
-              {isRepresentativeSession ? (
-                <>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    <span>Representante logado</span>
-                    <input
-                      className="h-11 rounded-[6px] border border-[#c9d8e3] bg-[#f4f8fc] px-3 text-sm"
-                      readOnly
-                      value={representativeName}
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    <span>E-mail do representante</span>
-                    <input
-                      className="h-11 rounded-[6px] border border-[#c9d8e3] bg-[#f4f8fc] px-3 text-sm"
-                      readOnly
-                      value={representativeEmail}
-                    />
-                  </label>
-                </>
-              ) : null}
-
               {!isRepresentativeSession && !shouldShowRepresentativeFields ? (
                 <label className="grid gap-2 text-sm font-semibold">
                   <span>Representante da escola</span>

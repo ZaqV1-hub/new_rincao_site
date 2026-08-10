@@ -130,25 +130,35 @@ export function PainelLoginPage({
   const feedback = getPainelLoginFeedback(activePhase);
   const isBusy = activePhase !== "idle";
   const isContractLogin = redirectTo === "/contrato";
-  const loginLabel = isContractLogin ? "E-mail" : "CPF";
-  const loginPlaceholder = isContractLogin ? "email@exemplo.com" : "000.000.000-00";
+  const loginLabel = isContractLogin ? "CPF ou e-mail" : "CPF";
+  const loginPlaceholder = isContractLogin
+    ? "000.000.000-00 ou email@exemplo.com"
+    : "000.000.000-00";
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const rawLogin = login.trim();
     const normalizedCpf = sanitizeCpf(rawLogin);
-    const normalizedLogin = isContractLogin ? rawLogin : normalizedCpf;
+    const isEmailLogin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawLogin);
+    const normalizedLogin = isContractLogin
+      ? isEmailLogin
+        ? rawLogin
+        : normalizedCpf
+      : normalizedCpf;
 
     const isPanelSeedLogin = normalizedCpf === "22181922845";
-    const isEmailLogin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawLogin);
     if (
       (isContractLogin
-        ? !isEmailLogin
+        ? !isEmailLogin && !isValidCpf(normalizedCpf) && !isPanelSeedLogin
         : !isValidCpf(normalizedCpf) && !isPanelSeedLogin) ||
       password.length < 1 ||
       password.length > 20
     ) {
-      setError(isContractLogin ? "E-mail ou senha invalidos." : "CPF ou senha invalidos.");
+      setError(
+        isContractLogin
+          ? "CPF, e-mail ou senha invalidos."
+          : "CPF ou senha invalidos.",
+      );
       return;
     }
 
@@ -231,14 +241,19 @@ export function PainelLoginPage({
             <label className="flex flex-col gap-2 text-sm font-semibold text-[#35576f]">
               {loginLabel}
               <input
-                type={isContractLogin ? "email" : "text"}
+                type="text"
                 inputMode={isContractLogin ? "email" : "numeric"}
                 autoComplete="username"
                 name="login"
                 value={login}
                 onChange={(event) => {
                   const value = event.target.value;
-                  setLogin(isContractLogin ? value : formatCpf(value));
+                  if (isContractLogin) {
+                    setLogin(value);
+                    return;
+                  }
+
+                  setLogin(formatCpf(value));
                 }}
                 placeholder={loginPlaceholder}
                 disabled={isBusy}

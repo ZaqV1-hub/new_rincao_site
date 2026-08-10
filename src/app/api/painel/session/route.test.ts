@@ -149,7 +149,7 @@ describe("painel/session BFF route", () => {
     expect(body.data.defaultRedirect).toBe("/painel");
   });
 
-  it("rejects non-representative login in the contract flow", async () => {
+  it("allows cpf login in the contract flow for any painel user with role", async () => {
     authenticatePanelUser.mockResolvedValue({
       cpf: "52998224725",
       cpfMasked: "529.***.***-25",
@@ -162,13 +162,24 @@ describe("painel/session BFF route", () => {
       operationsRole: "operator",
       permissions: ["ops.read", "ops.vouchers"],
     });
+    createPanelSessionToken.mockReturnValue("panel-session");
+    verifyOperationsSessionToken.mockReturnValue({
+      actorName: "Operador Teste",
+      actorCpf: "52998224725",
+      role: "operator",
+      permissions: ["ops.read", "ops.vouchers"],
+      authSource: "panel",
+      legacyRoleId: 2,
+      legacyRoleName: "Funcionario",
+      legacyResources: ["vis_bilhet", "vis_compra"],
+    });
 
     const { POST } = await import("@/app/api/painel/session/route");
     const response = await POST(
       new Request("https://example.com/api/painel/session", {
         method: "POST",
         body: JSON.stringify({
-          login: "operador@example.com",
+          login: "529.982.247-25",
           senha: "senha",
           redirect: "/contrato",
         }),
@@ -176,13 +187,14 @@ describe("painel/session BFF route", () => {
     );
     const body = await response.json();
 
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(200);
+    expect(authenticatePanelUser).toHaveBeenCalledWith("52998224725", "senha");
     expect(body).toEqual({
-      ok: false,
-      error: {
-        code: "invalid_credentials",
-        message: "E-mail ou senha invalidos.",
-      },
+      ok: true,
+      data: expect.objectContaining({
+        actorName: "Operador Teste",
+        actorCpf: "52998224725",
+      }),
     });
   });
 
@@ -305,13 +317,15 @@ describe("painel/session BFF route", () => {
     });
   });
 
-  it("rejects cpf login in the contract flow", async () => {
+  it("rejects malformed login in the contract flow", async () => {
+    isValidCpf.mockReturnValue(false);
+
     const { POST } = await import("@/app/api/painel/session/route");
     const response = await POST(
       new Request("https://example.com/api/painel/session", {
         method: "POST",
         body: JSON.stringify({
-          login: "52998224725",
+          login: "sem-formato",
           senha: "senha",
           redirect: "/contrato",
         }),
@@ -325,7 +339,7 @@ describe("painel/session BFF route", () => {
       ok: false,
       error: {
         code: "invalid_credentials",
-        message: "E-mail ou senha invalidos.",
+        message: "CPF, e-mail ou senha invalidos.",
       },
     });
   });
