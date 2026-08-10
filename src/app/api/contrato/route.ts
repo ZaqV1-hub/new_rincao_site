@@ -4,6 +4,7 @@ import {
 } from "@/lib/school-contracts";
 import { readJsonPayload, runOpsRoute } from "@/lib/ops-route-utils";
 import { requirePainelApiAccess } from "@/lib/painel-api-auth";
+import { getActivePublicUserByCpf } from "@/lib/user-repository";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,10 @@ export async function POST(request: Request) {
   }
 
   const payload = await readJsonPayload<ContractPayload>(request);
+  const actorUser = access.session.actorCpf
+    ? await getActivePublicUserByCpf(access.session.actorCpf)
+    : null;
+  const isRepresentativeSession = access.session.legacyRoleId === 4;
 
   return runOpsRoute(
     () =>
@@ -48,8 +53,12 @@ export async function POST(request: Request) {
         newSchoolName: payload?.newSchoolName,
         visitDate: payload?.visitDate,
         representativeId: payload?.representativeId,
-        representativeName: payload?.representativeName,
-        representativeEmail: payload?.representativeEmail,
+        representativeName: isRepresentativeSession
+          ? actorUser?.name ?? access.session.actorName
+          : payload?.representativeName,
+        representativeEmail: isRepresentativeSession
+          ? actorUser?.email ?? ""
+          : payload?.representativeEmail,
         observation: payload?.observation,
         responsibleName: payload?.responsibleName,
         responsiblePhone: payload?.responsiblePhone,

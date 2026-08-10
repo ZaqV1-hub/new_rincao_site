@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { SchoolContractCreatePage } from "@/components/school-contract-create-page";
 import { getSchoolContractOptions } from "@/lib/school-contracts";
 import { requirePainelAccess } from "@/lib/painel-session";
+import { getActivePublicUserByCpf } from "@/lib/user-repository";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,19 @@ export const metadata: Metadata = {
 };
 
 export default async function ContratoPage() {
-  await requirePainelAccess("vis_contra", "/contrato");
+  const session = await requirePainelAccess("vis_contra", "/contrato");
   const options = await getSchoolContractOptions();
+  const actor =
+    session.actorCpf ? await getActivePublicUserByCpf(session.actorCpf) : null;
 
-  return <SchoolContractCreatePage options={options} />;
+  return (
+    <SchoolContractCreatePage
+      actor={{
+        name: actor?.name ?? session.actorName ?? "",
+        email: actor?.email ?? "",
+        roleId: session.legacyRoleId ?? null,
+      }}
+      options={options}
+    />
+  );
 }

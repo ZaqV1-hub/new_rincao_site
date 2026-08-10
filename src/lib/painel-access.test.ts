@@ -14,7 +14,7 @@ describe("painel-access", () => {
     expect(getDefaultPainelPath(3)).toBe("/painel/bilheteria");
   });
 
-  it("routes representative sessions to contract creation by default", () => {
-    expect(getDefaultPainelPath(4)).toBe("/contrato");
+  it("keeps representative sessions on the painel root by default", () => {
+    expect(getDefaultPainelPath(4)).toBe("/painel");
   });
 });

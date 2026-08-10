@@ -75,6 +75,12 @@ export type SchoolContractOptions = {
   }>;
 };
 
+export type SchoolContractActor = {
+  name: string;
+  email: string;
+  roleId: number | null;
+};
+
 export type CreateSchoolContractInput = {
   schoolId?: unknown;
   newSchoolName?: unknown;
@@ -846,7 +852,7 @@ export async function getSchoolContractOptions(): Promise<SchoolContractOptions>
            AND clientes.idtipo = 4
           WHERE lower(COALESCE(escola.stescola, 'ati')) <> 'ina'
           ORDER BY escola.nmescola ASC
-          LIMIT 500
+          LIMIT 5000
         `,
       ),
       client.query<RepresentativeRow>(

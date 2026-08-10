@@ -136,10 +136,6 @@ export function getDefaultPainelPath(roleId: LegacyPanelRoleId | null | undefine
     return "/painel/bilheteria";
   }
 
-  if (roleId === 4) {
-    return "/contrato";
-  }
-
   return "/painel";
 }
 
