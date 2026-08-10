@@ -33,7 +33,7 @@ function getBaseUrlFromRequest(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const access = await requirePainelApiAccess(request, ["vis_clientes", "vis_escola"]);
+  const access = await requirePainelApiAccess(request, "vis_contrato");
 
   if (!access.ok) {
     return access.response;

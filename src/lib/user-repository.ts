@@ -225,17 +225,20 @@ export async function authenticatePublicUser(cpf: string, password: string) {
   return user;
 }
 
-export async function authenticatePanelUser(cpf: string, password: string) {
+export async function authenticatePanelUser(login: string, password: string) {
   const pool = getIngressoSistemaDbPool();
+  const normalizedLogin = login.trim();
+  const normalizedCpf = sanitizeCpf(normalizedLogin);
+  const isEmailLogin = normalizedLogin.includes("@");
   const result = await pool.query<UserRow>(
     `
       SELECT cpf, nmusuario, email, stusuario, idpapel
       FROM usuario
-      WHERE cpf = $1
+      WHERE ${isEmailLogin ? "LOWER(email) = LOWER($1)" : "cpf = $1"}
         AND senha = $2
       LIMIT 1
     `,
-    [sanitizeCpf(cpf), legacyPasswordHash(password)],
+    [isEmailLogin ? normalizedLogin : normalizedCpf, legacyPasswordHash(password)],
   );
   const row = result.rows[0];
 

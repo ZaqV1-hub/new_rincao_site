@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  createPainelUsuario,
   listPainelUsuarios,
   PainelUsuariosError,
   togglePainelUsuarioStatus,
 } from "@/lib/painel-usuarios";
 import {
+  createOpsAdminMasterData,
   listOpsAdminMasterData,
   updateOpsAdminMasterData,
 } from "@/lib/ops-admin-master-data";
@@ -53,6 +55,37 @@ describe("painel-usuarios", () => {
       cpf: "12345678901",
       status: "ati",
       statusLabel: "Ativo",
+    });
+  });
+
+  it("aceita criar usuario representante", async () => {
+    vi.mocked(createOpsAdminMasterData).mockResolvedValue({
+      action: "create",
+      auditLogId: null,
+      id: "00000000004",
+      item: null,
+      message: "Cadastro criado com sucesso.",
+      resource: "internal-users",
+    });
+
+    await createPainelUsuario({
+      cpf: "000.000.000-04",
+      senha: "5979249495",
+      csenha: "5979249495",
+      nmusuario: "Isaque Viana",
+      email: "isaque@cluberincao.com.br",
+      idpapel: "4",
+    });
+
+    expect(createOpsAdminMasterData).toHaveBeenCalledWith("internal-users", {
+      values: {
+        cpf: "00000000004",
+        password: "5979249495",
+        name: "Isaque Viana",
+        email: "isaque@cluberincao.com.br",
+        roleId: 4,
+        status: "ati",
+      },
     });
   });
 

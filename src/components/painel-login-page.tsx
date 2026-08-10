@@ -122,7 +122,7 @@ export function PainelLoginPage({
 }: PainelLoginPageProps) {
   const router = useRouter();
   const [isNavigating, startTransition] = useTransition();
-  const [cpf, setCpf] = useState("");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(initialError);
   const [phase, setPhase] = useState<PainelLoginPhase>("idle");
@@ -132,11 +132,18 @@ export function PainelLoginPage({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedCpf = sanitizeCpf(cpf);
+    const rawLogin = login.trim();
+    const normalizedCpf = sanitizeCpf(rawLogin);
+    const normalizedLogin = rawLogin.includes("@") ? rawLogin : normalizedCpf;
 
     const isPanelSeedLogin = normalizedCpf === "22181922845";
-    if ((!isValidCpf(normalizedCpf) && !isPanelSeedLogin) || password.length < 1 || password.length > 20) {
-      setError("CPF ou senha invalidos.");
+    const isEmailLogin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawLogin);
+    if (
+      (!isEmailLogin && !isValidCpf(normalizedCpf) && !isPanelSeedLogin) ||
+      password.length < 1 ||
+      password.length > 20
+    ) {
+      setError("CPF, e-mail ou senha invalidos.");
       return;
     }
 
@@ -155,7 +162,7 @@ export function PainelLoginPage({
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          login: normalizedCpf,
+          login: normalizedLogin,
           senha: password,
           recaptchaToken,
         }),
@@ -216,15 +223,18 @@ export function PainelLoginPage({
             aria-busy={isBusy}
           >
             <label className="flex flex-col gap-2 text-sm font-semibold text-[#35576f]">
-              CPF
+              CPF ou e-mail
               <input
                 type="text"
-                inputMode="numeric"
+                inputMode="email"
                 autoComplete="username"
                 name="login"
-                value={cpf}
-                onChange={(event) => setCpf(formatCpf(event.target.value))}
-                placeholder="000.000.000-00"
+                value={login}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setLogin(value.includes("@") ? value : formatCpf(value));
+                }}
+                placeholder="CPF ou e-mail"
                 disabled={isBusy}
                 className="rincao-field"
               />

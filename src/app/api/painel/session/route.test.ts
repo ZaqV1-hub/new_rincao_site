@@ -100,6 +100,54 @@ describe("painel/session BFF route", () => {
     });
   });
 
+  it("creates a painel session cookie from email and senha", async () => {
+    authenticatePanelUser.mockResolvedValue({
+      cpf: "00000000004",
+      cpfMasked: "000.***.***-04",
+      name: "Isaque Viana",
+      email: "isaque@cluberincao.com.br",
+      status: "ati",
+      roleId: 4,
+      roleName: "Representante",
+      legacyResources: ["vis_contrato"],
+      operationsRole: "operator",
+      permissions: ["ops.read"],
+    });
+    createPanelSessionToken.mockReturnValue("panel-session");
+    verifyOperationsSessionToken.mockReturnValue({
+      actorName: "Isaque Viana",
+      actorCpf: "00000000004",
+      role: "operator",
+      permissions: ["ops.read"],
+      authSource: "panel",
+      legacyRoleId: 4,
+      legacyRoleName: "Representante",
+      legacyResources: ["vis_contrato"],
+    });
+
+    const { POST } = await import("@/app/api/painel/session/route");
+    const response = await POST(
+      new Request("https://example.com/api/painel/session", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          login: "isaque@cluberincao.com.br",
+          senha: "5979249495",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(authenticatePanelUser).toHaveBeenCalledWith(
+      "isaque@cluberincao.com.br",
+      "5979249495",
+    );
+    expect(body.data.defaultRedirect).toBe("/contrato");
+  });
+
   it("redirects native form submissions back to login with explicit invalid credentials", async () => {
     isValidCpf.mockReturnValue(false);
 
@@ -190,7 +238,7 @@ describe("painel/session BFF route", () => {
       ok: false,
       error: {
         code: "invalid_credentials",
-        message: "CPF ou senha invalidos.",
+        message: "CPF, e-mail ou senha invalidos.",
       },
     });
   });
@@ -256,7 +304,7 @@ describe("painel/session BFF route", () => {
       ok: false,
       error: {
         code: "invalid_credentials",
-        message: "CPF ou senha invalidos.",
+        message: "CPF, e-mail ou senha invalidos.",
       },
     });
   });

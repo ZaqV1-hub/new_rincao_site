@@ -1,5 +1,8 @@
 import type { PoolClient } from "pg";
-import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
+import {
+  getIngressoSistemaDbDialect,
+  getIngressoSistemaDbPool,
+} from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { hashPasswordForLegacyUser } from "@/lib/password-hashing";
 
@@ -56,6 +59,7 @@ const INTERNAL_USER_ROLE_CATALOG = [
   { id: 1, name: "Gerente" },
   { id: 2, name: "Funcionario" },
   { id: 3, name: "Bilheteria" },
+  { id: 4, name: "Representante" },
 ] as const;
 
 export type OpsAdminMasterDataIdentifier = number | string;
@@ -267,7 +271,7 @@ const resourceConfigs: Record<OpsAdminMasterDataResource, AdminResourceConfig> =
         column: "idpapel",
         type: "integer",
         required: true,
-        allowedIntegers: [1, 2, 3],
+        allowedIntegers: [1, 2, 3, 4],
       },
       { name: "status", column: "stusuario", type: "status", allowed: ["ati", "ina"] },
     ],
@@ -834,27 +838,34 @@ async function createInternalUser(
 
   const columns = Object.keys(payload);
   const params = columns.map((_, index) => `$${index + 1}`).join(", ");
-  const result = await client.query<{ id: string }>(
+  await client.query(
     `
       INSERT INTO usuario (${columns.join(", ")})
       VALUES (${params})
-      RETURNING cpf AS id
     `,
     columns.map((column) => payload[column]),
   );
 
-  return result.rows[0]?.id ?? null;
+  return cpf;
 }
 
 async function ensureInternalUserRoles(client: PoolClient) {
+  const dialect = getIngressoSistemaDbDialect();
+
   for (const role of INTERNAL_USER_ROLE_CATALOG) {
     await client.query(
-      `
-        INSERT INTO papel (idpapel, nmpapel)
-        VALUES ($1, $2)
-        ON CONFLICT (idpapel)
-        DO UPDATE SET nmpapel = EXCLUDED.nmpapel
-      `,
+      dialect === "mysql"
+        ? `
+          INSERT INTO papel (idpapel, nmpapel)
+          VALUES ($1, $2)
+          ON DUPLICATE KEY UPDATE nmpapel = VALUES(nmpapel)
+        `
+        : `
+          INSERT INTO papel (idpapel, nmpapel)
+          VALUES ($1, $2)
+          ON CONFLICT (idpapel)
+          DO UPDATE SET nmpapel = EXCLUDED.nmpapel
+        `,
       [role.id, role.name],
     );
   }
@@ -890,6 +901,7 @@ export async function createOpsAdminMasterData(
   const values = input.values ?? {};
   const payload = normalizePayload(config, values, "create");
   const pool = getIngressoSistemaDbPool();
+  const dialect = getIngressoSistemaDbDialect();
   const client = await pool.connect();
 
   try {
@@ -922,18 +934,22 @@ export async function createOpsAdminMasterData(
     }
 
     const item = await getItem(client, config, id);
-    const auditLogId = await registerOpsAuditLog(client, {
-      origem: "ops-admin",
-      acao: "master_create",
-      descricao: `${config.label} #${id} criado no BFF.`,
-      motivo: normalizeText(input.reason) || `Cadastro de ${config.label} no BFF`,
-      usuarioNome: normalizeActorName(input.actor),
-      detalhes: {
-        resource: config.resource,
-        id,
-        after: item,
+    const auditLogId = await registerOpsAuditLog(
+      client,
+      {
+        origem: "ops-admin",
+        acao: "master_create",
+        descricao: `${config.label} #${id} criado no BFF.`,
+        motivo: normalizeText(input.reason) || `Cadastro de ${config.label} no BFF`,
+        usuarioNome: normalizeActorName(input.actor),
+        detalhes: {
+          resource: config.resource,
+          id,
+          after: item,
+        },
       },
-    }, "postgres");
+      dialect,
+    );
 
     await client.query("COMMIT");
 
@@ -966,6 +982,7 @@ export async function updateOpsAdminMasterData(
     .map((column, index) => `${column} = $${index + 2}`)
     .join(", ");
   const pool = getIngressoSistemaDbPool();
+  const dialect = getIngressoSistemaDbDialect();
   const client = await pool.connect();
 
   try {
@@ -990,22 +1007,26 @@ export async function updateOpsAdminMasterData(
       payload[config.primaryKey] ?? id;
 
     const item = await getItem(client, config, currentId);
-    const auditLogId = await registerOpsAuditLog(client, {
-      origem: "ops-admin",
-      acao: "master_update",
-      descricao:
-        currentId === id
-          ? `${config.label} #${id} alterado no BFF.`
-          : `${config.label} #${id} alterado para #${currentId} no BFF.`,
-      motivo: normalizeText(input.reason) || `Edicao de ${config.label} no BFF`,
-      usuarioNome: normalizeActorName(input.actor),
-      detalhes: {
-        resource: config.resource,
-        id: currentId,
-        previousId: currentId === id ? null : id,
-        after: item,
+    const auditLogId = await registerOpsAuditLog(
+      client,
+      {
+        origem: "ops-admin",
+        acao: "master_update",
+        descricao:
+          currentId === id
+            ? `${config.label} #${id} alterado no BFF.`
+            : `${config.label} #${id} alterado para #${currentId} no BFF.`,
+        motivo: normalizeText(input.reason) || `Edicao de ${config.label} no BFF`,
+        usuarioNome: normalizeActorName(input.actor),
+        detalhes: {
+          resource: config.resource,
+          id: currentId,
+          previousId: currentId === id ? null : id,
+          after: item,
+        },
       },
-    }, "postgres");
+      dialect,
+    );
 
     await client.query("COMMIT");
 
@@ -1033,6 +1054,7 @@ export async function deleteOpsAdminMasterData(
   assertActionSupported(config, "delete");
   const id = assertIdentifier(config, input.id);
   const pool = getIngressoSistemaDbPool();
+  const dialect = getIngressoSistemaDbDialect();
   const client = await pool.connect();
 
   try {
@@ -1049,18 +1071,22 @@ export async function deleteOpsAdminMasterData(
       [id],
     );
 
-    const auditLogId = await registerOpsAuditLog(client, {
-      origem: "ops-admin",
-      acao: "master_delete",
-      descricao: `${config.label} #${id} excluido no BFF.`,
-      motivo: normalizeText(input.reason) || `Exclusao de ${config.label} no BFF`,
-      usuarioNome: normalizeActorName(input.actor),
-      detalhes: {
-        resource: config.resource,
-        id,
-        before,
+    const auditLogId = await registerOpsAuditLog(
+      client,
+      {
+        origem: "ops-admin",
+        acao: "master_delete",
+        descricao: `${config.label} #${id} excluido no BFF.`,
+        motivo: normalizeText(input.reason) || `Exclusao de ${config.label} no BFF`,
+        usuarioNome: normalizeActorName(input.actor),
+        detalhes: {
+          resource: config.resource,
+          id,
+          before,
+        },
       },
-    }, "postgres");
+      dialect,
+    );
 
     await client.query("COMMIT");
 

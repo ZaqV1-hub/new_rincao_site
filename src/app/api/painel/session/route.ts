@@ -12,9 +12,9 @@ import {
 import { verifyRecaptchaToken } from "@/lib/recaptcha";
 import {
   authenticatePanelUser,
-  isValidCpf,
   sanitizeCpf,
 } from "@/lib/user-repository";
+import { isValidCpf } from "@/lib/cpf";
 import { getDefaultPainelPath } from "@/lib/painel-access";
 
 export const runtime = "nodejs";
@@ -109,13 +109,15 @@ export async function POST(request: Request) {
   const redirectTo = sanitizePainelRedirect(
     typeof payload?.redirect === "string" ? payload.redirect : undefined,
   );
-  const rawCpf =
+  const rawLogin =
     typeof payload?.cpf === "string"
       ? payload.cpf
       : typeof payload?.login === "string"
         ? payload.login
         : "";
-  const cpf = sanitizeCpf(rawCpf);
+  const login = rawLogin.trim();
+  const cpf = sanitizeCpf(login);
+  const isEmailLogin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(login);
   const password =
     typeof payload?.senha === "string"
       ? payload.senha
@@ -125,7 +127,7 @@ export async function POST(request: Request) {
   const recaptchaToken =
     typeof payload?.recaptchaToken === "string" ? payload.recaptchaToken : "";
 
-  if (!isValidCpf(cpf) || password.length < 1 || password.length > 20) {
+  if ((!isEmailLogin && !isValidCpf(cpf)) || password.length < 1 || password.length > 20) {
     if (nativeFormSubmit) {
       return painelLoginRedirectResponse(
         request.url,
@@ -136,7 +138,7 @@ export async function POST(request: Request) {
 
     return errorResponse(
       "invalid_credentials",
-      "CPF ou senha invalidos.",
+      "CPF, e-mail ou senha invalidos.",
       401,
     );
   }
@@ -164,7 +166,7 @@ export async function POST(request: Request) {
       return errorResponse(recaptcha.code, recaptcha.message, 400);
     }
 
-    const user = await authenticatePanelUser(cpf, password);
+    const user = await authenticatePanelUser(isEmailLogin ? login : cpf, password);
 
     if (!user || user.roleId === null) {
       if (nativeFormSubmit) {
@@ -177,7 +179,7 @@ export async function POST(request: Request) {
 
       return errorResponse(
         "invalid_credentials",
-        "CPF ou senha invalidos.",
+        "CPF, e-mail ou senha invalidos.",
         401,
       );
     }

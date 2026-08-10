@@ -100,6 +100,10 @@ function mapRoleLabel(idpapel: number | null) {
     return "Bilheteria";
   }
 
+  if (idpapel === 4) {
+    return "Representante";
+  }
+
   return "-";
 }
 
@@ -253,7 +257,7 @@ export async function createPainelUsuario(values: PainelUsuarioFormValues) {
     throw new PainelUsuariosError("invalid_user_name", "Informe o nome do usuario.", 400);
   }
 
-  if (!Number.isInteger(idpapel) || ![1, 2, 3].includes(idpapel)) {
+  if (!Number.isInteger(idpapel) || ![1, 2, 3, 4].includes(idpapel)) {
     throw new PainelUsuariosError("invalid_user_role", "Informe um papel valido.", 400);
   }
 
@@ -285,7 +289,7 @@ export async function updatePainelUsuario(cpf: unknown, values: PainelUsuarioFor
     throw new PainelUsuariosError("invalid_user_name", "Informe o nome do usuario.", 400);
   }
 
-  if (!Number.isInteger(idpapel) || ![1, 2, 3].includes(idpapel)) {
+  if (!Number.isInteger(idpapel) || ![1, 2, 3, 4].includes(idpapel)) {
     throw new PainelUsuariosError("invalid_user_role", "Informe um papel valido.", 400);
   }
 

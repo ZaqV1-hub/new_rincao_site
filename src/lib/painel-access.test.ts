@@ -13,4 +13,8 @@ describe("painel-access", () => {
   it("routes box office sessions to bilheteria by default", () => {
     expect(getDefaultPainelPath(3)).toBe("/painel/bilheteria");
   });
+
+  it("routes representative sessions to contract creation by default", () => {
+    expect(getDefaultPainelPath(4)).toBe("/contrato");
+  });
 });

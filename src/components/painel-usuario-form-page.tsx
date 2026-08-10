@@ -17,6 +17,7 @@ const roleOptions = [
   { value: "1", label: "Gerente" },
   { value: "3", label: "Bilheteria" },
   { value: "2", label: "Funcionario" },
+  { value: "4", label: "Representante" },
 ];
 
 export function PainelUsuarioFormPage({

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ContratoPage() {
-  await requirePainelAccess(["vis_clientes", "vis_escola"], "/contrato");
+  await requirePainelAccess("vis_contrato", "/contrato");
   const options = await getSchoolContractOptions();
 
   return <SchoolContractCreatePage options={options} />;

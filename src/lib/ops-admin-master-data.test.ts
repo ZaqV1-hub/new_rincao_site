@@ -13,7 +13,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbDialect: () => "postgres",
+  getIngressoSistemaDbPool: () => ({
     query: mocks.query,
     connect: async () => ({
       query: mocks.clientQuery,
@@ -65,7 +66,7 @@ describe("ops-admin-master-data", () => {
           expect.objectContaining({
             name: "roleId",
             type: "integer",
-            allowedIntegers: [1, 2, 3],
+            allowedIntegers: [1, 2, 3, 4],
           }),
         ]),
       }),
@@ -172,6 +173,7 @@ describe("ops-admin-master-data", () => {
         acao: "master_create",
         usuarioNome: "Admin",
       }),
+      "postgres",
     );
     expect(mocks.release).toHaveBeenCalled();
   });
