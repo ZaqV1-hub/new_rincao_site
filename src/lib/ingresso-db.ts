@@ -359,7 +359,7 @@ function buildMysqlPreparedQuery(
     "DATE_SUB(CURRENT_DATE, INTERVAL $$__date_sub__$1 DAY)",
   );
   sql = sql.replace(
-    /::(?:text|date|time|timestamp(?:tz)?|timestamptz|int(?:eger)?|numeric|decimal|bpchar|varchar\[\]|varchar|char\[\]|char|boolean|smallint|bigint)(?:\[\])?/gi,
+    /::(?:text|date|time|timestamp(?:tz)?|timestamptz|int(?:eger)?|numeric|decimal|bpchar|varchar\[\]|varchar|char\([0-9]+\)|char\[\]|char|boolean|smallint|bigint)(?:\[\])?/gi,
     "",
   );
 
