@@ -146,7 +146,44 @@ describe("painel/session BFF route", () => {
       "isaque@cluberincao.com.br",
       "5979249495",
     );
-    expect(body.data.defaultRedirect).toBe("/contrato");
+    expect(body.data.defaultRedirect).toBe("/painel");
+  });
+
+  it("rejects non-representative login in the contract flow", async () => {
+    authenticatePanelUser.mockResolvedValue({
+      cpf: "52998224725",
+      cpfMasked: "529.***.***-25",
+      name: "Operador Teste",
+      email: "operador@example.com",
+      status: "ati",
+      roleId: 2,
+      roleName: "Funcionario",
+      legacyResources: ["vis_bilhet", "vis_compra"],
+      operationsRole: "operator",
+      permissions: ["ops.read", "ops.vouchers"],
+    });
+
+    const { POST } = await import("@/app/api/painel/session/route");
+    const response = await POST(
+      new Request("https://example.com/api/painel/session", {
+        method: "POST",
+        body: JSON.stringify({
+          login: "operador@example.com",
+          senha: "senha",
+          redirect: "/contrato",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body).toEqual({
+      ok: false,
+      error: {
+        code: "invalid_credentials",
+        message: "E-mail ou senha invalidos.",
+      },
+    });
   });
 
   it("redirects native form submissions back to login with explicit invalid credentials", async () => {

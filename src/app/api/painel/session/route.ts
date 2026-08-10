@@ -193,6 +193,22 @@ export async function POST(request: Request) {
       );
     }
 
+    if (isContractLogin && user.roleId !== 4) {
+      if (nativeFormSubmit) {
+        return painelLoginRedirectResponse(
+          request.url,
+          redirectTo,
+          "invalid_credentials",
+        );
+      }
+
+      return errorResponse(
+        "invalid_credentials",
+        invalidMessage,
+        401,
+      );
+    }
+
     if (user.status !== "ati") {
       if (nativeFormSubmit) {
         return painelLoginRedirectResponse(

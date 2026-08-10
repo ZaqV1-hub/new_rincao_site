@@ -45,15 +45,23 @@ describe("school-contracts", () => {
         return { rows: [] };
       }
 
-      if (sql.includes("FROM escola") && sql.includes("WHERE escola.idescola = $1")) {
-        expect(values).toEqual([12]);
+      if (sql.includes("FROM cliente_tipos")) {
+        return {
+          rows: [{ idtipo: 1 }],
+        };
+      }
+
+      if (sql.includes("FROM clientes") && sql.includes("WHERE clientes.idcliente = $1")) {
+        expect(values).toEqual([12, 1]);
         return {
           rows: [
             {
+              idcliente: 12,
+              nome: "Escola Rincao",
+              status: true,
               idescola: 12,
               nmescola: "Escola Rincao",
               stescola: "ati",
-              idcliente: 44,
             },
           ],
         };
@@ -61,7 +69,7 @@ describe("school-contracts", () => {
 
       if (sql.includes("INSERT INTO contrato_escolar_agendamento")) {
         expect(values?.[0]).toBe(12);
-        expect(values?.[1]).toBe(44);
+        expect(values?.[1]).toBe(12);
         expect(values?.[2]).toBe("2026-09-10");
         expect(values?.[3]).toBe(5);
         expect(values?.[4]).toBe("Maria Escola");

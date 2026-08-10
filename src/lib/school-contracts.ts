@@ -22,6 +22,15 @@ type SchoolRow = {
   idcliente: number | null;
 };
 
+type ClientSchoolRow = {
+  idcliente: number;
+  nome: string;
+  status: boolean | number | string | null;
+  idescola: number | null;
+  nmescola: string | null;
+  stescola: string | null;
+};
+
 type RepresentativeRow = {
   idrepresentante: number;
   escola_id: number;
@@ -59,6 +68,10 @@ type ContractRow = {
 
 type AgendaRow = {
   idagenda: number;
+};
+
+type ClientTypeRow = {
+  idtipo: number;
 };
 
 export type SchoolContractOptions = {
@@ -242,6 +255,28 @@ function getBaseUrl(inputUrl?: string | null) {
   return raw.replace(/\/+$/, "");
 }
 
+async function getSchoolClientTypeId(client: DbClientLike) {
+  const result = await client.query<ClientTypeRow>(
+    `
+      SELECT idtipo
+      FROM cliente_tipos
+      WHERE lower(btrim(nome)) = 'escola'
+      LIMIT 1
+    `,
+  );
+  const schoolTypeId = Number(result.rows[0]?.idtipo ?? 0);
+
+  if (!schoolTypeId) {
+    throw new SchoolContractError(
+      "school_contract_client_type_not_found",
+      "Tipo de cliente Escola não encontrado.",
+      500,
+    );
+  }
+
+  return schoolTypeId;
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -260,6 +295,14 @@ function mapSchool(row: SchoolRow) {
     id: Number(row.idescola),
     name: row.nmescola,
     clientId: row.idcliente == null ? null : Number(row.idcliente),
+  };
+}
+
+function mapClientSchool(row: ClientSchoolRow) {
+  return {
+    id: Number(row.idcliente),
+    name: row.nome,
+    clientId: Number(row.idcliente),
   };
 }
 
@@ -410,6 +453,7 @@ async function ensureContractTables(client: DbClientLike) {
 }
 
 async function getSchoolById(client: DbClientLike, schoolId: number) {
+  const schoolTypeId = await getSchoolClientTypeId(client);
   const result = await client.query<SchoolRow>(
     `
       SELECT
@@ -420,11 +464,11 @@ async function getSchoolById(client: DbClientLike, schoolId: number) {
       FROM escola
       LEFT JOIN clientes
         ON lower(btrim(clientes.nome)) = lower(btrim(escola.nmescola::text))
-       AND clientes.idtipo = 4
+       AND clientes.idtipo = $2
       WHERE escola.idescola = $1
       LIMIT 1
     `,
-    [schoolId],
+    [schoolId, schoolTypeId],
   );
   const row = result.rows[0] ?? null;
 
@@ -439,23 +483,43 @@ async function getSchoolById(client: DbClientLike, schoolId: number) {
   return row;
 }
 
-async function findClientIdForSchool(client: DbClientLike, schoolName: string) {
-  const result = await client.query<{ idcliente: number }>(
+async function findSchoolByName(client: DbClientLike, schoolName: string) {
+  const schoolTypeId = await getSchoolClientTypeId(client);
+  const result = await client.query<SchoolRow>(
     `
-      SELECT idcliente
-      FROM clientes
-      WHERE idtipo = 4
-        AND lower(btrim(nome)) = lower(btrim($1))
+      SELECT
+        escola.idescola,
+        escola.nmescola,
+        escola.stescola,
+        clientes.idcliente
+      FROM escola
+      LEFT JOIN clientes
+        ON lower(btrim(clientes.nome)) = lower(btrim(escola.nmescola::text))
+       AND clientes.idtipo = $2
+      WHERE lower(btrim(escola.nmescola::text)) = lower(btrim($1))
       LIMIT 1
     `,
-    [schoolName],
+    [schoolName, schoolTypeId],
   );
 
-  return result.rows[0]?.idcliente ? Number(result.rows[0].idcliente) : null;
+  return result.rows[0] ?? null;
 }
 
-async function createSchool(client: DbClientLike, schoolName: string) {
-  const result = await client.query<SchoolRow>(
+async function ensureSchoolRecordForClient(
+  client: DbClientLike,
+  clientId: number,
+  schoolName: string,
+) {
+  const existingSchool = await findSchoolByName(client, schoolName);
+
+  if (existingSchool) {
+    return {
+      ...existingSchool,
+      idcliente: existingSchool.idcliente ?? clientId,
+    } satisfies SchoolRow;
+  }
+
+  const created = await client.query<SchoolRow>(
     `
       INSERT INTO escola (
         nmescola,
@@ -464,12 +528,79 @@ async function createSchool(client: DbClientLike, schoolName: string) {
         hrcadastro
       )
       VALUES ($1, 'ati', CURRENT_DATE, CURRENT_TIME)
-      RETURNING idescola
+      RETURNING idescola, nmescola, stescola
     `,
     [schoolName],
   );
-  const schoolId = Number(result.rows[0]?.idescola ?? 0);
 
+  return {
+    idescola: Number(created.rows[0]?.idescola ?? 0),
+    nmescola: created.rows[0]?.nmescola ?? schoolName,
+    stescola: created.rows[0]?.stescola ?? "ati",
+    idcliente: clientId,
+  } satisfies SchoolRow;
+}
+
+async function getSchoolFromSelection(client: DbClientLike, schoolSelectionId: number) {
+  const schoolTypeId = await getSchoolClientTypeId(client);
+  const clientResult = await client.query<ClientSchoolRow>(
+    `
+      SELECT
+        clientes.idcliente,
+        clientes.nome,
+        clientes.status,
+        escola.idescola,
+        escola.nmescola,
+        escola.stescola
+      FROM clientes
+      LEFT JOIN escola
+        ON lower(btrim(escola.nmescola::text)) = lower(btrim(clientes.nome))
+      WHERE clientes.idcliente = $1
+        AND clientes.idtipo = $2
+      LIMIT 1
+    `,
+    [schoolSelectionId, schoolTypeId],
+  );
+  const clientRow = clientResult.rows[0] ?? null;
+
+  if (clientRow) {
+    if (clientRow.idescola) {
+      return {
+        idescola: Number(clientRow.idescola),
+        nmescola: clientRow.nmescola ?? clientRow.nome,
+        stescola: clientRow.stescola ?? "ati",
+        idcliente: Number(clientRow.idcliente),
+      } satisfies SchoolRow;
+    }
+
+    return ensureSchoolRecordForClient(
+      client,
+      Number(clientRow.idcliente),
+      clientRow.nome,
+    );
+  }
+
+  return getSchoolById(client, schoolSelectionId);
+}
+
+async function findClientIdForSchool(client: DbClientLike, schoolName: string) {
+  const schoolTypeId = await getSchoolClientTypeId(client);
+  const result = await client.query<{ idcliente: number }>(
+    `
+      SELECT idcliente
+      FROM clientes
+      WHERE idtipo = $2
+        AND lower(btrim(nome)) = lower(btrim($1))
+      LIMIT 1
+    `,
+    [schoolName, schoolTypeId],
+  );
+
+  return result.rows[0]?.idcliente ? Number(result.rows[0].idcliente) : null;
+}
+
+async function createSchool(client: DbClientLike, schoolName: string) {
+  const schoolTypeId = await getSchoolClientTypeId(client);
   const clientResult = await client.query<{ idcliente: number }>(
     `
       INSERT INTO clientes (
@@ -478,17 +609,23 @@ async function createSchool(client: DbClientLike, schoolName: string) {
         status,
         criado_em
       )
-      VALUES (4, $1, true, NOW())
+      VALUES ($2, $1, true, NOW())
       RETURNING idcliente
     `,
-    [schoolName],
+    [schoolName, schoolTypeId],
+  );
+
+  const school = await ensureSchoolRecordForClient(
+    client,
+    Number(clientResult.rows[0]?.idcliente ?? 0),
+    schoolName,
   );
 
   return {
-    idescola: schoolId,
-    nmescola: schoolName,
-    stescola: "ati",
-    idcliente: clientResult.rows[0]?.idcliente ?? null,
+    idescola: school.idescola,
+    nmescola: school.nmescola,
+    stescola: school.stescola,
+    idcliente: Number(clientResult.rows[0]?.idcliente ?? 0) || null,
   } satisfies SchoolRow;
 }
 
@@ -837,36 +974,51 @@ export async function getSchoolContractOptions(): Promise<SchoolContractOptions>
 
   try {
     await ensureContractTables(client);
+    const schoolTypeId = await getSchoolClientTypeId(client);
 
     const [schools, representatives] = await Promise.all([
-      client.query<SchoolRow>(
+      client.query<ClientSchoolRow>(
         `
           SELECT
+            clientes.idcliente,
+            clientes.nome,
+            clientes.status,
             escola.idescola,
             escola.nmescola,
-            escola.stescola,
-            clientes.idcliente
-          FROM escola
-          LEFT JOIN clientes
-            ON lower(btrim(clientes.nome)) = lower(btrim(escola.nmescola::text))
-           AND clientes.idtipo = 4
-          WHERE lower(COALESCE(escola.stescola, 'ati')) <> 'ina'
-          ORDER BY escola.nmescola ASC
+            escola.stescola
+          FROM clientes
+          LEFT JOIN escola
+            ON lower(btrim(escola.nmescola::text)) = lower(btrim(clientes.nome))
+          WHERE clientes.idtipo = $1
+            AND COALESCE(clientes.status, true) = true
+          ORDER BY clientes.nome ASC
           LIMIT 5000
         `,
+        [schoolTypeId],
       ),
       client.query<RepresentativeRow>(
         `
-          SELECT idrepresentante, escola_id, nome, email
-          FROM contrato_escolar_representante
-          WHERE ativo = true
+          SELECT
+            representante.idrepresentante,
+            clientes.idcliente AS escola_id,
+            representante.nome,
+            representante.email
+          FROM contrato_escolar_representante representante
+          JOIN escola
+            ON escola.idescola = representante.escola_id
+          JOIN clientes
+            ON lower(btrim(clientes.nome)) = lower(btrim(escola.nmescola::text))
+           AND clientes.idtipo = $1
+          WHERE representante.ativo = true
+            AND COALESCE(clientes.status, true) = true
           ORDER BY nome ASC
         `,
+        [schoolTypeId],
       ),
     ]);
 
     return {
-      schools: schools.rows.map(mapSchool),
+      schools: schools.rows.map(mapClientSchool),
       representatives: representatives.rows.map(mapRepresentative),
     };
   } finally {
@@ -923,7 +1075,7 @@ export async function createSchoolContract(
     await ensureContractTables(client);
 
     const school = schoolId
-      ? await getSchoolById(client, schoolId)
+      ? await getSchoolFromSelection(client, schoolId)
       : await createSchool(client, newSchoolName);
     const clientId =
       school.idcliente == null
