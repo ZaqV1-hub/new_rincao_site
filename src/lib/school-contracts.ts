@@ -986,7 +986,7 @@ async function sendContractInviteEmails(input: {
   const subject = `Confirmação de passeio escolar - ${input.schoolName}`;
   const html = `
     <p>Olá,</p>
-    <p>clique no link abaixo para finalizar o agendamento do passeio escolar de <strong>${escapeHtml(input.schoolName)}</strong> em <strong>${escapeHtml(input.visitDateLabel)}</strong>.</p>
+    <p>Clique no link abaixo para finalizar o agendamento do passeio escolar de <strong>${escapeHtml(input.schoolName)}</strong> em <strong>${escapeHtml(input.visitDateLabel)}</strong>.</p>
     <p><a href="${escapeHtml(input.approvalUrl)}">${escapeHtml(input.approvalUrl)}</a></p>
   `;
 
