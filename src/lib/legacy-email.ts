@@ -11,6 +11,20 @@ type EmailQueueRow = {
   idemail: number;
 };
 
+function normalizeEmailHeaderText(value: string | undefined, fallback: string) {
+  const normalized = value?.trim() || fallback;
+
+  if (!/[ÃÂ]/.test(normalized)) {
+    return normalized;
+  }
+
+  try {
+    return Buffer.from(normalized, "latin1").toString("utf8");
+  } catch {
+    return normalized;
+  }
+}
+
 function readBooleanEnv(value: string | undefined, fallback: boolean) {
   const normalized = value?.trim().toLowerCase();
 
@@ -39,7 +53,10 @@ function getLegacyEmailConfig() {
     password: process.env.EMAIL_SMTP_PASSWORD?.trim() || "",
     fromEmail:
       process.env.EMAIL_FROM_ADDRESS?.trim() || "ingressos@rincao.local",
-    fromName: process.env.EMAIL_FROM_NAME?.trim() || "Rincao",
+    fromName: normalizeEmailHeaderText(
+      process.env.EMAIL_FROM_NAME,
+      "Clube Rincão",
+    ),
     replyToEmail:
       process.env.EMAIL_REPLYTO_ADDRESS?.trim() || "ingressos@rincao.local",
     sendSync: readBooleanEnv(process.env.PASSWORD_RESET_SEND_SYNC, true),

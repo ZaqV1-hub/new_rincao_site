@@ -28,6 +28,7 @@ describe("legacy-email queue", () => {
     process.env.PASSWORD_RESET_SEND_SYNC = "false";
     process.env.EMAIL_SMTP_USERNAME = "ingressos@cluberincao.com.br";
     process.env.EMAIL_SMTP_PASSWORD = "senha-teste";
+    process.env.EMAIL_FROM_NAME = "Clube Rincão";
     mocks.systemQuery.mockResolvedValue({ rows: [{ idemail: 123 }] });
     mocks.sendMail.mockResolvedValue({ messageId: "abc" });
   });
@@ -63,6 +64,7 @@ describe("legacy-email queue", () => {
 
     expect(mocks.sendMail).toHaveBeenCalledWith(
       expect.objectContaining({
+        from: "\"Clube Rincão\" <ingressos@rincao.local>",
         to: "\"Cliente\" <cliente@example.com>",
         subject: "Teste",
         html: "<p>Teste</p>",
@@ -93,6 +95,26 @@ describe("legacy-email queue", () => {
     expect(mocks.systemQuery).toHaveBeenCalledWith(
       expect.stringContaining("UPDATE email"),
       [123, 1],
+    );
+  });
+
+  it("normalizes mojibake in the sender name", async () => {
+    process.env.PASSWORD_RESET_SEND_SYNC = "true";
+    process.env.EMAIL_FROM_NAME = "Clube RincÃ£o";
+
+    await expect(
+      queueLegacyEmail({
+        to: "cliente@example.com",
+        toName: "Cliente",
+        subject: "Teste",
+        html: "<p>Teste</p>",
+      }),
+    ).resolves.toBe(123);
+
+    expect(mocks.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: "\"Clube Rincão\" <ingressos@rincao.local>",
+      }),
     );
   });
 });
