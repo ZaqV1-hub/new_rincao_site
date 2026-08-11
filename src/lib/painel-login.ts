@@ -2,6 +2,7 @@ const defaultPainelRedirect = "/painel";
 
 const painelLoginErrorMessages: Record<string, string> = {
   invalid_credentials: "CPF ou senha invalidos.",
+  invalid_contract_role: "Apenas representantes podem acessar o contrato.",
   inactive_user: "Este usuario nao esta ativo.",
   auth_unavailable: "Nao foi possivel abrir a sessao do painel agora.",
   operations_session_invalid: "Nao foi possivel abrir a sessao do painel.",

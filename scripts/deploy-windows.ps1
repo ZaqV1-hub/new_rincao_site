@@ -1,5 +1,5 @@
 param(
-  [int]$Port = 3002
+  [int]$Port = 8061
 )
 
 $ErrorActionPreference = "Stop"

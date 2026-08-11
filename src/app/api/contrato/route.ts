@@ -22,6 +22,14 @@ type ContractPayload = {
 };
 
 function getBaseUrlFromRequest(request: Request) {
+  const configuredBaseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+    process.env.SITE_BASE_URL?.trim();
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/+$/, "");
+  }
+
   const url = new URL(request.url);
   const forwardedProto = request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "");
   const forwardedHost = request.headers.get("x-forwarded-host") || request.headers.get("host");
@@ -41,10 +49,25 @@ export async function POST(request: Request) {
   }
 
   const payload = await readJsonPayload<ContractPayload>(request);
-  const actorUser = access.session.actorCpf
-    ? await getActivePublicUserByCpf(access.session.actorCpf)
-    : null;
   const isRepresentativeSession = access.session.legacyRoleId === 4;
+
+  if (!isRepresentativeSession) {
+    return Response.json(
+      {
+        ok: false,
+        error: {
+          code: "contract_representative_required",
+          message: "Apenas representantes podem acessar este contrato.",
+        },
+      },
+      { status: 403 },
+    );
+  }
+
+  const actorUser =
+    access.session.actorCpf
+      ? await getActivePublicUserByCpf(access.session.actorCpf)
+      : null;
 
   return runOpsRoute(
     () =>

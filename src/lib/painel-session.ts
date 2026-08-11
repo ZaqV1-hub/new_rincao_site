@@ -61,3 +61,13 @@ export async function requirePainelAccess(
 
   return session;
 }
+
+export async function requireRepresentativeContractSession(currentPath = "/contrato") {
+  const session = await requirePainelSession(currentPath);
+
+  if (session.legacyRoleId !== 4) {
+    redirect(`/painel/login?redirect=${encodeURIComponent(currentPath)}`);
+  }
+
+  return session;
+}

@@ -1,4 +1,5 @@
 import { formatCpf, sanitizeCpf } from "@/lib/cpf";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   asOpsAdminMasterDataError,
   createOpsAdminMasterData,
@@ -112,11 +113,14 @@ function mapStatusLabel(status: string | null) {
 }
 
 function mapLastLoginLabel(item: PainelUsuarioRawItem) {
-  if (!item.dtulogin) {
+  const loginDate = normalizeText(item.dtulogin);
+  const loginTime = normalizeText(item.hrulogin);
+
+  if (!loginDate) {
     return null;
   }
 
-  return item.hrulogin ? `${item.dtulogin} ${item.hrulogin}` : item.dtulogin;
+  return loginTime ? `${loginDate} ${loginTime}` : loginDate;
 }
 
 function mapUsuario(item: PainelUsuarioRawItem): PainelUsuarioItem {
@@ -131,7 +135,7 @@ function mapUsuario(item: PainelUsuarioRawItem): PainelUsuarioItem {
     roleLabel: mapRoleLabel(item.idpapel ?? null),
     status,
     statusLabel: mapStatusLabel(status),
-    createdAt: item.dtcadastro ?? null,
+    createdAt: normalizeText(item.dtcadastro) || null,
     lastLoginLabel: mapLastLoginLabel(item),
   };
 }
@@ -183,10 +187,26 @@ async function getPainelUsuarioRaw(cpf: unknown) {
     throw new PainelUsuariosError("invalid_user_cpf", "Informe um CPF valido.", 400);
   }
 
-  const result = await listOpsAdminMasterData("internal-users");
-  const found = (result.items as PainelUsuarioRawItem[]).find(
-    (item) => sanitizeCpf(item.cpf) === normalizedCpf,
+  const pool = getIngressoSistemaDbPool();
+  const result = await pool.query<PainelUsuarioRawItem>(
+    `
+      SELECT
+        cpf,
+        nmusuario,
+        email,
+        stusuario,
+        idpapel,
+        dtcadastro,
+        dtulogin,
+        hrulogin
+      FROM usuario
+      WHERE cpf = $1
+        AND idpapel IS NOT NULL
+      LIMIT 1
+    `,
+    [normalizedCpf],
   );
+  const found = result.rows[0] ?? null;
 
   if (!found) {
     throw new PainelUsuariosError("user_not_found", "Usuario nao encontrado.", 404);

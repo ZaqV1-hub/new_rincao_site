@@ -149,7 +149,7 @@ describe("painel/session BFF route", () => {
     expect(body.data.defaultRedirect).toBe("/painel");
   });
 
-  it("allows cpf login in the contract flow for any painel user with role", async () => {
+  it("rejects non-representative login in the contract flow", async () => {
     authenticatePanelUser.mockResolvedValue({
       cpf: "52998224725",
       cpfMasked: "529.***.***-25",
@@ -187,14 +187,14 @@ describe("painel/session BFF route", () => {
     );
     const body = await response.json();
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(403);
     expect(authenticatePanelUser).toHaveBeenCalledWith("52998224725", "senha");
     expect(body).toEqual({
-      ok: true,
-      data: expect.objectContaining({
-        actorName: "Operador Teste",
-        actorCpf: "52998224725",
-      }),
+      ok: false,
+      error: {
+        code: "invalid_contract_role",
+        message: "Apenas representantes podem acessar o contrato.",
+      },
     });
   });
 
@@ -339,7 +339,7 @@ describe("painel/session BFF route", () => {
       ok: false,
       error: {
         code: "invalid_credentials",
-        message: "CPF, e-mail ou senha invalidos.",
+        message: "E-mail ou senha invalidos.",
       },
     });
   });

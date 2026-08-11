@@ -53,7 +53,7 @@ export default async function PainelLoginRoute({
     ? `${requestProtocol}://${requestHost}/painel/login`
     : null;
 
-  if (session) {
+  if (session && !(redirectTo === "/contrato" && session.legacyRoleId !== 4)) {
     redirect(
       redirectTo === "/painel"
         ? getDefaultPainelPath(session.legacyRoleId)

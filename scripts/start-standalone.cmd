@@ -7,7 +7,7 @@ for /f "usebackq tokens=1,* delims==" %%A in (".env.local") do (
   if not "%%A"=="" if not "%%A:~0,1%%"=="#" set "%%A=%%B"
 )
 
-if "%PORT%"=="" set "PORT=3002"
+if "%PORT%"=="" set "PORT=8061"
 if "%NODE_ENV%"=="" set "NODE_ENV=production"
 if "%HOSTNAME%"=="" set "HOSTNAME=127.0.0.1"
 

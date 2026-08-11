@@ -7,7 +7,7 @@ if "%PORT%"=="" (
     if /I "%%A"=="PORT" set "PORT=%%B"
   )
 )
-if "%PORT%"=="" set "PORT=3002"
+if "%PORT%"=="" set "PORT=8061"
 
 cd /d "%~dp0.."
 
@@ -19,8 +19,8 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":%PORT% .*LISTENING"')
   taskkill /PID %%P /F >nul 2>nul
 )
 
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":3002 .*LISTENING"') do (
-  echo Parando processo PID %%P que esta usando a porta 3002
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:":8061 .*LISTENING"') do (
+  echo Parando processo PID %%P que esta usando a porta 8061
   taskkill /PID %%P /F >nul 2>nul
 )
 

@@ -28,20 +28,15 @@ type ApiPayload =
 
 export function SchoolContractCreatePage({
   options,
-  actor,
+  actor: _actor,
 }: SchoolContractCreatePageProps) {
   const router = useRouter();
-  const isRepresentativeSession = actor.roleId === 4;
   const [schoolId, setSchoolId] = useState("");
   const [schoolSearch, setSchoolSearch] = useState("");
   const [isSchoolListOpen, setIsSchoolListOpen] = useState(false);
   const [isNewSchool, setIsNewSchool] = useState(false);
   const [newSchoolName, setNewSchoolName] = useState("");
   const [visitDate, setVisitDate] = useState("");
-  const [representativeId, setRepresentativeId] = useState("");
-  const [isNewRepresentative, setIsNewRepresentative] = useState(false);
-  const [representativeName, setRepresentativeName] = useState(actor.name);
-  const [representativeEmail, setRepresentativeEmail] = useState(actor.email);
   const [observation, setObservation] = useState("");
   const [responsibleName, setResponsibleName] = useState("");
   const [responsiblePhone, setResponsiblePhone] = useState("");
@@ -67,18 +62,6 @@ export function SchoolContractCreatePage({
       .slice(0, 20);
   }, [options.schools, schoolSearch]);
 
-  const filteredRepresentatives = useMemo(
-    () =>
-      options.representatives.filter(
-        (representative) => String(representative.schoolId) === schoolId,
-      ),
-    [options.representatives, schoolId],
-  );
-
-  const shouldShowRepresentativeFields =
-    !isRepresentativeSession &&
-    (isNewSchool || isNewRepresentative || filteredRepresentatives.length === 0);
-
   useEffect(() => {
     if (selectedSchoolName && !isNewSchool) {
       setSchoolSearch(selectedSchoolName);
@@ -102,16 +85,6 @@ export function SchoolContractCreatePage({
           schoolId: isNewSchool ? null : schoolId,
           newSchoolName: isNewSchool ? newSchoolName : "",
           visitDate,
-          representativeId:
-            shouldShowRepresentativeFields || isNewSchool ? null : representativeId,
-          representativeName:
-            shouldShowRepresentativeFields || isRepresentativeSession
-              ? representativeName
-              : "",
-          representativeEmail:
-            shouldShowRepresentativeFields || isRepresentativeSession
-              ? representativeEmail
-              : "",
           observation,
           responsibleName,
           responsiblePhone,
@@ -191,8 +164,6 @@ export function SchoolContractCreatePage({
                     onChange={(event) => {
                       setSchoolSearch(event.target.value);
                       setSchoolId("");
-                      setRepresentativeId("");
-                      setIsNewRepresentative(false);
                       setIsSchoolListOpen(true);
                     }}
                     onFocus={() => {
@@ -214,8 +185,6 @@ export function SchoolContractCreatePage({
                             onClick={() => {
                               setSchoolId(String(school.id));
                               setSchoolSearch(school.name);
-                              setRepresentativeId("");
-                              setIsNewRepresentative(false);
                               setIsSchoolListOpen(false);
                             }}
                             type="button"
@@ -240,8 +209,6 @@ export function SchoolContractCreatePage({
                     setIsNewSchool(event.target.checked);
                     setSchoolId("");
                     setSchoolSearch("");
-                    setRepresentativeId("");
-                    setIsNewRepresentative(event.target.checked && !isRepresentativeSession);
                     setIsSchoolListOpen(false);
                   }}
                   type="checkbox"
@@ -269,64 +236,6 @@ export function SchoolContractCreatePage({
                   value={visitDate}
                 />
               </label>
-            </section>
-
-            <section className="grid gap-4 border-t border-[#d9e3eb] pt-5 md:grid-cols-2">
-              {!isRepresentativeSession && !shouldShowRepresentativeFields ? (
-                <label className="grid gap-2 text-sm font-semibold">
-                  <span>Representante da escola</span>
-                  <select
-                    className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                    onChange={(event) => setRepresentativeId(event.target.value)}
-                    value={representativeId}
-                  >
-                    <option value="">Selecione...</option>
-                    {filteredRepresentatives.map((representative) => (
-                      <option key={representative.id} value={representative.id}>
-                        {representative.name} - {representative.email}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-
-              {!isRepresentativeSession &&
-              !isNewSchool &&
-              filteredRepresentatives.length > 0 ? (
-                <label className="mt-7 flex items-center gap-3 text-sm font-semibold">
-                  <input
-                    checked={isNewRepresentative}
-                    onChange={(event) => {
-                      setIsNewRepresentative(event.target.checked);
-                      setRepresentativeId("");
-                    }}
-                    type="checkbox"
-                  />
-                  Adicionar novo representante
-                </label>
-              ) : null}
-
-              {shouldShowRepresentativeFields ? (
-                <>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    <span>Nome do representante</span>
-                    <input
-                      className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                      onChange={(event) => setRepresentativeName(event.target.value)}
-                      value={representativeName}
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    <span>E-mail do representante</span>
-                    <input
-                      className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                      onChange={(event) => setRepresentativeEmail(event.target.value)}
-                      type="email"
-                      value={representativeEmail}
-                    />
-                  </label>
-                </>
-              ) : null}
             </section>
 
             <section className="rounded-[8px] border border-[#d9e3eb] bg-[#f8fbfd] px-4 py-3 text-sm text-[#345062]">

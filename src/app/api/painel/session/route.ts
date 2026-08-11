@@ -133,7 +133,7 @@ export async function POST(request: Request) {
     ? !isEmailLogin && !isValidCpf(cpf) && !isPanelSeedLogin
     : !isValidCpf(cpf) && !isPanelSeedLogin;
   const invalidMessage = isContractLogin
-    ? "CPF, e-mail ou senha invalidos."
+    ? "E-mail ou senha invalidos."
     : "CPF ou senha invalidos.";
 
   if (invalidLogin || password.length < 1 || password.length > 20) {
@@ -190,6 +190,22 @@ export async function POST(request: Request) {
         "invalid_credentials",
         invalidMessage,
         401,
+      );
+    }
+
+    if (isContractLogin && user.roleId !== 4) {
+      if (nativeFormSubmit) {
+        return painelLoginRedirectResponse(
+          request.url,
+          redirectTo,
+          "invalid_contract_role",
+        );
+      }
+
+      return errorResponse(
+        "invalid_contract_role",
+        "Apenas representantes podem acessar o contrato.",
+        403,
       );
     }
 

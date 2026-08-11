@@ -1,4 +1,4 @@
-import { getIngressoDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   getLegacyPanelResources,
   normalizeLegacyPanelResource,
@@ -13,7 +13,7 @@ type AclRow = {
 export async function listLegacyPanelResourcesForRole(
   roleId: LegacyPanelRoleId,
 ) {
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<AclRow>(
     `
       SELECT idrecurso
@@ -24,6 +24,7 @@ export async function listLegacyPanelResourcesForRole(
     [roleId],
   );
 
+  const defaultResources = getLegacyPanelResources(roleId);
   const dynamicResources = Array.from(
     new Set(
       result.rows
@@ -33,8 +34,8 @@ export async function listLegacyPanelResourcesForRole(
   );
 
   if (dynamicResources.length === 0) {
-    return getLegacyPanelResources(roleId);
+    return defaultResources;
   }
 
-  return dynamicResources;
+  return Array.from(new Set([...defaultResources, ...dynamicResources]));
 }

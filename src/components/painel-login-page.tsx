@@ -130,33 +130,31 @@ export function PainelLoginPage({
   const feedback = getPainelLoginFeedback(activePhase);
   const isBusy = activePhase !== "idle";
   const isContractLogin = redirectTo === "/contrato";
-  const loginLabel = isContractLogin ? "CPF ou e-mail" : "CPF";
+  const loginLabel = isContractLogin ? "E-mail" : "CPF";
   const loginPlaceholder = isContractLogin
-    ? "000.000.000-00 ou email@exemplo.com"
+    ? "email@exemplo.com"
     : "000.000.000-00";
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const rawLogin = login.trim();
-    const normalizedCpf = sanitizeCpf(rawLogin);
     const isEmailLogin = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawLogin);
+    const normalizedCpf = sanitizeCpf(rawLogin);
     const normalizedLogin = isContractLogin
-      ? isEmailLogin
-        ? rawLogin
-        : normalizedCpf
+      ? rawLogin
       : normalizedCpf;
 
     const isPanelSeedLogin = normalizedCpf === "22181922845";
     if (
       (isContractLogin
-        ? !isEmailLogin && !isValidCpf(normalizedCpf) && !isPanelSeedLogin
+        ? !isEmailLogin
         : !isValidCpf(normalizedCpf) && !isPanelSeedLogin) ||
       password.length < 1 ||
       password.length > 20
     ) {
       setError(
         isContractLogin
-          ? "CPF, e-mail ou senha invalidos."
+          ? "E-mail ou senha invalidos."
           : "CPF ou senha invalidos.",
       );
       return;

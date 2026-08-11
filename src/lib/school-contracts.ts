@@ -258,7 +258,7 @@ function getBaseUrl(inputUrl?: string | null) {
     inputUrl?.trim() ||
     process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
     process.env.SITE_BASE_URL?.trim() ||
-    "http://localhost:3002";
+    "http://localhost:8061";
 
   return raw.replace(/\/+$/, "");
 }
