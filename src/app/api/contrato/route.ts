@@ -11,6 +11,7 @@ export const runtime = "nodejs";
 type ContractPayload = {
   schoolId?: unknown;
   newSchoolName?: unknown;
+  schoolAddress?: unknown;
   visitDate?: unknown;
   representativeId?: unknown;
   representativeName?: unknown;
@@ -19,6 +20,7 @@ type ContractPayload = {
   responsibleName?: unknown;
   responsiblePhone?: unknown;
   responsibleEmail?: unknown;
+  negotiatedValue?: unknown;
 };
 
 function getBaseUrlFromRequest(request: Request) {
@@ -74,6 +76,7 @@ export async function POST(request: Request) {
       createSchoolContract({
         schoolId: payload?.schoolId,
         newSchoolName: payload?.newSchoolName,
+        schoolAddress: payload?.schoolAddress,
         visitDate: payload?.visitDate,
         representativeId: payload?.representativeId,
         representativeName: isRepresentativeSession
@@ -86,6 +89,7 @@ export async function POST(request: Request) {
         responsibleName: payload?.responsibleName,
         responsiblePhone: payload?.responsiblePhone,
         responsibleEmail: payload?.responsibleEmail,
+        negotiatedValue: payload?.negotiatedValue,
         baseUrl: getBaseUrlFromRequest(request),
         actor: {
           name: access.session.actorName,

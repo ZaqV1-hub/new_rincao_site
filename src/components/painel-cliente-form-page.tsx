@@ -84,9 +84,11 @@ export function PainelClienteFormPage({
 
   const initialTypeId = client ? String(client.client.typeId) : "";
   const initialName = client?.client.name ?? "";
+  const initialAddress = client?.client.address ?? "";
   const initialStatus = client?.client.active === false ? "0" : "1";
   const [typeId, setTypeId] = useState(initialTypeId);
   const [name, setName] = useState(initialName);
+  const [address, setAddress] = useState(initialAddress);
   const [status, setStatus] = useState(initialStatus);
   const selectedType = typeOptions.find((option) => String(option.id) === typeId) ?? null;
   const isSelectedSchool = selectedType?.name.trim().toLowerCase() === "escola";
@@ -217,6 +219,7 @@ export function PainelClienteFormPage({
     const payload = {
       idtipo: typeId,
       nome: name,
+      endereco: address,
       status,
     };
 
@@ -337,6 +340,20 @@ export function PainelClienteFormPage({
                 onChange={(event) => setName(event.target.value)}
                 type="text"
                 value={name}
+              />
+            </div>
+
+            <div className="grid gap-2 rounded-[6px] border border-[#d7d7d7] p-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+              <label className="font-bold text-[#555]" htmlFor="endereco">
+                Endereco
+              </label>
+              <input
+                className="h-11 w-full rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] px-3 text-[15px] text-[#133d63]"
+                id="endereco"
+                name="endereco"
+                onChange={(event) => setAddress(event.target.value)}
+                type="text"
+                value={address}
               />
             </div>
 

@@ -126,6 +126,9 @@ export function SchoolContractApprovalPage({
                   Escola
                 </p>
                 <p className="mt-1 text-xl font-bold">{approval.schoolName}</p>
+                {approval.schoolAddress ? (
+                  <p className="mt-1 text-sm text-[#55718a]">{approval.schoolAddress}</p>
+                ) : null}
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#55718a]">
@@ -133,6 +136,14 @@ export function SchoolContractApprovalPage({
                 </p>
                 <p className="mt-1 text-xl font-bold">{approval.visitDateLabel}</p>
               </div>
+              {approval.negotiatedValueLabel ? (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#55718a]">
+                    Valor negociado
+                  </p>
+                  <p className="mt-1 text-xl font-bold">{approval.negotiatedValueLabel}</p>
+                </div>
+              ) : null}
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#55718a]">
                   Representante
@@ -157,10 +168,22 @@ export function SchoolContractApprovalPage({
           </section>
 
           <section className="mt-5 rounded-[8px] border border-[#d9e3eb] bg-white p-5 shadow-[0_12px_34px_rgba(31,67,98,0.08)]">
-            <h2 className="text-xl font-bold">Termos do passeio</h2>
-            <div className="mt-4 whitespace-pre-line text-sm leading-6 text-[#345062]">
-              {approval.terms}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-bold">Contrato do passeio</h2>
+              <Link
+                className="rounded-[6px] border border-[#c9d8e3] px-4 py-2 text-sm font-bold text-[#246b99] transition hover:bg-[#f4f8fc]"
+                href={approval.contractPdfUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Abrir PDF
+              </Link>
             </div>
+            <iframe
+              className="mt-4 min-h-[640px] w-full rounded-[8px] border border-[#d9e3eb]"
+              src={approval.contractPdfUrl}
+              title="Contrato de passeio escolar"
+            />
           </section>
 
           {successMessage ? (

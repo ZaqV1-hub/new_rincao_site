@@ -12,6 +12,7 @@ export const runtime = "nodejs";
 type ClientPayload = {
   idtipo?: unknown;
   nome?: unknown;
+  endereco?: unknown;
   status?: unknown;
 };
 

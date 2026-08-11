@@ -37,6 +37,8 @@ export function SchoolContractCreatePage({
   const [isNewSchool, setIsNewSchool] = useState(false);
   const [newSchoolName, setNewSchoolName] = useState("");
   const [visitDate, setVisitDate] = useState("");
+  const [schoolAddress, setSchoolAddress] = useState("");
+  const [negotiatedValue, setNegotiatedValue] = useState("");
   const [observation, setObservation] = useState("");
   const [responsibleName, setResponsibleName] = useState("");
   const [responsiblePhone, setResponsiblePhone] = useState("");
@@ -68,6 +70,15 @@ export function SchoolContractCreatePage({
     }
   }, [isNewSchool, selectedSchoolName]);
 
+  useEffect(() => {
+    if (isNewSchool) {
+      return;
+    }
+
+    const selectedSchool = options.schools.find((school) => String(school.id) === schoolId);
+    setSchoolAddress(selectedSchool?.address ?? "");
+  }, [isNewSchool, options.schools, schoolId]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
@@ -84,7 +95,9 @@ export function SchoolContractCreatePage({
         body: JSON.stringify({
           schoolId: isNewSchool ? null : schoolId,
           newSchoolName: isNewSchool ? newSchoolName : "",
+          schoolAddress,
           visitDate,
+          negotiatedValue,
           observation,
           responsibleName,
           responsiblePhone,
@@ -227,6 +240,15 @@ export function SchoolContractCreatePage({
                 </label>
               ) : null}
 
+              <label className="grid gap-2 text-sm font-semibold md:col-span-2">
+                <span>Endereco</span>
+                <input
+                  className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
+                  onChange={(event) => setSchoolAddress(event.target.value)}
+                  value={schoolAddress}
+                />
+              </label>
+
               <label className="grid gap-2 text-sm font-semibold">
                 <span>Data do passeio</span>
                 <input
@@ -234,6 +256,17 @@ export function SchoolContractCreatePage({
                   onChange={(event) => setVisitDate(event.target.value)}
                   type="date"
                   value={visitDate}
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                <span>Valor negociado</span>
+                <input
+                  className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
+                  inputMode="decimal"
+                  onChange={(event) => setNegotiatedValue(event.target.value)}
+                  placeholder="0,00"
+                  value={negotiatedValue}
                 />
               </label>
             </section>

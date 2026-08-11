@@ -325,6 +325,11 @@ export function PainelClientTripDetailPage({
             <tr>
               <td className="border border-[#d8dfe5] px-4 py-3" colSpan={2}>
                 {data.trip.clientId} - {data.trip.clientName}
+                {data.trip.clientAddress ? (
+                  <div className="mt-2 text-[12px] text-[#53697a]">
+                    Endereco: {data.trip.clientAddress}
+                  </div>
+                ) : null}
                 {data.trip.clientTypeName ? (
                   <span className="ml-2 inline-block rounded border border-[#dbe3ea] bg-[#eef4fb] px-2 py-1 text-[11px] text-[#53697a]">
                     {data.trip.clientTypeName}
@@ -335,6 +340,23 @@ export function PainelClientTripDetailPage({
                 {data.trip.acceptsFamily ? "Sim" : "Não"}
               </td>
             </tr>
+            {data.trip.negotiatedValueLabel ? (
+              <>
+                <tr>
+                  <th
+                    className="border border-[#d8dfe5] bg-[#f4f6f8] px-4 py-3 text-left font-semibold text-[#53697a]"
+                    colSpan={3}
+                  >
+                    Valor negociado
+                  </th>
+                </tr>
+                <tr>
+                  <td className="border border-[#d8dfe5] px-4 py-3" colSpan={3}>
+                    {data.trip.negotiatedValueLabel}
+                  </td>
+                </tr>
+              </>
+            ) : null}
           </tbody>
         </table>
 

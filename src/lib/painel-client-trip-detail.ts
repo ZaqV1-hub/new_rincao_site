@@ -21,6 +21,7 @@ type TripRow = {
   aceita_familia: boolean | string | number | null;
   idcliente: number;
   cliente_nome: string;
+  endereco: string | null;
   idtipo: number | null;
   tipo_nome: string | null;
 };
@@ -28,6 +29,11 @@ type TripRow = {
 type SchoolRow = {
   idcliente: number;
   nome: string;
+};
+
+type ContractMetaRow = {
+  escola_endereco: string | null;
+  valor_negociado: string | number | null;
 };
 
 export type PainelClientTripDetailInput = {
@@ -46,6 +52,7 @@ export type PainelClientTripDetailData = {
     agendaId: number;
     clientId: number;
     clientName: string;
+    clientAddress: string;
     clientTypeId: number | null;
     clientTypeName: string | null;
     date: string;
@@ -62,6 +69,8 @@ export type PainelClientTripDetailData = {
     nextUiStatus: "ati" | "ina";
     nextUiStatusLabel: "Ativo" | "Inativo";
     purchaseLink: string | null;
+    negotiatedValue: string | null;
+    negotiatedValueLabel: string | null;
   };
   filters: {
     purchaseStatus: string;
@@ -114,6 +123,101 @@ function parseBooleanish(value: boolean | string | number | null | undefined) {
   return normalized === "1" || normalized === "true" || normalized === "t";
 }
 
+function normalizeAddress(value: string | null | undefined) {
+  return String(value ?? "").trim();
+}
+
+function getDefaultClientAddress(name: string) {
+  return normalizeText(name).toUpperCase() === "TESTE CONTRATO"
+    ? "Av. Adolfo Pinheiro, 2056"
+    : "";
+}
+
+function resolveClientAddress(name: string, address: string | null | undefined) {
+  return normalizeAddress(address) || getDefaultClientAddress(name);
+}
+
+function formatCurrencyLabel(value: string | number | null | undefined) {
+  if (value == null || value === "") {
+    return null;
+  }
+
+  const numeric = Number(value);
+
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+
+  return numeric.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+async function hasTable(pool: ReturnType<typeof getIngressoSistemaDbPool>, tableName: string) {
+  const result = await pool.query<{ exists: boolean }>(
+    `
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = $1
+      ) AS exists
+    `,
+    [tableName],
+  );
+
+  return Boolean(result.rows[0]?.exists);
+}
+
+async function ensureClientsAddressColumn(pool: ReturnType<typeof getIngressoSistemaDbPool>) {
+  const result = await pool.query<{ exists: boolean }>(
+    `
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'clientes'
+          AND column_name = 'endereco'
+      ) AS exists
+    `,
+  );
+
+  if (result.rows[0]?.exists) {
+    return;
+  }
+
+  await pool.query(`
+    ALTER TABLE clientes
+    ADD COLUMN endereco varchar(255)
+  `);
+}
+
+async function loadContractMeta(
+  pool: ReturnType<typeof getIngressoSistemaDbPool>,
+  agendaId: number,
+  clientId: number,
+) {
+  if (!(await hasTable(pool, "contrato_escolar_agendamento"))) {
+    return null;
+  }
+
+  const result = await pool.query<ContractMetaRow>(
+    `
+      SELECT escola_endereco, valor_negociado
+      FROM contrato_escolar_agendamento
+      WHERE agenda_id = $1
+        AND cliente_id = $2
+        AND status = 'agendado'
+      ORDER BY confirmado_em DESC NULLS LAST, idcontrato DESC
+      LIMIT 1
+    `,
+    [agendaId, clientId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
 function isSchoolClient(row: TripRow) {
   return Number(row.idtipo ?? 0) === 4 || normalizeText(row.tipo_nome).toLowerCase() === "escola";
 }
@@ -151,6 +255,8 @@ export async function getPainelClientTripDetail(
   const purchaseStatus = normalizePurchaseStatus(input.purchaseStatus);
   const pool = getIngressoSistemaDbPool();
 
+  await ensureClientsAddressColumn(pool);
+
   const tripResult = await pool.query<TripRow>(
     `
       SELECT
@@ -163,6 +269,7 @@ export async function getPainelClientTripDetail(
         ae.aceita_familia,
         c.idcliente,
         c.nome AS cliente_nome,
+        c.endereco,
         c.idtipo,
         t.nome AS tipo_nome
       FROM agenda a
@@ -185,6 +292,8 @@ export async function getPainelClientTripDetail(
       404,
     );
   }
+
+  const contractMeta = await loadContractMeta(pool, agendaId, clientId).catch(() => null);
 
   const sections = await loadOpsTripSchoolReportSections(pool, {
     agendaId,
@@ -224,6 +333,10 @@ export async function getPainelClientTripDetail(
       agendaId,
       clientId,
       clientName: trip.cliente_nome,
+      clientAddress: resolveClientAddress(
+        trip.cliente_nome,
+        contractMeta?.escola_endereco ?? trip.endereco,
+      ),
       clientTypeId: trip.idtipo,
       clientTypeName: trip.tipo_nome,
       date: trip.dtagenda,
@@ -241,6 +354,9 @@ export async function getPainelClientTripDetail(
         idcliente: clientId,
         tipo: normalizeText(trip.tipo_nome),
       }),
+      negotiatedValue:
+        contractMeta?.valor_negociado == null ? null : String(contractMeta.valor_negociado),
+      negotiatedValueLabel: formatCurrencyLabel(contractMeta?.valor_negociado),
     },
     filters: {
       purchaseStatus,

@@ -32,6 +32,9 @@ const schoolData: PainelClientTripDetailData = {
     nextUiStatus: "ina",
     nextUiStatusLabel: "Inativo",
     purchaseLink: "/ingresso/cliente/escola/abc123slug",
+    clientAddress: "",
+    negotiatedValue: null,
+    negotiatedValueLabel: null,
   },
   filters: {
     purchaseStatus: "",
@@ -158,8 +161,8 @@ describe("PainelClientTripDetailPage", () => {
     );
 
     expect(html).toContain("Dados do Passeio");
-    expect(html).toContain("Codigo Passeio");
-    expect(html).toContain("Relatorio de Ingressos");
+    expect(html).toContain("Código do Passeio");
+    expect(html).toContain("Relatório de Ingressos");
     expect(html).toContain("Alunos");
     expect(html).toContain("Educadores");
     expect(html).toContain("Editar");

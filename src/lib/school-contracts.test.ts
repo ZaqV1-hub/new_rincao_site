@@ -42,7 +42,8 @@ describe("school-contracts", () => {
         sql === "BEGIN" ||
         sql === "COMMIT" ||
         sql.includes("CREATE TABLE IF NOT EXISTS") ||
-        sql.includes("CREATE UNIQUE INDEX")
+        sql.includes("CREATE UNIQUE INDEX") ||
+        sql.includes("ALTER TABLE")
       ) {
         return { rows: [] };
       }
@@ -68,6 +69,7 @@ describe("school-contracts", () => {
               idescola: 12,
               nmescola: "Escola Rincao",
               stescola: "ati",
+              endereco: null,
             },
           ],
         };
@@ -77,11 +79,11 @@ describe("school-contracts", () => {
         expect(values?.[0]).toBe(12);
         expect(values?.[1]).toBe(12);
         expect(values?.[2]).toBe("2026-09-10");
-        expect(values?.[3]).toBe(5);
-        expect(values?.[4]).toBe("Maria Escola");
-        expect(values?.[5]).toBe("maria@escola.test");
-        expect(values?.[7]).toBe("Responsavel");
-        expect(values?.[9]).toBe("resp@escola.test");
+        expect(values?.[4]).toBe(5);
+        expect(values?.[5]).toBe("Maria Escola");
+        expect(values?.[6]).toBe("maria@escola.test");
+        expect(values?.[8]).toBe("Responsavel");
+        expect(values?.[10]).toBe("resp@escola.test");
         return { rows: [] };
       }
 
@@ -97,6 +99,11 @@ describe("school-contracts", () => {
             },
           ],
         };
+      }
+
+      if (sql.includes("UPDATE clientes")) {
+        expect(values).toEqual([12, null]);
+        return { rows: [] };
       }
 
       throw new Error(`Unexpected query: ${sql}`);
@@ -130,7 +137,8 @@ describe("school-contracts", () => {
     query.mockImplementation(async (sql: string) => {
       if (
         sql.includes("CREATE TABLE IF NOT EXISTS") ||
-        sql.includes("CREATE UNIQUE INDEX")
+        sql.includes("CREATE UNIQUE INDEX") ||
+        sql.includes("ALTER TABLE")
       ) {
         return { rows: [] };
       }
@@ -142,6 +150,7 @@ describe("school-contracts", () => {
               idcontrato: 1,
               escola_id: 12,
               escola_nome: "Escola Rincao",
+              escola_endereco: null,
               cliente_id: 44,
               data_passeio: "2026-09-10",
               data_passeio_fmt: "10/09/2026",
@@ -152,6 +161,7 @@ describe("school-contracts", () => {
               responsavel_nome: "Responsavel",
               responsavel_telefone: "11999999999",
               responsavel_email: "resp@escola.test",
+              valor_negociado: null,
               status: "aguardando_confirmacao",
               token,
               token_expira_em: "2099-01-01 00:00:00",
@@ -188,7 +198,8 @@ describe("school-contracts", () => {
         sql === "BEGIN" ||
         sql === "COMMIT" ||
         sql.includes("CREATE TABLE IF NOT EXISTS") ||
-        sql.includes("CREATE UNIQUE INDEX")
+        sql.includes("CREATE UNIQUE INDEX") ||
+        sql.includes("ALTER TABLE")
       ) {
         return { rows: [] };
       }
@@ -200,6 +211,7 @@ describe("school-contracts", () => {
               idcontrato: 1,
               escola_id: 12,
               escola_nome: "Escola Rincao",
+              escola_endereco: null,
               cliente_id: 44,
               data_passeio: "2026-09-10",
               data_passeio_fmt: "10/09/2026",
@@ -210,6 +222,7 @@ describe("school-contracts", () => {
               responsavel_nome: "Responsavel",
               responsavel_telefone: "11999999999",
               responsavel_email: "resp@escola.test",
+              valor_negociado: null,
               status: "aguardando_confirmacao",
               token,
               token_expira_em: "2099-01-01 00:00:00",

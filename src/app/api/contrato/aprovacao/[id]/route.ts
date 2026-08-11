@@ -12,6 +12,26 @@ type ApprovalPayload = {
   confirmerRole?: unknown;
 };
 
+function getBaseUrlFromRequest(request: Request) {
+  const configuredBaseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+    process.env.SITE_BASE_URL?.trim();
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl.replace(/\/+$/, "");
+  }
+
+  const url = new URL(request.url);
+  const forwardedProto = request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "");
+  const forwardedHost = request.headers.get("x-forwarded-host") || request.headers.get("host");
+
+  if (forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+
+  return url.origin;
+}
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },
@@ -29,6 +49,7 @@ export async function POST(
         confirmerName: payload?.confirmerName,
         confirmerRole: payload?.confirmerRole,
         ipAddress,
+        baseUrl: getBaseUrlFromRequest(request),
       }),
     {
       mapError: asSchoolContractError,

@@ -92,6 +92,8 @@ function PainelClienteDetailContent({
                 <td className="border border-[#d7e3ee] px-4 py-4 text-[#355066]" colSpan={3}>
                   <strong>ID:</strong> {data.client.id}
                   {"  "} | {"  "}
+                  <strong>Endereco:</strong> {data.client.address || "-"}
+                  {"  "} | {"  "}
                   <strong>Criado em:</strong> {formatDate(data.client.createdAt, true)}
                   {"  "} | {"  "}
                   <strong>Atualizado em:</strong> {formatDate(data.client.updatedAt, true)}

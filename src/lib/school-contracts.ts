@@ -5,6 +5,7 @@ import {
   getIngressoSistemaDbDialect,
   getIngressoSistemaDbPool,
 } from "@/lib/ingresso-db";
+import { buildClientTripTrackingPath } from "@/lib/plink";
 
 type DbClientLike = {
   query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[]; rowCount?: number }>;
@@ -20,6 +21,7 @@ type SchoolRow = {
   nmescola: string;
   stescola: string | null;
   idcliente: number | null;
+  endereco: string | null;
 };
 
 type ClientSchoolRow = {
@@ -29,6 +31,7 @@ type ClientSchoolRow = {
   idescola: number | null;
   nmescola: string | null;
   stescola: string | null;
+  endereco: string | null;
 };
 
 type RepresentativeRow = {
@@ -42,6 +45,7 @@ type ContractRow = {
   idcontrato: number;
   escola_id: number;
   escola_nome: string;
+  escola_endereco: string | null;
   cliente_id: number | null;
   data_passeio: string;
   data_passeio_fmt: string;
@@ -52,6 +56,7 @@ type ContractRow = {
   responsavel_nome: string;
   responsavel_telefone: string;
   responsavel_email: string;
+  valor_negociado: string | number | null;
   status: string;
   token: string;
   token_expira_em: string;
@@ -87,6 +92,7 @@ export type SchoolContractOptions = {
     id: number;
     name: string;
     clientId: number | null;
+    address: string;
   }>;
   representatives: Array<{
     id: number;
@@ -105,6 +111,7 @@ export type SchoolContractActor = {
 export type CreateSchoolContractInput = {
   schoolId?: unknown;
   newSchoolName?: unknown;
+  schoolAddress?: unknown;
   visitDate?: unknown;
   representativeId?: unknown;
   representativeName?: unknown;
@@ -113,6 +120,7 @@ export type CreateSchoolContractInput = {
   responsibleName?: unknown;
   responsiblePhone?: unknown;
   responsibleEmail?: unknown;
+  negotiatedValue?: unknown;
   baseUrl?: string | null;
   actor?: Actor | null;
 };
@@ -122,12 +130,14 @@ export type ConfirmSchoolContractInput = {
   confirmerName?: unknown;
   confirmerRole?: unknown;
   ipAddress?: string | null;
+  baseUrl?: string | null;
 };
 
 export type SchoolContractApproval = {
   token: string;
   status: "ready" | "expired" | "confirmed" | "invalidated";
   schoolName: string;
+  schoolAddress: string;
   visitDate: string;
   visitDateLabel: string;
   representativeName: string;
@@ -135,6 +145,9 @@ export type SchoolContractApproval = {
   responsibleName: string;
   responsibleEmail: string;
   observation: string;
+  negotiatedValue: string | null;
+  negotiatedValueLabel: string | null;
+  contractPdfUrl: string;
   terms: string;
   confirmedAt: string | null;
   confirmerName: string | null;
@@ -170,6 +183,31 @@ function normalizeMultiline(value: unknown) {
 
 function normalizeEmail(value: unknown) {
   return normalizeText(value).toLowerCase();
+}
+
+function normalizeAddress(value: unknown) {
+  return String(value ?? "").trim().replace(/\s+/g, " ");
+}
+
+function normalizeMoneyValue(value: unknown) {
+  const raw = String(value ?? "").trim();
+
+  if (!raw) {
+    return null;
+  }
+
+  const normalized = raw.replace(/\./g, "").replace(",", ".");
+  const parsed = Number(normalized);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new SchoolContractError(
+      "school_contract_invalid_value",
+      "Informe um valor negociado valido.",
+      400,
+    );
+  }
+
+  return parsed.toFixed(2);
 }
 
 function validateEmail(value: string, message: string) {
@@ -263,6 +301,43 @@ function getBaseUrl(inputUrl?: string | null) {
   return raw.replace(/\/+$/, "");
 }
 
+function formatCurrencyLabel(value: string | number | null | undefined) {
+  if (value == null || value === "") {
+    return null;
+  }
+
+  const numeric = Number(value);
+
+  if (!Number.isFinite(numeric)) {
+    return null;
+  }
+
+  return numeric.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function getDefaultSchoolAddress(schoolName: string) {
+  if (normalizeText(schoolName).toUpperCase() === "TESTE CONTRATO") {
+    return "Av. Adolfo Pinheiro, 2056";
+  }
+
+  return "";
+}
+
+function resolveSchoolAddress(schoolName: string, address: string | null | undefined) {
+  return normalizeAddress(address) || getDefaultSchoolAddress(schoolName);
+}
+
+export function getSchoolContractPdfPath() {
+  return "/legacy/contrato-passeio-escolar.pdf";
+}
+
+function getSchoolContractPdfUrl(baseUrl?: string | null) {
+  return `${getBaseUrl(baseUrl)}${getSchoolContractPdfPath()}`;
+}
+
 async function getSchoolClientTypeId(client: DbClientLike) {
   const result = await client.query<ClientTypeRow>(
     `
@@ -303,6 +378,7 @@ function mapSchool(row: SchoolRow) {
     id: Number(row.idescola),
     name: row.nmescola,
     clientId: row.idcliente == null ? null : Number(row.idcliente),
+    address: resolveSchoolAddress(row.nmescola, row.endereco),
   };
 }
 
@@ -311,6 +387,7 @@ function mapClientSchool(row: ClientSchoolRow) {
     id: Number(row.idcliente),
     name: row.nome,
     clientId: Number(row.idcliente),
+    address: resolveSchoolAddress(row.nome, row.endereco),
   };
 }
 
@@ -338,6 +415,7 @@ function mapApproval(row: ContractRow): SchoolContractApproval {
     token: row.token,
     status,
     schoolName: row.escola_nome,
+    schoolAddress: resolveSchoolAddress(row.escola_nome, row.escola_endereco),
     visitDate: row.data_passeio,
     visitDateLabel: row.data_passeio_fmt || formatDateLabel(row.data_passeio),
     representativeName: row.representante_nome,
@@ -345,6 +423,10 @@ function mapApproval(row: ContractRow): SchoolContractApproval {
     responsibleName: row.responsavel_nome,
     responsibleEmail: row.responsavel_email,
     observation: row.observacao ?? "",
+    negotiatedValue:
+      row.valor_negociado == null ? null : String(row.valor_negociado),
+    negotiatedValueLabel: formatCurrencyLabel(row.valor_negociado),
+    contractPdfUrl: getSchoolContractPdfPath(),
     terms: getContractTerms(),
     confirmedAt: row.confirmado_em_fmt ?? row.confirmado_em,
     confirmerName: row.nome_confirmante,
@@ -431,6 +513,7 @@ async function ensureContractTables(client: DbClientLike) {
         cliente_id integer,
         agenda_id integer,
         data_passeio date NOT NULL,
+        escola_endereco varchar(255),
         representante_id integer,
         representante_nome varchar(160) NOT NULL,
         representante_email varchar(160) NOT NULL,
@@ -438,6 +521,7 @@ async function ensureContractTables(client: DbClientLike) {
         responsavel_nome varchar(160) NOT NULL,
         responsavel_telefone varchar(40) NOT NULL,
         responsavel_email varchar(160) NOT NULL,
+        valor_negociado decimal(12,2),
         status varchar(32) NOT NULL DEFAULT 'aguardando_confirmacao',
         nome_confirmante varchar(160),
         cargo_confirmante varchar(120),
@@ -452,6 +536,30 @@ async function ensureContractTables(client: DbClientLike) {
         atualizado_em DATETIME
       )
     `);
+
+    await client
+      .query(`ALTER TABLE clientes ADD COLUMN endereco varchar(255) NULL`)
+      .catch((error: unknown) => {
+        if (!String((error as { message?: string }).message ?? "").includes("Duplicate column")) {
+          throw error;
+        }
+      });
+
+    await client
+      .query(`ALTER TABLE contrato_escolar_agendamento ADD COLUMN escola_endereco varchar(255) NULL`)
+      .catch((error: unknown) => {
+        if (!String((error as { message?: string }).message ?? "").includes("Duplicate column")) {
+          throw error;
+        }
+      });
+
+    await client
+      .query(`ALTER TABLE contrato_escolar_agendamento ADD COLUMN valor_negociado decimal(12,2) NULL`)
+      .catch((error: unknown) => {
+        if (!String((error as { message?: string }).message ?? "").includes("Duplicate column")) {
+          throw error;
+        }
+      });
 
     return;
   }
@@ -480,6 +588,7 @@ async function ensureContractTables(client: DbClientLike) {
       cliente_id integer REFERENCES clientes(idcliente),
       agenda_id integer REFERENCES agenda(idagenda),
       data_passeio date NOT NULL,
+      escola_endereco varchar(255),
       representante_id integer REFERENCES contrato_escolar_representante(idrepresentante),
       representante_nome varchar(160) NOT NULL,
       representante_email varchar(160) NOT NULL,
@@ -487,6 +596,7 @@ async function ensureContractTables(client: DbClientLike) {
       responsavel_nome varchar(160) NOT NULL,
       responsavel_telefone varchar(40) NOT NULL,
       responsavel_email varchar(160) NOT NULL,
+      valor_negociado numeric(12,2),
       status varchar(32) NOT NULL DEFAULT 'aguardando_confirmacao',
       nome_confirmante varchar(160),
       cargo_confirmante varchar(120),
@@ -501,6 +611,21 @@ async function ensureContractTables(client: DbClientLike) {
       atualizado_em timestamp without time zone
     )
   `);
+
+  await client.query(`
+    ALTER TABLE clientes
+    ADD COLUMN IF NOT EXISTS endereco varchar(255)
+  `);
+
+  await client.query(`
+    ALTER TABLE contrato_escolar_agendamento
+    ADD COLUMN IF NOT EXISTS escola_endereco varchar(255)
+  `);
+
+  await client.query(`
+    ALTER TABLE contrato_escolar_agendamento
+    ADD COLUMN IF NOT EXISTS valor_negociado numeric(12,2)
+  `);
 }
 
 async function getSchoolById(client: DbClientLike, schoolId: number) {
@@ -511,7 +636,8 @@ async function getSchoolById(client: DbClientLike, schoolId: number) {
         escola.idescola,
         escola.nmescola,
         escola.stescola,
-        clientes.idcliente
+        clientes.idcliente,
+        clientes.endereco
       FROM escola
       LEFT JOIN clientes
         ON lower(btrim(clientes.nome)) = lower(btrim(escola.nmescola::text))
@@ -542,7 +668,8 @@ async function findSchoolByName(client: DbClientLike, schoolName: string) {
         escola.idescola,
         escola.nmescola,
         escola.stescola,
-        clientes.idcliente
+        clientes.idcliente,
+        clientes.endereco
       FROM escola
       LEFT JOIN clientes
         ON lower(btrim(clientes.nome)) = lower(btrim(escola.nmescola::text))
@@ -619,7 +746,8 @@ async function getSchoolFromSelection(client: DbClientLike, schoolSelectionId: n
         clientes.status,
         escola.idescola,
         escola.nmescola,
-        escola.stescola
+        escola.stescola,
+        clientes.endereco
       FROM clientes
       LEFT JOIN escola
         ON lower(btrim(escola.nmescola::text)) = lower(btrim(clientes.nome))
@@ -638,6 +766,7 @@ async function getSchoolFromSelection(client: DbClientLike, schoolSelectionId: n
         nmescola: clientRow.nmescola ?? clientRow.nome,
         stescola: clientRow.stescola ?? "ati",
         idcliente: Number(clientRow.idcliente),
+        endereco: clientRow.endereco,
       } satisfies SchoolRow;
     }
 
@@ -694,7 +823,28 @@ async function createSchool(client: DbClientLike, schoolName: string) {
     nmescola: school.nmescola,
     stescola: school.stescola,
     idcliente: Number(clientResult.rows[0]?.idcliente ?? 0) || null,
+    endereco: school.endereco,
   } satisfies SchoolRow;
+}
+
+async function updateClientAddress(
+  client: DbClientLike,
+  clientId: number | null | undefined,
+  schoolName: string,
+  address: string,
+) {
+  if (!clientId) {
+    return;
+  }
+
+  await client.query(
+    `
+      UPDATE clientes
+      SET endereco = $2
+      WHERE idcliente = $1
+    `,
+    [clientId, resolveSchoolAddress(schoolName, address) || null],
+  );
 }
 
 async function getOrCreateRepresentative(
@@ -808,6 +958,7 @@ async function getContractByToken(client: DbClientLike, token: string) {
         contrato.idcontrato,
         contrato.escola_id,
         escola.nmescola AS escola_nome,
+        contrato.escola_endereco,
         contrato.cliente_id,
         to_char(contrato.data_passeio, 'YYYY-MM-DD') AS data_passeio,
         to_char(contrato.data_passeio, 'DD/MM/YYYY') AS data_passeio_fmt,
@@ -818,6 +969,7 @@ async function getContractByToken(client: DbClientLike, token: string) {
         contrato.responsavel_nome,
         contrato.responsavel_telefone,
         contrato.responsavel_email,
+        contrato.valor_negociado,
         contrato.status,
         contrato.token::text AS token,
         contrato.token_expira_em::text AS token_expira_em,
@@ -1024,11 +1176,19 @@ async function sendContractConfirmedEmails(input: {
   visitDateLabel: string;
   confirmerName: string;
   confirmerRole: string;
+  trackingUrl: string | null;
+  contractPdfUrl: string;
 }) {
   const subject = `Passeio agendado - ${input.schoolName}`;
   const html = `
     <p>O passeio escolar de <strong>${escapeHtml(input.schoolName)}</strong> foi agendado com sucesso para <strong>${escapeHtml(input.visitDateLabel)}</strong>.</p>
     <p>Confirmado por: ${escapeHtml(input.confirmerName)} - ${escapeHtml(input.confirmerRole)}.</p>
+    ${
+      input.trackingUrl
+        ? `<p>Link de acompanhamento: <a href="${escapeHtml(input.trackingUrl)}">${escapeHtml(input.trackingUrl)}</a></p>`
+        : ""
+    }
+    <p>Contrato e regras do passeio: <a href="${escapeHtml(input.contractPdfUrl)}">${escapeHtml(input.contractPdfUrl)}</a></p>
   `;
   const recipients = [
     {
@@ -1076,7 +1236,8 @@ export async function getSchoolContractOptions(): Promise<SchoolContractOptions>
             clientes.status,
             escola.idescola,
             escola.nmescola,
-            escola.stescola
+            escola.stescola,
+            clientes.endereco
           FROM clientes
           LEFT JOIN escola
             ON lower(btrim(escola.nmescola::text)) = lower(btrim(clientes.nome))
@@ -1123,6 +1284,7 @@ export async function createSchoolContract(
   const visitDate = parseDateInput(input.visitDate);
   const schoolId = parseOptionalPositiveInteger(input.schoolId);
   const newSchoolName = normalizeText(input.newSchoolName);
+  const schoolAddress = normalizeAddress(input.schoolAddress);
   const representativeId = parseOptionalPositiveInteger(input.representativeId);
   const responsibleName = normalizeText(input.responsibleName);
   const responsiblePhone = normalizeText(input.responsiblePhone);
@@ -1131,6 +1293,7 @@ export async function createSchoolContract(
     "Informe um e-mail válido para o responsável.",
   );
   const observation = normalizeMultiline(input.observation);
+  const negotiatedValue = normalizeMoneyValue(input.negotiatedValue);
 
   ensureTodayOrFuture(visitDate);
 
@@ -1181,6 +1344,17 @@ export async function createSchoolContract(
       school.idcliente == null
         ? await findClientIdForSchool(client, school.nmescola)
         : Number(school.idcliente);
+    const resolvedAddress = resolveSchoolAddress(
+      school.nmescola,
+      schoolAddress || school.endereco,
+    );
+
+    await updateClientAddress(
+      client,
+      clientId,
+      school.nmescola,
+      resolvedAddress,
+    );
     const representative = await getOrCreateRepresentative(client, {
       schoolId: Number(school.idescola),
       representativeId,
@@ -1210,6 +1384,7 @@ export async function createSchoolContract(
             escola_id,
             cliente_id,
             data_passeio,
+            escola_endereco,
             representante_id,
             representante_nome,
             representante_email,
@@ -1217,6 +1392,7 @@ export async function createSchoolContract(
             responsavel_nome,
             responsavel_telefone,
             responsavel_email,
+            valor_negociado,
             status,
             token,
             token_expira_em,
@@ -1233,10 +1409,11 @@ export async function createSchoolContract(
             $8,
             $9,
             $10,
-            'aguardando_confirmacao',
             $11,
-            DATE_ADD(NOW(), INTERVAL $12 DAY),
-            $13
+            'aguardando_confirmacao',
+            $12,
+            DATE_ADD(NOW(), INTERVAL $13 DAY),
+            $14
           )
         `
         : `
@@ -1244,6 +1421,7 @@ export async function createSchoolContract(
             escola_id,
             cliente_id,
             data_passeio,
+            escola_endereco,
             representante_id,
             representante_nome,
             representante_email,
@@ -1251,6 +1429,7 @@ export async function createSchoolContract(
             responsavel_nome,
             responsavel_telefone,
             responsavel_email,
+            valor_negociado,
             status,
             token,
             token_expira_em,
@@ -1267,10 +1446,11 @@ export async function createSchoolContract(
             $8,
             $9,
             $10,
+            $11,
             'aguardando_confirmacao',
-            $11::uuid,
-            NOW() + (($12 || ' days')::interval),
-            $13
+            $12::uuid,
+            NOW() + (($13 || ' days')::interval),
+            $14
           )
         `;
 
@@ -1280,6 +1460,7 @@ export async function createSchoolContract(
         school.idescola,
         clientId,
         visitDate,
+        resolvedAddress || null,
         representative.idrepresentante,
         representative.nome,
         representative.email,
@@ -1287,6 +1468,7 @@ export async function createSchoolContract(
         responsibleName,
         responsiblePhone,
         responsibleEmail,
+        negotiatedValue,
         token,
         Number(process.env.SCHOOL_CONTRACT_TOKEN_EXPIRATION_DAYS ?? 7),
         buildActorName(input.actor),
@@ -1439,6 +1621,15 @@ export async function confirmSchoolContract(input: ConfirmSchoolContractInput) {
 
     await client.query("COMMIT");
 
+    const trackingPath =
+      row.cliente_id == null
+        ? null
+        : buildClientTripTrackingPath({
+            idagenda: agendaId,
+            idcliente: Number(row.cliente_id),
+            tipo: "escola",
+          });
+
     await sendContractConfirmedEmails({
       representativeName: row.representante_nome,
       representativeEmail: row.representante_email,
@@ -1448,6 +1639,8 @@ export async function confirmSchoolContract(input: ConfirmSchoolContractInput) {
       visitDateLabel: row.data_passeio_fmt || formatDateLabel(row.data_passeio),
       confirmerName,
       confirmerRole,
+      trackingUrl: trackingPath ? `${getBaseUrl(input.baseUrl)}${trackingPath}` : null,
+      contractPdfUrl: getSchoolContractPdfUrl(input.baseUrl),
     });
 
     return {
