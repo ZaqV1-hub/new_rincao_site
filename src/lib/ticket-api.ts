@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import QRCode from "qrcode";
 
 export const defaultTicketsApiBaseUrl =
   "https://rincaoticketapi-a8buakffcrarc3an.brazilsouth-01.azurewebsites.net";
@@ -67,24 +68,62 @@ export async function generateVoucherQrcodes(
       cache: "no-store",
     });
   } catch {
-    throw new TicketApiError(
-      "ticket_api_unreachable",
-      "Servico de QR Code indisponivel agora.",
-      502,
-    );
+    return generateLocalVoucherQrCodes(vouchers);
   }
 
   if (!response.ok) {
-    throw new TicketApiError(
-      "ticket_api_unavailable",
-      "Nao foi possivel gerar os QR Codes agora.",
-      502,
-    );
+    return generateLocalVoucherQrCodes(vouchers);
   }
 
   const payload = (await response.json()) as GenerateQrCodesResponse;
 
-  return payload.qrcodes ?? {};
+  const remoteQrcodes = payload.qrcodes ?? {};
+
+  return {
+    ...Object.fromEntries(
+      await Promise.all(
+        vouchers
+          .filter((voucher) => !remoteQrcodes[voucher.voucherId])
+          .map(async (voucher) => [
+            voucher.voucherId,
+            await generateLocalVoucherQrCode(voucher),
+          ]),
+      ),
+    ),
+    ...remoteQrcodes,
+  };
+}
+
+export function buildVoucherQrPayload(voucher: TicketApiVoucherPayload) {
+  return JSON.stringify({
+    purchaseId: voucher.purchaseId,
+    voucherId: voucher.voucherId,
+    cpf: voucher.cpf,
+    type: voucher.type,
+    purchaseLocation: voucher.purchaseLocation,
+    purchaseDate: voucher.purchaseDate,
+    price: voucher.price,
+    tpcompra: voucher.tpcompra,
+  });
+}
+
+export async function generateLocalVoucherQrCode(voucher: TicketApiVoucherPayload) {
+  return QRCode.toDataURL(buildVoucherQrPayload(voucher), {
+    errorCorrectionLevel: "M",
+    margin: 1,
+    scale: 6,
+  });
+}
+
+export async function generateLocalVoucherQrCodes(vouchers: TicketApiVoucherPayload[]) {
+  return Object.fromEntries(
+    await Promise.all(
+      vouchers.map(async (voucher) => [
+        voucher.voucherId,
+        await generateLocalVoucherQrCode(voucher),
+      ]),
+    ),
+  );
 }
 
 export async function downloadImageAsDataUrl(url: string) {
@@ -95,7 +134,7 @@ export async function downloadImageAsDataUrl(url: string) {
   if (!response.ok) {
     throw new TicketApiError(
       "ticket_api_asset_unavailable",
-      "Nao foi possivel baixar o QR Code agora.",
+      "Não foi possível baixar o QR Code agora.",
       502,
     );
   }

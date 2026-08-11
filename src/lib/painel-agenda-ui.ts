@@ -100,7 +100,7 @@ export function getPainelAgendaTypeOptions(currentType?: PainelAgendaType | null
     return [{ value: "escol", label: painelAgendaTypeLabels.escol }];
   }
 
-  return (["padra", "promo"] as PainelAgendaType[]).map((value) => ({
+  return (["padra"] as PainelAgendaType[]).map((value) => ({
     value,
     label: painelAgendaTypeLabels[value],
   }));

@@ -9,14 +9,12 @@ type PainelCompraDetailPageProps = {
   detail: PainelPurchaseDetail;
   actorName: string | null;
   actorCpf: string | null;
-  canManageHistory: boolean;
 };
 
 export function PainelCompraDetailPage({
   detail,
   actorName,
   actorCpf,
-  canManageHistory,
 }: PainelCompraDetailPageProps) {
   return (
     <section className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -71,10 +69,10 @@ export function PainelCompraDetailPage({
                   <tr className="bg-[#5f84a3] text-left text-white">
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                      Codigo Indicacao
+                      C?digo Indica??o
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">CPF</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Usuario</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Usuário</th>
                   </tr>
                   <tr>
                     <td className="border border-[#d7d7d7] px-4 py-3">{detail.totalValue}</td>
@@ -90,7 +88,7 @@ export function PainelCompraDetailPage({
                       Valor
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">CPF</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Usuario</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Usuário</th>
                   </tr>
                   <tr>
                     <td className="border border-[#d7d7d7] px-4 py-3" colSpan={2}>
@@ -195,7 +193,7 @@ export function PainelCompraDetailPage({
 
       <aside className="grid content-start gap-5">
         <div className="rounded-[6px] border border-[#d4dde5] bg-white p-5 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
-          <h2 className="text-lg font-semibold text-[#205a7f]">Acoes</h2>
+          <h2 className="text-lg font-semibold text-[#205a7f]">A??es</h2>
           <ul className="mt-4 grid gap-3 text-sm">
             <li>
               <Link className="text-[#1d68a2] underline" href="/painel/compras">
@@ -215,7 +213,6 @@ export function PainelCompraDetailPage({
         <PainelCompraDetailActions
           actorCpf={actorCpf}
           actorName={actorName}
-          canManageHistory={canManageHistory}
           purchaseId={detail.purchaseId}
           voucherIds={detail.vouchers.map((voucher) => voucher.voucherId)}
         />

@@ -76,6 +76,7 @@ export type PainelAgendaScreenData = {
 export type PainelAgendaRangePreview = {
   existingDates: string[];
   hasSchoolDates: boolean;
+  hasPromotionalDates: boolean;
 };
 
 export type PainelAgendaMutationInput = {
@@ -354,6 +355,7 @@ export async function listPainelAgendaMonth(month: number, year: number) {
       LEFT JOIN informacao ON informacao.idinformacao = agenda.idinformacao
       WHERE EXTRACT(MONTH FROM agenda.dtagenda) = $1
         AND EXTRACT(YEAR FROM agenda.dtagenda) = $2
+        AND agenda.tpagenda IN ('padra', 'promo')
       ORDER BY agenda.dtagenda ASC, agenda.idagenda ASC
     `,
     [month, year],
@@ -390,6 +392,7 @@ export async function getPainelAgendaDay(date: string) {
         LEFT JOIN tabpreco ON tabpreco.idtabpreco = agenda.idtabpreco
         LEFT JOIN informacao ON informacao.idinformacao = agenda.idinformacao
         WHERE agenda.dtagenda = $1::date
+          AND agenda.tpagenda IN ('padra', 'promo')
         LIMIT 1
       `,
       [date],
@@ -411,7 +414,9 @@ export async function getPainelAgendaDay(date: string) {
         FROM voucher
         JOIN compra ON compra.idcompra = voucher.idcompra
         LEFT JOIN usuario ON usuario.cpf = compra.cpf
+        LEFT JOIN agenda ON agenda.idagenda = voucher.idagenda
         WHERE voucher.dtuso = $1::date
+          AND COALESCE(agenda.tpagenda, '') <> 'escol'
         ORDER BY voucher.idvoucher DESC
       `,
       [date],
@@ -483,10 +488,10 @@ function validateMutationInput(input: PainelAgendaMutationInput) {
     );
   }
 
-  if (!painelAgendaTypeLabels[input.type]) {
+  if (input.type !== "padra") {
     throw new PainelAgendaError(
       "agenda_invalid_type",
-      "Selecione um tipo de agenda valido.",
+      "Use esta tela apenas para data padrão. Datas promocionais devem ser cadastradas pela área de Site.",
       400,
     );
   }
@@ -507,34 +512,13 @@ function validateMutationInput(input: PainelAgendaMutationInput) {
     );
   }
 
-  if (input.type === "promo") {
-    if (String(input.promotionName ?? "").trim().length === 0) {
-      throw new PainelAgendaError(
-        "agenda_promotion_name_required",
-        "Informe o nome promocional.",
-        400,
-      );
-    }
-
-    if (String(input.promotionDescription ?? "").trim().length === 0) {
-      throw new PainelAgendaError(
-        "agenda_promotion_description_required",
-        "Informe a descrição promocional.",
-        400,
-      );
-    }
-  }
-
   return {
     ...input,
     startDate,
     endDate,
-    promotionName:
-      input.type === "promo" ? String(input.promotionName ?? "").trim() : null,
-    promotionDescription:
-      input.type === "promo"
-        ? String(input.promotionDescription ?? "").trim()
-        : null,
+    type: "padra" as const,
+    promotionName: null,
+    promotionDescription: null,
     reason: String(input.reason).trim(),
     actor: {
       name: input.actor?.name?.trim() || null,
@@ -581,6 +565,7 @@ export async function previewPainelAgendaRange(input: {
   return {
     existingDates: result.rows.map((row) => row.dtagenda),
     hasSchoolDates: result.rows.some((row) => row.tpagenda === "escol"),
+    hasPromotionalDates: result.rows.some((row) => row.tpagenda === "promo"),
   } satisfies PainelAgendaRangePreview;
 }
 
@@ -595,10 +580,18 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
         : null,
   });
 
-  if (preview.hasSchoolDates && normalized.type !== "escol") {
+  if (preview.hasSchoolDates) {
     throw new PainelAgendaError(
       "agenda_school_conflict",
       "Não é possível alterar a faixa informada porque existem agendas escolares nas datas selecionadas.",
+      409,
+    );
+  }
+
+  if (preview.hasPromotionalDates) {
+    throw new PainelAgendaError(
+      "agenda_promotion_conflict",
+      "Não é possível alterar datas promocionais por esta tela. Use a área de Site para eventos promocionais.",
       409,
     );
   }

@@ -272,7 +272,7 @@ function VoucherDocument({
                   {voucher.qrCodeDataUrl ? (
                     <Image src={voucher.qrCodeDataUrl} style={styles.qrImage} />
                   ) : (
-                    <Text>QR indisponivel</Text>
+                    <Text>QR indisponível</Text>
                   )}
                 </View>
               </View>

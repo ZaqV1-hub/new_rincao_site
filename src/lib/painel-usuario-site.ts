@@ -4,6 +4,7 @@ import {
   asOpsAdminMasterDataError,
   updateOpsAdminMasterData,
 } from "@/lib/ops-admin-master-data";
+import { updatePublicUserPassword } from "@/lib/user-repository";
 
 type UsuarioSiteRow = {
   cpf: string;
@@ -475,6 +476,49 @@ export async function updatePainelUsuarioSiteEmail(cpf: unknown, email: unknown)
       email: normalizedEmail,
     },
   });
+}
+
+export async function updatePainelUsuarioSitePassword(
+  cpf: unknown,
+  input: {
+    senha: unknown;
+    csenha: unknown;
+  },
+) {
+  const normalizedCpf = assertCpf(cpf);
+  const senha = normalizeText(input.senha);
+  const csenha = normalizeText(input.csenha);
+
+  if (!senha) {
+    throw new PainelUsuarioSiteError(
+      "invalid_site_user_password",
+      "Informe a senha.",
+      400,
+    );
+  }
+
+  if (senha.length > 20) {
+    throw new PainelUsuarioSiteError(
+      "invalid_site_user_password_length",
+      "A senha deve ter no máximo 20 caracteres.",
+      400,
+    );
+  }
+
+  if (senha !== csenha) {
+    throw new PainelUsuarioSiteError(
+      "invalid_site_user_password_confirmation",
+      "A confirmação da senha deve ser igual à senha.",
+      400,
+    );
+  }
+
+  await getUsuarioSiteRaw(normalizedCpf);
+  await updatePublicUserPassword(normalizedCpf, senha);
+
+  return {
+    message: "Senha alterada com sucesso.",
+  };
 }
 
 export async function updatePainelUsuarioSiteStatus(input: {

@@ -18,11 +18,18 @@ export function PainelUsuarioSiteDetailPage({
 }: PainelUsuarioSiteDetailPageProps) {
   const router = useRouter();
   const [email, setEmail] = useState(data.email === "-" ? "" : data.email);
+  const [senha, setSenha] = useState("");
+  const [csenha, setCSenha] = useState("");
   const [feedback, setFeedback] = useState<{
     tone: "error" | "success";
     message: string;
   } | null>(null);
+  const [passwordFeedback, setPasswordFeedback] = useState<{
+    tone: "error" | "success";
+    message: string;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isPasswordPending, startPasswordTransition] = useTransition();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,6 +60,41 @@ export function PainelUsuarioSiteDetailPage({
         setFeedback({
           tone: "error",
           message: error instanceof Error ? error.message : "Falha ao alterar o e-mail.",
+        });
+      }
+    });
+  }
+
+  async function handlePasswordSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPasswordFeedback(null);
+
+    startPasswordTransition(async () => {
+      try {
+        const response = await fetch(`/api/painel/usuario-site/${data.cpf}/senha`, {
+          method: "PATCH",
+          credentials: "same-origin",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ senha, csenha }),
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | { ok?: boolean; data?: { message?: string }; error?: { message?: string } }
+          | null;
+
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.error?.message || "Falha ao alterar a senha.");
+        }
+
+        setSenha("");
+        setCSenha("");
+        setPasswordFeedback({
+          tone: "success",
+          message: payload.data?.message || "Senha alterada com sucesso.",
+        });
+      } catch (error) {
+        setPasswordFeedback({
+          tone: "error",
+          message: error instanceof Error ? error.message : "Falha ao alterar a senha.",
         });
       }
     });
@@ -196,6 +238,50 @@ export function PainelUsuarioSiteDetailPage({
                   type="submit"
                 >
                   {isPending ? "Alterando..." : "Alterar"}
+                </button>
+              </div>
+            </form>
+
+            <h2 className="mt-8 text-[30px] leading-none text-[#205a7f]">Alterar senha</h2>
+            {passwordFeedback ? (
+              <div
+                className={`mt-4 border px-4 py-3 text-sm ${
+                  passwordFeedback.tone === "success"
+                    ? "border-[#c8def4] bg-[#eff6ff] text-[#1d4f91]"
+                    : "border-[#efc0c0] bg-[#fff0f0] text-[#7a2b2b]"
+                }`}
+              >
+                {passwordFeedback.message}
+              </div>
+            ) : null}
+            <form className="mt-4 grid gap-4 border border-[#d7e3ee] p-5" onSubmit={handlePasswordSubmit}>
+              <label className="grid gap-2 text-[15px] text-[#555]">
+                Nova senha
+                <input
+                  className="border border-[#d3dbe3] px-3 py-3"
+                  maxLength={20}
+                  onChange={(event) => setSenha(event.target.value)}
+                  type="password"
+                  value={senha}
+                />
+              </label>
+              <label className="grid gap-2 text-[15px] text-[#555]">
+                Confirmar senha
+                <input
+                  className="border border-[#d3dbe3] px-3 py-3"
+                  maxLength={20}
+                  onChange={(event) => setCSenha(event.target.value)}
+                  type="password"
+                  value={csenha}
+                />
+              </label>
+              <div>
+                <button
+                  className="bg-[#133d63] px-6 py-3 font-semibold text-white disabled:opacity-60"
+                  disabled={isPasswordPending}
+                  type="submit"
+                >
+                  {isPasswordPending ? "Alterando..." : "Alterar senha"}
                 </button>
               </div>
             </form>

@@ -61,7 +61,7 @@ function PainelBilheteriaPrintTicketItem({
           />
         ) : (
           <p className="mt-3 text-sm font-semibold text-[#9f3d2f]">
-            QR Code indisponivel
+            QR Code indisponível
           </p>
         )}
 

@@ -5,12 +5,10 @@ import { useRouter } from "next/navigation";
 import type {
   PainelAgendaScreenData,
   PainelAgendaStatus,
-  PainelAgendaType,
 } from "@/lib/painel-agenda";
 import {
   formatPainelAgendaDateLabel,
   getPainelAgendaStatusOptions,
-  getPainelAgendaTypeOptions,
 } from "@/lib/painel-agenda-ui";
 
 type PainelAgendaEditorProps = {
@@ -21,17 +19,18 @@ type PainelAgendaEditorProps = {
   };
   mode: "create" | "edit";
   returnHref: string;
-  initialType?: PainelAgendaType;
+  initialType?: "padra";
 };
 
 type RangePreviewState =
-  | { status: "idle"; existingDates: string[]; hasSchoolDates: boolean }
-  | { status: "loading"; existingDates: string[]; hasSchoolDates: boolean }
-  | { status: "ready"; existingDates: string[]; hasSchoolDates: boolean }
+  | { status: "idle"; existingDates: string[]; hasSchoolDates: boolean; hasPromotionalDates: boolean }
+  | { status: "loading"; existingDates: string[]; hasSchoolDates: boolean; hasPromotionalDates: boolean }
+  | { status: "ready"; existingDates: string[]; hasSchoolDates: boolean; hasPromotionalDates: boolean }
   | {
       status: "error";
       existingDates: string[];
       hasSchoolDates: boolean;
+      hasPromotionalDates: boolean;
       message: string;
     };
 
@@ -49,7 +48,7 @@ function defaultReason(selectedDate: string | null) {
 
 function buildDefaultForm(
   data: PainelAgendaScreenData,
-  initialType?: PainelAgendaType,
+  initialType?: "padra",
 ) {
   const selectedDate = data.selectedDate ?? null;
   const agenda = data.selectedDay?.agenda ?? null;
@@ -61,10 +60,8 @@ function buildDefaultForm(
     endDate: selectedDate ?? "",
     priceTableId: agenda?.priceTableId ?? firstPriceTable,
     informationId: agenda?.informationId ?? firstInformation,
-    type: (agenda?.type ?? initialType ?? "padra") as PainelAgendaType,
+    type: initialType ?? "padra",
     status: (agenda?.status ?? "abe") as PainelAgendaStatus,
-    promotionName: agenda?.promotionName ?? "",
-    promotionDescription: agenda?.promotionDescription ?? "",
     reason: defaultReason(selectedDate),
   };
 }
@@ -84,6 +81,7 @@ export function PainelAgendaEditor({
     status: "idle",
     existingDates: [],
     hasSchoolDates: false,
+    hasPromotionalDates: false,
   });
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [mutationState, setMutationState] = useState<MutationState>({
@@ -102,6 +100,7 @@ export function PainelAgendaEditor({
         status: "loading",
         existingDates: current.existingDates,
         hasSchoolDates: current.hasSchoolDates,
+        hasPromotionalDates: current.hasPromotionalDates,
       }));
 
       try {
@@ -123,6 +122,7 @@ export function PainelAgendaEditor({
               data: {
                 existingDates: string[];
                 hasSchoolDates: boolean;
+                hasPromotionalDates: boolean;
               };
             }
           | {
@@ -144,6 +144,7 @@ export function PainelAgendaEditor({
           status: "ready",
           existingDates: payload.data.existingDates,
           hasSchoolDates: payload.data.hasSchoolDates,
+          hasPromotionalDates: payload.data.hasPromotionalDates,
         });
       } catch (error) {
         if (controller.signal.aborted) {
@@ -154,6 +155,7 @@ export function PainelAgendaEditor({
           status: "error",
           existingDates: [],
           hasSchoolDates: false,
+          hasPromotionalDates: false,
           message:
             error instanceof Error
               ? error.message
@@ -167,11 +169,10 @@ export function PainelAgendaEditor({
     return () => controller.abort();
   }, [form.startDate, form.endDate, selectedAgenda?.id]);
 
-  const typeOptions = getPainelAgendaTypeOptions(
-    mode === "create" ? "padra" : (selectedAgenda?.type ?? null),
-  );
   const statusOptions = getPainelAgendaStatusOptions();
   const overwriteRequired = rangePreview.existingDates.length > 0;
+  const hasLockedDates =
+    rangePreview.hasSchoolDates || rangePreview.hasPromotionalDates;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -282,9 +283,9 @@ export function PainelAgendaEditor({
       </div>
 
       <form className="mt-5 grid gap-3" onSubmit={handleSubmit}>
-        <div className="grid gap-3 lg:grid-cols-[0.7fr_0.5fr]">
+        <div className="grid gap-3 lg:grid-cols-2">
           <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63]">
-            Data
+            Data inicial
             <input
               type="date"
               value={form.startDate}
@@ -292,7 +293,10 @@ export function PainelAgendaEditor({
                 setForm((current) => ({
                   ...current,
                   startDate: event.target.value,
-                  endDate: event.target.value,
+                  endDate:
+                    current.endDate && current.endDate >= event.target.value
+                      ? current.endDate
+                      : event.target.value,
                 }))
               }
               className="rounded-[8px] border border-[#d4dfeb] px-3 py-2.5 text-sm font-normal text-[#123b63]"
@@ -300,23 +304,18 @@ export function PainelAgendaEditor({
           </label>
 
           <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63]">
-            Tipo da agenda
-            <select
-              value={form.type}
+            Data final
+            <input
+              type="date"
+              value={form.endDate}
               onChange={(event) =>
                 setForm((current) => ({
                   ...current,
-                  type: event.target.value as PainelAgendaType,
+                  endDate: event.target.value,
                 }))
               }
               className="rounded-[8px] border border-[#d4dfeb] px-3 py-2.5 text-sm font-normal text-[#123b63]"
-            >
-              {typeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            />
           </label>
         </div>
 
@@ -381,47 +380,6 @@ export function PainelAgendaEditor({
           </p>
         </section>
 
-        {form.type === "promo" ? (
-          <div className="grid gap-3 rounded-[8px] border border-[#d4dfeb] bg-[#f8fbff] p-3">
-            <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63]">
-              Nome da promoção
-              <input
-                type="text"
-                value={form.promotionName}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    promotionName: event.target.value,
-                  }))
-                }
-                className="rounded-[8px] border border-[#d4dfeb] px-3 py-2.5 text-sm font-normal text-[#123b63]"
-              />
-            </label>
-            <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63]">
-              Descrição da promoção
-              <textarea
-                value={form.promotionDescription}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    promotionDescription: event.target.value,
-                  }))
-                }
-                rows={3}
-                className="rounded-[8px] border border-[#d4dfeb] px-3 py-2.5 text-sm font-normal text-[#123b63]"
-              />
-            </label>
-            <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63]">
-              Imagem do evento
-              <input
-                type="file"
-                accept="image/*"
-                className="rounded-[8px] border border-dashed border-[#b9cde0] bg-white px-3 py-2.5 text-sm font-normal text-[#123b63]"
-              />
-            </label>
-          </div>
-        ) : null}
-
         {rangePreview.status === "error" ? (
           <div className="rounded-[8px] border border-[#f1b1aa] bg-[#fff4f2] px-4 py-3 text-sm text-[#9d3d31]">
             {rangePreview.message}
@@ -445,9 +403,9 @@ export function PainelAgendaEditor({
           </label>
         ) : null}
 
-        {rangePreview.hasSchoolDates && form.type !== "escol" ? (
+        {hasLockedDates ? (
           <div className="rounded-[8px] border border-[#f1b1aa] bg-[#fff4f2] px-4 py-3 text-sm text-[#9d3d31]">
-            A faixa selecionada contém agendas escolares. Só é permitido manter o tipo escolar nesses dias.
+            A faixa selecionada contém datas escolares ou promocionais. Ajuste a faixa para alterar apenas datas padrão.
           </div>
         ) : null}
 
@@ -469,7 +427,7 @@ export function PainelAgendaEditor({
             disabled={
               mutationState.status === "submitting" ||
               (overwriteRequired && !confirmOverwrite) ||
-              (rangePreview.hasSchoolDates && form.type !== "escol")
+              hasLockedDates
             }
             className="rounded-[8px] bg-[#123b63] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0f2f4f] disabled:opacity-60"
           >

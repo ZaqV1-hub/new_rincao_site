@@ -100,7 +100,7 @@ export function PainelComprasFiltersForm({
           />
         </label>
         <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
-          AtÃ©
+          Até
           <input
             className="rincao-field rounded-[8px] px-3 py-2 text-sm"
             defaultValue={toDateInputValue(filters.dateTo ?? null)}
@@ -159,7 +159,7 @@ export function PainelComprasFiltersForm({
           />
         </label>
         <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
-          UsuÃ¡rio
+          Usuário
           <input
             className="rincao-field rounded-[8px] px-3 py-2 text-sm"
             defaultValue={filters.userName ?? ""}
@@ -174,7 +174,7 @@ export function PainelComprasFiltersForm({
         <div className="flex flex-wrap gap-2">
           {canRefreshPurchases ? (
             <span className="rounded-[8px] border border-[#d7e3ee] bg-[#f2f7fc] px-3 py-2 text-xs text-[#58728b]">
-              AtualizaÃ§Ã£o manual em fase futura
+              Atualização manual em fase futura
             </span>
           ) : null}
           <button

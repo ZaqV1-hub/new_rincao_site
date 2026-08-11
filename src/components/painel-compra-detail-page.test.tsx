@@ -14,7 +14,6 @@ describe("PainelCompraDetailPage", () => {
       React.createElement(PainelCompraDetailPage, {
         actorName: "WAGNER",
         actorCpf: "00000000191",
-        canManageHistory: true,
         detail: {
           purchaseId: 551,
           purchaseDate: "06/05/2026",

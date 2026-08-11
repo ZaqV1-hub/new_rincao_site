@@ -26,7 +26,6 @@ export default async function PainelCompraDetailRoute({
     <PainelCompraDetailPage
       actorCpf={session.actorCpf}
       actorName={session.actorName}
-      canManageHistory={session.legacyRoleId === 1}
       detail={detail}
     />
   );
