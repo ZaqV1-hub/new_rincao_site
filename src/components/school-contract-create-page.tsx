@@ -26,6 +26,19 @@ type ApiPayload =
     }
   | null;
 
+function formatCurrencyInput(value: string) {
+  const digits = value.replace(/\D/g, "");
+
+  if (!digits) {
+    return "";
+  }
+
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(digits) / 100);
+}
+
 export function SchoolContractCreatePage({
   options,
   actor: _actor,
@@ -72,6 +85,7 @@ export function SchoolContractCreatePage({
 
   useEffect(() => {
     if (isNewSchool) {
+      setSchoolAddress("");
       return;
     }
 
@@ -219,10 +233,16 @@ export function SchoolContractCreatePage({
                 <input
                   checked={isNewSchool}
                   onChange={(event) => {
-                    setIsNewSchool(event.target.checked);
+                    const nextValue = event.target.checked;
+
+                    setIsNewSchool(nextValue);
                     setSchoolId("");
                     setSchoolSearch("");
                     setIsSchoolListOpen(false);
+
+                    if (nextValue) {
+                      setSchoolAddress("");
+                    }
                   }}
                   type="checkbox"
                 />
@@ -241,10 +261,20 @@ export function SchoolContractCreatePage({
               ) : null}
 
               <label className="grid gap-2 text-sm font-semibold md:col-span-2">
-                <span>Endereco</span>
+                <span>Endereço</span>
                 <input
-                  className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                  onChange={(event) => setSchoolAddress(event.target.value)}
+                  className={`h-11 rounded-[6px] border px-3 text-sm ${
+                    isNewSchool
+                      ? "border-[#c9d8e3] bg-white"
+                      : "border-[#d9e3eb] bg-[#f8fbfd] text-[#55718a]"
+                  }`}
+                  onChange={(event) => {
+                    if (isNewSchool) {
+                      setSchoolAddress(event.target.value);
+                    }
+                  }}
+                  placeholder={isNewSchool ? "Digite o endereço da escola" : ""}
+                  readOnly={!isNewSchool}
                   value={schoolAddress}
                 />
               </label>
@@ -263,8 +293,10 @@ export function SchoolContractCreatePage({
                 <span>Valor negociado</span>
                 <input
                   className="h-11 rounded-[6px] border border-[#c9d8e3] px-3 text-sm"
-                  inputMode="decimal"
-                  onChange={(event) => setNegotiatedValue(event.target.value)}
+                  inputMode="numeric"
+                  onChange={(event) =>
+                    setNegotiatedValue(formatCurrencyInput(event.target.value))
+                  }
                   placeholder="0,00"
                   value={negotiatedValue}
                 />

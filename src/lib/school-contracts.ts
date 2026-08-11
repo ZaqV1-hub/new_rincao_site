@@ -202,7 +202,7 @@ function normalizeMoneyValue(value: unknown) {
   if (!Number.isFinite(parsed) || parsed < 0) {
     throw new SchoolContractError(
       "school_contract_invalid_value",
-      "Informe um valor negociado valido.",
+      "Informe um valor negociado válido.",
       400,
     );
   }
@@ -1410,10 +1410,11 @@ export async function createSchoolContract(
             $9,
             $10,
             $11,
-            'aguardando_confirmacao',
             $12,
-            DATE_ADD(NOW(), INTERVAL $13 DAY),
-            $14
+            'aguardando_confirmacao',
+            $13,
+            DATE_ADD(NOW(), INTERVAL $14 DAY),
+            $15
           )
         `
         : `
@@ -1447,10 +1448,11 @@ export async function createSchoolContract(
             $9,
             $10,
             $11,
+            $12,
             'aguardando_confirmacao',
-            $12::uuid,
-            NOW() + (($13 || ' days')::interval),
-            $14
+            $13::uuid,
+            NOW() + (($14 || ' days')::interval),
+            $15
           )
         `;
 
