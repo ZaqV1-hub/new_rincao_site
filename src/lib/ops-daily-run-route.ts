@@ -109,7 +109,11 @@ export async function handleOperationalDailyRun<TPayload>({
   try {
     const data = await runOperationalDailyJobs(buildRunInput(payload));
 
-    await recordOperationalJobRun(buildJobRunInput(payload, data));
+    try {
+      await recordOperationalJobRun(buildJobRunInput(payload, data));
+    } catch (recordError) {
+      console.error("ops-daily-run-record-failed", recordError);
+    }
 
     return NextResponse.json({
       ok: true,

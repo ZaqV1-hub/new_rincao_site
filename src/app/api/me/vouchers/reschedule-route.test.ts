@@ -44,6 +44,7 @@ describe("me/vouchers reschedule BFF route", () => {
     getUserVoucherRescheduleData.mockResolvedValue({
       purchaseId: 101,
       agendaId: 10,
+      validUntil: "2026-10-20",
       voucher: {
         id: 11,
         type: "norma",
@@ -115,6 +116,7 @@ describe("me/vouchers reschedule BFF route", () => {
     getUserVoucherRescheduleData.mockResolvedValue({
       purchaseId: 101,
       agendaId: 10,
+      validUntil: "2026-10-20",
       voucher: {
         id: 11,
         type: "norma",

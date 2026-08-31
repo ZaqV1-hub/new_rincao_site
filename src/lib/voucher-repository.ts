@@ -1,5 +1,8 @@
 import { Buffer } from "node:buffer";
-import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
+import {
+  getIngressoSistemaDbDialect,
+  getIngressoSistemaDbPool,
+} from "@/lib/ingresso-db";
 import { buildSchoolDisplay } from "@/lib/school-structure";
 import { resolveVoucherTypeLabel } from "@/lib/voucher-type-label";
 import type {
@@ -27,6 +30,8 @@ type VoucherRow = {
   tpvoucher: string | null;
   vlunicompra: string | null;
   stusado: string | null;
+  stvoucher?: string | null;
+  flreagendado?: string | null;
   dtuso: string | null;
   voucherenviado: string | null;
   dtvalidade: string | null;
@@ -72,6 +77,7 @@ export type VoucherExportData = {
 export type UserVoucherRescheduleData = {
   purchaseId: number;
   agendaId: number;
+  validUntil: string | null;
   voucher: UserVoucher;
 };
 
@@ -116,17 +122,30 @@ function normalizeDate(value: string | null) {
   return value ? value.slice(0, 10) : null;
 }
 
-function daysBetween(startDate: string | null, endDate: Date) {
-  if (!startDate) {
-    return Number.POSITIVE_INFINITY;
+function toUtcDateOnly(date: Date) {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+}
+
+function addMonthsToDateString(value: string | null, months: number) {
+  if (!value) {
+    return null;
   }
 
-  const start = new Date(`${startDate.slice(0, 10)}T00:00:00.000Z`);
-  const end = new Date(
-    Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate()),
-  );
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
 
-  return Math.floor((end.getTime() - start.getTime()) / 86400000);
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(year, month - 1 + months + 1, 0),
+  ).getUTCDate();
+  const targetDay = Math.min(day, lastDayOfTargetMonth);
+  const target = new Date(Date.UTC(year, month - 1 + months, targetDay));
+
+  return target.toISOString().slice(0, 10);
 }
 
 function daysBetweenDates(startDate: Date, endDate: string | null) {
@@ -134,19 +153,89 @@ function daysBetweenDates(startDate: Date, endDate: string | null) {
     return Number.POSITIVE_INFINITY;
   }
 
-  const start = new Date(
-    Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()),
-  );
+  const start = toUtcDateOnly(startDate);
   const end = new Date(`${endDate.slice(0, 10)}T00:00:00.000Z`);
 
   return Math.floor((end.getTime() - start.getTime()) / 86400000);
 }
 
+function isAfterTicketValidity(purchaseDate: string | null, today: Date) {
+  const validUntil = addMonthsToDateString(purchaseDate, 6);
+
+  if (!validUntil) {
+    return true;
+  }
+
+  return toUtcDateOnly(today).toISOString().slice(0, 10) > validUntil;
+}
+
+let voucherLifecycleSchemaPromise: Promise<void> | null = null;
+
+export function resetVoucherLifecycleSchemaForTests() {
+  voucherLifecycleSchemaPromise = null;
+}
+
+export async function ensureVoucherLifecycleSchema() {
+  if (!voucherLifecycleSchemaPromise) {
+    const pool = getIngressoSistemaDbPool();
+
+    voucherLifecycleSchemaPromise = Promise.all([
+      pool.query(`
+        ALTER TABLE voucher
+        ADD COLUMN IF NOT EXISTS flreagendado char(1) NOT NULL DEFAULT 'n'
+      `),
+      pool.query(`
+        ALTER TABLE voucher
+        ADD COLUMN IF NOT EXISTS stvoucher varchar(20) NOT NULL DEFAULT 'ativo'
+      `),
+    ]).then(() => undefined);
+  }
+
+  await voucherLifecycleSchemaPromise;
+}
+
+export async function expireUnusedVouchers() {
+  await ensureVoucherLifecycleSchema();
+
+  const pool = getIngressoSistemaDbPool();
+  const dialect = getIngressoSistemaDbDialect();
+  const result = await pool.query<{ idvoucher: number }>(
+    dialect === "mysql"
+      ? `
+        UPDATE voucher
+        JOIN compra ON compra.idcompra = voucher.idcompra
+        SET voucher.stvoucher = 'vencido'
+        WHERE voucher.stusado = 'n'
+          AND COALESCE(voucher.stvoucher, 'ativo') <> 'vencido'
+          AND compra.dtcompra IS NOT NULL
+          AND CURRENT_DATE > DATE_ADD(DATE(compra.dtcompra), INTERVAL 6 MONTH)
+      `
+      : `
+        UPDATE voucher
+        SET stvoucher = 'vencido'
+        FROM compra
+        WHERE compra.idcompra = voucher.idcompra
+          AND voucher.stusado = 'n'
+          AND COALESCE(voucher.stvoucher, 'ativo') <> 'vencido'
+          AND compra.dtcompra IS NOT NULL
+          AND CURRENT_DATE > (compra.dtcompra::date + INTERVAL '6 months')::date
+        RETURNING voucher.idvoucher
+      `,
+  );
+
+  return {
+    expiredCount: result.rowCount ?? result.rows.length,
+    expiredVoucherIds: result.rows.map((row) => Number(row.idvoucher)),
+  };
+}
+
 function mapVoucher(row: VoucherRow, purchase: PurchaseRow, today: Date): UserVoucher {
-  const purchaseAgeDays = daysBetween(purchase.dtcompra, today);
   const visitDiffDays = daysBetweenDates(today, row.dtagenda);
   const used = row.stusado === "s";
-  const expiredForGeneration = purchaseAgeDays > 90;
+  const expiredForGeneration =
+    String(row.stvoucher ?? "").trim() === "vencido" ||
+    isAfterTicketValidity(purchase.dtcompra, today);
+  const alreadyRescheduled = String(row.flreagendado ?? "").trim() === "s";
   const canSelectForVoucher = purchase.stcompra === "conc" && !used && !expiredForGeneration;
 
   return {
@@ -166,14 +255,16 @@ function mapVoucher(row: VoucherRow, purchase: PurchaseRow, today: Date): UserVo
     schoolName: row.nmescola,
     participantName: row.nomealuno || row.nomeeducador || null,
     sent: row.voucherenviado?.trim() === "s",
-    validUntil: normalizeDate(row.dtvalidade),
+    validUntil: addMonthsToDateString(purchase.dtcompra, 6) ?? normalizeDate(row.dtvalidade),
     canSelectForVoucher,
     canReschedule:
+      purchase.stcompra === "conc" &&
       row.tpagenda === "padra" &&
       !used &&
       !expiredForGeneration &&
+      !alreadyRescheduled &&
       row.tpvoucher !== "escol" &&
-      visitDiffDays <= 0,
+      visitDiffDays < 0,
     expiredForGeneration,
   };
 }
@@ -208,7 +299,6 @@ function mapPurchase(
   vouchers: UserVoucher[],
   today: Date,
 ): UserVoucherPurchase {
-  const purchaseAgeDays = daysBetween(row.dtcompra, today);
   const unusedVoucherCount = Number(row.unused_voucher_count);
   const paymentStatus = row.status;
 
@@ -238,7 +328,7 @@ function mapPurchase(
       row.tpcompra === "ponli" &&
       row.stcompra === "conc" &&
       unusedVoucherCount > 0 &&
-      purchaseAgeDays <= 90,
+      !isAfterTicketValidity(row.dtcompra, today),
     canCancelReservation:
       row.tpcompra === "reser" &&
       row.stcompra !== "canc" &&
@@ -259,6 +349,8 @@ async function getPurchasePageRows(
     purchaseId?: number;
   },
 ): Promise<PurchasePageRows> {
+  await expireUnusedVouchers();
+
   const pool = getIngressoSistemaDbPool();
   const totalResult = await pool.query<{ total: string }>(
     `
@@ -298,7 +390,10 @@ async function getPurchasePageRows(
         pagpagseguro.status,
         pagpagseguro.paymentmethodtype,
         COUNT(voucher.idvoucher)::text AS voucher_count,
-        COUNT(voucher.idvoucher) FILTER (WHERE voucher.stusado = 'n')::text AS unused_voucher_count
+        COUNT(voucher.idvoucher) FILTER (
+          WHERE voucher.stusado = 'n'
+            AND COALESCE(voucher.stvoucher, 'ativo') <> 'vencido'
+        )::text AS unused_voucher_count
       FROM compra
       LEFT JOIN LATERAL (
         SELECT status, paymentmethodtype
@@ -335,6 +430,7 @@ async function getVouchersByPurchaseIds(purchaseIds: number[]) {
   }
 
   const pool = getIngressoSistemaDbPool();
+  await ensureVoucherLifecycleSchema();
   const voucherResult = await pool.query<VoucherRow>(
     `
       SELECT
@@ -344,6 +440,8 @@ async function getVouchersByPurchaseIds(purchaseIds: number[]) {
         voucher.tpvoucher,
         voucher.vlunicompra::text AS vlunicompra,
         voucher.stusado,
+        voucher.stvoucher,
+        voucher.flreagendado,
         to_char(voucher.dtuso, 'YYYY-MM-DD') AS dtuso,
         voucher.voucherenviado,
         to_char(voucher.dtvalidade, 'YYYY-MM-DD') AS dtvalidade,
@@ -537,6 +635,8 @@ export async function getUserVoucherRescheduleData(
   cpf: string,
   voucherId: number,
 ): Promise<UserVoucherRescheduleData | null> {
+  await expireUnusedVouchers();
+
   const pool = getIngressoSistemaDbPool();
   const result = await pool.query<
     VoucherRow &
@@ -557,6 +657,8 @@ export async function getUserVoucherRescheduleData(
         voucher.tpvoucher,
         voucher.vlunicompra::text AS vlunicompra,
         voucher.stusado,
+        voucher.stvoucher,
+        voucher.flreagendado,
         to_char(voucher.dtuso, 'YYYY-MM-DD') AS dtuso,
         voucher.voucherenviado,
         to_char(voucher.dtvalidade, 'YYYY-MM-DD') AS dtvalidade,
@@ -603,6 +705,7 @@ export async function getUserVoucherRescheduleData(
   return {
     purchaseId: row.idcompra,
     agendaId: Number(row.idagenda),
+    validUntil: addMonthsToDateString(row.dtcompra, 6),
     voucher: mapVoucher(row, purchaseRow, new Date()),
   };
 }
@@ -612,16 +715,28 @@ export async function rescheduleUserVoucher(
   voucherId: number,
   agendaId: number,
 ) {
+  await ensureVoucherLifecycleSchema();
+
   const pool = getIngressoSistemaDbPool();
   const result = await pool.query<{ idvoucher: number }>(
     `
       UPDATE voucher
-      SET idagenda = $1
+      SET idagenda = $1,
+          flreagendado = 's',
+          stvoucher = 'ativo'
       FROM compra
+      JOIN agenda target_agenda ON target_agenda.idagenda = $1
       WHERE compra.idcompra = voucher.idcompra
         AND voucher.idvoucher = $2
         AND compra.cpf = $3
+        AND compra.stcompra = 'conc'
         AND voucher.stusado = 'n'
+        AND COALESCE(voucher.stvoucher, 'ativo') <> 'vencido'
+        AND COALESCE(voucher.flreagendado, 'n') <> 's'
+        AND target_agenda.tpagenda = 'padra'
+        AND target_agenda.stagenda = 'abe'
+        AND target_agenda.dtagenda >= CURRENT_DATE
+        AND target_agenda.dtagenda <= (compra.dtcompra::date + INTERVAL '6 months')::date
       RETURNING voucher.idvoucher
     `,
     [agendaId, voucherId, cpf],

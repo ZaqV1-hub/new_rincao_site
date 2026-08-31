@@ -6,11 +6,13 @@ const {
   recoverPendingTicketDeliveries,
   autoCloseOperationalCashClosures,
   runMembershipMaintenance,
+  expireUnusedVouchers,
 } = vi.hoisted(() => ({
   syncOperationalPaymentStatuses: vi.fn(),
   recoverPendingTicketDeliveries: vi.fn(),
   autoCloseOperationalCashClosures: vi.fn(),
   runMembershipMaintenance: vi.fn(),
+  expireUnusedVouchers: vi.fn(),
 }));
 
 vi.mock("@/lib/ops-payment-sync", () => ({
@@ -27,6 +29,10 @@ vi.mock("@/lib/ops-cash-closures", () => ({
 
 vi.mock("@/lib/ops-membership-maintenance", () => ({
   runMembershipMaintenance,
+}));
+
+vi.mock("@/lib/voucher-repository", () => ({
+  expireUnusedVouchers,
 }));
 
 describe("ops-daily-jobs", () => {
@@ -101,6 +107,10 @@ describe("ops-daily-jobs", () => {
       ],
       message: "4 registro(s) inativados por vigencia.",
     });
+    expireUnusedVouchers.mockResolvedValue({
+      expiredCount: 2,
+      expiredVoucherIds: [1001, 1002],
+    });
 
     const result = await runOperationalDailyJobs({
       actor: {
@@ -132,6 +142,10 @@ describe("ops-daily-jobs", () => {
       action: "membership_maintenance",
       status: "success",
     });
+    expect(result.steps.voucherExpiration).toMatchObject({
+      action: "voucher_expiration",
+      status: "success",
+    });
     expect(syncOperationalPaymentStatuses).toHaveBeenCalledWith({
       recentDays: 7,
       cancelAfterDays: 5,
@@ -144,6 +158,7 @@ describe("ops-daily-jobs", () => {
         name: "Gestor Operacional",
       },
     });
+    expect(expireUnusedVouchers).toHaveBeenCalledWith();
   });
 
   it("keeps the run partial when one step fails", async () => {
@@ -192,6 +207,10 @@ describe("ops-daily-jobs", () => {
         { domain: "conveniado", deactivated: 0 },
       ],
       message: "Nenhum socio, convenio ou conveniado expirado para inativar.",
+    });
+    expireUnusedVouchers.mockResolvedValue({
+      expiredCount: 0,
+      expiredVoucherIds: [],
     });
 
     const result = await runOperationalDailyJobs();

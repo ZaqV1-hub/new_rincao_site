@@ -12,6 +12,7 @@ type RangeCheckPayload = {
   excludeAgendaId?: unknown;
   startDate?: unknown;
   endDate?: unknown;
+  selectedDates?: unknown;
 };
 
 function errorResponse(code: string, message: string, status: number) {
@@ -62,6 +63,11 @@ export async function POST(request: Request) {
       startDate:
         typeof payload?.startDate === "string" ? payload.startDate.trim() : "",
       endDate: typeof payload?.endDate === "string" ? payload.endDate.trim() : "",
+      selectedDates: Array.isArray(payload?.selectedDates)
+        ? payload.selectedDates
+            .filter((date): date is string => typeof date === "string")
+            .map((date) => date.trim())
+        : [],
     });
 
     return NextResponse.json({

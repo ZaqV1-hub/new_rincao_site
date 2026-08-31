@@ -83,6 +83,7 @@ export type PainelAgendaMutationInput = {
   agendaId?: number | null;
   startDate: string;
   endDate: string;
+  selectedDates?: string[];
   priceTableId: number;
   informationId: number;
   type: PainelAgendaType;
@@ -90,6 +91,7 @@ export type PainelAgendaMutationInput = {
   promotionName?: string | null;
   promotionDescription?: string | null;
   confirmOverwrite?: boolean;
+  allowPromotional?: boolean;
   reason: string;
   actor?: {
     name?: string | null;
@@ -299,6 +301,28 @@ function listRangeDates(startDate: string, endDate: string) {
   return dates;
 }
 
+function normalizeSelectedDates(selectedDates: string[] | undefined) {
+  if (!Array.isArray(selectedDates)) {
+    return [];
+  }
+
+  const uniqueDates = Array.from(new Set(selectedDates.map((date) => date.trim())))
+    .filter(Boolean)
+    .sort();
+
+  if (uniqueDates.length > 366) {
+    throw new PainelAgendaError(
+      "agenda_too_many_dates",
+      "Selecione no máximo 366 datas por alteração.",
+      400,
+    );
+  }
+
+  return uniqueDates.map((date) =>
+    assertIsoDate(date, "uma das datas selecionadas"),
+  );
+}
+
 export async function getPainelAgendaScreenData(input: {
   month?: string | number | null;
   year?: string | number | null;
@@ -461,8 +485,15 @@ export async function listPainelAgendaInformationOptions() {
 }
 
 function validateMutationInput(input: PainelAgendaMutationInput) {
-  const startDate = assertIsoDate(input.startDate, "a data inicial");
-  const endDate = assertIsoDate(input.endDate, "a data final");
+  const selectedDates = normalizeSelectedDates(input.selectedDates);
+  const startDate = assertIsoDate(
+    selectedDates[0] ?? input.startDate,
+    "a data inicial",
+  );
+  const endDate = assertIsoDate(
+    selectedDates.at(-1) ?? input.endDate,
+    "a data final",
+  );
 
   if (endDate < startDate) {
     throw new PainelAgendaError(
@@ -488,7 +519,7 @@ function validateMutationInput(input: PainelAgendaMutationInput) {
     );
   }
 
-  if (input.type !== "padra") {
+  if (input.type !== "padra" && !input.allowPromotional) {
     throw new PainelAgendaError(
       "agenda_invalid_type",
       "Use esta tela apenas para data padrão. Datas promocionais devem ser cadastradas pela área de Site.",
@@ -516,9 +547,19 @@ function validateMutationInput(input: PainelAgendaMutationInput) {
     ...input,
     startDate,
     endDate,
-    type: "padra" as const,
-    promotionName: null,
-    promotionDescription: null,
+    selectedDates,
+    type:
+      input.type === "promo" && input.allowPromotional
+        ? ("promo" as const)
+        : ("padra" as const),
+    promotionName:
+      input.type === "promo" && input.allowPromotional
+        ? String(input.promotionName ?? "").trim() || null
+        : null,
+    promotionDescription:
+      input.type === "promo" && input.allowPromotional
+        ? String(input.promotionDescription ?? "").trim() || null
+        : null,
     reason: String(input.reason).trim(),
     actor: {
       name: input.actor?.name?.trim() || null,
@@ -530,10 +571,18 @@ function validateMutationInput(input: PainelAgendaMutationInput) {
 export async function previewPainelAgendaRange(input: {
   startDate: string;
   endDate: string;
+  selectedDates?: string[];
   excludeAgendaId?: number | null;
 }) {
-  const startDate = assertIsoDate(input.startDate, "a data inicial");
-  const endDate = assertIsoDate(input.endDate, "a data final");
+  const selectedDates = normalizeSelectedDates(input.selectedDates);
+  const startDate = assertIsoDate(
+    selectedDates[0] ?? input.startDate,
+    "a data inicial",
+  );
+  const endDate = assertIsoDate(
+    selectedDates.at(-1) ?? input.endDate,
+    "a data final",
+  );
   const excludeAgendaId =
     Number.isInteger(input.excludeAgendaId) && Number(input.excludeAgendaId) > 0
       ? Number(input.excludeAgendaId)
@@ -552,14 +601,24 @@ export async function previewPainelAgendaRange(input: {
     dtagenda: string;
     tpagenda: PainelAgendaType;
   }>(
-    `
-      SELECT to_char(dtagenda, 'YYYY-MM-DD') AS dtagenda, tpagenda
-      FROM agenda
-      WHERE dtagenda BETWEEN $1::date AND $2::date
-        AND ($3::int IS NULL OR idagenda <> $3::int)
-      ORDER BY dtagenda ASC
-    `,
-    [startDate, endDate, excludeAgendaId],
+    selectedDates.length > 0
+      ? `
+        SELECT to_char(dtagenda, 'YYYY-MM-DD') AS dtagenda, tpagenda
+        FROM agenda
+        WHERE dtagenda = ANY($1::date[])
+          AND ($2::int IS NULL OR idagenda <> $2::int)
+        ORDER BY dtagenda ASC
+      `
+      : `
+        SELECT to_char(dtagenda, 'YYYY-MM-DD') AS dtagenda, tpagenda
+        FROM agenda
+        WHERE dtagenda BETWEEN $1::date AND $2::date
+          AND ($3::int IS NULL OR idagenda <> $3::int)
+        ORDER BY dtagenda ASC
+      `,
+    selectedDates.length > 0
+      ? [selectedDates, excludeAgendaId]
+      : [startDate, endDate, excludeAgendaId],
   );
 
   return {
@@ -571,9 +630,15 @@ export async function previewPainelAgendaRange(input: {
 
 export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) {
   const normalized = validateMutationInput(input);
+  const selectedDates = normalized.selectedDates ?? [];
+  const dates =
+    selectedDates.length > 0
+      ? selectedDates
+      : listRangeDates(normalized.startDate, normalized.endDate);
   const preview = await previewPainelAgendaRange({
     startDate: normalized.startDate,
     endDate: normalized.endDate,
+    selectedDates,
     excludeAgendaId:
       Number.isInteger(normalized.agendaId) && Number(normalized.agendaId) > 0
         ? Number(normalized.agendaId)
@@ -588,7 +653,7 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
     );
   }
 
-  if (preview.hasPromotionalDates) {
+  if (preview.hasPromotionalDates && !normalized.allowPromotional) {
     throw new PainelAgendaError(
       "agenda_promotion_conflict",
       "Não é possível alterar datas promocionais por esta tela. Use a área de Site para eventos promocionais.",
@@ -616,17 +681,24 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
       idagenda: number;
       dtagenda: string;
     }>(
-      `
-        SELECT idagenda, to_char(dtagenda, 'YYYY-MM-DD') AS dtagenda
-        FROM agenda
-        WHERE dtagenda BETWEEN $1::date AND $2::date
-      `,
-      [normalized.startDate, normalized.endDate],
+      selectedDates.length > 0
+        ? `
+          SELECT idagenda, to_char(dtagenda, 'YYYY-MM-DD') AS dtagenda
+          FROM agenda
+          WHERE dtagenda = ANY($1::date[])
+        `
+        : `
+          SELECT idagenda, to_char(dtagenda, 'YYYY-MM-DD') AS dtagenda
+          FROM agenda
+          WHERE dtagenda BETWEEN $1::date AND $2::date
+        `,
+      selectedDates.length > 0
+        ? [selectedDates]
+        : [normalized.startDate, normalized.endDate],
     );
     const existingByDate = new Map(
       existingResult.rows.map((row) => [row.dtagenda, row]),
     );
-    const dates = listRangeDates(normalized.startDate, normalized.endDate);
 
     for (const date of dates) {
       const existing = existingByDate.get(date);
@@ -698,16 +770,20 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
       client,
       {
         origem: "painel-agenda",
-        acao: "upsert_range",
-        descricao: `Agenda atualizada de ${formatPainelAgendaDateLabel(
-          normalized.startDate,
-        )} ate ${formatPainelAgendaDateLabel(normalized.endDate)}.`,
+        acao: selectedDates.length > 0 ? "upsert_specific_dates" : "upsert_range",
+        descricao:
+          selectedDates.length > 0
+            ? `Agenda atualizada em ${dates.length} data(s) selecionada(s).`
+            : `Agenda atualizada de ${formatPainelAgendaDateLabel(
+                normalized.startDate,
+              )} ate ${formatPainelAgendaDateLabel(normalized.endDate)}.`,
         motivo: normalized.reason,
         usuarioNome:
           normalized.actor.name || normalized.actor.cpf || "Painel agenda",
         detalhes: {
           startDate: normalized.startDate,
           endDate: normalized.endDate,
+          selectedDates,
           priceTableId: normalized.priceTableId,
           informationId: normalized.informationId,
           type: normalized.type,
@@ -725,7 +801,9 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
       message:
         dates.length === 1
           ? "Agenda do dia salva com sucesso."
-          : "Agenda da faixa salva com sucesso.",
+          : selectedDates.length > 0
+            ? "Agenda das datas selecionadas salva com sucesso."
+            : "Agenda da faixa salva com sucesso.",
       touchedDates: dates,
     };
   } catch (error) {

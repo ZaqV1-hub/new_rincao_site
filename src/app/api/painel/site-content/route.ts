@@ -269,6 +269,7 @@ export async function POST(request: Request) {
           promotionDescription:
             asText(formData.get("description")) || current?.description || "",
           confirmOverwrite: true,
+          allowPromotional: true,
           reason: "Evento do site atualizado pelo painel",
         });
       } else if (currentEventDate) {

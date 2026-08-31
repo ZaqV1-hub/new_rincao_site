@@ -14,6 +14,7 @@ type AgendaMutationPayload = {
   agendaId?: unknown;
   startDate?: unknown;
   endDate?: unknown;
+  selectedDates?: unknown;
   priceTableId?: unknown;
   informationId?: unknown;
   type?: unknown;
@@ -58,6 +59,11 @@ function parseInput(payload: AgendaMutationPayload | null): PainelAgendaMutation
     startDate:
       typeof payload?.startDate === "string" ? payload.startDate.trim() : "",
     endDate: typeof payload?.endDate === "string" ? payload.endDate.trim() : "",
+    selectedDates: Array.isArray(payload?.selectedDates)
+      ? payload.selectedDates
+          .filter((date): date is string => typeof date === "string")
+          .map((date) => date.trim())
+      : [],
     priceTableId: Number(payload?.priceTableId),
     informationId: Number(payload?.informationId),
     type: String(payload?.type ?? "").trim() as PainelAgendaMutationInput["type"],

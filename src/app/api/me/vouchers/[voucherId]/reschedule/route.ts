@@ -31,6 +31,10 @@ function errorResponse(code: string, message: string, status: number) {
   );
 }
 
+function isDateWithinValidity(date: string, validUntil: string | null) {
+  return Boolean(validUntil && date <= validUntil);
+}
+
 async function getVoucherDataOrResponse(cpf: string, voucherId: number) {
   const voucherData = await getUserVoucherRescheduleData(cpf, voucherId);
 
@@ -82,7 +86,9 @@ export async function GET(_request: Request, context: RouteContext) {
     }
 
     const options = (await getRescheduleAgendaOptions()).filter(
-      (option) => option.id !== voucherResult.voucherData.agendaId,
+      (option) =>
+        option.id !== voucherResult.voucherData.agendaId &&
+        isDateWithinValidity(option.date, voucherResult.voucherData.validUntil),
     );
 
     return NextResponse.json<UserVoucherRescheduleOptionsResponse>({
@@ -155,6 +161,14 @@ export async function POST(request: Request, context: RouteContext) {
         "agenda_not_found",
         "A data escolhida nao esta disponivel para reagendamento.",
         404,
+      );
+    }
+
+    if (!isDateWithinValidity(targetAgenda.date, voucherResult.voucherData.validUntil)) {
+      return errorResponse(
+        "agenda_outside_ticket_validity",
+        "Escolha uma data dentro da validade de 6 meses da compra original.",
+        409,
       );
     }
 

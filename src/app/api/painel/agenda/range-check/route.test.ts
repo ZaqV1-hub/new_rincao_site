@@ -55,6 +55,7 @@ describe("painel/agenda/range-check BFF route", () => {
       excludeAgendaId: null,
       startDate: "2026-04-27",
       endDate: "2026-04-30",
+      selectedDates: [],
     });
     expect(response.status).toBe(200);
     expect(body.data.existingDates).toEqual(["2026-04-27"]);

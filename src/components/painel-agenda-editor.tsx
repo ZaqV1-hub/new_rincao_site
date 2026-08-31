@@ -3,11 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
+  PainelAgendaMonthEntry,
   PainelAgendaScreenData,
   PainelAgendaStatus,
 } from "@/lib/painel-agenda";
 import {
+  buildPainelAgendaCalendar,
   formatPainelAgendaDateLabel,
+  formatPainelAgendaMonthLabel,
   getPainelAgendaStatusOptions,
 } from "@/lib/painel-agenda-ui";
 
@@ -39,6 +42,36 @@ type MutationState =
   | { status: "submitting"; message?: undefined }
   | { status: "error"; message: string }
   | { status: "success"; message: string };
+
+type SelectionMode = "range" | "specific";
+
+function getDayClasses(
+  entry: PainelAgendaMonthEntry | undefined,
+  selected: boolean,
+  inMonth: boolean,
+) {
+  const base = inMonth
+    ? "border-[#d4dfeb] bg-white text-[#123b63] hover:bg-[#eef6fd]"
+    : "border-[#e6edf4] bg-[#f6f9fc] text-[#a8b6c2]";
+
+  if (selected) {
+    return "border-[#123b63] bg-[#123b63] text-white ring-2 ring-[#9ec6e5]";
+  }
+
+  if (entry?.type === "promo") {
+    return "border-[#ffd0c0] bg-[#fff4ef] text-[#9f4420]";
+  }
+
+  if (entry?.status === "lot") {
+    return "border-[#f2b1b6] bg-[#fff3f4] text-[#8f1e26]";
+  }
+
+  if (entry?.status === "fec") {
+    return "border-[#bfd0de] bg-[#eef4f8] text-[#24455d]";
+  }
+
+  return base;
+}
 
 function defaultReason(selectedDate: string | null) {
   return selectedDate
@@ -77,6 +110,10 @@ export function PainelAgendaEditor({
   const router = useRouter();
   const selectedAgenda = data.selectedDay?.agenda ?? null;
   const [form, setForm] = useState(() => buildDefaultForm(data, initialType));
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>("range");
+  const [selectedDates, setSelectedDates] = useState<string[]>(() =>
+    data.selectedDate ? [data.selectedDate] : [],
+  );
   const [rangePreview, setRangePreview] = useState<RangePreviewState>({
     status: "idle",
     existingDates: [],
@@ -89,7 +126,12 @@ export function PainelAgendaEditor({
   });
 
   useEffect(() => {
-    if (!form.startDate || !form.endDate) {
+    const isSpecificMode = selectionMode === "specific";
+
+    if (
+      (!isSpecificMode && (!form.startDate || !form.endDate)) ||
+      (isSpecificMode && selectedDates.length === 0)
+    ) {
       return;
     }
 
@@ -111,8 +153,13 @@ export function PainelAgendaEditor({
           },
           body: JSON.stringify({
             excludeAgendaId: selectedAgenda?.id ?? null,
-            startDate: form.startDate,
-            endDate: form.endDate,
+            startDate: isSpecificMode
+              ? selectedDates[0]
+              : form.startDate,
+            endDate: isSpecificMode
+              ? selectedDates[selectedDates.length - 1]
+              : form.endDate,
+            selectedDates: isSpecificMode ? selectedDates : [],
           }),
           signal: controller.signal,
         });
@@ -167,12 +214,24 @@ export function PainelAgendaEditor({
     void loadPreview();
 
     return () => controller.abort();
-  }, [form.startDate, form.endDate, selectedAgenda?.id]);
+  }, [form.startDate, form.endDate, selectedAgenda?.id, selectedDates, selectionMode]);
 
   const statusOptions = getPainelAgendaStatusOptions();
   const overwriteRequired = rangePreview.existingDates.length > 0;
   const hasLockedDates =
     rangePreview.hasSchoolDates || rangePreview.hasPromotionalDates;
+  const entriesByDate = new Map(data.entries.map((entry) => [entry.date, entry]));
+  const calendarCells = buildPainelAgendaCalendar(data.month, data.year);
+  const selectedDateSet = new Set(selectedDates);
+
+  function toggleSelectedDate(date: string) {
+    setSelectedDates((current) =>
+      current.includes(date)
+        ? current.filter((item) => item !== date)
+        : [...current, date].sort(),
+    );
+    setConfirmOverwrite(false);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -187,6 +246,13 @@ export function PainelAgendaEditor({
         body: JSON.stringify({
           agendaId: selectedAgenda?.id ?? null,
           ...form,
+          startDate:
+            selectionMode === "specific" ? selectedDates[0] ?? "" : form.startDate,
+          endDate:
+            selectionMode === "specific"
+              ? selectedDates[selectedDates.length - 1] ?? ""
+              : form.endDate,
+          selectedDates: selectionMode === "specific" ? selectedDates : [],
           confirmOverwrite,
           actor,
         }),
@@ -283,41 +349,118 @@ export function PainelAgendaEditor({
       </div>
 
       <form className="mt-5 grid gap-3" onSubmit={handleSubmit}>
-        <div className="grid gap-3 lg:grid-cols-2">
-          <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63]">
-            Data inicial
-            <input
-              type="date"
-              value={form.startDate}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  startDate: event.target.value,
-                  endDate:
-                    current.endDate && current.endDate >= event.target.value
-                      ? current.endDate
-                      : event.target.value,
-                }))
-              }
-              className="rounded-[8px] border border-[#d4dfeb] px-3 py-2.5 text-sm font-normal text-[#123b63]"
-            />
-          </label>
+        {mode === "create" ? (
+          <div className="inline-flex w-fit overflow-hidden rounded-[8px] border border-[#d4dfeb] bg-white text-sm font-semibold text-[#123b63]">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectionMode("range");
+                setConfirmOverwrite(false);
+              }}
+              className={`px-4 py-2 ${selectionMode === "range" ? "bg-[#123b63] text-white" : "hover:bg-[#eef4fb]"}`}
+            >
+              Período
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectionMode("specific");
+                setConfirmOverwrite(false);
+              }}
+              className={`px-4 py-2 ${selectionMode === "specific" ? "bg-[#123b63] text-white" : "hover:bg-[#eef4fb]"}`}
+            >
+              Datas específicas
+            </button>
+          </div>
+        ) : null}
 
-          <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63]">
-            Data final
-            <input
-              type="date"
-              value={form.endDate}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  endDate: event.target.value,
-                }))
-              }
-              className="rounded-[8px] border border-[#d4dfeb] px-3 py-2.5 text-sm font-normal text-[#123b63]"
-            />
-          </label>
-        </div>
+        {selectionMode === "range" ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63]">
+              Data inicial
+              <input
+                type="date"
+                value={form.startDate}
+                onChange={(event) => {
+                  setConfirmOverwrite(false);
+                  setForm((current) => ({
+                    ...current,
+                    startDate: event.target.value,
+                    endDate:
+                      current.endDate && current.endDate >= event.target.value
+                        ? current.endDate
+                        : event.target.value,
+                  }));
+                }}
+                className="rounded-[8px] border border-[#d4dfeb] px-3 py-2.5 text-sm font-normal text-[#123b63]"
+              />
+            </label>
+
+            <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63]">
+              Data final
+              <input
+                type="date"
+                value={form.endDate}
+                onChange={(event) => {
+                  setConfirmOverwrite(false);
+                  setForm((current) => ({
+                    ...current,
+                    endDate: event.target.value,
+                  }));
+                }}
+                className="rounded-[8px] border border-[#d4dfeb] px-3 py-2.5 text-sm font-normal text-[#123b63]"
+              />
+            </label>
+          </div>
+        ) : (
+          <section className="grid gap-3 rounded-[8px] border border-[#d4dfeb] bg-[#f8fbff] p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="panel-eyebrow !text-[#4d7398]">Datas específicas</p>
+                <h3 className="mt-1 text-lg font-black text-[#123b63]">
+                  {formatPainelAgendaMonthLabel(data.month, data.year)}
+                </h3>
+              </div>
+              <div className="text-sm font-semibold text-[#60758d]">
+                {selectedDates.length} selecionada(s)
+              </div>
+            </div>
+            <div className="grid grid-cols-7 border border-[#d4dfeb] bg-[#123b63] text-center text-[13px] font-semibold text-white">
+              {["D", "S", "T", "Q", "Q", "S", "S"].map((label, index) => (
+                <div key={`${label}-${index}`} className="px-2 py-2">
+                  {label}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {calendarCells.map((cell) => {
+                const entry = entriesByDate.get(cell.date);
+                const selected = selectedDateSet.has(cell.date);
+
+                return (
+                  <button
+                    key={cell.key}
+                    type="button"
+                    onClick={() => cell.inMonth && toggleSelectedDate(cell.date)}
+                    disabled={!cell.inMonth}
+                    className={`min-h-[58px] rounded-[8px] border px-2 py-1.5 text-left text-xs transition disabled:cursor-not-allowed ${getDayClasses(
+                      entry,
+                      selected,
+                      cell.inMonth,
+                    )}`}
+                  >
+                    <span className="block text-sm font-black">{cell.day}</span>
+                    {entry ? (
+                      <span className="mt-1 block leading-3">
+                        {entry.typeLabel} · {entry.statusLabel}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <label className="grid gap-1.5 text-[13px] font-semibold text-[#123b63] lg:max-w-[340px]">
           Status da agenda
@@ -426,6 +569,7 @@ export function PainelAgendaEditor({
             type="submit"
             disabled={
               mutationState.status === "submitting" ||
+              (selectionMode === "specific" && selectedDates.length === 0) ||
               (overwriteRequired && !confirmOverwrite) ||
               hasLockedDates
             }

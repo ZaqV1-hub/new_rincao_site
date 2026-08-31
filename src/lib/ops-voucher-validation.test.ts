@@ -10,14 +10,21 @@ import {
   validateVoucherByNumber,
 } from "@/lib/ops-voucher-validation";
 
-const { query, connect, release, syncTicketValidation, registerOpsAuditLog } =
-  vi.hoisted(() => ({
+const {
+  query,
+  connect,
+  release,
+  syncTicketValidation,
+  registerOpsAuditLog,
+  ensureVoucherLifecycleSchema,
+} = vi.hoisted(() => ({
   query: vi.fn(),
   connect: vi.fn(),
   release: vi.fn(),
   syncTicketValidation: vi.fn(),
   registerOpsAuditLog: vi.fn(),
-  }));
+  ensureVoucherLifecycleSchema: vi.fn(),
+}));
 
 vi.mock("@/lib/ingresso-db", () => ({
   getIngressoDbPool: () => ({
@@ -36,6 +43,10 @@ vi.mock("@/lib/ops-audit-log", () => ({
   registerOpsAuditLog,
 }));
 
+vi.mock("@/lib/voucher-repository", () => ({
+  ensureVoucherLifecycleSchema,
+}));
+
 describe("ops-voucher-validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -49,6 +60,7 @@ describe("ops-voucher-validation", () => {
       pairs: ["456-9001"],
     });
     registerOpsAuditLog.mockResolvedValue(901);
+    ensureVoucherLifecycleSchema.mockResolvedValue(undefined);
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-23T15:00:00Z"));
   });

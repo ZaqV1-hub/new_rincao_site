@@ -14,6 +14,7 @@ import {
   recoverPendingTicketDeliveries,
   type PendingTicketDeliveryRecoveryResult,
 } from "@/lib/ticket-service";
+import { expireUnusedVouchers } from "@/lib/voucher-repository";
 
 type DailyJobsActor = {
   name?: string | null;
@@ -63,6 +64,13 @@ type MembershipStep =
   | DailyJobsStepSkipped<"membership_maintenance">
   | DailyJobsStepFailure<"membership_maintenance">;
 
+type VoucherExpirationStep =
+  | DailyJobsStepSuccess<
+      "voucher_expiration",
+      Awaited<ReturnType<typeof expireUnusedVouchers>>
+    >
+  | DailyJobsStepFailure<"voucher_expiration">;
+
 export type RunOperationalDailyJobsInput = {
   actor?: DailyJobsActor | null;
   includePaymentSync?: boolean;
@@ -87,6 +95,7 @@ export type RunOperationalDailyJobsSuccess = {
     ticketDeliveryRecovery: TicketDeliveryRecoveryStep;
     cashAutoClose: CashAutoCloseStep;
     membershipMaintenance: MembershipStep;
+    voucherExpiration: VoucherExpirationStep;
   };
   message: string;
 };
@@ -175,6 +184,7 @@ export async function runOperationalDailyJobs(
     status: "skipped",
     message: "Etapa desabilitada.",
   };
+  let voucherExpiration: VoucherExpirationStep;
 
   if (includePaymentSync) {
     try {
@@ -260,11 +270,27 @@ export async function runOperationalDailyJobs(
     }
   }
 
+  try {
+    const data = await runWithRetry(() => expireUnusedVouchers(), retriesPerStep);
+    voucherExpiration = {
+      action: "voucher_expiration",
+      status: "success",
+      data,
+    };
+  } catch (error) {
+    voucherExpiration = {
+      action: "voucher_expiration",
+      status: "failed",
+      error: errorMessage(error),
+    };
+  }
+
   const stepStatuses: StepStatus[] = [
     paymentSync.status,
     ticketDeliveryRecovery.status,
     cashAutoClose.status,
     membershipMaintenance.status,
+    voucherExpiration.status,
   ];
   const overallStatus = stepStatuses.includes("failed") ? "partial" : "success";
   const finishedAt = nowText();
@@ -279,6 +305,7 @@ export async function runOperationalDailyJobs(
       ticketDeliveryRecovery,
       cashAutoClose,
       membershipMaintenance,
+      voucherExpiration,
     },
     message:
       overallStatus === "success" ?

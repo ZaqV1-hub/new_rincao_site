@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getUserVouchersPage, getUserVoucherRescheduleData } from "@/lib/voucher-repository";
+import {
+  getUserVouchersPage,
+  getUserVoucherRescheduleData,
+  resetVoucherLifecycleSchemaForTests,
+} from "@/lib/voucher-repository";
 
 const dbQuery = vi.fn();
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbDialect: () => "postgres",
+  getIngressoSistemaDbPool: () => ({
     query: dbQuery,
   }),
 }));
@@ -12,10 +17,14 @@ vi.mock("@/lib/ingresso-db", () => ({
 describe("voucher-repository", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetVoucherLifecycleSchemaForTests();
   });
 
   it("reads voucher description from the voucher table when listing purchases", async () => {
     dbQuery
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockResolvedValueOnce({ rows: [{ total: "1" }] })
       .mockResolvedValueOnce({
         rows: [
@@ -44,6 +53,8 @@ describe("voucher-repository", () => {
               tpvoucher: "norma",
               vlunicompra: "199.90",
               stusado: "n",
+              stvoucher: "ativo",
+              flreagendado: "n",
               dtuso: null,
               voucherenviado: "n",
               dtvalidade: "2026-05-20",
@@ -70,7 +81,11 @@ describe("voucher-repository", () => {
   });
 
   it("reads voucher description from the voucher table when loading reschedule data", async () => {
-    dbQuery.mockImplementationOnce(async (sql: string) => {
+    dbQuery
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockImplementationOnce(async (sql: string) => {
       expect(sql).toContain("voucher.descricao AS descricao");
 
       return {
@@ -86,6 +101,8 @@ describe("voucher-repository", () => {
             tpvoucher: "norma",
             vlunicompra: "199.90",
             stusado: "n",
+            stvoucher: "ativo",
+            flreagendado: "n",
             dtuso: null,
             voucherenviado: "n",
             dtvalidade: "2026-05-20",

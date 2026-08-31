@@ -2,15 +2,18 @@ import { type PoolClient } from "pg";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { syncTicketValidation } from "@/lib/ticket-service";
+import { ensureVoucherLifecycleSchema } from "@/lib/voucher-repository";
 
 type VoucherValidationRow = {
   idvoucher: number;
   idagenda: number | null;
   numvoucher: string | null;
   stusado: string | null;
+  stvoucher: string | null;
   dtuso: string | null;
   hruso: string | null;
   idcompra: number | null;
+  dtcompra: string | null;
   tpcompra: string | null;
   stcompra: string | null;
   formapag: string | null;
@@ -308,6 +311,36 @@ async function registerVoucherOperationAuditLog(
   }, "postgres");
 }
 
+function addMonthsToDateString(value: string | null, months: number) {
+  if (!value) {
+    return null;
+  }
+
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(year, month - 1 + months + 1, 0),
+  ).getUTCDate();
+  const targetDay = Math.min(day, lastDayOfTargetMonth);
+
+  return new Date(Date.UTC(year, month - 1 + months, targetDay))
+    .toISOString()
+    .slice(0, 10);
+}
+
+function isVoucherExpired(row: VoucherValidationRow, todayDate: string) {
+  const validUntil = addMonthsToDateString(row.dtcompra, 6);
+
+  return (
+    String(row.stvoucher ?? "").trim() === "vencido" ||
+    Boolean(validUntil && todayDate > validUntil)
+  );
+}
+
 function isOnlinePurchasePaid(row: VoucherValidationRow) {
   return row.stcompra === "conc" && [3, 4].includes(Number(row.payment_status));
 }
@@ -358,9 +391,11 @@ async function getVoucherByNumber(client: PoolClient, voucherNumber: string) {
         voucher.idagenda,
         voucher.numvoucher,
         voucher.stusado,
+        voucher.stvoucher,
         to_char(voucher.dtuso, 'YYYY-MM-DD') AS dtuso,
         voucher.hruso::text AS hruso,
         voucher.idcompra,
+        to_char(compra.dtcompra, 'YYYY-MM-DD') AS dtcompra,
         compra.tpcompra,
         compra.stcompra,
         compra.formapag,
@@ -389,9 +424,11 @@ async function getVouchersByPurchaseId(client: PoolClient, purchaseId: number) {
         voucher.idagenda,
         voucher.numvoucher,
         voucher.stusado,
+        voucher.stvoucher,
         to_char(voucher.dtuso, 'YYYY-MM-DD') AS dtuso,
         voucher.hruso::text AS hruso,
         voucher.idcompra,
+        to_char(compra.dtcompra, 'YYYY-MM-DD') AS dtcompra,
         compra.tpcompra,
         compra.stcompra,
         compra.formapag,
@@ -420,9 +457,11 @@ async function getVouchersByIds(client: PoolClient, voucherIds: number[]) {
         voucher.idagenda,
         voucher.numvoucher,
         voucher.stusado,
+        voucher.stvoucher,
         to_char(voucher.dtuso, 'YYYY-MM-DD') AS dtuso,
         voucher.hruso::text AS hruso,
         voucher.idcompra,
+        to_char(compra.dtcompra, 'YYYY-MM-DD') AS dtcompra,
         compra.tpcompra,
         compra.stcompra,
         compra.formapag,
@@ -534,9 +573,11 @@ async function getSchoolTripVouchers(
         voucher.idagenda,
         voucher.numvoucher,
         voucher.stusado,
+        voucher.stvoucher,
         to_char(voucher.dtuso, 'YYYY-MM-DD') AS dtuso,
         voucher.hruso::text AS hruso,
         voucher.idcompra,
+        to_char(compra.dtcompra, 'YYYY-MM-DD') AS dtcompra,
         compra.tpcompra,
         compra.stcompra,
         compra.formapag,
@@ -577,6 +618,7 @@ export async function validateVoucherByNumber(
   }
 
   const { date, time } = getSaoPauloDateParts();
+  await ensureVoucherLifecycleSchema();
   const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
@@ -604,6 +646,14 @@ export async function validateVoucherByNumber(
       throw new VoucherOperationError(
         "voucher_already_used",
         buildAlreadyUsedMessage(voucher),
+        409,
+      );
+    }
+
+    if (isVoucherExpired(voucher, date)) {
+      throw new VoucherOperationError(
+        "voucher_expired",
+        `Voucher ${voucher.numvoucher ?? voucherNumber} vencido.`,
         409,
       );
     }
@@ -689,6 +739,7 @@ export async function validatePurchaseVouchers(
   }
 
   const { date, time } = getSaoPauloDateParts();
+  await ensureVoucherLifecycleSchema();
   const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
@@ -705,7 +756,7 @@ export async function validatePurchaseVouchers(
     }
 
     const affectedVoucherIds: number[] = [];
-  const warnings: string[] = [];
+    const warnings: string[] = [];
 
     for (const voucher of vouchers) {
       if (voucher.stusado === "s" || voucher.stusado === "inv") {
@@ -714,6 +765,11 @@ export async function validatePurchaseVouchers(
 
       if (voucher.stusado !== "n") {
         warnings.push(`Voucher ${voucher.numvoucher ?? voucher.idvoucher} nao esta disponivel para validacao.`);
+        continue;
+      }
+
+      if (isVoucherExpired(voucher, date)) {
+        warnings.push(`Voucher ${voucher.numvoucher ?? voucher.idvoucher} vencido.`);
         continue;
       }
 
@@ -829,6 +885,7 @@ export async function validateSelectedVouchers(
   }
 
   const { date, time } = getSaoPauloDateParts();
+  await ensureVoucherLifecycleSchema();
   const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
@@ -858,6 +915,11 @@ export async function validateSelectedVouchers(
         warnings.push(
           `Voucher ${voucher.numvoucher ?? voucherId} nao esta disponivel para validacao.`,
         );
+        continue;
+      }
+
+      if (isVoucherExpired(voucher, date)) {
+        warnings.push(`Voucher ${voucher.numvoucher ?? voucherId} vencido.`);
         continue;
       }
 
@@ -970,6 +1032,7 @@ export async function validateSchoolTripVouchers(
   }
 
   const { date, time } = getSaoPauloDateParts();
+  await ensureVoucherLifecycleSchema();
   const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
@@ -997,6 +1060,11 @@ export async function validateSchoolTripVouchers(
         warnings.push(
           `Voucher ${voucher.numvoucher ?? voucher.idvoucher} nao esta disponivel para validacao.`,
         );
+        continue;
+      }
+
+      if (isVoucherExpired(voucher, date)) {
+        warnings.push(`Voucher ${voucher.numvoucher ?? voucher.idvoucher} vencido.`);
         continue;
       }
 
