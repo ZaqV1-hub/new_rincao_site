@@ -77,6 +77,7 @@ export type PainelAgendaRangePreview = {
   existingDates: string[];
   hasSchoolDates: boolean;
   hasPromotionalDates: boolean;
+  skippedDates: string[];
 };
 
 export type PainelAgendaMutationInput = {
@@ -573,6 +574,7 @@ export async function previewPainelAgendaRange(input: {
   endDate: string;
   selectedDates?: string[];
   excludeAgendaId?: number | null;
+  allowPromotional?: boolean;
 }) {
   const selectedDates = normalizeSelectedDates(input.selectedDates);
   const startDate = assertIsoDate(
@@ -622,9 +624,18 @@ export async function previewPainelAgendaRange(input: {
   );
 
   return {
-    existingDates: result.rows.map((row) => row.dtagenda),
+    existingDates: result.rows
+      .filter(
+        (row) =>
+          row.tpagenda === "padra" ||
+          (input.allowPromotional && row.tpagenda === "promo"),
+      )
+      .map((row) => row.dtagenda),
     hasSchoolDates: result.rows.some((row) => row.tpagenda === "escol"),
     hasPromotionalDates: result.rows.some((row) => row.tpagenda === "promo"),
+    skippedDates: result.rows
+      .filter((row) => row.tpagenda !== "padra")
+      .map((row) => row.dtagenda),
   } satisfies PainelAgendaRangePreview;
 }
 
@@ -639,27 +650,12 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
     startDate: normalized.startDate,
     endDate: normalized.endDate,
     selectedDates,
+    allowPromotional: normalized.allowPromotional,
     excludeAgendaId:
       Number.isInteger(normalized.agendaId) && Number(normalized.agendaId) > 0
         ? Number(normalized.agendaId)
         : null,
   });
-
-  if (preview.hasSchoolDates) {
-    throw new PainelAgendaError(
-      "agenda_school_conflict",
-      "Não é possível alterar a faixa informada porque existem agendas escolares nas datas selecionadas.",
-      409,
-    );
-  }
-
-  if (preview.hasPromotionalDates && !normalized.allowPromotional) {
-    throw new PainelAgendaError(
-      "agenda_promotion_conflict",
-      "Não é possível alterar datas promocionais por esta tela. Use a área de Site para eventos promocionais.",
-      409,
-    );
-  }
 
   if (preview.existingDates.length > 0 && !normalized.confirmOverwrite) {
     throw new PainelAgendaError(
@@ -680,15 +676,16 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
     const existingResult = await client.query<{
       idagenda: number;
       dtagenda: string;
+      tpagenda: PainelAgendaType;
     }>(
       selectedDates.length > 0
         ? `
-          SELECT idagenda, to_char(dtagenda, 'YYYY-MM-DD') AS dtagenda
+          SELECT idagenda, to_char(dtagenda, 'YYYY-MM-DD') AS dtagenda, tpagenda
           FROM agenda
           WHERE dtagenda = ANY($1::date[])
         `
         : `
-          SELECT idagenda, to_char(dtagenda, 'YYYY-MM-DD') AS dtagenda
+          SELECT idagenda, to_char(dtagenda, 'YYYY-MM-DD') AS dtagenda, tpagenda
           FROM agenda
           WHERE dtagenda BETWEEN $1::date AND $2::date
         `,
@@ -704,6 +701,14 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
       const existing = existingByDate.get(date);
 
       if (existing) {
+        const canUpdateExisting =
+          existing.tpagenda === "padra" ||
+          (normalized.allowPromotional && existing.tpagenda === "promo");
+
+        if (!canUpdateExisting) {
+          continue;
+        }
+
         await client.query(
           `
             UPDATE agenda
@@ -789,6 +794,7 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
           type: normalized.type,
           status: normalized.status,
           overwrittenDates: preview.existingDates,
+          skippedDates: preview.skippedDates,
         },
       },
       "postgres",
@@ -804,7 +810,14 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
           : selectedDates.length > 0
             ? "Agenda das datas selecionadas salva com sucesso."
             : "Agenda da faixa salva com sucesso.",
-      touchedDates: dates,
+      touchedDates: dates.filter((date) => {
+        const existing = existingByDate.get(date);
+        return (
+          !existing ||
+          existing.tpagenda === "padra" ||
+          (normalized.allowPromotional && existing.tpagenda === "promo")
+        );
+      }),
     };
   } catch (error) {
     await client.query("ROLLBACK");

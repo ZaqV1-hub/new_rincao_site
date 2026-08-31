@@ -22,6 +22,7 @@ export default async function PainelAgendaAddPage({
     mes?: string;
     ano?: string;
     dia?: string;
+    datas?: string;
     tipo?: string;
   }>;
 }) {
@@ -32,10 +33,16 @@ export default async function PainelAgendaAddPage({
     redirect("/painel/site?createEvent=date");
   }
 
+  const selectedDates =
+    params.datas
+      ?.split(",")
+      .map((date) => date.trim())
+      .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)) ?? [];
+  const firstSelectedDate = selectedDates[0] ?? params.dia;
   const data = await getPainelAgendaScreenData({
     month: params.mes,
     year: params.ano,
-    selectedDate: params.dia,
+    selectedDate: firstSelectedDate,
   });
   const returnHref = `/painel/agenda?mes=${data.month}&ano=${data.year}`;
 
@@ -67,6 +74,8 @@ export default async function PainelAgendaAddPage({
         mode="create"
         returnHref={returnHref}
         initialType="padra"
+        initialSelectedDates={selectedDates}
+        initialSelectionMode={selectedDates.length > 0 ? "specific" : "range"}
       />
     </div>
   );

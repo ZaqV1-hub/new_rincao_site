@@ -23,17 +23,38 @@ type PainelAgendaEditorProps = {
   mode: "create" | "edit";
   returnHref: string;
   initialType?: "padra";
+  initialSelectedDates?: string[];
+  initialSelectionMode?: SelectionMode;
 };
 
 type RangePreviewState =
-  | { status: "idle"; existingDates: string[]; hasSchoolDates: boolean; hasPromotionalDates: boolean }
-  | { status: "loading"; existingDates: string[]; hasSchoolDates: boolean; hasPromotionalDates: boolean }
-  | { status: "ready"; existingDates: string[]; hasSchoolDates: boolean; hasPromotionalDates: boolean }
+  | {
+      status: "idle";
+      existingDates: string[];
+      hasSchoolDates: boolean;
+      hasPromotionalDates: boolean;
+      skippedDates: string[];
+    }
+  | {
+      status: "loading";
+      existingDates: string[];
+      hasSchoolDates: boolean;
+      hasPromotionalDates: boolean;
+      skippedDates: string[];
+    }
+  | {
+      status: "ready";
+      existingDates: string[];
+      hasSchoolDates: boolean;
+      hasPromotionalDates: boolean;
+      skippedDates: string[];
+    }
   | {
       status: "error";
       existingDates: string[];
       hasSchoolDates: boolean;
       hasPromotionalDates: boolean;
+      skippedDates: string[];
       message: string;
     };
 
@@ -106,19 +127,28 @@ export function PainelAgendaEditor({
   mode,
   returnHref,
   initialType,
+  initialSelectedDates,
+  initialSelectionMode,
 }: PainelAgendaEditorProps) {
   const router = useRouter();
   const selectedAgenda = data.selectedDay?.agenda ?? null;
   const [form, setForm] = useState(() => buildDefaultForm(data, initialType));
-  const [selectionMode, setSelectionMode] = useState<SelectionMode>("range");
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>(
+    initialSelectionMode ?? "range",
+  );
   const [selectedDates, setSelectedDates] = useState<string[]>(() =>
-    data.selectedDate ? [data.selectedDate] : [],
+    initialSelectedDates?.length
+      ? [...initialSelectedDates].sort()
+      : data.selectedDate
+        ? [data.selectedDate]
+        : [],
   );
   const [rangePreview, setRangePreview] = useState<RangePreviewState>({
     status: "idle",
     existingDates: [],
     hasSchoolDates: false,
     hasPromotionalDates: false,
+    skippedDates: [],
   });
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [mutationState, setMutationState] = useState<MutationState>({
@@ -143,6 +173,7 @@ export function PainelAgendaEditor({
         existingDates: current.existingDates,
         hasSchoolDates: current.hasSchoolDates,
         hasPromotionalDates: current.hasPromotionalDates,
+        skippedDates: current.skippedDates,
       }));
 
       try {
@@ -170,6 +201,7 @@ export function PainelAgendaEditor({
                 existingDates: string[];
                 hasSchoolDates: boolean;
                 hasPromotionalDates: boolean;
+                skippedDates: string[];
               };
             }
           | {
@@ -192,6 +224,7 @@ export function PainelAgendaEditor({
           existingDates: payload.data.existingDates,
           hasSchoolDates: payload.data.hasSchoolDates,
           hasPromotionalDates: payload.data.hasPromotionalDates,
+          skippedDates: payload.data.skippedDates,
         });
       } catch (error) {
         if (controller.signal.aborted) {
@@ -203,6 +236,7 @@ export function PainelAgendaEditor({
           existingDates: [],
           hasSchoolDates: false,
           hasPromotionalDates: false,
+          skippedDates: [],
           message:
             error instanceof Error
               ? error.message
@@ -218,8 +252,6 @@ export function PainelAgendaEditor({
 
   const statusOptions = getPainelAgendaStatusOptions();
   const overwriteRequired = rangePreview.existingDates.length > 0;
-  const hasLockedDates =
-    rangePreview.hasSchoolDates || rangePreview.hasPromotionalDates;
   const entriesByDate = new Map(data.entries.map((entry) => [entry.date, entry]));
   const calendarCells = buildPainelAgendaCalendar(data.month, data.year);
   const selectedDateSet = new Set(selectedDates);
@@ -546,12 +578,6 @@ export function PainelAgendaEditor({
           </label>
         ) : null}
 
-        {hasLockedDates ? (
-          <div className="rounded-[8px] border border-[#f1b1aa] bg-[#fff4f2] px-4 py-3 text-sm text-[#9d3d31]">
-            A faixa selecionada contém datas escolares ou promocionais. Ajuste a faixa para alterar apenas datas padrão.
-          </div>
-        ) : null}
-
         {mutationState.status === "error" ? (
           <div className="rounded-[8px] border border-[#f1b1aa] bg-[#fff4f2] px-4 py-3 text-sm text-[#9d3d31]">
             {mutationState.message}
@@ -570,8 +596,7 @@ export function PainelAgendaEditor({
             disabled={
               mutationState.status === "submitting" ||
               (selectionMode === "specific" && selectedDates.length === 0) ||
-              (overwriteRequired && !confirmOverwrite) ||
-              hasLockedDates
+              (overwriteRequired && !confirmOverwrite)
             }
             className="rounded-[8px] bg-[#123b63] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0f2f4f] disabled:opacity-60"
           >

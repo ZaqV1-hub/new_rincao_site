@@ -128,10 +128,15 @@ function buildAgendaAddHref(
   month: number,
   year: number,
   selectedDate?: string | null,
+  selectedDates?: string[],
 ) {
   const params = new URLSearchParams();
   params.set("mes", String(month));
   params.set("ano", String(year));
+
+  if (selectedDates?.length) {
+    params.set("datas", selectedDates.join(","));
+  }
 
   if (selectedDate) {
     params.set("dia", selectedDate);
@@ -178,6 +183,10 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
     [data.month, data.year],
   );
   const [selectedDate, setSelectedDate] = useState<string | null>(data.selectedDate);
+  const [multiSelectEnabled, setMultiSelectEnabled] = useState(false);
+  const [selectedDates, setSelectedDates] = useState<string[]>(() =>
+    data.selectedDate ? [data.selectedDate] : [],
+  );
   const [selectedDay, setSelectedDay] = useState<PainelAgendaDayDetail | null>(
     data.selectedDay,
   );
@@ -192,8 +201,37 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
   const nextMonth = addMonths(data.month, data.year, 1);
   const isDayLoading = loadingDate === selectedDate;
   const selectedVoucherCount = selectedDay?.vouchers.length ?? 0;
+  const selectedDateSet = new Set(selectedDates);
+  const canEditSelectedDates = selectedDates.length > 0;
+  const selectedDatesHref = buildAgendaAddHref(
+    data.month,
+    data.year,
+    selectedDates[0] ?? selectedDate,
+    selectedDates,
+  );
+
+  function toggleMultiSelection() {
+    setMultiSelectEnabled((current) => {
+      const next = !current;
+
+      if (next && selectedDate && selectedDates.length === 0) {
+        setSelectedDates([selectedDate]);
+      }
+
+      return next;
+    });
+  }
 
   async function handleDateSelection(nextSelectedDate: string) {
+    if (multiSelectEnabled) {
+      setSelectedDates((current) =>
+        current.includes(nextSelectedDate)
+          ? current.filter((date) => date !== nextSelectedDate)
+          : [...current, nextSelectedDate].sort(),
+      );
+      setSelectedDate(nextSelectedDate);
+    }
+
     if (nextSelectedDate === selectedDate) {
       return;
     }
@@ -309,7 +347,8 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
             <div className="grid grid-cols-7 gap-1 bg-[#edf3f7] p-1">
               {calendarCells.map((cell) => {
                 const entry = entriesByDate.get(cell.date);
-                const active = cell.date === selectedDate;
+                const active =
+                  cell.date === selectedDate || selectedDateSet.has(cell.date);
                 const classes = `min-h-[58px] rounded-[10px] border px-2 py-1.5 text-left transition hover:opacity-95 ${getAgendaToneClasses(
                   entry,
                   active,
@@ -358,6 +397,33 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
               Data esgotada
             </div>
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleMultiSelection}
+              className={`rounded-[8px] border px-3 py-2 text-xs font-semibold ${
+                multiSelectEnabled
+                  ? "border-[#123b63] bg-[#123b63] text-white"
+                  : "border-[#d4dfeb] text-[#123b63] hover:bg-[#eef4fb]"
+              }`}
+            >
+              Selecionar vários dias
+            </button>
+            {multiSelectEnabled ? (
+              <>
+                <span className="text-xs font-semibold text-[#60758d]">
+                  {selectedDates.length} dia(s) selecionado(s)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDates([])}
+                  className="rounded-[8px] border border-[#d4dfeb] px-3 py-2 text-xs font-semibold text-[#123b63] hover:bg-[#eef4fb]"
+                >
+                  Limpar seleção
+                </button>
+              </>
+            ) : null}
+          </div>
         </section>
 
         <section className="panel-section p-3.5 xl:sticky xl:top-5">
@@ -404,7 +470,19 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
           ) : null}
 
           <div className="mt-3 flex flex-wrap gap-2">
-            {selectedDate ? (
+            {multiSelectEnabled ? (
+              <Link
+                href={selectedDatesHref}
+                aria-disabled={!canEditSelectedDates}
+                className={`rounded-[8px] px-3 py-2 text-sm font-semibold text-white ${
+                  canEditSelectedDates
+                    ? "bg-[#123b63] hover:bg-[#0f2f4f]"
+                    : "pointer-events-none bg-[#8ca4b8]"
+                }`}
+              >
+                Editar dias
+              </Link>
+            ) : selectedDate ? (
               <Link
                 href={`/painel/agenda/${selectedDate}/editar?mes=${data.month}&ano=${data.year}`}
                 className="rounded-[8px] bg-[#123b63] px-3 py-2 text-sm font-semibold text-white hover:bg-[#0f2f4f]"
