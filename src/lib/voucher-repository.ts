@@ -531,10 +531,13 @@ export async function getUserVoucherPurchaseById(cpf: string, purchaseId: number
 async function getInformationForVoucherExport(voucher: VoucherRow) {
   const pool = getIngressoSistemaDbPool();
 
-  if (voucher.tpagenda === "escol" && voucher.idescola) {
+  if (isSchoolVoucher(voucher) && voucher.idescola) {
     const result = await pool.query<{ texto: string | null }>(
       `
-        SELECT informacao.texto
+        SELECT COALESCE(
+          NULLIF(BTRIM(escola.textoinfo), ''),
+          NULLIF(BTRIM(informacao.texto), '')
+        ) AS texto
         FROM escola
         LEFT JOIN informacao ON informacao.idinformacao = escola.idinformacao
         WHERE escola.idescola = $1
@@ -544,6 +547,10 @@ async function getInformationForVoucherExport(voucher: VoucherRow) {
     );
 
     return result.rows[0]?.texto ?? null;
+  }
+
+  if (isSchoolVoucher(voucher)) {
+    return null;
   }
 
   if (!voucher.dtagenda) {
@@ -609,7 +616,7 @@ export async function getUserVoucherExportData(
     information: firstVoucher
       ? await getInformationForVoucherExport(firstVoucher)
       : null,
-    isSchool: firstVoucher?.tpagenda === "escol",
+    isSchool: Boolean(firstVoucher && isSchoolVoucher(firstVoucher)),
   };
 }
 
@@ -708,6 +715,10 @@ export async function getUserVoucherRescheduleData(
     validUntil: addMonthsToDateString(row.dtcompra, 6),
     voucher: mapVoucher(row, purchaseRow, new Date()),
   };
+}
+
+function isSchoolVoucher(row: Pick<VoucherRow, "tpvoucher">) {
+  return String(row.tpvoucher ?? "").trim().toLowerCase() === "escol";
 }
 
 export async function rescheduleUserVoucher(

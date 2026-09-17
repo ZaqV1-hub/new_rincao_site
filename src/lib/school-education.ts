@@ -15,7 +15,31 @@ export type SchoolEducationStructure = {
   classes: string[];
 };
 
+export const schoolTypeOptions = [
+  { id: "cei", label: "CEI" },
+  { id: "emei", label: "EMEI" },
+  { id: "cemei", label: "CEMEI" },
+  { id: "emef", label: "EMEF" },
+  { id: "ee", label: "E.E. (Escola Estadual)" },
+  { id: "particular", label: "Escola Particular" },
+] as const;
+
+export type SchoolType = (typeof schoolTypeOptions)[number]["id"];
+
 const rawEducationTypes = [
+  {
+    id: "infantil",
+    label: "Educacao Infantil",
+    order: 1,
+    years: [
+      { id: "bercario1", label: "Berçário I" },
+      { id: "bercario2", label: "Berçário II" },
+      { id: "minigrupo1", label: "Mini-Grupo I" },
+      { id: "minigrupo2", label: "Mini-Grupo II" },
+      { id: "infantil1", label: "Infantil I" },
+      { id: "infantil2", label: "Infantil II" },
+    ],
+  },
   {
     id: "fund1",
     label: "Ensino Fundamental I",
@@ -53,6 +77,27 @@ const rawEducationTypes = [
 
 const classLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"];
 
+const schoolTypeEducationRules: Record<Exclude<SchoolType, "particular">, Record<string, string[]>> = {
+  cei: { infantil: ["bercario1", "bercario2", "minigrupo1", "minigrupo2"] },
+  emei: { infantil: ["infantil1", "infantil2"] },
+  cemei: {
+    infantil: [
+      "bercario1",
+      "bercario2",
+      "minigrupo1",
+      "minigrupo2",
+      "infantil1",
+      "infantil2",
+    ],
+  },
+  emef: { fund1: ["1", "2", "3", "4", "5"], fund2: ["6", "7", "8", "9"] },
+  ee: {
+    fund1: ["1", "2", "3", "4", "5"],
+    fund2: ["6", "7", "8", "9"],
+    medio: ["1", "2", "3"],
+  },
+};
+
 function slugify(value: string) {
   return value
     .normalize("NFD")
@@ -61,14 +106,59 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, "");
 }
 
-export function getSchoolEducationStructure(): SchoolEducationStructure {
+export function normalizeSchoolType(raw: unknown): SchoolType | null {
+  const normalized = slugify(String(raw ?? ""));
+  return schoolTypeOptions.find((option) => option.id === normalized)?.id ?? null;
+}
+
+export function inferSchoolTypeFromName(raw: string): SchoolType | null {
+  const normalized = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
+  if (/\bCEMEI\b/u.test(normalized)) return "cemei";
+  if (/\bEMEF\b/u.test(normalized)) return "emef";
+  if (/\bEMEI\b/u.test(normalized)) return "emei";
+  if (/\bCEI\b/u.test(normalized)) return "cei";
+  if (/\bE\s*\.?\s*E\.?\b/u.test(normalized)) return "ee";
+  return null;
+}
+
+export function getSchoolEducationStructure(
+  schoolTypeRaw?: SchoolType | string | null,
+): SchoolEducationStructure {
+  const schoolType = normalizeSchoolType(schoolTypeRaw);
+  // TODO: definir a estrutura específica das escolas particulares em uma rodada futura.
+  const rule = schoolType && schoolType !== "particular" ? schoolTypeEducationRules[schoolType] : null;
+
   return {
-    types: rawEducationTypes.map((type) => ({
-      ...type,
-      years: type.years.map((year) => ({ ...year })),
-    })),
+    types: rawEducationTypes
+      .filter((type) => !rule || type.id in rule)
+      .map((type) => ({
+        ...type,
+        years: type.years
+          .filter((year) => !rule || rule[type.id]?.includes(year.id))
+          .map((year) => ({ ...year })),
+      })),
     classes: [...classLetters],
   };
+}
+
+export function isSchoolEducationSelectionAllowed(
+  schoolTypeRaw: SchoolType | string | null | undefined,
+  educationTypeRaw: string,
+  educationYearRaw: string,
+) {
+  const educationType = normalizeSchoolEducationType(educationTypeRaw);
+  const educationYear = normalizeSchoolEducationYear(educationTypeRaw, educationYearRaw);
+  const structure = getSchoolEducationStructure(schoolTypeRaw);
+
+  return Boolean(
+    educationType &&
+      educationYear &&
+      structure.types.some(
+        (type) =>
+          type.id === educationType && type.years.some((year) => year.id === educationYear),
+      ),
+  );
 }
 
 export function normalizeSchoolEducationType(raw: string) {
@@ -88,6 +178,13 @@ export function normalizeSchoolEducationType(raw: string) {
 
   if (normalized.includes("fundamental")) {
     return "fund1";
+  }
+
+  if (
+    ["educacaoinfantil", "educacaoinf", "infantil"].includes(normalized) ||
+    normalized.includes("infantil")
+  ) {
+    return "infantil";
   }
 
   if (normalized.includes("medio")) {

@@ -124,7 +124,8 @@ export function normalizeText(value: unknown) {
 }
 
 export function normalizePurchaseStatus(value: unknown) {
-  return normalizeText(value).toLowerCase();
+  const normalized = normalizeText(value).toLowerCase();
+  return normalized === "pago" || normalized === "paid" ? "conc" : normalized;
 }
 
 export function assertPositiveInteger<TError extends Error>(
@@ -200,7 +201,7 @@ export function formatMoney(value: string | number | null | undefined) {
 }
 
 export function isPaidPurchase(status: string | null | undefined) {
-  return ["conc", "pago", "paid"].includes(normalizePurchaseStatus(status));
+  return normalizePurchaseStatus(status) === "conc";
 }
 
 function isUsedVoucher(value: string | null | undefined) {
@@ -374,8 +375,12 @@ export async function loadOpsTripSchoolReportSections(
   let purchaseStatusWhere = "";
 
   if (input.purchaseStatus) {
-    participantParams.push(input.purchaseStatus);
-    purchaseStatusWhere = `AND trim(lower(compra.stcompra)) = $${participantParams.length}`;
+    if (normalizePurchaseStatus(input.purchaseStatus) === "conc") {
+      purchaseStatusWhere = "AND trim(lower(compra.stcompra)) IN ('conc', 'pago', 'paid')";
+    } else {
+      participantParams.push(input.purchaseStatus);
+      purchaseStatusWhere = `AND trim(lower(compra.stcompra)) = $${participantParams.length}`;
+    }
   }
 
   const participantsResult = await pool.query<TripParticipantRow>(

@@ -21,7 +21,7 @@ export default async function PainelClientesEditarPage({
     id?: string;
   }>;
 }) {
-  await requirePainelAccess(["vis_clientes", "vis_escola"], "/painel/clientes/editar");
+  const session = await requirePainelAccess(["vis_clientes", "vis_escola"], "/painel/clientes/editar");
   const params = await searchParams;
   const [typeOptions, client] = await Promise.all([
     listClientTypes(),
@@ -33,6 +33,7 @@ export default async function PainelClientesEditarPage({
       client={client}
       mode="edit"
       typeOptions={typeOptions}
+      canDeleteObservations={session.legacyRoleId === 1}
     />
   );
 }

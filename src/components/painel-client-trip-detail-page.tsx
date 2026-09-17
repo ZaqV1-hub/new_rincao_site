@@ -640,7 +640,6 @@ export function PainelClientTripDetailPage({
                   <option value="pend">Pendente</option>
                   <option value="conc">Concluída</option>
                   <option value="canc">Cancelada</option>
-                  <option value="pago">Pago</option>
                 </select>
               </label>
 

@@ -3,22 +3,26 @@ import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   buildSchoolClassDisplay,
   getSchoolEducationStructure,
+  isSchoolEducationSelectionAllowed,
   normalizeSchoolClassLetter,
   normalizeSchoolEducationType,
   normalizeSchoolEducationYear,
   type SchoolEducationStructure,
 } from "@/lib/school-education";
+import { ensureSchoolTypeColumn, normalizeStoredSchoolType } from "@/lib/school-profile";
 import { generateUniqueVoucherNumber } from "@/lib/voucher-number";
 
 type SchoolRow = {
   id: number;
   name: string;
+  address: string | null;
 };
 
 type SchoolTripRow = {
   idagenda: number;
   dtagenda: string;
   school_name: string;
+  school_type: string | null;
 };
 
 type PurchaseInsertRow = {
@@ -28,6 +32,7 @@ type PurchaseInsertRow = {
 export type SchoolOption = {
   id: number;
   name: string;
+  address: string;
 };
 
 export type SchoolTripDate = {
@@ -39,6 +44,7 @@ export type SchoolTripDate = {
 export type SchoolPurchaseContext = {
   schoolId: number;
   schoolName: string;
+  schoolType: string | null;
   dates: SchoolTripDate[];
   educationStructure: SchoolEducationStructure;
 };
@@ -127,12 +133,19 @@ export async function searchSchoolsByName(term: string) {
   const pool = getIngressoSistemaDbPool();
   const result = await pool.query<SchoolRow>(
     `
-      SELECT idcliente AS id, nome AS name
-      FROM clientes
-      WHERE idtipo = 4
-        AND status = true
-        AND to_ascii(lower(nome), 'LATIN1') LIKE to_ascii(lower($1), 'LATIN1')
-      ORDER BY nome ASC
+      SELECT DISTINCT
+        c.idcliente AS id,
+        c.nome AS name,
+        NULLIF(btrim(c.endereco), '') AS address
+      FROM clientes c
+      JOIN agenda_extras ae ON ae.idcliente = c.idcliente
+      JOIN agenda a ON a.idagenda = ae.idagenda
+      WHERE c.idtipo = 4
+        AND c.status = true
+        AND ae.stagenda_cli = 'abe'
+        AND a.dtagenda >= CURRENT_DATE
+        AND to_ascii(lower(c.nome), 'LATIN1') LIKE to_ascii(lower($1), 'LATIN1')
+      ORDER BY c.nome ASC
       LIMIT 20
     `,
     [`%${normalized}%`],
@@ -141,6 +154,7 @@ export async function searchSchoolsByName(term: string) {
   return result.rows.map((row) => ({
     id: Number(row.id),
     name: row.name,
+    address: row.address ?? "",
   }));
 }
 
@@ -148,12 +162,17 @@ export async function getSchoolPurchaseContext(
   schoolId: number,
 ): Promise<SchoolPurchaseContext | null> {
   const pool = getIngressoSistemaDbPool();
-  const result = await pool.query<SchoolTripRow>(
+  const client = await pool.connect();
+
+  try {
+    await ensureSchoolTypeColumn(client);
+    const result = await client.query<SchoolTripRow>(
     `
       SELECT
         a.idagenda,
         a.dtagenda::text,
-        c.nome AS school_name
+        c.nome AS school_name,
+        c.tipo_escola AS school_type
       FROM agenda a
       JOIN agenda_extras ae ON ae.idagenda = a.idagenda
       JOIN clientes c ON c.idcliente = ae.idcliente
@@ -165,22 +184,28 @@ export async function getSchoolPurchaseContext(
       ORDER BY a.dtagenda ASC
     `,
     [schoolId],
-  );
+    );
 
-  if (result.rowCount === 0) {
-    return null;
+    if (result.rowCount === 0) {
+      return null;
+    }
+
+    const schoolType = normalizeStoredSchoolType(result.rows[0].school_type);
+
+    return {
+      schoolId,
+      schoolName: result.rows[0].school_name,
+      schoolType,
+      dates: result.rows.map((row) => ({
+        agendaId: row.idagenda,
+        date: row.dtagenda,
+        label: formatDateLabel(row.dtagenda),
+      })),
+      educationStructure: getSchoolEducationStructure(schoolType),
+    };
+  } finally {
+    client.release();
   }
-
-  return {
-    schoolId,
-    schoolName: result.rows[0].school_name,
-    dates: result.rows.map((row) => ({
-      agendaId: row.idagenda,
-      date: row.dtagenda,
-      label: formatDateLabel(row.dtagenda),
-    })),
-    educationStructure: getSchoolEducationStructure(),
-  };
 }
 
 export async function resolveSchoolPurchasePreset(
@@ -209,12 +234,17 @@ export async function resolveSchoolPurchasePreset(
 
 async function assertSchoolTripAvailability(schoolId: number, agendaId: number) {
   const pool = getIngressoSistemaDbPool();
-  const result = await pool.query<SchoolTripRow>(
+  const client = await pool.connect();
+
+  try {
+    await ensureSchoolTypeColumn(client);
+    const result = await client.query<SchoolTripRow>(
     `
       SELECT
         a.idagenda,
         a.dtagenda::text,
-        c.nome AS school_name
+        c.nome AS school_name,
+        c.tipo_escola AS school_type
       FROM agenda a
       JOIN agenda_extras ae ON ae.idagenda = a.idagenda
       JOIN clientes c ON c.idcliente = ae.idcliente
@@ -227,9 +257,12 @@ async function assertSchoolTripAvailability(schoolId: number, agendaId: number) 
       LIMIT 1
     `,
     [schoolId, agendaId],
-  );
+    );
 
-  return result.rows[0] ?? null;
+    return result.rows[0] ?? null;
+  } finally {
+    client.release();
+  }
 }
 
 export async function createSchoolPurchase(
@@ -324,6 +357,21 @@ export async function createSchoolPurchase(
       "school_trip_unavailable",
       "A data selecionada nao esta disponivel para esta escola.",
       409,
+    );
+  }
+
+  if (
+    input.participantType === "student" &&
+    !isSchoolEducationSelectionAllowed(
+      normalizeStoredSchoolType(availableTrip.school_type),
+      input.educationType,
+      input.educationYear,
+    )
+  ) {
+    throw new SchoolPurchaseError(
+      "school_education_not_allowed",
+      "A série informada não está disponível para o tipo desta escola.",
+      400,
     );
   }
 

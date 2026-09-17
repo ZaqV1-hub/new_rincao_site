@@ -556,7 +556,12 @@ export function SchoolPurchasePage({
                         onClick={() => selectSchool(option)}
                         className="block w-full border-b border-[#edf3f7] px-4 py-3 text-left text-[15px] text-[#1d5b80] last:border-b-0 hover:bg-[#f7fbfe]"
                       >
-                        {option.name}
+                        <span className="block">{option.name}</span>
+                        {option.address ? (
+                          <span className="mt-1 block text-[12px] text-[#6d8497]">
+                            {option.address}
+                          </span>
+                        ) : null}
                       </button>
                     ))}
                   </div>
@@ -660,7 +665,7 @@ export function SchoolPurchasePage({
 
                     <div>
                       <label className="legacy-rounded text-[13px] uppercase tracking-[0.18em] text-[#6d8497]">
-                        Ano
+                        {selectedEducationType?.id === "infantil" ? "Agrupamento" : "Ano"}
                       </label>
                       <select
                         value={payload.educationYear}

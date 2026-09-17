@@ -188,6 +188,12 @@ function VoucherRow({
             </p>
           </div>
           <div>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-[#719168]">Validade</p>
+            <p className="mt-2 text-[16px] font-bold text-[#17351f]">
+              {formatDate(voucher.validUntil)}
+            </p>
+          </div>
+          <div>
             <p className="text-[11px] uppercase tracking-[0.16em] text-[#719168]">Valor</p>
             <p className="mt-2 text-[16px] font-bold text-[#17351f]">
               {formatCurrency(voucher.unitValue)}

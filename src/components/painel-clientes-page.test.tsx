@@ -34,6 +34,7 @@ const data = {
     { id: 4, name: "Escola" },
     { id: 2, name: "Cliente" },
   ],
+  pendingSchoolClassificationsCount: 0,
 };
 
 describe("PainelClientesPage", () => {
@@ -68,5 +69,28 @@ describe("PainelClientesPage", () => {
     );
 
     expect(html).toContain("Nenhum cliente encontrado.");
+  });
+
+  it("resume escolas pendentes sem exibir a lista inteira na pagina", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(PainelClientesPage, {
+        data: {
+          ...data,
+          items: [
+            {
+              ...data.items[0],
+              name: "CLIENTE DE TESTE",
+            },
+          ],
+          pendingSchoolClassificationsCount: 2,
+        },
+      }),
+    );
+
+    expect(html).toContain("Classificação de escolas pendente.");
+    expect(html).toContain("2 escolas precisam ter o tipo definido.");
+    expect(html).toContain("Ver escolas pendentes");
+    expect(html).not.toContain("ABRAHAO DE MORAES PROF. E.E.");
+    expect(html).not.toContain("ACACIA EM EMEF");
   });
 });

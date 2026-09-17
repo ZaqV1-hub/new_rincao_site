@@ -650,10 +650,11 @@ export async function validateVoucherByNumber(
       );
     }
 
-    if (isVoucherExpired(voucher, date)) {
+    if (isVoucherExpired(voucher, date) && !confirm) {
+      const validUntil = addMonthsToDateString(voucher.dtcompra, 6);
       throw new VoucherOperationError(
-        "voucher_expired",
-        `Voucher ${voucher.numvoucher ?? voucherNumber} vencido.`,
+        "voucher_expired_confirmation_required",
+        `Ingresso foi vencido dia ${formatDateBr(validUntil)}. Deseja validar?`,
         409,
       );
     }

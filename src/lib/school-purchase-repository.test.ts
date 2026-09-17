@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createSchoolPurchase } from "@/lib/school-purchase-repository";
+import {
+  createSchoolPurchase,
+  searchSchoolsByName,
+} from "@/lib/school-purchase-repository";
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
@@ -46,6 +49,27 @@ describe("school-purchase-repository", () => {
       ],
     });
     mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
+      if (sql.includes("information_schema.columns") && sql.includes("tipo_escola")) {
+        return { rows: [{ exists: true }] };
+      }
+
+      if (sql.includes("ADD COLUMN IF NOT EXISTS diretoria_ensino")) {
+        return { rows: [] };
+      }
+
+      if (sql.includes("SELECT") && sql.includes("FROM agenda") && sql.includes("c.tipo_escola")) {
+        return {
+          rows: [
+            {
+              idagenda: 77,
+              dtagenda: "2026-06-15",
+              school_name: "Escola Rincao",
+              school_type: null,
+            },
+          ],
+        };
+      }
+
       if (sql === "BEGIN" || sql === "COMMIT") {
         return { rows: [] };
       }
@@ -93,5 +117,21 @@ describe("school-purchase-repository", () => {
       totalValue: "45.00",
       voucherCount: 1,
     });
+  });
+
+  it("returns only schools with an open trip date from today onwards and their address", async () => {
+    mocks.query.mockResolvedValue({
+      rows: [{ id: 12, name: "PAULINO EMEF", address: "Rua das Flores, 123" }],
+    });
+
+    await expect(searchSchoolsByName("Pauli")).resolves.toEqual([
+      { id: 12, name: "PAULINO EMEF", address: "Rua das Flores, 123" },
+    ]);
+
+    expect(mocks.query).toHaveBeenCalledWith(
+      expect.stringContaining("a.dtagenda >= CURRENT_DATE"),
+      ["%Pauli%"],
+    );
+    expect(mocks.query.mock.calls[0][0]).toContain("ae.stagenda_cli = 'abe'");
   });
 });

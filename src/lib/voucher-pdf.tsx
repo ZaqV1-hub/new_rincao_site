@@ -218,8 +218,12 @@ function VoucherDocument({
               <View>
                 <Text style={styles.sectionTitle}>Ingresso</Text>
                 <Text style={styles.primaryValue}>{voucher.typeLabel}</Text>
-                <Text>Valido para a visita de {formatDate(voucher.visitDate)}.</Text>
-                <Text>Valor unitario: {formatCurrency(voucher.unitValue)}.</Text>
+                {input.isSchool ? null : (
+                  <>
+                    <Text>Valido para a visita de {formatDate(voucher.visitDate)}.</Text>
+                    <Text>Valor unitario: {formatCurrency(voucher.unitValue)}.</Text>
+                  </>
+                )}
               </View>
 
               <View style={styles.divider} />
@@ -289,7 +293,9 @@ function VoucherDocument({
       {infoParagraphs.length > 0 ? (
         <Page size="A4" style={styles.infoPage}>
           <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>Informacoes importantes</Text>
+            <Text style={styles.infoTitle}>
+              {input.isSchool ? "Informacoes escolares" : "Informacoes importantes"}
+            </Text>
             {infoParagraphs.map((paragraph) => (
               <Text key={paragraph} style={styles.infoParagraph}>
                 {paragraph}

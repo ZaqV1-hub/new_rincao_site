@@ -61,17 +61,17 @@ function ParticipantTable({
         </div>
       ) : (
         <div className="mt-5 overflow-x-auto">
-          <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-[22px] border border-[#d9e3eb] text-sm">
+          <table className="min-w-[1120px] table-fixed border-separate border-spacing-0 overflow-hidden rounded-[22px] border border-[#d9e3eb] text-sm">
             <thead className="bg-[#edf5fa] text-left text-[#345062]">
               <tr>
-                <th className="px-4 py-3">Voucher</th>
-                <th className="px-4 py-3">Nome</th>
-                <th className="px-4 py-3">{thirdColumnLabel}</th>
-                <th className="px-4 py-3">Valor</th>
-                <th className="px-4 py-3">Compra</th>
-                <th className="px-4 py-3">Pagamento</th>
-                <th className="px-4 py-3">Usado</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="w-28 px-4 py-3">Voucher</th>
+                <th className="w-48 px-4 py-3">Nome</th>
+                <th className="w-64 px-4 py-3">{thirdColumnLabel}</th>
+                <th className="w-28 px-4 py-3">Valor</th>
+                <th className="w-28 px-4 py-3">Compra</th>
+                <th className="w-28 px-4 py-3">Pagamento</th>
+                <th className="w-32 px-4 py-3">Usado</th>
+                <th className="w-28 px-4 py-3">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -83,18 +83,18 @@ function ParticipantTable({
                   <td className="px-4 py-3 font-semibold text-[#205a7f]">
                     {participant.voucherNumber}
                   </td>
-                  <td className="px-4 py-3">{participant.name}</td>
-                  <td className="px-4 py-3">{thirdColumnValue(participant) || "-"}</td>
-                  <td className="px-4 py-3">R$ {participant.unitValue}</td>
-                  <td className="px-4 py-3">{participant.purchaseDateLabel}</td>
-                  <td className="px-4 py-3">{participant.paymentDateLabel}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 break-words">{participant.name}</td>
+                  <td className="px-4 py-3 break-words">{thirdColumnValue(participant) || "-"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">R$ {participant.unitValue}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{participant.purchaseDateLabel}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{participant.paymentDateLabel}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">
                     {participant.usedLabel}
                     {participant.usedDateLabel !== "-"
                       ? ` • ${participant.usedDateLabel}`
                       : ""}
                   </td>
-                  <td className="px-4 py-3">{participant.purchaseStatusLabel}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{participant.purchaseStatusLabel}</td>
                 </tr>
               ))}
             </tbody>

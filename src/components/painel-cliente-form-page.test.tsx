@@ -19,6 +19,8 @@ const client = {
     typeId: 4,
     name: "ABRAHAO DE MORAES PROF. E.E.",
     address: "",
+    schoolType: "ee",
+    educationBoard: "",
     typeName: "Escola",
     active: true,
     createdAt: "2026-05-06T10:00:00.000Z",
@@ -44,6 +46,7 @@ const client = {
     standardPeriodOptions: [],
     classes: [],
   },
+  observations: [],
 };
 
 describe("PainelClienteFormPage", () => {

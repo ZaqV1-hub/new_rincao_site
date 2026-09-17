@@ -47,6 +47,10 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
     message: string;
   } | null>(null);
   const [pendingClientId, setPendingClientId] = useState<number | null>(null);
+  const [isPendingSchoolsOpen, setIsPendingSchoolsOpen] = useState(false);
+  const [pendingSchools, setPendingSchools] = useState<Array<{ id: number; name: string }>>([]);
+  const [pendingSchoolsError, setPendingSchoolsError] = useState<string | null>(null);
+  const [isLoadingPendingSchools, setIsLoadingPendingSchools] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const previousHref = useMemo(() => {
@@ -163,6 +167,39 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
     }
   }
 
+  async function openPendingSchools() {
+    setIsPendingSchoolsOpen(true);
+    setPendingSchoolsError(null);
+
+    if (pendingSchools.length > 0) return;
+
+    setIsLoadingPendingSchools(true);
+    try {
+      const response = await fetch("/api/painel/clientes/escolas-pendentes", {
+        credentials: "same-origin",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            ok?: boolean;
+            data?: { schools?: Array<{ id: number; name: string }> };
+            error?: { message?: string };
+          }
+        | null;
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error?.message || "Não foi possível carregar as escolas pendentes.");
+      }
+
+      setPendingSchools(payload.data?.schools ?? []);
+    } catch (error) {
+      setPendingSchoolsError(
+        error instanceof Error ? error.message : "Não foi possível carregar as escolas pendentes.",
+      );
+    } finally {
+      setIsLoadingPendingSchools(false);
+    }
+  }
+
   return (
     <div className="grid gap-5">
       <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
@@ -183,6 +220,62 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
             }`}
           >
             {feedback.message}
+          </div>
+        ) : null}
+
+        {isPendingSchoolsOpen ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#102c46]/45 p-4"
+            role="presentation"
+          >
+            <section
+              aria-labelledby="pending-schools-title"
+              aria-modal="true"
+              className="w-full max-w-3xl rounded-lg bg-white p-5 shadow-2xl sm:p-6"
+              role="dialog"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-[#e4e4e4] pb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#173f64]" id="pending-schools-title">
+                    Escolas pendentes de classificação
+                  </h2>
+                  <p className="mt-1 text-sm text-[#5d6c79]">
+                    Defina o tipo de escola em cada cadastro para ajustar o formulário escolar.
+                  </p>
+                </div>
+                <button
+                  aria-label="Fechar lista de escolas pendentes"
+                  className="rounded px-2 py-1 text-2xl leading-none text-[#476276] hover:bg-[#eef5fb]"
+                  type="button"
+                  onClick={() => setIsPendingSchoolsOpen(false)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="mt-4 max-h-[60vh] overflow-y-auto rounded border border-[#e5edf3]">
+                {isLoadingPendingSchools ? (
+                  <p className="px-4 py-5 text-sm text-[#5d6c79]">Carregando escolas pendentes...</p>
+                ) : pendingSchoolsError ? (
+                  <p className="px-4 py-5 text-sm text-[#9d3131]">{pendingSchoolsError}</p>
+                ) : (
+                <ul className="divide-y divide-[#e5edf3]">
+                  {pendingSchools.map((school) => (
+                    <li className="flex items-center justify-between gap-4 px-4 py-3" key={school.id}>
+                      <span className="text-sm font-medium text-[#254f73]">{school.name}</span>
+                      <Link
+                        className="shrink-0 rounded border border-[#7aa9d0] px-3 py-1.5 text-sm font-semibold text-[#1764a0] hover:bg-[#edf6fd]"
+                        href={`/painel/clientes/editar?id=${school.id}`}
+                        onClick={() => setIsPendingSchoolsOpen(false)}
+                      >
+                        Classificar
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                )}
+              </div>
+            </section>
           </div>
         ) : null}
 
@@ -377,6 +470,25 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                 </div>
               </form>
             </div>
+
+            {data.pendingSchoolClassificationsCount > 0 ? (
+              <div className="rounded-[6px] border border-[#f0c36b] bg-[#fff8e8] p-4 text-sm text-[#76500b]">
+                <p>
+                  <strong>Classificação de escolas pendente.</strong>{" "}
+                  {data.pendingSchoolClassificationsCount} escola
+                  {data.pendingSchoolClassificationsCount === 1 ? " precisa" : "s precisam"}{" "}
+                  ter o tipo definido.
+                </p>
+                <button
+                  aria-expanded={isPendingSchoolsOpen}
+                  className="mt-3 w-full rounded border border-[#c88c22] bg-white px-3 py-2 font-semibold text-[#76500b] transition hover:bg-[#fff2d4]"
+                  onClick={openPendingSchools}
+                  type="button"
+                >
+                  Ver escolas pendentes
+                </button>
+              </div>
+            ) : null}
           </aside>
         </div>
       </section>

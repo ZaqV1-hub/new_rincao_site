@@ -1,3 +1,5 @@
+import { buildSchoolClassDisplay } from "@/lib/school-education";
+
 const schoolTypes = {
   infantil: {
     label: "Educacao Infantil",
@@ -172,6 +174,16 @@ export function buildSchoolDisplay(
   classValue: string | null,
   fallbackClass?: string | null,
 ) {
+  const currentStructureDisplay = buildSchoolClassDisplay(
+    typeValue ?? "",
+    yearValue ?? "",
+    classValue ?? "",
+  );
+
+  if (currentStructureDisplay) {
+    return currentStructureDisplay;
+  }
+
   const type = normalizeType(typeValue);
   const year = normalizeYear(typeValue, yearValue);
   const schoolClass = normalizeClass(classValue);

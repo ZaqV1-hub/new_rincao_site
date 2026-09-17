@@ -22,6 +22,7 @@ type ConfirmationState =
       title: string;
       description: string;
       confirmLabel: string;
+      expired?: boolean;
     }
   | {
       kind: "validate-selected";
@@ -48,6 +49,7 @@ type VoucherValidationResponse = {
     warnings?: string[];
   };
   error?: {
+    code?: string;
     message?: string;
   };
 };
@@ -364,6 +366,16 @@ export function PainelBilheteriaWorkstation({
       const payload = await readJson<VoucherValidationResponse>(response);
 
       if (!response.ok || !payload?.ok) {
+        if (payload?.error?.code === "voucher_expired_confirmation_required") {
+          setConfirmationState({
+            kind: "validate-voucher",
+            title: "Ingresso vencido",
+            description: payload.error.message || "Este ingresso está vencido. Deseja validar?",
+            confirmLabel: "Validar mesmo assim",
+            expired: true,
+          });
+          return;
+        }
         setMessage({
           tone: "error",
           text: payload?.error?.message || "Nao foi possivel concluir esta acao agora.",
@@ -762,7 +774,7 @@ export function PainelBilheteriaWorkstation({
     setConfirmationState(null);
 
     if (currentConfirmation.kind === "validate-voucher") {
-      await executeVoucherSubmit(true);
+      await executeVoucherSubmit(currentConfirmation.expired === true);
       return;
     }
 

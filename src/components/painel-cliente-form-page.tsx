@@ -4,6 +4,11 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { PainelClienteDetailResult } from "@/lib/painel-clientes";
+import {
+  inferSchoolTypeFromName,
+  schoolTypeOptions,
+  type SchoolType,
+} from "@/lib/school-education";
 
 type PainelClienteFormPageProps = {
   mode: "create" | "edit";
@@ -12,6 +17,7 @@ type PainelClienteFormPageProps = {
     name: string;
   }>;
   client?: PainelClienteDetailResult | null;
+  canDeleteObservations?: boolean;
 };
 
 function formatDate(value: string | null) {
@@ -70,6 +76,7 @@ export function PainelClienteFormPage({
   mode,
   typeOptions,
   client = null,
+  canDeleteObservations = false,
 }: PainelClienteFormPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -90,6 +97,13 @@ export function PainelClienteFormPage({
   const [name, setName] = useState(initialName);
   const [address, setAddress] = useState(initialAddress);
   const [status, setStatus] = useState(initialStatus);
+  const [schoolType, setSchoolType] = useState<SchoolType | "">(
+    (client?.client.schoolType as SchoolType | null) ?? "",
+  );
+  const [educationBoard, setEducationBoard] = useState(client?.client.educationBoard ?? "");
+  const [observationText, setObservationText] = useState("");
+  const [observationError, setObservationError] = useState<string | null>(null);
+  const [isObservationPending, startObservationTransition] = useTransition();
   const selectedType = typeOptions.find((option) => String(option.id) === typeId) ?? null;
   const isSelectedSchool = selectedType?.name.trim().toLowerCase() === "escola";
 
@@ -213,6 +227,32 @@ export function PainelClienteFormPage({
     );
   }
 
+  function addObservation() {
+    if (!client) return;
+    startObservationTransition(async () => {
+      setObservationError(null);
+      const response = await fetch(`/api/painel/clientes/${client.client.id}/observacoes`, {
+        method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: observationText }),
+      });
+      const payload = await response.json().catch(() => null) as { ok?: boolean; error?: { message?: string } } | null;
+      if (!response.ok || !payload?.ok) { setObservationError(payload?.error?.message || "Não foi possível salvar a observação."); return; }
+      setObservationText("");
+      refreshClientEditor();
+    });
+  }
+
+  function removeObservation(observationId: number) {
+    if (!client || !window.confirm("Deseja remover esta observação?")) return;
+    startObservationTransition(async () => {
+      setObservationError(null);
+      const response = await fetch(`/api/painel/clientes/${client.client.id}/observacoes/${observationId}`, { method: "DELETE", credentials: "same-origin" });
+      const payload = await response.json().catch(() => null) as { ok?: boolean; error?: { message?: string } } | null;
+      if (!response.ok || !payload?.ok) { setObservationError(payload?.error?.message || "Não foi possível excluir a observação."); return; }
+      refreshClientEditor();
+    });
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -220,6 +260,8 @@ export function PainelClienteFormPage({
       idtipo: typeId,
       nome: name,
       endereco: address,
+      tipoEscola: schoolType,
+      diretoriaEnsino: educationBoard,
       status,
     };
 
@@ -259,6 +301,11 @@ export function PainelClienteFormPage({
         if (!nextClientId) {
           throw new Error("Resposta invalida ao salvar cliente.");
         }
+
+        setTripDateMessage(
+          result.data?.message ||
+            (mode === "create" ? "Cliente criado com sucesso." : "Cliente atualizado com sucesso."),
+        );
 
         router.push(
           mode === "create"
@@ -337,11 +384,60 @@ export function PainelClienteFormPage({
                 className="h-11 w-full rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] px-3 text-[15px] text-[#133d63]"
                 id="nome"
                 name="nome"
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => {
+                  const nextName = event.target.value;
+                  setName(nextName);
+                  const suggestion = inferSchoolTypeFromName(nextName);
+                  if (suggestion) {
+                    setSchoolType(suggestion);
+                  }
+                }}
                 type="text"
                 value={name}
               />
             </div>
+
+            {isSelectedSchool ? (
+              <div className="grid gap-2 rounded-[6px] border border-[#d7d7d7] p-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+                <label className="font-bold text-[#555]" htmlFor="tipoEscola">
+                  Tipo de Escola
+                </label>
+                <select
+                  className="h-11 w-full max-w-[360px] rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] px-3 text-[15px] text-[#133d63]"
+                  id="tipoEscola"
+                  name="tipoEscola"
+                  onChange={(event) => setSchoolType(event.target.value as SchoolType)}
+                  required
+                  value={schoolType}
+                >
+                  <option value="">Selecione</option>
+                  {schoolTypeOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="md:col-start-2 text-sm text-[#667]">
+                  A sigla no nome sugere uma opção, mas você pode alterá-la.
+                </p>
+              </div>
+            ) : null}
+
+            {isSelectedSchool ? (
+              <div className="grid gap-2 rounded-[6px] border border-[#d7d7d7] p-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+                <label className="font-bold text-[#555]" htmlFor="diretoriaEnsino">
+                  Diretoria de Ensino
+                </label>
+                <input
+                  className="h-11 w-full rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] px-3 text-[15px] text-[#133d63]"
+                  id="diretoriaEnsino"
+                  name="diretoriaEnsino"
+                  onChange={(event) => setEducationBoard(event.target.value)}
+                  type="text"
+                  value={educationBoard}
+                />
+              </div>
+            ) : null}
 
             <div className="grid gap-2 rounded-[6px] border border-[#d7d7d7] p-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
               <label className="font-bold text-[#555]" htmlFor="endereco">
@@ -394,6 +490,28 @@ export function PainelClienteFormPage({
 
       {client ? (
         <>
+          <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
+            <h2 className="text-[28px] text-[#3f3f3f]">Observações</h2>
+            <div className="mt-4 rounded-[6px] border border-[#d7d7d7] bg-[#f8fafc] p-4">
+              <label className="grid gap-2 text-sm font-bold text-[#555]" htmlFor="cliente-observacao">
+                Adicionar observação
+                <textarea className="min-h-28 border border-[#b9d0e6] bg-white p-3 text-[15px] font-normal text-[#133d63]" id="cliente-observacao" onChange={(event) => setObservationText(event.target.value)} value={observationText} />
+              </label>
+              <button className="mt-3 border border-[#1d4f91] bg-[#246b99] px-5 py-2.5 text-sm font-bold text-white" disabled={isObservationPending} onClick={addObservation} type="button">Adicionar</button>
+              {observationError ? <p className="mt-3 text-sm text-[#7a2b2b]">{observationError}</p> : null}
+            </div>
+            <div className="mt-4 grid gap-3">
+              {client.observations.length ? client.observations.map((observation) => (
+                <article className="rounded-[6px] border border-[#d7d7d7] bg-white p-4" key={observation.id}>
+                  <p className="whitespace-pre-wrap text-[#35576f]">{observation.text}</p>
+                  <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#6b7f8f]">
+                    <span>{formatDate(observation.createdAt)}{observation.createdBy ? ` · ${observation.createdBy}` : ""}</span>
+                    {canDeleteObservations ? <button className="text-[#b53a2d] underline" disabled={isObservationPending} onClick={() => removeObservation(observation.id)} type="button">Excluir</button> : null}
+                  </div>
+                </article>
+              )) : <p className="text-sm text-[#777]">Nenhuma observação cadastrada.</p>}
+            </div>
+          </section>
           <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
             <h2 className="text-[28px] text-[#3f3f3f]">Histórico de Datas de Passeio</h2>
             <div className="mt-5 rounded-[4px] border border-[#d7d7d7] bg-[#f8fafc] px-5 py-4">

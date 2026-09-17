@@ -443,7 +443,9 @@ CREATE TABLE public.clientes (
     nome text NOT NULL,
     status boolean DEFAULT true NOT NULL,
     criado_em timestamp without time zone DEFAULT now() NOT NULL,
-    atualizado_em timestamp without time zone
+    atualizado_em timestamp without time zone,
+    tipo_escola character varying(20),
+    diretoria_ensino character varying(255)
 );
 
 
@@ -3336,4 +3338,3 @@ ALTER TABLE ONLY public.ingressos_especiais
 --
 
 \unrestrict qlXZhUaSuUaFyCAXBiIcaTyL8qMvx6Djh9kcqEJiDy8g9tpt8XJ8hAtFistes2u
-

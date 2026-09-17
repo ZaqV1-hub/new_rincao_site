@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  getUserVoucherExportData,
   getUserVouchersPage,
   getUserVoucherRescheduleData,
   resetVoucherLifecycleSchemaForTests,
@@ -126,5 +127,67 @@ describe("voucher-repository", () => {
     const result = await getUserVoucherRescheduleData("52998224725", 11);
 
     expect(result?.voucher.id).toBe(11);
+  });
+
+  it("uses the school information as the extra page content when exporting a school voucher", async () => {
+    dbQuery
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ total: "1" }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            idcompra: 77,
+            tpcompra: "ponli",
+            dtcompra: "2026-04-20",
+            vltotcompra: "45.00",
+            stcompra: "conc",
+            status: 3,
+            paymentmethodtype: 1,
+            voucher_count: "1",
+            unused_voucher_count: "1",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            idcompra: 77,
+            idvoucher: 11,
+            numvoucher: "ESC-11",
+            tpvoucher: "escol",
+            vlunicompra: "45.00",
+            stusado: "n",
+            stvoucher: "ativo",
+            flreagendado: "n",
+            dtuso: null,
+            voucherenviado: "n",
+            dtvalidade: "2026-05-20",
+            dtagenda: "2026-05-01",
+            tpagenda: "escol",
+            idescola: 12,
+            nmescola: "Escola Rincao",
+            nomealuno: "Ana Silva",
+            nomeeducador: null,
+            turma: "4o ano - A",
+            ensino_tipo: "fund1",
+            ensino_ano: "4",
+            turma_letra: "A",
+            descricao: "Escola",
+          },
+        ],
+      })
+      .mockImplementationOnce(async (sql: string, values?: unknown[]) => {
+        expect(sql).toContain("escola.textoinfo");
+        expect(sql).toContain("informacao.texto");
+        expect(values).toEqual([12]);
+        return { rows: [{ texto: "Levar autorização assinada." }] };
+      });
+
+    const result = await getUserVoucherExportData("52998224725", 77, [11]);
+
+    expect(result?.isSchool).toBe(true);
+    expect(result?.information).toBe("Levar autorização assinada.");
   });
 });

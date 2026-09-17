@@ -11,6 +11,8 @@ type ClientPayload = {
   idtipo?: unknown;
   nome?: unknown;
   endereco?: unknown;
+  tipoEscola?: unknown;
+  diretoriaEnsino?: unknown;
   status?: unknown;
 };
 
