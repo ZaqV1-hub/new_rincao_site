@@ -532,8 +532,9 @@ export async function getUserVoucherPurchaseById(cpf: string, purchaseId: number
 async function getInformationForVoucherExport(voucher: VoucherRow) {
   const pool = getIngressoSistemaDbPool();
 
-  if (isSchoolVoucher(voucher) && voucher.idescola) {
-    return getSchoolVoucherInformation();
+  const schoolVoucherInformation = await getSchoolVoucherInformation();
+  if (schoolVoucherInformation) {
+    return schoolVoucherInformation;
   }
 
   if (isSchoolVoucher(voucher)) {

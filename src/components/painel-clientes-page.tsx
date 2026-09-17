@@ -54,6 +54,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
   const [schoolVoucherInformation, setSchoolVoucherInformation] = useState(data.schoolVoucherInformation);
   const [schoolVoucherInformationFeedback, setSchoolVoucherInformationFeedback] = useState<string | null>(null);
   const [isSavingSchoolVoucherInformation, setIsSavingSchoolVoucherInformation] = useState(false);
+  const [isSchoolVoucherInformationOpen, setIsSchoolVoucherInformationOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const previousHref = useMemo(() => {
@@ -208,7 +209,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
     setSchoolVoucherInformationFeedback(null);
 
     try {
-      const response = await fetch("/api/painel/clientes/informacoes-escolares", {
+      const response = await fetch("/api/painel/configuracoes/informacoes-escolares", {
         method: "PATCH",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
@@ -221,6 +222,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
         throw new Error(payload?.error?.message || "Não foi possível salvar as informações escolares.");
       }
       setSchoolVoucherInformationFeedback(payload.data?.message || "Informações escolares atualizadas.");
+      setIsSchoolVoucherInformationOpen(false);
     } catch (error) {
       setSchoolVoucherInformationFeedback(error instanceof Error ? error.message : "Não foi possível salvar as informações escolares.");
     } finally {
@@ -323,6 +325,28 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                   ))}
                 </ul>
                 )}
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        {isSchoolVoucherInformationOpen ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#102c46]/45 p-4" role="presentation">
+            <section aria-labelledby="school-voucher-information-title" aria-modal="true" className="w-full max-w-2xl rounded-lg bg-white p-5 shadow-2xl sm:p-6" role="dialog">
+              <div className="flex items-start justify-between gap-4 border-b border-[#e4e4e4] pb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-[#173f64]" id="school-voucher-information-title">Informações escolares</h2>
+                  <p className="mt-1 text-sm text-[#5d6c79]">Este texto acompanha a segunda página dos vouchers de qualquer cliente.</p>
+                </div>
+                <button aria-label="Fechar edição das informações escolares" className="rounded px-2 py-1 text-2xl leading-none text-[#476276] hover:bg-[#eef5fb]" type="button" onClick={() => setIsSchoolVoucherInformationOpen(false)}>×</button>
+              </div>
+              <label className="mt-5 grid gap-2 text-sm font-bold text-[#36536b]">
+                Texto que acompanhará os vouchers
+                <textarea className="min-h-48 rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] p-3 text-[15px] font-normal text-[#133d63]" onChange={(event) => setSchoolVoucherInformation(event.target.value)} value={schoolVoucherInformation} />
+              </label>
+              <div className="mt-5 flex justify-end gap-3">
+                <button className="border border-[#c5c5c5] bg-[#f8f8f8] px-4 py-2 text-sm text-[#555]" type="button" onClick={() => setIsSchoolVoucherInformationOpen(false)}>Cancelar</button>
+                <button className="border border-[#1d4f91] bg-[#246b99] px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60" disabled={isSavingSchoolVoucherInformation} onClick={() => void saveSchoolVoucherInformation()} type="button">{isSavingSchoolVoucherInformation ? "Salvando..." : "Salvar informações"}</button>
               </div>
             </section>
           </div>
@@ -523,21 +547,14 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
             <div className="rounded-[6px] border border-[#d7e3ee] bg-white p-4 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
               <h2 className="text-[20px] font-semibold text-[#36536b]">Informações escolares</h2>
               <p className="mt-2 text-sm leading-5 text-[#5d6c79]">
-                Este texto acompanha a segunda página de todos os vouchers escolares.
+                Aplique o mesmo texto à segunda página dos vouchers de qualquer cliente.
               </p>
-              <textarea
-                className="mt-4 min-h-36 w-full rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] p-3 text-[15px] text-[#133d63]"
-                aria-label="Informações escolares para os vouchers"
-                onChange={(event) => setSchoolVoucherInformation(event.target.value)}
-                value={schoolVoucherInformation}
-              />
               <button
-                className="mt-3 border border-[#1d4f91] bg-[#246b99] px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isSavingSchoolVoucherInformation}
-                onClick={() => void saveSchoolVoucherInformation()}
+                className="mt-4 border border-[#1d4f91] bg-[#246b99] px-4 py-2 text-sm font-bold text-white"
+                onClick={() => setIsSchoolVoucherInformationOpen(true)}
                 type="button"
               >
-                {isSavingSchoolVoucherInformation ? "Salvando..." : "Salvar informações"}
+                Editar informações escolares
               </button>
               {schoolVoucherInformationFeedback ? (
                 <p className="mt-3 text-sm text-[#36536b]">{schoolVoucherInformationFeedback}</p>

@@ -49,8 +49,7 @@ describe("PainelClientesPage", () => {
     expect(html).toContain("Passeios");
     expect(html).toContain("Filtrar");
     expect(html).toContain("Informações escolares");
-    expect(html).toContain("Levar autorização assinada.");
-    expect(html).toContain("Salvar informações");
+    expect(html).toContain("Editar informações escolares");
     expect(html).toContain("ABRAHAO DE MORAES PROF. E.E.");
     expect(html).toContain("Ativo");
     expect(html).toContain("Desativar");
