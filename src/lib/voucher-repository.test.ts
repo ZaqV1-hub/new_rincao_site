@@ -7,6 +7,9 @@ import {
 } from "@/lib/voucher-repository";
 
 const dbQuery = vi.fn();
+const { getSchoolVoucherInformation } = vi.hoisted(() => ({
+  getSchoolVoucherInformation: vi.fn(),
+}));
 
 vi.mock("@/lib/ingresso-db", () => ({
   getIngressoSistemaDbDialect: () => "postgres",
@@ -15,9 +18,14 @@ vi.mock("@/lib/ingresso-db", () => ({
   }),
 }));
 
+vi.mock("@/lib/school-voucher-information", () => ({
+  getSchoolVoucherInformation,
+}));
+
 describe("voucher-repository", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getSchoolVoucherInformation.mockResolvedValue("");
     resetVoucherLifecycleSchemaForTests();
   });
 
@@ -177,22 +185,14 @@ describe("voucher-repository", () => {
             descricao: "Escola",
           },
         ],
-      })
-      .mockImplementationOnce(async (sql: string) => {
-        expect(sql).toContain("ADD COLUMN IF NOT EXISTS informacoes_escolares");
-        return { rows: [] };
-      })
-      .mockImplementationOnce(async (sql: string, values?: unknown[]) => {
-        expect(sql).toContain("clientes.informacoes_escolares");
-        expect(sql).toContain("escola.textoinfo");
-        expect(sql).toContain("informacao.texto");
-        expect(values).toEqual([12]);
-        return { rows: [{ texto: "Levar autorização assinada." }] };
       });
+
+    getSchoolVoucherInformation.mockResolvedValue("Levar autorização assinada.");
 
     const result = await getUserVoucherExportData("52998224725", 77, [11]);
 
     expect(result?.isSchool).toBe(true);
     expect(result?.information).toBe("Levar autorização assinada.");
+    expect(getSchoolVoucherInformation).toHaveBeenCalledOnce();
   });
 });

@@ -51,6 +51,9 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
   const [pendingSchools, setPendingSchools] = useState<Array<{ id: number; name: string }>>([]);
   const [pendingSchoolsError, setPendingSchoolsError] = useState<string | null>(null);
   const [isLoadingPendingSchools, setIsLoadingPendingSchools] = useState(false);
+  const [schoolVoucherInformation, setSchoolVoucherInformation] = useState(data.schoolVoucherInformation);
+  const [schoolVoucherInformationFeedback, setSchoolVoucherInformationFeedback] = useState<string | null>(null);
+  const [isSavingSchoolVoucherInformation, setIsSavingSchoolVoucherInformation] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const previousHref = useMemo(() => {
@@ -197,6 +200,31 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
       );
     } finally {
       setIsLoadingPendingSchools(false);
+    }
+  }
+
+  async function saveSchoolVoucherInformation() {
+    setIsSavingSchoolVoucherInformation(true);
+    setSchoolVoucherInformationFeedback(null);
+
+    try {
+      const response = await fetch("/api/painel/clientes/informacoes-escolares", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: schoolVoucherInformation }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; data?: { message?: string }; error?: { message?: string } }
+        | null;
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error?.message || "Não foi possível salvar as informações escolares.");
+      }
+      setSchoolVoucherInformationFeedback(payload.data?.message || "Informações escolares atualizadas.");
+    } catch (error) {
+      setSchoolVoucherInformationFeedback(error instanceof Error ? error.message : "Não foi possível salvar as informações escolares.");
+    } finally {
+      setIsSavingSchoolVoucherInformation(false);
     }
   }
 
@@ -495,14 +523,25 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
             <div className="rounded-[6px] border border-[#d7e3ee] bg-white p-4 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
               <h2 className="text-[20px] font-semibold text-[#36536b]">Informações escolares</h2>
               <p className="mt-2 text-sm leading-5 text-[#5d6c79]">
-                Edite o texto que acompanha o voucher na segunda página para cada escola.
+                Este texto acompanha a segunda página de todos os vouchers escolares.
               </p>
-              <Link
-                className="mt-4 inline-flex border border-[#1d4f91] bg-[#246b99] px-4 py-2 text-sm font-bold text-white"
-                href="/painel/clientes?idtipo=4"
+              <textarea
+                className="mt-4 min-h-36 w-full rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] p-3 text-[15px] text-[#133d63]"
+                aria-label="Informações escolares para os vouchers"
+                onChange={(event) => setSchoolVoucherInformation(event.target.value)}
+                value={schoolVoucherInformation}
+              />
+              <button
+                className="mt-3 border border-[#1d4f91] bg-[#246b99] px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isSavingSchoolVoucherInformation}
+                onClick={() => void saveSchoolVoucherInformation()}
+                type="button"
               >
-                Escolher escola para editar
-              </Link>
+                {isSavingSchoolVoucherInformation ? "Salvando..." : "Salvar informações"}
+              </button>
+              {schoolVoucherInformationFeedback ? (
+                <p className="mt-3 text-sm text-[#36536b]">{schoolVoucherInformationFeedback}</p>
+              ) : null}
             </div>
           </aside>
         </div>

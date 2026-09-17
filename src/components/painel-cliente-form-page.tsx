@@ -101,7 +101,6 @@ export function PainelClienteFormPage({
     (client?.client.schoolType as SchoolType | null) ?? "",
   );
   const [educationBoard, setEducationBoard] = useState(client?.client.educationBoard ?? "");
-  const [schoolInformation, setSchoolInformation] = useState(client?.client.schoolInformation ?? "");
   const [observationText, setObservationText] = useState("");
   const [observationError, setObservationError] = useState<string | null>(null);
   const [isObservationPending, startObservationTransition] = useTransition();
@@ -263,7 +262,6 @@ export function PainelClienteFormPage({
       endereco: address,
       tipoEscola: schoolType,
       diretoriaEnsino: educationBoard,
-      informacoesEscolares: schoolInformation,
       status,
     };
 
@@ -425,25 +423,6 @@ export function PainelClienteFormPage({
               </div>
             ) : null}
 
-            {isSelectedSchool ? (
-              <div className="grid gap-2 rounded-[6px] border border-[#d7d7d7] p-4 md:grid-cols-[220px_minmax(0,1fr)]">
-                <label className="font-bold text-[#555]" htmlFor="informacoesEscolares">
-                  Informações escolares no voucher
-                </label>
-                <div className="grid gap-2">
-                  <textarea
-                    className="min-h-32 w-full rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] p-3 text-[15px] text-[#133d63]"
-                    id="informacoesEscolares"
-                    name="informacoesEscolares"
-                    onChange={(event) => setSchoolInformation(event.target.value)}
-                    value={schoolInformation}
-                  />
-                  <p className="text-sm text-[#667]">
-                    Este texto será incluído na segunda página dos vouchers desta escola.
-                  </p>
-                </div>
-              </div>
-            ) : null}
 
             {isSelectedSchool ? (
               <div className="grid gap-2 rounded-[6px] border border-[#d7d7d7] p-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">

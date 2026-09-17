@@ -20,6 +20,7 @@ import {
   normalizeStoredSchoolType,
 } from "@/lib/school-profile";
 import { listClientObservations } from "@/lib/client-observations";
+import { getSchoolVoucherInformation } from "@/lib/school-voucher-information";
 
 type ClientListRow = {
   idcliente: number;
@@ -40,7 +41,6 @@ type ClientDetailRow = {
   endereco: string | null;
   tipo_escola: string | null;
   diretoria_ensino: string | null;
-  informacoes_escolares: string | null;
   status: boolean | string | null;
   criado_em: string | null;
   atualizado_em: string | null;
@@ -82,6 +82,7 @@ export type PainelClientesListResult = {
   };
   typeOptions: Awaited<ReturnType<typeof listClientTypes>>;
   pendingSchoolClassificationsCount: number;
+  schoolVoucherInformation: string;
 };
 
 export type PainelClienteDetailResult = {
@@ -92,7 +93,6 @@ export type PainelClienteDetailResult = {
     address: string;
     schoolType: string | null;
     educationBoard: string;
-    schoolInformation: string;
     typeName: string | null;
     active: boolean;
     createdAt: string | null;
@@ -116,7 +116,6 @@ export type PainelClienteMutationInput = {
     endereco?: unknown;
     tipoEscola?: unknown;
     diretoriaEnsino?: unknown;
-    informacoesEscolares?: unknown;
     status?: unknown;
   } | null;
 };
@@ -675,7 +674,6 @@ function validateClientPayload(values: PainelClienteMutationInput["values"]) {
   const address = normalizeClientAddress(values?.endereco);
   const schoolType = normalizeStoredSchoolType(values?.tipoEscola);
   const educationBoard = normalizeClientName(values?.diretoriaEnsino);
-  const schoolInformation = String(values?.informacoesEscolares ?? "").trim();
 
   if (name.length === 0) {
     throw new PainelClientesError(
@@ -699,7 +697,6 @@ function validateClientPayload(values: PainelClienteMutationInput["values"]) {
     address,
     schoolType,
     educationBoard,
-    schoolInformation,
     active: normalizeClientActive(values?.status),
   };
 }
@@ -758,7 +755,7 @@ export async function listPainelClientes(
   const whereSql = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
   const pool = getIngressoSistemaDbPool();
 
-  const [typeOptions, countResult, rowsResult, pendingSchoolClassifications] = await Promise.all([
+  const [typeOptions, countResult, rowsResult, pendingSchoolClassifications, schoolVoucherInformation] = await Promise.all([
     listClientTypes(),
     pool.query<ClientCountRow>(
       `
@@ -787,6 +784,7 @@ export async function listPainelClientes(
       [...values, per, offset],
     ),
     listSchoolsPendingClassification(),
+    getSchoolVoucherInformation(),
   ]);
 
   const total = Number(countResult.rows[0]?.total ?? 0);
@@ -814,6 +812,7 @@ export async function listPainelClientes(
     },
     typeOptions,
     pendingSchoolClassificationsCount: pendingSchoolClassifications.length,
+    schoolVoucherInformation,
   };
 }
 
@@ -834,7 +833,6 @@ export async function getPainelClientDetail(clientIdInput: unknown) {
           c.endereco,
           c.tipo_escola,
           c.diretoria_ensino,
-          c.informacoes_escolares,
           c.status,
           c.criado_em,
           c.atualizado_em,
@@ -894,7 +892,6 @@ export async function getPainelClientDetail(clientIdInput: unknown) {
         address: resolveClientAddress(detail.nome, detail.endereco),
         schoolType: normalizeStoredSchoolType(detail.tipo_escola),
         educationBoard: normalizeClientName(detail.diretoria_ensino),
-        schoolInformation: String(detail.informacoes_escolares ?? "").trim(),
         typeName: detail.tipo_nome,
         active: parseBooleanish(detail.status),
         createdAt: detail.criado_em,
@@ -934,13 +931,12 @@ export async function createPainelClient(input: PainelClienteMutationInput) {
           endereco,
           tipo_escola,
           diretoria_ensino,
-          informacoes_escolares,
           status,
           criado_em
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
         RETURNING idcliente
       `,
-      [payload.typeId, payload.name, payload.address || null, payload.schoolType, payload.educationBoard || null, payload.schoolInformation || null, payload.active ? "true" : "false"],
+      [payload.typeId, payload.name, payload.address || null, payload.schoolType, payload.educationBoard || null, payload.active ? "true" : "false"],
     );
     await client.query("COMMIT");
 
@@ -988,13 +984,12 @@ export async function updatePainelClient(input: PainelClienteMutationInput) {
           endereco = $4,
           tipo_escola = $5,
           diretoria_ensino = $6,
-          informacoes_escolares = $7,
-          status = $8,
+          status = $7,
           atualizado_em = NOW()
         WHERE idcliente = $1
         RETURNING idcliente
       `,
-      [clientId, payload.typeId, payload.name, payload.address || null, payload.schoolType, payload.educationBoard || null, payload.schoolInformation || null, payload.active ? "true" : "false"],
+      [clientId, payload.typeId, payload.name, payload.address || null, payload.schoolType, payload.educationBoard || null, payload.active ? "true" : "false"],
     );
 
     if (!updateResult.rows[0]) {

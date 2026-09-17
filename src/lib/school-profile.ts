@@ -20,7 +20,6 @@ export async function ensureSchoolTypeColumn(client: PoolClient) {
   }
 
   await client.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS diretoria_ensino varchar(255)");
-  await client.query("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS informacoes_escolares text");
 }
 
 export function normalizeStoredSchoolType(value: unknown): SchoolType | null {
