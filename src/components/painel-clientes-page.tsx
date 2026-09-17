@@ -223,6 +223,27 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
           </div>
         ) : null}
 
+        {data.pendingSchoolClassificationsCount > 0 ? (
+          <div className="mt-4 rounded-[6px] border border-[#f0c36b] bg-[#fff8e8] p-4 text-sm text-[#76500b]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p>
+                <strong>Classificação de escolas pendente.</strong>{" "}
+                {data.pendingSchoolClassificationsCount} escola
+                {data.pendingSchoolClassificationsCount === 1 ? " precisa" : "s precisam"}{" "}
+                ter o tipo definido.
+              </p>
+              <button
+                aria-expanded={isPendingSchoolsOpen}
+                className="shrink-0 rounded border border-[#c88c22] bg-white px-3 py-2 font-semibold text-[#76500b] transition hover:bg-[#fff2d4]"
+                onClick={openPendingSchools}
+                type="button"
+              >
+                Ver escolas pendentes
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {isPendingSchoolsOpen ? (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-[#102c46]/45 p-4"
@@ -471,24 +492,18 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
               </form>
             </div>
 
-            {data.pendingSchoolClassificationsCount > 0 ? (
-              <div className="rounded-[6px] border border-[#f0c36b] bg-[#fff8e8] p-4 text-sm text-[#76500b]">
-                <p>
-                  <strong>Classificação de escolas pendente.</strong>{" "}
-                  {data.pendingSchoolClassificationsCount} escola
-                  {data.pendingSchoolClassificationsCount === 1 ? " precisa" : "s precisam"}{" "}
-                  ter o tipo definido.
-                </p>
-                <button
-                  aria-expanded={isPendingSchoolsOpen}
-                  className="mt-3 w-full rounded border border-[#c88c22] bg-white px-3 py-2 font-semibold text-[#76500b] transition hover:bg-[#fff2d4]"
-                  onClick={openPendingSchools}
-                  type="button"
-                >
-                  Ver escolas pendentes
-                </button>
-              </div>
-            ) : null}
+            <div className="rounded-[6px] border border-[#d7e3ee] bg-white p-4 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
+              <h2 className="text-[20px] font-semibold text-[#36536b]">Informações escolares</h2>
+              <p className="mt-2 text-sm leading-5 text-[#5d6c79]">
+                Edite o texto que acompanha o voucher na segunda página para cada escola.
+              </p>
+              <Link
+                className="mt-4 inline-flex border border-[#1d4f91] bg-[#246b99] px-4 py-2 text-sm font-bold text-white"
+                href="/painel/clientes?idtipo=4"
+              >
+                Escolher escola para editar
+              </Link>
+            </div>
           </aside>
         </div>
       </section>

@@ -21,6 +21,7 @@ const client = {
     address: "",
     schoolType: "ee",
     educationBoard: "",
+    schoolInformation: "",
     typeName: "Escola",
     active: true,
     createdAt: "2026-05-06T10:00:00.000Z",
@@ -75,5 +76,6 @@ describe("PainelClienteFormPage", () => {
     expect(html).toContain("Inativar");
     expect(html).toContain("Remover");
     expect(html).toContain("Estrutura Escolar");
+    expect(html).toContain("Informações escolares no voucher");
   });
 });

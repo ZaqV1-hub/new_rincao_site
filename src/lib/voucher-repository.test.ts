@@ -178,7 +178,12 @@ describe("voucher-repository", () => {
           },
         ],
       })
+      .mockImplementationOnce(async (sql: string) => {
+        expect(sql).toContain("ADD COLUMN IF NOT EXISTS informacoes_escolares");
+        return { rows: [] };
+      })
       .mockImplementationOnce(async (sql: string, values?: unknown[]) => {
+        expect(sql).toContain("clientes.informacoes_escolares");
         expect(sql).toContain("escola.textoinfo");
         expect(sql).toContain("informacao.texto");
         expect(values).toEqual([12]);

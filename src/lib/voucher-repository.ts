@@ -532,15 +532,20 @@ async function getInformationForVoucherExport(voucher: VoucherRow) {
   const pool = getIngressoSistemaDbPool();
 
   if (isSchoolVoucher(voucher) && voucher.idescola) {
+    await pool.query(
+      "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS informacoes_escolares text",
+    );
     const result = await pool.query<{ texto: string | null }>(
       `
         SELECT COALESCE(
+          NULLIF(BTRIM(clientes.informacoes_escolares), ''),
           NULLIF(BTRIM(escola.textoinfo), ''),
           NULLIF(BTRIM(informacao.texto), '')
         ) AS texto
-        FROM escola
+        FROM clientes
+        LEFT JOIN escola ON escola.idescola = clientes.idcliente
         LEFT JOIN informacao ON informacao.idinformacao = escola.idinformacao
-        WHERE escola.idescola = $1
+        WHERE clientes.idcliente = $1
         LIMIT 1
       `,
       [voucher.idescola],
