@@ -11,7 +11,7 @@ type PainelCompraVouchersPageProps = {
 
 const voucherTypeOptions = [
   { value: "norma", label: "Adulto" },
-  { value: "infan", label: "Infantil" },
+  { value: "infan", label: "Criança" },
   { value: "isent", label: "Isento" },
   { value: "escol", label: "Escola" },
   { value: "corte", label: "Cortesia" },
@@ -268,22 +268,22 @@ export function PainelCompraVouchersPage({
             <div className="grid gap-2">
               <label className="grid gap-2 text-sm text-[#555]">
                 <span>Data da compra de</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.purchaseDateFrom ?? ""} name="dtcompra[de]" type="text" />
+                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.purchaseDateFrom ?? ""} name="dtcompra[de]" type="date" />
               </label>
               <label className="grid gap-2 text-sm text-[#555]">
                 <span>Data da compra ate</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.purchaseDateTo ?? ""} name="dtcompra[ate]" type="text" />
+                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.purchaseDateTo ?? ""} name="dtcompra[ate]" type="date" />
               </label>
             </div>
 
             <div className="grid gap-2">
               <label className="grid gap-2 text-sm text-[#555]">
                 <span>Data de uso de</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.usedDateFrom ?? ""} name="dtuso[de]" type="text" />
+                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.usedDateFrom ?? ""} name="dtuso[de]" type="date" />
               </label>
               <label className="grid gap-2 text-sm text-[#555]">
                 <span>Data de uso ate</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.usedDateTo ?? ""} name="dtuso[ate]" type="text" />
+                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.usedDateTo ?? ""} name="dtuso[ate]" type="date" />
               </label>
             </div>
 
