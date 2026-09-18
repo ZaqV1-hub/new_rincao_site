@@ -62,5 +62,6 @@ describe("PainelCompraDetailPage", () => {
     expect(html).toContain("PainelCompraDetailActions");
     expect(html).toContain("Colegio Rincao");
     expect(html).toContain("/painel/clientes/passeios/2306/alunos");
+    expect(html).toContain('/painel/usuario-site/12345678901');
   });
 });

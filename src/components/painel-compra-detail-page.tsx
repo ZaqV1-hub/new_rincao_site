@@ -11,11 +11,18 @@ type PainelCompraDetailPageProps = {
   actorCpf: string | null;
 };
 
+function buildUserProfileHref(cpf: string | null) {
+  const normalizedCpf = String(cpf ?? "").replace(/\D+/g, "");
+  return normalizedCpf ? `/painel/usuario-site/${normalizedCpf}` : null;
+}
+
 export function PainelCompraDetailPage({
   detail,
   actorName,
   actorCpf,
 }: PainelCompraDetailPageProps) {
+  const userProfileHref = buildUserProfileHref(detail.cpf);
+
   return (
     <section className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
       <div className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
@@ -78,7 +85,15 @@ export function PainelCompraDetailPage({
                     <td className="border border-[#d7d7d7] px-4 py-3">{detail.totalValue}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{detail.referralCode}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{formatCpf(detail.cpf)}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{detail.userName ?? "-"}</td>
+                    <td className="border border-[#d7d7d7] px-4 py-3">
+                      {detail.userName && userProfileHref ? (
+                        <Link className="text-[#1868d6] underline" href={userProfileHref}>
+                          {detail.userName}
+                        </Link>
+                      ) : (
+                        detail.userName ?? "-"
+                      )}
+                    </td>
                   </tr>
                 </>
               ) : (
@@ -95,7 +110,15 @@ export function PainelCompraDetailPage({
                       {detail.totalValue}
                     </td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{formatCpf(detail.cpf)}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{detail.userName ?? "-"}</td>
+                    <td className="border border-[#d7d7d7] px-4 py-3">
+                      {detail.userName && userProfileHref ? (
+                        <Link className="text-[#1868d6] underline" href={userProfileHref}>
+                          {detail.userName}
+                        </Link>
+                      ) : (
+                        detail.userName ?? "-"
+                      )}
+                    </td>
                   </tr>
                 </>
               )}

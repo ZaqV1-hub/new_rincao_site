@@ -175,7 +175,8 @@ export function PainelCompraVouchersPage({
               <table className="min-w-full border-collapse text-[15px]">
                 <thead className="bg-[#5f84a3] text-left text-white">
                   <tr>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">ID</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Compra</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">ID Voucher</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Voucher</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data Visita</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ingresso</th>
@@ -188,6 +189,14 @@ export function PainelCompraVouchersPage({
                       className={index % 2 === 1 ? "bg-[#fafafa]" : "bg-white"}
                       key={`${item.purchaseId}-${item.voucherId}`}
                     >
+                      <td className="border border-[#d7d7d7] px-4 py-3">
+                        <Link
+                          className="text-[#1868d6] underline"
+                          href={`/painel/compras/${item.purchaseId}`}
+                        >
+                          {item.purchaseId}
+                        </Link>
+                      </td>
                       <td className="border border-[#d7d7d7] px-4 py-3">{item.voucherId}</td>
                       <td className="border border-[#d7d7d7] px-4 py-3">
                         {item.voucherNumber ?? "-"}
