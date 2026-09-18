@@ -229,7 +229,7 @@ describe("buildPainelPurchaseVoucherListWhere", () => {
     expect(normalizeSql(sql)).toBe(
       normalizeSql(`voucher.idvoucher = 9001
         AND c.dtcompra >= TO_DATE('01/05/2026', 'DD/MM/YYYY')
-        AND voucher.tpvoucher = 'escol'
+        AND (voucher.tpvoucher = 'escol' OR LOWER(COALESCE(voucher.descricao, '')) LIKE '%escola%' OR LOWER(COALESCE(voucher.descricao, '')) LIKE '%escolar%')
         AND c.tpcompra = 'bilhe'
         AND c.stcompra = 'conc'
         AND voucher.stusado = 'n'`),
@@ -723,7 +723,7 @@ describe("listPainelPurchaseVouchers", () => {
         return { rows: [{ total: "1" }] };
       }
 
-      if (sql.includes("SUM(CASE WHEN voucher.tpvoucher = 'norma'")) {
+      if (sql.includes("SUM(CASE WHEN (voucher.tpvoucher = 'norma'")) {
         return {
           rows: [
             {

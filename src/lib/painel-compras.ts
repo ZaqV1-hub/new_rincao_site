@@ -385,6 +385,42 @@ function escapeSqlLikeLiteral(value: string) {
   return escapeSqlLiteral(value).replaceAll("%", "\\%").replaceAll("_", "\\_");
 }
 
+type VoucherCategory = "adult" | "child" | "exempt" | "school" | "courtesy";
+
+function buildVoucherCategoryClause(category: VoucherCategory) {
+  const description = "LOWER(COALESCE(voucher.descricao, ''))";
+
+  switch (category) {
+    case "adult":
+      return `(voucher.tpvoucher = 'norma' OR ${description} LIKE '%adult%' OR ${description} LIKE '%idoso%' OR ${description} LIKE '%meia entrada%')`;
+    case "child":
+      return `(voucher.tpvoucher = 'infan' OR ${description} LIKE '%infantil%' OR ${description} LIKE '%crian%')`;
+    case "exempt":
+      return `(voucher.tpvoucher = 'isent' OR ${description} LIKE '%isento%' OR ${description} LIKE '%gratuit%')`;
+    case "school":
+      return `(voucher.tpvoucher = 'escol' OR ${description} LIKE '%escola%' OR ${description} LIKE '%escolar%')`;
+    case "courtesy":
+      return `(voucher.tpvoucher = 'corte' OR ${description} LIKE '%cortesia%')`;
+  }
+}
+
+function buildVoucherTypeFilterClause(voucherType: string) {
+  switch (voucherType) {
+    case "norma":
+      return buildVoucherCategoryClause("adult");
+    case "infan":
+      return buildVoucherCategoryClause("child");
+    case "isent":
+      return buildVoucherCategoryClause("exempt");
+    case "escol":
+      return buildVoucherCategoryClause("school");
+    case "corte":
+      return buildVoucherCategoryClause("courtesy");
+    default:
+      return `voucher.tpvoucher = '${escapeSqlLiteral(voucherType)}'`;
+  }
+}
+
 function resolveDateRangeValue(
   input: PainelPurchaseListFilterInput,
   key: "de" | "ate",
@@ -896,7 +932,7 @@ export function buildPainelPurchaseVoucherListWhere(
   }
 
   if (filters.voucherType) {
-    clauses.push(`voucher.tpvoucher = '${escapeSqlLiteral(filters.voucherType)}'`);
+    clauses.push(buildVoucherTypeFilterClause(filters.voucherType));
   }
 
   switch (filters.purchaseLocation) {
@@ -1147,24 +1183,24 @@ export async function listPainelPurchaseVouchers(input: {
     pool.query<PainelPurchaseVoucherIndicatorsRow>(
       `
         SELECT
-          SUM(CASE WHEN voucher.tpvoucher = 'norma' AND c.tpcompra = 'ponli' THEN 1 ELSE 0 END)::text AS qtdnormal_site,
-          SUM(CASE WHEN voucher.tpvoucher = 'norma' AND c.tpcompra = 'ponli' THEN voucher.vlunicompra ELSE 0 END)::text AS vlnormal_site,
-          SUM(CASE WHEN voucher.tpvoucher = 'infan' AND c.tpcompra = 'ponli' THEN 1 ELSE 0 END)::text AS qtdinfantil_site,
-          SUM(CASE WHEN voucher.tpvoucher = 'infan' AND c.tpcompra = 'ponli' THEN voucher.vlunicompra ELSE 0 END)::text AS vlinfantil_site,
-          SUM(CASE WHEN voucher.tpvoucher = 'norma' AND c.tpcompra = 'bilhe' THEN 1 ELSE 0 END)::text AS qtdnormal_parque,
-          SUM(CASE WHEN voucher.tpvoucher = 'norma' AND c.tpcompra = 'bilhe' THEN voucher.vlunicompra ELSE 0 END)::text AS vlnormal_parque,
-          SUM(CASE WHEN voucher.tpvoucher = 'infan' AND c.tpcompra = 'bilhe' THEN 1 ELSE 0 END)::text AS qtdinfantil_parque,
-          SUM(CASE WHEN voucher.tpvoucher = 'infan' AND c.tpcompra = 'bilhe' THEN voucher.vlunicompra ELSE 0 END)::text AS vlinfantil_parque,
-          SUM(CASE WHEN voucher.tpvoucher = 'escol' THEN 1 ELSE 0 END)::text AS qtdescola,
-          SUM(CASE WHEN voucher.tpvoucher = 'escol' THEN voucher.vlunicompra ELSE 0 END)::text AS vlescola,
-          SUM(CASE WHEN voucher.tpvoucher = 'norma' AND c.tpcompra = 'reser' THEN 1 ELSE 0 END)::text AS qtdadulto_reserva,
-          SUM(CASE WHEN voucher.tpvoucher = 'norma' AND c.tpcompra = 'reser' THEN voucher.vlunicompra ELSE 0 END)::text AS vladulto_reserva,
-          SUM(CASE WHEN voucher.tpvoucher = 'infan' AND c.tpcompra = 'reser' THEN 1 ELSE 0 END)::text AS qtdinfantil_reserva,
-          SUM(CASE WHEN voucher.tpvoucher = 'infan' AND c.tpcompra = 'reser' THEN voucher.vlunicompra ELSE 0 END)::text AS vlinfantil_reserva,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("adult")} AND c.tpcompra = 'ponli' THEN 1 ELSE 0 END)::text AS qtdnormal_site,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("adult")} AND c.tpcompra = 'ponli' THEN voucher.vlunicompra ELSE 0 END)::text AS vlnormal_site,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("child")} AND c.tpcompra = 'ponli' THEN 1 ELSE 0 END)::text AS qtdinfantil_site,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("child")} AND c.tpcompra = 'ponli' THEN voucher.vlunicompra ELSE 0 END)::text AS vlinfantil_site,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("adult")} AND c.tpcompra = 'bilhe' THEN 1 ELSE 0 END)::text AS qtdnormal_parque,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("adult")} AND c.tpcompra = 'bilhe' THEN voucher.vlunicompra ELSE 0 END)::text AS vlnormal_parque,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("child")} AND c.tpcompra = 'bilhe' THEN 1 ELSE 0 END)::text AS qtdinfantil_parque,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("child")} AND c.tpcompra = 'bilhe' THEN voucher.vlunicompra ELSE 0 END)::text AS vlinfantil_parque,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("school")} THEN 1 ELSE 0 END)::text AS qtdescola,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("school")} THEN voucher.vlunicompra ELSE 0 END)::text AS vlescola,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("adult")} AND c.tpcompra = 'reser' THEN 1 ELSE 0 END)::text AS qtdadulto_reserva,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("adult")} AND c.tpcompra = 'reser' THEN voucher.vlunicompra ELSE 0 END)::text AS vladulto_reserva,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("child")} AND c.tpcompra = 'reser' THEN 1 ELSE 0 END)::text AS qtdinfantil_reserva,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("child")} AND c.tpcompra = 'reser' THEN voucher.vlunicompra ELSE 0 END)::text AS vlinfantil_reserva,
           SUM(CASE WHEN voucher.tpvoucher = 'espec' OR voucher.descricao ILIKE '%especial%' THEN 1 ELSE 0 END)::text AS qtespecial,
           SUM(CASE WHEN voucher.tpvoucher = 'espec' OR voucher.descricao ILIKE '%especial%' THEN voucher.vlunicompra ELSE 0 END)::text AS vlespecial,
-          SUM(CASE WHEN voucher.tpvoucher = 'corte' OR voucher.descricao ILIKE '%cortesia%' THEN 1 ELSE 0 END)::text AS qtdcortesia,
-          SUM(CASE WHEN voucher.tpvoucher = 'isent' THEN 1 ELSE 0 END)::text AS qtdisento
+          SUM(CASE WHEN ${buildVoucherCategoryClause("courtesy")} THEN 1 ELSE 0 END)::text AS qtdcortesia,
+          SUM(CASE WHEN ${buildVoucherCategoryClause("exempt")} THEN 1 ELSE 0 END)::text AS qtdisento
         FROM voucher
         JOIN compra c ON c.idcompra = voucher.idcompra
         JOIN agenda a ON a.idagenda = voucher.idagenda

@@ -84,30 +84,30 @@ function hasActiveFilters(filters: PainelPurchaseVoucherListFilters) {
 
 function indicatorCards(indicators: PainelPurchaseVoucherIndicators) {
   return [
-    { label: "Passaporte SITE", count: indicators.qtdnormal_site, value: indicators.vlnormal_site },
+    { label: "Ingresso Adulto SITE", count: indicators.qtdnormal_site, value: indicators.vlnormal_site },
     {
-      label: "Passaporte Infantil SITE",
+      label: "Ingresso Infantil SITE",
       count: indicators.qtdinfantil_site,
       value: indicators.vlinfantil_site,
     },
     {
-      label: "Passaporte NO PARQUE",
+      label: "Ingresso Adulto NO PARQUE",
       count: indicators.qtdnormal_parque,
       value: indicators.vlnormal_parque,
     },
     {
-      label: "Passaporte Infantil NO PARQUE",
+      label: "Ingresso Infantil NO PARQUE",
       count: indicators.qtdinfantil_parque,
       value: indicators.vlinfantil_parque,
     },
     { label: "Escolar", count: indicators.qtdescola, value: indicators.vlescola },
     {
-      label: "PASSAPORTE RESERVA",
+      label: "INGRESSO ADULTO RESERVA",
       count: indicators.qtdadulto_reserva,
       value: indicators.vladulto_reserva,
     },
     {
-      label: "PASSAPORTE INFANTIL RESERVA",
+      label: "INGRESSO INFANTIL RESERVA",
       count: indicators.qtdinfantil_reserva,
       value: indicators.vlinfantil_reserva,
     },
