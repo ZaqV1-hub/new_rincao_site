@@ -10,12 +10,11 @@ type PainelCompraVouchersPageProps = {
 };
 
 const voucherTypeOptions = [
-  { value: "norma", label: "Passaporte" },
-  { value: "infan", label: "Passaporte Infantil" },
+  { value: "norma", label: "Adulto" },
+  { value: "infan", label: "Infantil" },
   { value: "isent", label: "Isento" },
   { value: "escol", label: "Escola" },
   { value: "corte", label: "Cortesia" },
-  { value: "espec", label: "Ingresso Especial" },
 ];
 
 const purchaseLocationOptions = [
@@ -179,7 +178,7 @@ export function PainelCompraVouchersPage({
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">ID</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Voucher</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data Visita</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Passaporte</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ingresso</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
                   </tr>
                 </thead>
@@ -300,7 +299,7 @@ export function PainelCompraVouchersPage({
             </div>
 
             <label className="grid gap-2 text-sm text-[#555]">
-              <span>Passaporte</span>
+              <span>Ingresso</span>
               {renderSelect("tpvoucher", result.filters.voucherType, voucherTypeOptions)}
             </label>
             <label className="grid gap-2 text-sm text-[#555]">
