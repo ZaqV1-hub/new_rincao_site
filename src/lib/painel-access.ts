@@ -80,6 +80,7 @@ const legacyPanelResources: Record<LegacyPanelRoleId, LegacyPanelResource[]> = {
     "vis_tabpre",
     "vis_compra",
     "vis_clientes",
+    "vis_situsu",
     "vis_bilhet",
   ],
   3: ["vis_bilhet"],

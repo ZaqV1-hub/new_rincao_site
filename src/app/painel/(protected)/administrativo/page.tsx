@@ -12,13 +12,10 @@ export const metadata: Metadata = {
 };
 
 export default async function PainelAdministrativoPage() {
-  const session = await requirePainelAccess(
-    ["vis_usu", "vis_situsu"],
-    "/painel/administrativo",
-  );
+  const session = await requirePainelAccess("vis_usu", "/painel/administrativo");
 
   const visibleModules = painelAdminModules.filter((module) =>
-    module.resources.some((resource) => session.legacyResources.includes(resource)),
+    module.resources.includes("vis_usu"),
   );
 
   return (
@@ -26,11 +23,10 @@ export default async function PainelAdministrativoPage() {
       <section className="panel-section p-5">
         <p className="panel-eyebrow">Administrativo</p>
         <h1 className="mt-2 text-[30px] font-black leading-tight text-[#17351f]">
-          Usuarios e permissoes
+          Usuários do painel
         </h1>
         <p className="mt-3 max-w-[720px] text-[15px] leading-7 text-[#5f7564]">
-          Gerencie acessos internos do painel e contas de clientes vinculadas ao
-          site.
+          Gerencie os acessos internos, permissões e senhas dos usuários do painel.
         </p>
       </section>
 
