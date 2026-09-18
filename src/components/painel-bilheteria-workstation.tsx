@@ -409,16 +409,6 @@ export function PainelBilheteriaWorkstation({
   }
 
   async function handleValidateSelectedPurchase(purchaseId: number, voucherIds: number[]) {
-    if (!agendaOpen) {
-      setMessage({
-        tone: "warning",
-        text:
-          agendaWarning ||
-          "Nao existe agenda aberta para hoje. A validacao de ingressos fica indisponivel.",
-      });
-      return;
-    }
-
     if (voucherIds.length === 0) {
       setMessage({
         tone: "warning",
@@ -439,16 +429,6 @@ export function PainelBilheteriaWorkstation({
   }
 
   async function handleUnvalidateSelectedPurchase(purchaseId: number, voucherIds: number[]) {
-    if (!agendaOpen) {
-      setMessage({
-        tone: "warning",
-        text:
-          agendaWarning ||
-          "Nao existe agenda aberta para hoje. A validacao de ingressos fica indisponivel.",
-      });
-      return;
-    }
-
     if (voucherIds.length === 0) {
       setMessage({
         tone: "warning",
@@ -602,16 +582,6 @@ export function PainelBilheteriaWorkstation({
   async function handleVoucherSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!agendaOpen) {
-      setMessage({
-        tone: "warning",
-        text:
-          agendaWarning ||
-          "Nao existe agenda aberta para hoje. A validacao de ingressos fica indisponivel.",
-      });
-      return;
-    }
-
     if (!voucherNumber.trim()) {
       setMessage({
         tone: "warning",
@@ -657,16 +627,6 @@ export function PainelBilheteriaWorkstation({
   }
 
   function handleOpenTicketLookup() {
-    if (!agendaOpen) {
-      setMessage({
-        tone: "warning",
-        text:
-          agendaWarning ||
-          "Nao existe agenda aberta para hoje. A consulta operacional de ingresso fica indisponivel.",
-      });
-      return;
-    }
-
     setTicketLookupOpen(true);
     setTicketLookupError(null);
     setTicketWhatsappError(null);
@@ -836,7 +796,7 @@ export function PainelBilheteriaWorkstation({
                       />
                       <button
                         type="submit"
-                        disabled={submitting || (isVoucher && !agendaOpen)}
+                        disabled={submitting}
                         className="inline-flex min-h-[56px] items-center justify-center rounded-[6px] border border-[#c8d9ea] bg-white px-5 text-base font-bold text-[#133d63] transition hover:bg-[#eef5fb] disabled:opacity-60"
                       >
                         {submitting ? "Aguarde" : form.submitLabel}

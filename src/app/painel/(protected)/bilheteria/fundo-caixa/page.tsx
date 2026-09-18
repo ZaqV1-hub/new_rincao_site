@@ -19,7 +19,7 @@ export default async function PainelBilheteriaFundoCaixaPage() {
   const { hasOpenAgendaToday } = await getBilheteriaAgendaStatusToday();
   let warningMessage: string | null = hasOpenAgendaToday
     ? null
-    : "Nao existe agenda aberta para hoje. O fundo de caixa continua visivel, mas venda e validacao ficam indisponiveis.";
+    : "Nao existe agenda aberta para hoje. O fundo de caixa e a validacao continuam disponiveis; apenas novas vendas ficam indisponiveis.";
   let summary;
 
   try {

@@ -62,7 +62,7 @@ function getAgendaBaseToneClasses(entry?: AgendaToneInput) {
     return "border-[#ff6138] bg-[#ff6138] text-white";
   }
 
-  return "border-[#1d6fb8] bg-[#1d6fb8] text-white";
+  return "border-[#84bd00] bg-[#84bd00] text-[#17351f]";
 }
 
 export function getAgendaToneClasses(
@@ -95,7 +95,7 @@ function getSelectedDayCardClasses(entry: AgendaToneInput | undefined) {
     return "border-[#ffd0c0] bg-[#fff4ef] text-[#9f4420]";
   }
 
-  return "border-[#c9def2] bg-[#eef6fd] text-[#123b63]";
+  return "border-[#cde8a2] bg-[#f3fae9] text-[#365a12]";
 }
 
 function buildQuery(month: number, year: number, selectedDate?: string | null) {

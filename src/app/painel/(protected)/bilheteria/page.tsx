@@ -83,7 +83,7 @@ export default async function PainelBilheteriaPage({
             Agenda nao aberta
           </h2>
           <p className="mt-3 text-[15px] leading-7 text-[#5d7282]">
-            Sem uma agenda aberta para hoje, a validacao e a venda ficam bloqueadas. Historicos e consultas administrativas continuam disponiveis.
+            Sem uma agenda aberta para hoje, novas vendas ficam bloqueadas. A validacao e as consultas de ingressos continuam disponiveis.
           </p>
         </section>
       ) : null}
@@ -97,7 +97,7 @@ export default async function PainelBilheteriaPage({
         agendaWarning={
           hasOpenAgendaToday
             ? null
-            : "Nao existe agenda aberta para hoje. Validacao de ingresso e venda ficam indisponiveis ate abrir uma data."
+            : "Nao existe agenda aberta para hoje. Novas vendas ficam indisponiveis ate abrir uma data; validacoes continuam liberadas."
         }
       />
     </div>

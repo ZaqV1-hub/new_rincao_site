@@ -143,6 +143,12 @@ export function PainelComprasPage({
           <div className="flex flex-wrap gap-2">
             <Link
               className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-xs font-semibold text-[#133d63]"
+              href="/painel/compras/vouchers"
+            >
+              Vouchers por data de visita
+            </Link>
+            <Link
+              className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-xs font-semibold text-[#133d63]"
               href={exportHref}
             >
               Exportar

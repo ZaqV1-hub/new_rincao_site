@@ -291,11 +291,11 @@ export function PainelCompraVouchersPage({
             <div className="grid gap-2">
               <label className="grid gap-2 text-sm text-[#555]">
                 <span>Data de visita de</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.visitDateFrom ?? ""} name="dtagenda[de]" type="text" />
+                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.visitDateFrom ?? ""} name="dtagenda[de]" type="date" />
               </label>
               <label className="grid gap-2 text-sm text-[#555]">
                 <span>Data de visita ate</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.visitDateTo ?? ""} name="dtagenda[ate]" type="text" />
+                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.visitDateTo ?? ""} name="dtagenda[ate]" type="date" />
               </label>
             </div>
 
