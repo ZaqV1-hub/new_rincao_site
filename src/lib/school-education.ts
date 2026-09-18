@@ -24,6 +24,24 @@ export const schoolTypeOptions = [
   { id: "particular", label: "Escola Particular" },
 ] as const;
 
+// Diretorias que atendem as escolas estaduais da capital paulista. A lista segue
+// a nomenclatura usada pela Secretaria da Educação do Estado de São Paulo.
+export const schoolEducationBoardOptions = [
+  "Centro",
+  "Centro Oeste",
+  "Centro Sul",
+  "Leste 1",
+  "Leste 2",
+  "Leste 3",
+  "Leste 4",
+  "Leste 5",
+  "Norte 1",
+  "Norte 2",
+  "Sul 1",
+  "Sul 2",
+  "Sul 3",
+] as const;
+
 export type SchoolType = (typeof schoolTypeOptions)[number]["id"];
 
 const rawEducationTypes = [

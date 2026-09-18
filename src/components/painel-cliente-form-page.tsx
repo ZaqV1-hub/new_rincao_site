@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { PainelClienteDetailResult } from "@/lib/painel-clientes";
 import {
   inferSchoolTypeFromName,
+  schoolEducationBoardOptions,
   schoolTypeOptions,
   type SchoolType,
 } from "@/lib/school-education";
@@ -429,14 +430,25 @@ export function PainelClienteFormPage({
                 <label className="font-bold text-[#555]" htmlFor="diretoriaEnsino">
                   Diretoria de Ensino
                 </label>
-                <input
-                  className="h-11 w-full rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] px-3 text-[15px] text-[#133d63]"
+                <select
+                  className="h-11 w-full max-w-[360px] rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] px-3 text-[15px] text-[#133d63]"
                   id="diretoriaEnsino"
                   name="diretoriaEnsino"
                   onChange={(event) => setEducationBoard(event.target.value)}
-                  type="text"
                   value={educationBoard}
-                />
+                >
+                  <option value="">Selecione</option>
+                  {schoolEducationBoardOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                  {educationBoard && !schoolEducationBoardOptions.includes(
+                    educationBoard as (typeof schoolEducationBoardOptions)[number],
+                  ) ? (
+                    <option value={educationBoard}>{educationBoard}</option>
+                  ) : null}
+                </select>
               </div>
             ) : null}
 

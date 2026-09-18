@@ -75,5 +75,9 @@ describe("PainelClienteFormPage", () => {
     expect(html).toContain("Inativar");
     expect(html).toContain("Remover");
     expect(html).toContain("Estrutura Escolar");
+    expect(html).toContain('id="diretoriaEnsino"');
+    expect(html).toContain("Centro Oeste");
+    expect(html).toContain("Sul 1");
+    expect(html).not.toContain('id="diretoriaEnsino" type="text"');
   });
 });
