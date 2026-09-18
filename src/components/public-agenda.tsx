@@ -389,11 +389,11 @@ export function PublicAgenda({
                         isSelected
                           ? isPromotional
                             ? "border-[#ef8d32] bg-[#b85c12] text-white shadow-[0_10px_22px_rgba(184,92,18,0.2)]"
-                            : "border-[#6e9f00] bg-[#6e9f00] text-[#17351f] shadow-[0_10px_22px_rgba(110,159,0,0.2)]"
+                            : "scale-[1.08] border-[#d8ff8a] bg-[#4f7900] text-white ring-2 ring-[#86c900] shadow-[0_10px_22px_rgba(79,121,0,0.3)]"
                           : isPromotional
                             ? "border-[#f3c699] bg-[#fff3e8] text-[#b85c12] hover:border-[#ef8d32]"
-                            : "border-[#cde8a2] bg-[#f3fae9] text-[#365a12] hover:border-[#84bd00]"
-                      } ${isToday ? "ring-2 ring-[#7aaed8]" : ""}`}
+                            : "border-[#568500] bg-[#6fa900] text-white shadow-[0_5px_12px_rgba(86,133,0,0.18)] hover:scale-[1.04] hover:bg-[#5f9400]"
+                      } ${isToday ? "ring-2 ring-[#86c900] ring-offset-1" : ""}`}
                     >
                       {day.day}
                     </Link>
