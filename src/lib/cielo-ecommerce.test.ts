@@ -188,9 +188,46 @@ describe("cielo-ecommerce", () => {
         Capture: true,
         CreditCard: {
           Brand: "Visa",
+          ExpirationDate: "12/2030",
         },
       },
     });
+  });
+
+  it("expands legacy two-digit card expiration years for Cielo", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        MerchantOrderId: "457",
+        Payment: {
+          PaymentId: "pid-457",
+          Status: 1,
+          Amount: 100,
+          PaymentType: "CreditCard",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createNativeCieloCheckout({
+      purchaseId: 457,
+      amount: "1.00",
+      customer: { name: "Cliente Teste" },
+      payment: {
+        type: "CreditCard",
+        creditCard: {
+          cardNumber: "4111111111111111",
+          holder: "Cliente Teste",
+          expirationDate: "12/30",
+          securityCode: "123",
+          brand: "Visa",
+        },
+      },
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, { body: string }];
+    const body = JSON.parse(init.body);
+
+    expect(body.Payment.CreditCard.ExpirationDate).toBe("12/2030");
   });
 
   it("voids Cielo payments through the API endpoint", async () => {

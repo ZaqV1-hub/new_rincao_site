@@ -267,11 +267,13 @@ function normalizeExpirationDate(card: Record<string, unknown> | null) {
     getString(card, ["expirationDate", "ExpirationDate"]),
   );
 
-  if (expirationDate.length >= 4) {
+  if (expirationDate.length === 4 || expirationDate.length >= 6) {
     const month = expirationDate.slice(0, 2);
     const year = expirationDate.slice(2);
+    const fourDigitYear =
+      year.length === 2 ? `20${year}` : year.slice(-4);
 
-    return `${month}/${year.length === 2 ? year : year.slice(-2)}`;
+    return `${month}/${fourDigitYear}`;
   }
 
   const month = digitsOnly(getString(card, ["expirationMonth", "ExpirationMonth"]));
@@ -281,7 +283,14 @@ function normalizeExpirationDate(card: Record<string, unknown> | null) {
     return "";
   }
 
-  return `${month.padStart(2, "0")}/${year.length === 2 ? year : year.slice(-2)}`;
+  const fourDigitYear =
+    year.length === 2 ? `20${year}` : year.length >= 4 ? year.slice(-4) : "";
+
+  if (!fourDigitYear) {
+    return "";
+  }
+
+  return `${month.padStart(2, "0")}/${fourDigitYear}`;
 }
 
 function normalizeSoftDescriptor(value: unknown) {
