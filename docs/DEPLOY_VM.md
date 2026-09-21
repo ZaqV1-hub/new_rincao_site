@@ -28,10 +28,7 @@ Executar primeiro em homologacao:
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
 .\scripts\migrate-vm-storage.ps1 -Environment hml
-npm ci
-$env:DEPLOYMENT_VERSION = (git rev-parse HEAD).Trim()
-npm run build
-.\scripts\deploy-vm.ps1 -Environment hml -SkipBuild
+.\scripts\deploy-vm.ps1 -Environment hml
 .\scripts\install-vm-runtime.ps1 -Environment hml
 ```
 
@@ -39,10 +36,7 @@ Validar o dominio de homologacao e os uploads antes de repetir em producao:
 
 ```powershell
 .\scripts\migrate-vm-storage.ps1 -Environment prod
-npm ci
-$env:DEPLOYMENT_VERSION = (git rev-parse HEAD).Trim()
-npm run build
-.\scripts\deploy-vm.ps1 -Environment prod -SkipBuild
+.\scripts\deploy-vm.ps1 -Environment prod
 .\scripts\install-vm-runtime.ps1 -Environment prod
 ```
 

@@ -50,10 +50,33 @@ $releaseRoot = Join-Path $releasesRoot $safeReleaseId
 $standaloneRoot = Join-Path $SourceRoot ".next\standalone"
 $startScriptSource = Join-Path $SourceRoot "scripts\start-vm-runtime.ps1"
 $startScriptInstalled = Join-Path $opsRoot "start-vm-runtime.ps1"
+$envFile = Join-Path $sharedRoot ".env.local"
 
-if (-not (Test-Path -LiteralPath (Join-Path $sharedRoot ".env.local"))) {
+if (-not (Test-Path -LiteralPath $envFile)) {
   throw "Execute scripts\migrate-vm-storage.ps1 -Environment $Environment antes do primeiro deploy."
 }
+
+Get-Content -LiteralPath $envFile | ForEach-Object {
+  $line = $_.Trim()
+
+  if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) {
+    return
+  }
+
+  $name, $value = $line -split "=", 2
+  $name = $name.Trim()
+  $value = $value.Trim()
+
+  if (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+    $value = $value.Substring(1, $value.Length - 2)
+  }
+
+  [Environment]::SetEnvironmentVariable($name, $value, "Process")
+}
+
+$env:RINCAO_SITE_STORAGE_ROOT = $sharedRoot
+$env:GROUP_REGISTRATION_STORAGE_DIR = Join-Path $sharedRoot ".data\group-registrations"
+$env:DEPLOYMENT_VERSION = $safeReleaseId
 
 if (-not $SkipBuild) {
   if (-not (Test-Path -LiteralPath $nodeExe) -or -not (Test-Path -LiteralPath $npmCli)) {
@@ -62,7 +85,6 @@ if (-not $SkipBuild) {
 
   Push-Location $SourceRoot
   try {
-    $env:DEPLOYMENT_VERSION = $safeReleaseId
     & $nodeExe $npmCli ci
     if ($LASTEXITCODE -ne 0) { throw "npm ci falhou com codigo $LASTEXITCODE." }
     & $nodeExe $npmCli run build

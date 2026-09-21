@@ -46,15 +46,10 @@ jobs:
         shell: pwsh
         run: npm test
 
-      - name: Build standalone runtime
-        shell: pwsh
-        run: npm run build
-
-      - name: Deploy release with rollback
+      - name: Build and deploy release with rollback
         shell: pwsh
         run: >-
           ./scripts/deploy-vm.ps1
           -Environment $env:DEPLOY_ENVIRONMENT
           -SourceRoot $env:GITHUB_WORKSPACE
           -ReleaseId $env:GITHUB_SHA
-          -SkipBuild
