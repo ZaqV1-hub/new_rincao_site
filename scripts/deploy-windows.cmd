@@ -55,7 +55,7 @@ call npm run build
 if errorlevel 1 goto :error
 
 echo Sincronizando assets do runtime standalone...
-call scripts\sync-standalone-assets.cmd
+call node scripts\sync-standalone-assets.mjs
 if errorlevel 1 goto :error
 
 echo.

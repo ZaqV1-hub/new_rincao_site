@@ -1,0 +1,60 @@
+name: Validate and deploy VM
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rincao-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate-and-deploy:
+    name: ${{ github.ref_name == 'main' && 'Production' || 'Homologation' }}
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+      - new-rincao-site
+    environment: ${{ github.ref_name == 'main' && 'production' || 'homologation' }}
+    timeout-minutes: 45
+    env:
+      DEPLOY_ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'hml' }}
+      DEPLOYMENT_VERSION: ${{ github.sha }}
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        shell: pwsh
+        run: npm ci
+
+      - name: Run tests
+        shell: pwsh
+        run: npm test
+
+      - name: Build standalone runtime
+        shell: pwsh
+        run: npm run build
+
+      - name: Deploy release with rollback
+        shell: pwsh
+        run: >-
+          ./scripts/deploy-vm.ps1
+          -Environment $env:DEPLOY_ENVIRONMENT
+          -SourceRoot $env:GITHUB_WORKSPACE
+          -ReleaseId $env:GITHUB_SHA
+          -SkipBuild

@@ -39,16 +39,10 @@ if ($LASTEXITCODE -ne 0) {
   throw "npm run build falhou."
 }
 
-Write-Host "Sincronizando assets publicos para o runtime standalone..."
-robocopy public .next\standalone\public /E /NFL /NDL /NJH /NJS /NP | Out-Null
-if ($LASTEXITCODE -ge 8) {
-  throw "Falha ao copiar a pasta public para .next\\standalone\\public."
-}
-
-Write-Host "Sincronizando assets compilados do Next para o runtime standalone..."
-robocopy .next\static .next\standalone\.next\static /E /NFL /NDL /NJH /NJS /NP | Out-Null
-if ($LASTEXITCODE -ge 8) {
-  throw "Falha ao copiar .next\\static para .next\\standalone\\.next\\static."
+Write-Host "Sincronizando assets do runtime standalone..."
+node scripts\sync-standalone-assets.mjs
+if ($LASTEXITCODE -ne 0) {
+  throw "Falha ao sincronizar os assets do runtime standalone."
 }
 
 Write-Host ""

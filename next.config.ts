@@ -30,6 +30,7 @@ function getAllowedDevOrigins() {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: getAllowedDevOrigins(),
+  deploymentId: process.env.DEPLOYMENT_VERSION?.trim() || undefined,
   devIndicators: false,
   output: "standalone",
   async headers() {

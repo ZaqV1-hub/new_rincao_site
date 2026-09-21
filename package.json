@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "scripts\\sync-standalone-assets.cmd",
+    "postbuild": "node scripts/sync-standalone-assets.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
