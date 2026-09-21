@@ -85,7 +85,8 @@ if (-not $SkipBuild) {
 
   Push-Location $SourceRoot
   try {
-    & $nodeExe $npmCli ci
+    $env:Path = "$nodeRoot;$env:Path"
+    & $nodeExe $npmCli ci --include=dev
     if ($LASTEXITCODE -ne 0) { throw "npm ci falhou com codigo $LASTEXITCODE." }
     & $nodeExe $npmCli run build
     if ($LASTEXITCODE -ne 0) { throw "npm run build falhou com codigo $LASTEXITCODE." }
