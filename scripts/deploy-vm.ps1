@@ -17,6 +17,7 @@ $settings = @{
   prod = @{
     Port = 8061
     Domain = "https://cluberincao.com.br/"
+    TaskName = "NovoSiteRincaoNext8061"
     SharedRoot = "C:\SitesData\Rincao\prod"
     DeploymentRoot = "C:\Deploy\Rincao\prod"
     LegacyRoot = "C:\Sites\AzureIIS\Novo_Site_do_Rincao"
@@ -24,6 +25,7 @@ $settings = @{
   hml = @{
     Port = 8062
     Domain = "https://cluberincao.questione.ai/"
+    TaskName = "NovoSiteRincaoNext8062"
     SharedRoot = "C:\SitesData\Rincao\hml"
     DeploymentRoot = "C:\Deploy\Rincao\hml"
     LegacyRoot = "C:\Sites\AzureIIS\Novo_Site_do_Rincao_HML"
@@ -48,8 +50,7 @@ if (-not $ReleaseId) {
 $safeReleaseId = $ReleaseId -replace "[^A-Za-z0-9._-]", "-"
 $releaseRoot = Join-Path $releasesRoot $safeReleaseId
 $standaloneRoot = Join-Path $SourceRoot ".next\standalone"
-$startScriptSource = Join-Path $SourceRoot "scripts\start-vm-runtime.ps1"
-$startScriptInstalled = Join-Path $opsRoot "start-vm-runtime.ps1"
+$installScriptSource = Join-Path $SourceRoot "scripts\install-vm-runtime.ps1"
 $envFile = Join-Path $sharedRoot ".env.local"
 
 if (-not (Test-Path -LiteralPath $envFile)) {
@@ -120,11 +121,31 @@ if (-not (Test-Path -LiteralPath $releaseRoot)) {
   if ($LASTEXITCODE -ge 8) { throw "Falha ao copiar a release para $releaseRoot." }
 }
 
-Copy-Item -LiteralPath $startScriptSource -Destination $startScriptInstalled -Force
+function Wait-RuntimeHealth {
+  param([int]$Port, [int]$TimeoutSeconds = 45)
+
+  $healthUrl = "http://127.0.0.1:$Port/"
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+
+  while ((Get-Date) -lt $deadline) {
+    try {
+      $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 $healthUrl
+      if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
+        return
+      }
+    } catch {
+      Start-Sleep -Seconds 1
+    }
+  }
+
+  throw "Runtime nao respondeu com sucesso em $healthUrl."
+}
 
 try {
-  & $startScriptInstalled -Environment $Environment -ReleaseRoot $releaseRoot
   Set-Content -LiteralPath $currentFile -Value $releaseRoot -Encoding UTF8
+  & $installScriptSource -Environment $Environment
+  Start-ScheduledTask -TaskName ([string]$config.TaskName)
+  Wait-RuntimeHealth -Port ([int]$config.Port)
 
   $publicResponse = Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 ([string]$config.Domain)
   if ($publicResponse.StatusCode -lt 200 -or $publicResponse.StatusCode -ge 400) {
@@ -134,8 +155,10 @@ try {
   $deployError = $_
   if ($previousRelease -and (Test-Path -LiteralPath (Join-Path $previousRelease "server.js"))) {
     Write-Warning "Deploy falhou; restaurando release anterior $previousRelease."
-    & $startScriptInstalled -Environment $Environment -ReleaseRoot $previousRelease
+    Stop-ScheduledTask -TaskName ([string]$config.TaskName) -ErrorAction SilentlyContinue
     Set-Content -LiteralPath $currentFile -Value $previousRelease -Encoding UTF8
+    Start-ScheduledTask -TaskName ([string]$config.TaskName)
+    Wait-RuntimeHealth -Port ([int]$config.Port)
   }
   throw $deployError
 }

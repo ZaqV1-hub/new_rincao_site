@@ -69,8 +69,9 @@ Get-ChildItem C:\Deploy\Rincao\hml\releases
 Para ativar uma release anterior:
 
 ```powershell
-C:\Deploy\Rincao\ops\start-vm-runtime.ps1 -Environment prod -ReleaseRoot "C:\Deploy\Rincao\prod\releases\COMMIT"
 Set-Content C:\Deploy\Rincao\prod\current.txt "C:\Deploy\Rincao\prod\releases\COMMIT"
+Stop-ScheduledTask -TaskName NovoSiteRincaoNext8061
+Start-ScheduledTask -TaskName NovoSiteRincaoNext8061
 ```
 
 Depois do rollback, valide a porta local e o dominio publico.

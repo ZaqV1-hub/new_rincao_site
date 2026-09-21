@@ -4,9 +4,7 @@ param(
   [ValidateSet("prod", "hml")]
   [string]$Environment,
 
-  [string]$ReleaseRoot,
-
-  [int]$HealthTimeoutSeconds = 45
+  [string]$ReleaseRoot
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,13 +12,11 @@ $ErrorActionPreference = "Stop"
 $settings = @{
   prod = @{
     Port = 8061
-    Domain = "https://cluberincao.com.br/"
     SharedRoot = "C:\SitesData\Rincao\prod"
     DeploymentRoot = "C:\Deploy\Rincao\prod"
   }
   hml = @{
     Port = 8062
-    Domain = "https://cluberincao.questione.ai/"
     SharedRoot = "C:\SitesData\Rincao\hml"
     DeploymentRoot = "C:\Deploy\Rincao\hml"
   }
@@ -113,34 +109,7 @@ $process = Start-Process `
   -RedirectStandardOutput $stdoutLog `
   -RedirectStandardError $stderrLog `
   -WindowStyle Hidden `
-  -PassThru
+  -PassThru `
+  -Wait
 
-$healthUrl = "http://127.0.0.1:$port/"
-$healthDeadline = (Get-Date).AddSeconds($HealthTimeoutSeconds)
-$healthy = $false
-
-while ((Get-Date) -lt $healthDeadline) {
-  if ($process.HasExited) {
-    break
-  }
-
-  try {
-    $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 $healthUrl
-    if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
-      $healthy = $true
-      break
-    }
-  } catch {
-    Start-Sleep -Seconds 1
-  }
-}
-
-if (-not $healthy) {
-  if (-not $process.HasExited) {
-    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-  }
-
-  throw "Runtime $Environment nao respondeu com sucesso em $healthUrl. Consulte $stderrLog."
-}
-
-Write-Host "Runtime iniciado: ambiente=$Environment pid=$($process.Id) porta=$port release=$ReleaseRoot"
+exit $process.ExitCode
