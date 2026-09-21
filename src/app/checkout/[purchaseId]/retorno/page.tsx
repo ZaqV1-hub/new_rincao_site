@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IngressoShell } from "@/components/ingresso-shell";
-import { requireAuthenticatedCustomer } from "@/lib/customer-area";
+import { getAuthenticatedCustomer } from "@/lib/customer-area";
 import { syncCheckoutStatus } from "@/lib/checkout-status";
-import { getUserVoucherPurchaseById } from "@/lib/voucher-repository";
+import {
+  getUserVoucherPurchaseById,
+  getVoucherPurchaseByIdForPaymentReturn,
+} from "@/lib/voucher-repository";
 
 export const metadata: Metadata = {
   title: "Retorno do pagamento | Rincao",
@@ -116,27 +119,32 @@ export default async function CheckoutReturnPage({
 }: CheckoutReturnPageProps) {
   const { purchaseId } = await params;
   const resolvedSearchParams = await searchParams;
-  const customer = await requireAuthenticatedCustomer(
-    `/checkout/${purchaseId}/retorno`,
-  );
   const numericPurchaseId = Number(purchaseId);
 
   if (!Number.isInteger(numericPurchaseId) || numericPurchaseId <= 0) {
     notFound();
   }
 
-  const purchase = await getUserVoucherPurchaseById(
-    customer.cpf,
+  const customer = await getAuthenticatedCustomer();
+  const returnSearchParams = resolveReturnSearchParams(
     numericPurchaseId,
+    resolvedSearchParams,
   );
+  let purchase = customer
+    ? await getUserVoucherPurchaseById(customer.cpf, numericPurchaseId)
+    : null;
 
-  if (!purchase || purchase.type !== "ponli") {
+  if (purchase && purchase.type !== "ponli") {
+    notFound();
+  }
+
+  if (!purchase && !returnSearchParams.get("payment_id")) {
     notFound();
   }
 
   const synced = await syncCheckoutStatus(
-    purchase,
-    resolveReturnSearchParams(numericPurchaseId, resolvedSearchParams),
+    purchase ?? { id: numericPurchaseId, status: "pend" },
+    returnSearchParams,
   ).catch((error) => {
     console.error("checkout-return-sync-failed", error);
 
@@ -150,9 +158,23 @@ export default async function CheckoutReturnPage({
       },
     };
   });
-  const refreshedPurchase =
-    (await getUserVoucherPurchaseById(customer.cpf, numericPurchaseId)) ??
-    purchase;
+
+  if (!purchase) {
+    if (!synced.mapped.ok) {
+      notFound();
+    }
+
+    purchase = await getVoucherPurchaseByIdForPaymentReturn(numericPurchaseId);
+  }
+
+  if (!purchase || purchase.type !== "ponli") {
+    notFound();
+  }
+
+  const refreshedPurchase = customer
+    ? (await getUserVoucherPurchaseById(customer.cpf, numericPurchaseId)) ??
+      purchase
+    : purchase;
   const finalStatus =
     refreshedPurchase.status === "conc" || refreshedPurchase.status === "canc"
       ? refreshedPurchase.status

@@ -339,7 +339,7 @@ function mapPurchase(
 }
 
 async function getPurchasePageRows(
-  cpf: string,
+  cpf: string | null,
   {
     limit,
     offset,
@@ -353,20 +353,24 @@ async function getPurchasePageRows(
   await expireUnusedVouchers();
 
   const pool = getIngressoSistemaDbPool();
-  const totalResult = await pool.query<{ total: string }>(
-    `
-      SELECT COUNT(*)::text AS total
-      FROM compra
-      WHERE cpf = $1
-        AND tpcompra IN ('ponli', 'reser')
-    `,
-    [cpf],
-  );
-  const params: Array<number | string> = [cpf];
-  const filters = [
-    "compra.cpf = $1",
-    "compra.tpcompra IN ('ponli', 'reser')",
-  ];
+  const totalResult = cpf
+    ? await pool.query<{ total: string }>(
+        `
+          SELECT COUNT(*)::text AS total
+          FROM compra
+          WHERE cpf = $1
+            AND tpcompra IN ('ponli', 'reser')
+        `,
+        [cpf],
+      )
+    : null;
+  const params: Array<number | string> = [];
+  const filters = ["compra.tpcompra IN ('ponli', 'reser')"];
+
+  if (cpf) {
+    params.push(cpf);
+    filters.unshift(`compra.cpf = $${params.length}`);
+  }
 
   if (purchaseId) {
     params.push(purchaseId);
@@ -420,7 +424,7 @@ async function getPurchasePageRows(
   );
 
   return {
-    totalPurchases: Number(totalResult.rows[0]?.total ?? 0),
+    totalPurchases: Number(totalResult?.rows[0]?.total ?? 0),
     purchaseRows: purchaseResult.rows,
   };
 }
@@ -518,6 +522,23 @@ export async function getUserVouchersPage(
 
 export async function getUserVoucherPurchaseById(cpf: string, purchaseId: number) {
   const page = await getPurchasePageRows(cpf, { purchaseId });
+  const purchase = page.purchaseRows[0];
+
+  if (!purchase) {
+    return null;
+  }
+
+  const vouchersByPurchaseId = await getVouchersByPurchaseIds([purchaseId]);
+
+  return mapPurchaseRows([purchase], vouchersByPurchaseId)[0] ?? null;
+}
+
+/**
+ * Loads a purchase after its external payment identifier has been verified.
+ * Callers must not use this lookup as a substitute for customer ownership checks.
+ */
+export async function getVoucherPurchaseByIdForPaymentReturn(purchaseId: number) {
+  const page = await getPurchasePageRows(null, { purchaseId });
   const purchase = page.purchaseRows[0];
 
   if (!purchase) {
