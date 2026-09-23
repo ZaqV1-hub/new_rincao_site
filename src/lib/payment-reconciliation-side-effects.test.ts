@@ -105,6 +105,13 @@ describe("payment-reconciliation side effects", () => {
     });
 
     expect(processConfirmedPurchaseTickets).toHaveBeenCalledWith(123);
+    expect(poolRelease).toHaveBeenCalledTimes(1);
+    expect(poolRelease.mock.invocationCallOrder[0]).toBeLessThan(
+      processConfirmedPurchaseTickets.mock.invocationCallOrder[0],
+    );
+    expect(poolRelease.mock.invocationCallOrder[0]).toBeLessThan(
+      queuePurchaseConfirmationEmail.mock.invocationCallOrder[0],
+    );
     expect(registerTicketDeliveryAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         purchaseId: 123,

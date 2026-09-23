@@ -2,15 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getPainelBilheteriaPurchaseDetail,
   getPainelBilheteriaVoucherPrintModel,
+  payPainelBilheteriaReservation,
 } from "@/lib/painel-bilheteria";
 
-const { query, connect, clientQuery, release, generateVoucherQrcodes, registerOpsAuditLog } = vi.hoisted(() => ({
+const { query, connect, clientQuery, release, generateVoucherQrcodes, registerOpsAuditLog, queuePurchaseConfirmationEmail } = vi.hoisted(() => ({
   query: vi.fn(),
   connect: vi.fn(),
   clientQuery: vi.fn(),
   release: vi.fn(),
   generateVoucherQrcodes: vi.fn(),
   registerOpsAuditLog: vi.fn(),
+  queuePurchaseConfirmationEmail: vi.fn(),
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
@@ -42,6 +44,10 @@ vi.mock("@/lib/ops-audit-log", () => ({
   registerOpsAuditLog,
 }));
 
+vi.mock("@/lib/purchase-confirmation-email", () => ({
+  queuePurchaseConfirmationEmail,
+}));
+
 describe("painel-bilheteria", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -49,6 +55,36 @@ describe("painel-bilheteria", () => {
       query: clientQuery,
       release,
     });
+  });
+
+  it("releases the database connection before queuing a reservation email", async () => {
+    clientQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM compra")) {
+        return {
+          rows: [{
+            idcompra: 321,
+            tpcompra: "reser",
+            stcompra: "pend",
+            vltotcompra: "60.00",
+            dtpagamento: null,
+          }],
+        };
+      }
+
+      return { rows: [] };
+    });
+    registerOpsAuditLog.mockResolvedValue(17);
+    queuePurchaseConfirmationEmail.mockResolvedValue({ status: "queued" });
+
+    await expect(payPainelBilheteriaReservation({
+      purchaseId: 321,
+      payments: [{ method: "pix", value: "60.00" }],
+    })).resolves.toMatchObject({ purchaseId: 321, status: "conc" });
+
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(release.mock.invocationCallOrder[0]).toBeLessThan(
+      queuePurchaseConfirmationEmail.mock.invocationCallOrder[0],
+    );
   });
 
   it("returns voucher editing metadata for history detail", async () => {

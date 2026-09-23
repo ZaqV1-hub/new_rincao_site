@@ -95,12 +95,24 @@ function resolvePrefixedIngressoDbDialect(
   return prefix === "INGRESSO_DB" ? resolveIngressoDbDialect() : "postgres";
 }
 
+function getPgConnectionTimeoutMillis(prefix: IngressoDbConfigPrefix) {
+  const configured = Number(
+    process.env[`${prefix}_CONNECTION_TIMEOUT_MS`] ??
+      process.env.INGRESSO_DB_CONNECTION_TIMEOUT_MS ??
+      10_000,
+  );
+
+  return Number.isFinite(configured) && configured > 0 ? configured : 10_000;
+}
+
 function getPgPoolConfig(): PgPoolConfig {
   const connectionString = process.env.INGRESSO_DATABASE_URL;
+  const connectionTimeoutMillis = getPgConnectionTimeoutMillis("INGRESSO_DB");
 
   if (connectionString) {
     return {
       connectionString,
+      connectionTimeoutMillis,
       ssl:
         process.env.INGRESSO_DB_SSL === "true"
           ? { rejectUnauthorized: true }
@@ -115,6 +127,7 @@ function getPgPoolConfig(): PgPoolConfig {
     user: process.env.INGRESSO_DB_USER ?? "postgres",
     password: process.env.INGRESSO_DB_PASSWORD ?? "postgres",
     max: Number(process.env.INGRESSO_DB_POOL_MAX ?? 4),
+    connectionTimeoutMillis,
     ssl:
       process.env.INGRESSO_DB_SSL === "true"
         ? { rejectUnauthorized: true }
@@ -125,10 +138,12 @@ function getPgPoolConfig(): PgPoolConfig {
 function getPrefixedPgPoolConfig(prefix: IngressoDbConfigPrefix): PgPoolConfig {
   const connectionString = process.env[`${prefix}_URL`];
   const sslEnabled = process.env[`${prefix}_SSL`] === "true";
+  const connectionTimeoutMillis = getPgConnectionTimeoutMillis(prefix);
 
   if (connectionString) {
     return {
       connectionString,
+      connectionTimeoutMillis,
       ssl: sslEnabled ? { rejectUnauthorized: true } : undefined,
     };
   }
@@ -140,6 +155,7 @@ function getPrefixedPgPoolConfig(prefix: IngressoDbConfigPrefix): PgPoolConfig {
     user: process.env[`${prefix}_USER`] ?? "postgres",
     password: process.env[`${prefix}_PASSWORD`] ?? "postgres",
     max: Number(process.env[`${prefix}_POOL_MAX`] ?? process.env.INGRESSO_DB_POOL_MAX ?? 4),
+    connectionTimeoutMillis,
     ssl: sslEnabled ? { rejectUnauthorized: true } : undefined,
   };
 }

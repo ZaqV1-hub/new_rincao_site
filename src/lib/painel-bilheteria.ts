@@ -1462,6 +1462,7 @@ export async function payPainelBilheteriaReservation(
 
   const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
+  let paymentResult: PayPainelReservationSuccess;
 
   try {
     await client.query("BEGIN");
@@ -1595,9 +1596,7 @@ export async function payPainelBilheteriaReservation(
     );
 
     await client.query("COMMIT");
-    await queuePurchaseConfirmationEmail(input.purchaseId).catch(() => undefined);
-
-    return {
+    paymentResult = {
       purchaseId: input.purchaseId,
       status: "conc",
       totalValue: formatMoney(totalValue),
@@ -1612,6 +1611,9 @@ export async function payPainelBilheteriaReservation(
   } finally {
     client.release();
   }
+
+  await queuePurchaseConfirmationEmail(input.purchaseId).catch(() => undefined);
+  return paymentResult;
 }
 
 export function asPainelBilheteriaError(error: unknown) {
