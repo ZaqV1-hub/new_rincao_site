@@ -99,6 +99,7 @@ export function SiteShell({
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 className={`relative py-1 text-[0.95rem] font-semibold transition after:absolute after:bottom-[-6px] after:left-0 after:right-0 after:h-[2px] after:origin-center after:bg-current after:transition ${
                   pathname === item.href
                     ? "text-[#1d6fb8] after:scale-x-100"
@@ -121,6 +122,7 @@ export function SiteShell({
             </a>
             <Link
               href="/agenda"
+              prefetch={false}
               className="rincao-button min-h-[48px] shrink-0 whitespace-nowrap px-5 text-[0.92rem]"
             >
               Agenda e compra
@@ -164,6 +166,7 @@ export function SiteShell({
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={false}
                   onClick={() => setMenuOpen(false)}
                   className="rounded-[14px] px-4 py-3 text-[0.96rem] font-semibold text-[#12344f] transition hover:bg-[#eef4f9] hover:text-[#1d6fb8]"
                 >

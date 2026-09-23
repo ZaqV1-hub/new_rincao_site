@@ -373,6 +373,7 @@ export function PainelShell({
                     key={item.href}
                     title={sidebarCollapsed ? item.label : undefined}
                     href={item.href}
+                    prefetch={false}
                     onClick={() => setMenuOpen(false)}
                     className={`min-h-10 border-l-4 text-[13px] font-semibold transition ${
                       active

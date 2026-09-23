@@ -645,9 +645,9 @@ export async function readRincaoContent() {
 
     if (hasNormalizedDifference(storedContent, data)) {
       await persistRincaoContent(data);
+      writeLegacyRincaoContentBackup(data);
     }
 
-    writeLegacyRincaoContentBackup(data);
     return data;
   } catch (error) {
     console.error("rincao-content-db-read-failed", error);

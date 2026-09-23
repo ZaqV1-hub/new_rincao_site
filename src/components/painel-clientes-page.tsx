@@ -317,6 +317,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                       <Link
                         className="shrink-0 rounded border border-[#7aa9d0] px-3 py-1.5 text-sm font-semibold text-[#1764a0] hover:bg-[#edf6fd]"
                         href={`/painel/clientes/editar?id=${school.id}`}
+                        prefetch={false}
                         onClick={() => setIsPendingSchoolsOpen(false)}
                       >
                         Classificar
@@ -397,6 +398,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                             <Link
                               className="text-[#1868d6] underline"
                               href={`/painel/clientes/detalhe?id=${item.id}`}
+                              prefetch={false}
                             >
                               {item.id}
                             </Link>
@@ -405,6 +407,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                             <Link
                               className="text-[#1868d6] underline"
                               href={`/painel/clientes/detalhe?id=${item.id}`}
+                              prefetch={false}
                             >
                               {item.name}
                             </Link>
@@ -430,6 +433,7 @@ export function PainelClientesPage({ data }: PainelClientesPageProps) {
                               <Link
                                 className="text-[#1868d6] underline"
                                 href={`/painel/clientes/editar?id=${item.id}`}
+                                prefetch={false}
                               >
                                 Editar
                               </Link>

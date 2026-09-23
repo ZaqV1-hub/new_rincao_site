@@ -133,6 +133,7 @@ function PurchasesTable({ items }: { items: PainelPurchaseListItem[] }) {
                 <Link
                   className="underline decoration-[#7aa7cf] underline-offset-2"
                   href={`/painel/compras/${item.purchaseId}`}
+                  prefetch={false}
                 >
                   {item.purchaseId}
                 </Link>
