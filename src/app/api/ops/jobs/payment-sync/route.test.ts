@@ -79,4 +79,18 @@ describe("ops/jobs/payment-sync BFF route", () => {
       },
     });
   });
+
+  it("rejects an invalid targeted purchase instead of running a batch", async () => {
+    const { POST } = await import("@/app/api/ops/jobs/payment-sync/route");
+    const response = await POST(
+      new Request("https://example.com/api/ops/jobs/payment-sync", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ purchaseId: "189750" }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(syncOperationalPaymentStatuses).not.toHaveBeenCalled();
+  });
 });

@@ -67,7 +67,8 @@ describe("ops-payment-sync", () => {
 
     query.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql.includes("FROM compra") && sql.includes("LEFT JOIN LATERAL")) {
-        expect(values).toEqual([7, 50]);
+        expect(values).toEqual([7, 50, null]);
+        expect(sql).toContain("ORDER BY compra.idcompra DESC");
 
         return {
           rows: [
@@ -157,5 +158,21 @@ describe("ops-payment-sync", () => {
       ],
       message: "Reconciliacao operacional executada para 2 compra(s).",
     });
+  });
+
+  it("targets one purchase without excluding it by age", async () => {
+    isCieloEcommerceConfigured.mockReturnValue(true);
+    query.mockResolvedValue({ rows: [] });
+
+    const result = await syncOperationalPaymentStatuses({
+      purchaseId: 189750,
+    });
+
+    expect(result.candidates).toBe(0);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("compra.idcompra = $3"),
+      [7, 1, 189750],
+    );
+    expect(release).toHaveBeenCalled();
   });
 });

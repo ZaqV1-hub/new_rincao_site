@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  getNativeCieloCheckoutStatus,
+  getCieloSaleByPaymentId,
   isCieloEcommerceConfigured,
 } from "@/lib/cielo-ecommerce";
 import { reconcilePaymentFromGatewayPayload } from "@/lib/payment-reconciliation";
@@ -11,143 +11,43 @@ vi.mock("@/lib/payment-reconciliation", () => ({
 }));
 
 vi.mock("@/lib/cielo-ecommerce", () => ({
-  getNativeCieloCheckoutStatus: vi.fn(),
+  getCieloSaleByPaymentId: vi.fn(),
   isCieloEcommerceConfigured: vi.fn(() => false),
 }));
+
+function notification(body: unknown) {
+  return new Request("https://example.com/api/checkout/notification", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
 
 describe("checkout-notification-proxy", () => {
   afterEach(() => {
     vi.clearAllMocks();
-    vi.unstubAllGlobals();
   });
 
-  it("rejects unreconciled notifications without falling back to Zend", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
+  it("rejects notifications when the gateway is not configured", async () => {
     const result = await proxyCheckoutNotification(
-      new Request("https://example.com/api/checkout/notification", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          CieloWebhookSecret: "secret",
-          "x-forwarded-for": "10.0.0.1",
-        },
-        body: JSON.stringify({
-          PaymentId: "pid_123",
-          MerchantOrderId: "456",
-        }),
-      }),
+      notification({ PaymentId: "pid-456", ChangeType: 1 }),
     );
 
-    expect(result).toEqual({
-      status: 422,
-      contentType: "application/json; charset=UTF-8",
-      body: JSON.stringify({
-        ok: false,
-        error: {
-          code: "payment_notification_unhandled",
-          message: "Notificacao de pagamento nao reconciliada nativamente.",
-        },
-      }),
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.status).toBe(422);
+    expect(getCieloSaleByPaymentId).not.toHaveBeenCalled();
     expect(reconcilePaymentFromGatewayPayload).not.toHaveBeenCalled();
   });
 
-  it("applies native reconciliation before proxying complete Cielo notifications", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const payload = {
-      MerchantOrderId: "456",
-      Payment: {
-        PaymentId: "pid_456",
-        Status: 2,
-        Amount: 12000,
-      },
-    };
-
-    const result = await proxyCheckoutNotification(
-      new Request("https://example.com/api/checkout/notification", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      }),
-    );
-
-    expect(result).toEqual({
-      status: 200,
-      contentType: "text/plain; charset=UTF-8",
-      body: "ok",
-    });
-    expect(reconcilePaymentFromGatewayPayload).toHaveBeenCalledWith(
-      payload,
-      456,
-    );
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("applies native reconciliation for flat complete Cielo notifications", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const payload = {
-      MerchantOrderId: "654",
-      PaymentId: "pid-654",
-      Status: 2,
-    };
-
-    const result = await proxyCheckoutNotification(
-      new Request("https://example.com/api/checkout/notification", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      }),
-    );
-
-    expect(result).toEqual({
-      status: 200,
-      contentType: "text/plain; charset=UTF-8",
-      body: "ok",
-    });
-    expect(reconcilePaymentFromGatewayPayload).toHaveBeenCalledWith(
-      payload,
-      654,
-    );
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("queries Cielo natively before acknowledging identifier-only notifications", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+  it("accepts the PaymentId-only payload sent by Cielo", async () => {
     vi.mocked(isCieloEcommerceConfigured).mockReturnValue(true);
-    vi.mocked(getNativeCieloCheckoutStatus).mockResolvedValue({
-      status: "00",
-      dados: {
-        code: "pid-789",
-        reference: "789",
-        status: 3,
-      },
-    } as unknown as Awaited<ReturnType<typeof getNativeCieloCheckoutStatus>>);
+    const sale = {
+      MerchantOrderId: "456",
+      Payment: { PaymentId: "pid-456", Status: 2, Amount: 12000 },
+    };
+    vi.mocked(getCieloSaleByPaymentId).mockResolvedValue(sale);
 
     const result = await proxyCheckoutNotification(
-      new Request("https://example.com/api/checkout/notification", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          MerchantOrderId: "789",
-          Payment: {
-            PaymentId: "pid-789",
-          },
-        }),
-      }),
+      notification({ PaymentId: "pid-456", ChangeType: 1 }),
     );
 
     expect(result).toEqual({
@@ -155,22 +55,41 @@ describe("checkout-notification-proxy", () => {
       contentType: "text/plain; charset=UTF-8",
       body: "ok",
     });
-    expect(getNativeCieloCheckoutStatus).toHaveBeenCalledWith({
-      paymentId: "pid-789",
-      reference: "789",
-      purchaseId: 789,
-    });
-    expect(reconcilePaymentFromGatewayPayload).toHaveBeenCalledWith(
-      {
-        status: "00",
-        dados: {
-          code: "pid-789",
-          reference: "789",
-          status: 3,
-        },
-      },
-      789,
+    expect(getCieloSaleByPaymentId).toHaveBeenCalledWith("pid-456");
+    expect(reconcilePaymentFromGatewayPayload).toHaveBeenCalledWith(sale, 456);
+  });
+
+  it("uses the gateway status instead of an untrusted notification status", async () => {
+    vi.mocked(isCieloEcommerceConfigured).mockReturnValue(true);
+    const sale = {
+      MerchantOrderId: "456",
+      Payment: { PaymentId: "pid-456", Status: 12, Amount: 12000 },
+    };
+    vi.mocked(getCieloSaleByPaymentId).mockResolvedValue(sale);
+
+    const result = await proxyCheckoutNotification(
+      notification({
+        MerchantOrderId: "456",
+        Payment: { PaymentId: "pid-456", Status: 2, Amount: 12000 },
+      }),
     );
-    expect(fetchMock).not.toHaveBeenCalled();
+
+    expect(result.status).toBe(200);
+    expect(reconcilePaymentFromGatewayPayload).toHaveBeenCalledWith(sale, 456);
+  });
+
+  it("rejects a payment whose gateway reference differs from the notification", async () => {
+    vi.mocked(isCieloEcommerceConfigured).mockReturnValue(true);
+    vi.mocked(getCieloSaleByPaymentId).mockResolvedValue({
+      MerchantOrderId: "789",
+      Payment: { PaymentId: "pid-456", Status: 2, Amount: 12000 },
+    });
+
+    const result = await proxyCheckoutNotification(
+      notification({ MerchantOrderId: "456", PaymentId: "pid-456" }),
+    );
+
+    expect(result.status).toBe(422);
+    expect(reconcilePaymentFromGatewayPayload).not.toHaveBeenCalled();
   });
 });

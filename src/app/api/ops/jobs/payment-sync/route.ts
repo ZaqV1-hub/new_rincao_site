@@ -25,6 +25,7 @@ type PaymentSyncPayload = {
   recentDays?: unknown;
   cancelAfterDays?: unknown;
   limit?: unknown;
+  purchaseId?: unknown;
 };
 
 export async function POST(request: Request) {
@@ -44,6 +45,21 @@ export async function POST(request: Request) {
     payload = null;
   }
 
+  if (
+    payload &&
+    Object.prototype.hasOwnProperty.call(payload, "purchaseId") &&
+    (typeof payload.purchaseId !== "number" ||
+      !Number.isSafeInteger(payload.purchaseId) ||
+      payload.purchaseId <= 0 ||
+      payload.purchaseId > 2_147_483_647)
+  ) {
+    return errorResponse(
+      "invalid_purchase_id",
+      "Compra invalida para conciliacao.",
+      400,
+    );
+  }
+
   try {
     const data = await syncOperationalPaymentStatuses({
       recentDays:
@@ -53,6 +69,8 @@ export async function POST(request: Request) {
           payload.cancelAfterDays :
           undefined,
       limit: typeof payload?.limit === "number" ? payload.limit : undefined,
+      purchaseId:
+        typeof payload?.purchaseId === "number" ? payload.purchaseId : undefined,
     });
 
     return NextResponse.json({

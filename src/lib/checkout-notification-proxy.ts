@@ -1,5 +1,5 @@
 import {
-  getNativeCieloCheckoutStatus,
+  getCieloSaleByPaymentId,
   isCieloEcommerceConfigured,
 } from "@/lib/cielo-ecommerce";
 import { reconcilePaymentFromGatewayPayload } from "@/lib/payment-reconciliation";
@@ -32,19 +32,12 @@ function getString(object: Record<string, unknown> | null, keys: string[]) {
   return "";
 }
 
-function getStatusValue(object: Record<string, unknown> | null): unknown {
-  if (!object) {
-    return undefined;
-  }
-
-  return object.Status ?? object.status;
-}
-
 function extractNotificationIdentifiers(payload: unknown) {
   const root = readObject(payload);
   const sale = readObject(root?.Sale) ?? readObject(root?.sale) ?? root;
   const payment = readObject(sale?.Payment) ?? readObject(sale?.payment);
   const paymentId =
+    getString(root, ["PaymentId", "paymentId"]) ||
     getString(payment, ["PaymentId", "paymentId", "Id", "id"]) ||
     getString(sale, ["PaymentId", "paymentId", "Id", "id"]);
   const reference =
@@ -62,13 +55,9 @@ function extractNotificationIdentifiers(payload: unknown) {
       "OrderId",
       "orderId",
     ]);
-  const purchaseId = Number(reference.replace(/\D+/g, ""));
-
   return {
     paymentId: paymentId || null,
     reference: reference || null,
-    purchaseId:
-      Number.isInteger(purchaseId) && purchaseId > 0 ? purchaseId : null,
   };
 }
 
@@ -81,44 +70,38 @@ async function tryNativeNotificationReconciliation(rawBody: string) {
     return false;
   }
 
-  const root = readObject(payload);
-  const sale = readObject(root?.Sale) ?? readObject(root?.sale) ?? root;
-  const payment = readObject(sale?.Payment) ?? readObject(sale?.payment);
-  const hasStatus =
-    getStatusValue(root) !== undefined ||
-    getStatusValue(sale) !== undefined ||
-    getStatusValue(payment) !== undefined;
   const identifiers = extractNotificationIdentifiers(payload);
 
-  if (!identifiers.purchaseId) {
+  if (!identifiers.paymentId || !isCieloEcommerceConfigured()) {
     return false;
   }
 
-  if (hasStatus) {
-    await reconcilePaymentFromGatewayPayload(payload, identifiers.purchaseId);
-    return true;
-  }
+  // Cielo sends PaymentId and ChangeType without the purchase reference.
+  // Always query Cielo: notification bodies are not proof of payment.
+  const gatewaySale = readObject(
+    await getCieloSaleByPaymentId(identifiers.paymentId),
+  );
+  const gatewayPayment = readObject(gatewaySale?.Payment);
+  const gatewayPaymentId = getString(gatewayPayment, ["PaymentId", "paymentId"]);
+  const gatewayReference = getString(gatewaySale, [
+    "MerchantOrderId",
+    "merchantOrderId",
+  ]);
+  const purchaseId = /^\d+$/.test(gatewayReference)
+    ? Number(gatewayReference)
+    : null;
 
-  if (!isCieloEcommerceConfigured()) {
+  if (
+    gatewayPaymentId !== identifiers.paymentId ||
+    !purchaseId ||
+    !Number.isSafeInteger(purchaseId) ||
+    (identifiers.reference && identifiers.reference !== gatewayReference)
+  ) {
     return false;
   }
 
-  const statusPayload = await getNativeCieloCheckoutStatus({
-    paymentId: identifiers.paymentId,
-    reference: identifiers.reference,
-    purchaseId: identifiers.purchaseId,
-  });
-
-  if (statusPayload.status === "00") {
-    await reconcilePaymentFromGatewayPayload(
-      statusPayload,
-      identifiers.purchaseId,
-    );
-
-    return true;
-  }
-
-  return false;
+  await reconcilePaymentFromGatewayPayload(gatewaySale, purchaseId);
+  return true;
 }
 
 export async function proxyCheckoutNotification(request: Request) {

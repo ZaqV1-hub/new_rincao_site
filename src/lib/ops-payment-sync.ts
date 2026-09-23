@@ -31,6 +31,7 @@ export type SyncOperationalPaymentStatusesInput = {
   recentDays?: number;
   cancelAfterDays?: number;
   limit?: number;
+  purchaseId?: number;
 };
 
 export type SyncOperationalPaymentStatusesSuccess = {
@@ -102,6 +103,7 @@ export function asOperationalPaymentSyncError(error: unknown) {
 async function listPaymentSyncCandidates(
   recentDays: number,
   limit: number,
+  purchaseId?: number,
 ) {
   const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
@@ -128,7 +130,10 @@ async function listPaymentSyncCandidates(
         WHERE compra.tpcompra = 'ponli'
           AND compra.formapag = 'pgseg'
           AND compra.stcompra <> 'canc'
-          AND compra.dtcompra >= CURRENT_DATE - $1::integer
+          AND (
+            ($3::integer IS NOT NULL AND compra.idcompra = $3)
+            OR ($3::integer IS NULL AND compra.dtcompra >= CURRENT_DATE - $1::integer)
+          )
           AND (
             pagamento.idpagseguro IS NOT NULL
             OR compra.stcompra = 'pend'
@@ -138,10 +143,10 @@ async function listPaymentSyncCandidates(
             OR pagamento.status IN (0, 1, 2, 5, 8, 9, 12)
             OR compra.stcompra = 'pend'
           )
-        ORDER BY compra.idcompra ASC
+        ORDER BY compra.idcompra DESC
         LIMIT $2
       `,
-      [recentDays, limit],
+      [recentDays, limit, purchaseId ?? null],
     );
 
     return result.rows;
@@ -175,6 +180,20 @@ export async function syncOperationalPaymentStatuses(
   const recentDays = toValidInteger(input?.recentDays, 7, 1, 90);
   const cancelAfterDays = toValidInteger(input?.cancelAfterDays, 5, 1, 30);
   const limit = toValidInteger(input?.limit, 50, 1, 200);
+  const purchaseId = input?.purchaseId;
+
+  if (
+    purchaseId !== undefined &&
+    (!Number.isSafeInteger(purchaseId) ||
+      purchaseId <= 0 ||
+      purchaseId > 2_147_483_647)
+  ) {
+    throw new OperationalPaymentSyncError(
+      "invalid_purchase_id",
+      "Compra invalida para conciliacao.",
+      400,
+    );
+  }
 
   if (!isCieloEcommerceConfigured()) {
     return {
@@ -193,7 +212,11 @@ export async function syncOperationalPaymentStatuses(
     };
   }
 
-  const candidates = await listPaymentSyncCandidates(recentDays, limit);
+  const candidates = await listPaymentSyncCandidates(
+    recentDays,
+    purchaseId ? 1 : limit,
+    purchaseId,
+  );
   const items: OperationalPaymentSyncItem[] = [];
   let reconciled = 0;
   let cancelled = 0;
