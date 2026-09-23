@@ -18,6 +18,7 @@ $settings = @{
     Port = 8061
     Domain = "https://cluberincao.com.br/"
     TaskName = "NovoSiteRincaoNext8061"
+    IisAppPool = "Novo Site do Rincao"
     SharedRoot = "C:\SitesData\Rincao\prod"
     DeploymentRoot = "C:\Deploy\Rincao\prod"
     LegacyRoot = "C:\Sites\AzureIIS\Novo_Site_do_Rincao"
@@ -26,6 +27,7 @@ $settings = @{
     Port = 8062
     Domain = "https://cluberincao.questione.ai/"
     TaskName = "NovoSiteRincaoNext8062"
+    IisAppPool = $null
     SharedRoot = "C:\SitesData\Rincao\hml"
     DeploymentRoot = "C:\Deploy\Rincao\hml"
     LegacyRoot = "C:\Sites\AzureIIS\Novo_Site_do_Rincao_HML"
@@ -141,16 +143,37 @@ function Wait-RuntimeHealth {
   throw "Runtime nao respondeu com sucesso em $healthUrl."
 }
 
+function Wait-PublicHealth {
+  param([string]$Url, [int]$TimeoutSeconds = 45)
+
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+
+  while ((Get-Date) -lt $deadline) {
+    try {
+      $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 $Url
+      if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
+        return
+      }
+    } catch {
+      Start-Sleep -Seconds 1
+    }
+  }
+
+  throw "Dominio publico nao respondeu com sucesso em $Url."
+}
+
 try {
   Set-Content -LiteralPath $currentFile -Value $releaseRoot -Encoding UTF8
   & $installScriptSource -Environment $Environment
   Start-ScheduledTask -TaskName ([string]$config.TaskName)
   Wait-RuntimeHealth -Port ([int]$config.Port)
 
-  $publicResponse = Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 ([string]$config.Domain)
-  if ($publicResponse.StatusCode -lt 200 -or $publicResponse.StatusCode -ge 400) {
-    throw "Dominio publico retornou HTTP $($publicResponse.StatusCode)."
+  if ($config.IisAppPool) {
+    Import-Module WebAdministration
+    Restart-WebAppPool -Name ([string]$config.IisAppPool)
   }
+
+  Wait-PublicHealth -Url ([string]$config.Domain)
 } catch {
   $deployError = $_
   if ($previousRelease -and (Test-Path -LiteralPath (Join-Path $previousRelease "server.js"))) {
@@ -159,6 +182,10 @@ try {
     Set-Content -LiteralPath $currentFile -Value $previousRelease -Encoding UTF8
     Start-ScheduledTask -TaskName ([string]$config.TaskName)
     Wait-RuntimeHealth -Port ([int]$config.Port)
+    if ($config.IisAppPool) {
+      Import-Module WebAdministration
+      Restart-WebAppPool -Name ([string]$config.IisAppPool)
+    }
   }
   throw $deployError
 }

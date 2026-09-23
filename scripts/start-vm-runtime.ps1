@@ -77,6 +77,9 @@ Get-Content -LiteralPath $envFile | ForEach-Object {
 $env:HOSTNAME = "127.0.0.1"
 $env:PORT = [string]$port
 $env:NODE_ENV = "production"
+# ARR keeps backend connections for up to two minutes. Keep Node sockets alive
+# longer so ARR never reuses a connection that Node already closed.
+$env:KEEP_ALIVE_TIMEOUT = "180000"
 $env:RINCAO_SITE_STORAGE_ROOT = $sharedRoot
 $env:GROUP_REGISTRATION_STORAGE_DIR = Join-Path $sharedRoot ".data\group-registrations"
 
