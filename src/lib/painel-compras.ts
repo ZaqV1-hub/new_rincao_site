@@ -965,10 +965,15 @@ export async function listPainelPurchases(input: {
   perPage?: string | number | null;
   filters: Record<string, string | string[] | undefined>;
   allRows?: boolean;
+  maxRows?: number;
 }): Promise<PainelPurchaseListResult> {
   const filters = normalizePainelPurchaseListFilters(input.filters);
   const page = Math.max(1, Number(input.page ?? 1) || 1);
   const allRows = input.allRows === true;
+  const maxRows =
+    allRows && Number.isSafeInteger(input.maxRows) && (input.maxRows ?? 0) > 0
+      ? input.maxRows!
+      : null;
   const perPage = allRows
     ? Number.MAX_SAFE_INTEGER
     : Math.min(5000, Math.max(1, Number(input.perPage ?? 30) || 30));
@@ -976,7 +981,11 @@ export async function listPainelPurchases(input: {
   const { sql } = buildPainelPurchaseListWhere(filters);
   const whereClause = sql ? `WHERE ${sql}` : "";
   const pool = getIngressoSistemaDbPool();
-  const paginationClause = allRows ? "" : `LIMIT ${perPage} OFFSET ${offset}`;
+  const paginationClause = allRows
+    ? maxRows
+      ? `LIMIT ${maxRows + 1}`
+      : ""
+    : `LIMIT ${perPage} OFFSET ${offset}`;
 
   const rowsResult = await pool.query<PainelPurchaseListRow>(
     `
@@ -1012,7 +1021,15 @@ export async function listPainelPurchases(input: {
     `,
   );
 
-  const countResult = await pool.query<{ total: string }>(
+  if (maxRows && rowsResult.rows.length > maxRows) {
+    throw new PainelComprasError(
+      "purchase_export_too_large",
+      `A exportacao aceita ate ${maxRows.toLocaleString("pt-BR")} compras. Aplique filtros de data ou CPF.`,
+      413,
+    );
+  }
+
+  const countResult = maxRows ? null : await pool.query<{ total: string }>(
     `
       SELECT COUNT(*)::text AS total
       FROM compra
@@ -1031,7 +1048,9 @@ export async function listPainelPurchases(input: {
     `,
   );
 
-  const total = Number(countResult.rows[0]?.total ?? 0);
+  const total = countResult
+    ? Number(countResult.rows[0]?.total ?? 0)
+    : rowsResult.rows.length;
   const effectivePerPage = allRows ? Math.max(total, rowsResult.rows.length, 1) : perPage;
 
   return {

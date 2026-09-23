@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  asPainelComprasError,
   listPainelPurchases,
   mapPainelPurchaseListExportRows,
   renderPainelPurchaseListExportTable,
@@ -7,6 +8,7 @@ import {
 import { requirePainelApiAccess } from "@/lib/painel-api-auth";
 
 export const runtime = "nodejs";
+const MAX_EXPORT_ROWS = 10_000;
 
 export async function GET(request: Request) {
   const access = await requirePainelApiAccess(request, "vis_compra");
@@ -24,6 +26,7 @@ export async function GET(request: Request) {
       page: "1",
       filters,
       allRows: true,
+      maxRows: MAX_EXPORT_ROWS,
     });
     const rows = mapPainelPurchaseListExportRows(result);
     const html = renderPainelPurchaseListExportTable(rows);
@@ -35,17 +38,21 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error("painel-compras-export-failed", error);
+    const mapped = asPainelComprasError(error);
+
+    if (mapped.status >= 500) {
+      console.error("painel-compras-export-failed", error);
+    }
 
     return NextResponse.json(
       {
         ok: false,
         error: {
-          code: "painel_compras_export_failed",
-          message: "Nao foi possivel exportar a lista de compras.",
+          code: mapped.code,
+          message: mapped.message,
         },
       },
-      { status: 500 },
+      { status: mapped.status },
     );
   }
 }

@@ -4,6 +4,7 @@ const requirePainelApiAccess = vi.fn();
 const listPainelPurchases = vi.fn();
 const mapPainelPurchaseListExportRows = vi.fn();
 const renderPainelPurchaseListExportTable = vi.fn();
+const asPainelComprasError = vi.fn((error: unknown) => error);
 
 vi.mock("@/lib/painel-api-auth", () => ({
   requirePainelApiAccess,
@@ -13,6 +14,7 @@ vi.mock("@/lib/painel-compras", () => ({
   listPainelPurchases,
   mapPainelPurchaseListExportRows,
   renderPainelPurchaseListExportTable,
+  asPainelComprasError,
 }));
 
 describe("GET /api/painel/compras/export", () => {
@@ -65,6 +67,7 @@ describe("GET /api/painel/compras/export", () => {
       page: "1",
       filters: {},
       allRows: true,
+      maxRows: 10_000,
     });
     expect(mapPainelPurchaseListExportRows).toHaveBeenCalled();
     expect(renderPainelPurchaseListExportTable).toHaveBeenCalled();
@@ -75,5 +78,22 @@ describe("GET /api/painel/compras/export", () => {
     );
     expect(body).toContain("<table");
     expect(body).toContain("<td>551</td>");
+  });
+
+  it("rejects an export that exceeds the row limit", async () => {
+    requirePainelApiAccess.mockResolvedValue({ ok: true });
+    listPainelPurchases.mockRejectedValue({
+      code: "purchase_export_too_large",
+      message: "Aplique filtros.",
+      status: 413,
+    });
+
+    const { GET } = await import("@/app/api/painel/compras/export/route");
+    const response = await GET(
+      new Request("https://example.com/api/painel/compras/export"),
+    );
+
+    expect(response.status).toBe(413);
+    expect(mapPainelPurchaseListExportRows).not.toHaveBeenCalled();
   });
 });

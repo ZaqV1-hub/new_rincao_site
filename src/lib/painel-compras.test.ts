@@ -497,6 +497,24 @@ describe("listPainelPurchases", () => {
     expect(String(mocks.query.mock.calls[0]?.[0])).not.toContain("LIMIT 5000");
     expect(String(mocks.query.mock.calls[0]?.[0])).not.toContain("OFFSET 0");
   });
+
+  it("stops a capped export before loading an unbounded result", async () => {
+    mocks.query.mockResolvedValue({ rows: [{}, {}, {}] });
+
+    await expect(
+      listPainelPurchases({
+        filters: {},
+        allRows: true,
+        maxRows: 2,
+      }),
+    ).rejects.toMatchObject({
+      code: "purchase_export_too_large",
+      status: 413,
+    });
+
+    expect(String(mocks.query.mock.calls[0]?.[0])).toContain("LIMIT 3");
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("getPainelPurchaseDetail", () => {
