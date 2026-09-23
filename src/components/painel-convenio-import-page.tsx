@@ -375,12 +375,13 @@ export function PainelConvenioImportPage({
         </h2>
         <ul className="mt-3 space-y-3 text-[15px]">
           <li>
-            <Link
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- CSV downloads must not be prefetched. */}
+            <a
               className="text-[#1d68a2] underline"
               href="/api/painel/convenios/importacao/modelo"
             >
               Modelo de arquivo (CSV)
-            </Link>
+            </a>
           </li>
         </ul>
       </aside>

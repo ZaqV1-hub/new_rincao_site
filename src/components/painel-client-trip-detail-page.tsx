@@ -382,22 +382,22 @@ export function PainelClientTripDetailPage({
             </button>
           ) : null}
           {csvHref ? (
-            <Link
+            <a
               className="rounded border border-[#cdd8e2] bg-white px-4 py-2 text-[#215f92]"
               href={csvHref}
             >
               Relatório CSV
-            </Link>
+            </a>
           ) : null}
           {pdfHref ? (
-            <Link
+            <a
               className="rounded border border-[#cdd8e2] bg-white px-4 py-2 text-[#215f92]"
               href={pdfHref}
               rel="noreferrer"
               target="_blank"
             >
               Relatório PDF
-            </Link>
+            </a>
           ) : null}
         </div>
 
