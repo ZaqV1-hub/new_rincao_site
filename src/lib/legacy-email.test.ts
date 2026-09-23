@@ -98,6 +98,33 @@ describe("legacy-email queue", () => {
     );
   });
 
+  it("retries once when SMTP closes before accepting a message", async () => {
+    process.env.PASSWORD_RESET_SEND_SYNC = "true";
+    mocks.sendMail
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Connection closed unexpectedly"), {
+          code: "ECONNECTION",
+          command: "CONN",
+        }),
+      )
+      .mockResolvedValueOnce({ messageId: "abc" });
+
+    await expect(
+      queueLegacyEmail({
+        to: "cliente@example.com",
+        toName: "Cliente",
+        subject: "Teste",
+        html: "<p>Teste</p>",
+      }),
+    ).resolves.toBe(123);
+
+    expect(mocks.sendMail).toHaveBeenCalledTimes(2);
+    expect(mocks.systemQuery).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE email"),
+      [123],
+    );
+  });
+
   it("normalizes mojibake in the sender name", async () => {
     process.env.PASSWORD_RESET_SEND_SYNC = "true";
     process.env.EMAIL_FROM_NAME = "Clube RincÃ£o";

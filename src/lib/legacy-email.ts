@@ -88,13 +88,26 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
   });
 
   try {
-    await transporter.sendMail({
+    const message = {
       from: `"${config.fromName}" <${config.fromEmail}>`,
       to: input.toName ? `"${input.toName}" <${input.to}>` : input.to,
       replyTo: config.replyToEmail,
       subject: input.subject,
       html: input.html,
-    });
+    };
+
+    try {
+      await transporter.sendMail(message);
+    } catch (error) {
+      const smtpError = error as { code?: string; command?: string };
+
+      if (smtpError.code !== "ECONNECTION" || smtpError.command !== "CONN") {
+        throw error;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await transporter.sendMail(message);
+    }
 
     await getIngressoSistemaDbPool().query(
       `
