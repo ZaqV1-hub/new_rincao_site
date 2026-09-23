@@ -30,6 +30,7 @@ export type OperationalPaymentSyncItem = {
 export type SyncOperationalPaymentStatusesInput = {
   recentDays?: number;
   cancelAfterDays?: number;
+  cancelStale?: boolean;
   limit?: number;
   purchaseId?: number;
 };
@@ -252,6 +253,7 @@ export async function syncOperationalPaymentStatuses(
 
       if (
         statusPayload.status === "30" &&
+        input?.cancelStale !== false &&
         !candidate.payment_id &&
         candidate.purchase_status === "pend" &&
         isOlderThanDays(candidate.purchase_date, cancelAfterDays)

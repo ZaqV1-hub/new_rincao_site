@@ -24,6 +24,7 @@ function errorResponse(code: string, message: string, status: number) {
 type PaymentSyncPayload = {
   recentDays?: unknown;
   cancelAfterDays?: unknown;
+  cancelStale?: unknown;
   limit?: unknown;
   purchaseId?: unknown;
 };
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
         typeof payload?.cancelAfterDays === "number" ?
           payload.cancelAfterDays :
           undefined,
+      cancelStale: payload?.cancelStale === false ? false : undefined,
       limit: typeof payload?.limit === "number" ? payload.limit : undefined,
       purchaseId:
         typeof payload?.purchaseId === "number" ? payload.purchaseId : undefined,

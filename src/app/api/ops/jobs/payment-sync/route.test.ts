@@ -46,6 +46,7 @@ describe("ops/jobs/payment-sync BFF route", () => {
         body: JSON.stringify({
           recentDays: 7,
           cancelAfterDays: 5,
+          cancelStale: false,
           limit: 50,
         }),
       }),
@@ -60,6 +61,7 @@ describe("ops/jobs/payment-sync BFF route", () => {
     expect(syncOperationalPaymentStatuses).toHaveBeenCalledWith({
       recentDays: 7,
       cancelAfterDays: 5,
+      cancelStale: false,
       limit: 50,
     });
     expect(body).toEqual({

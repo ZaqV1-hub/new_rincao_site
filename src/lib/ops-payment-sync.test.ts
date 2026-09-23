@@ -175,4 +175,51 @@ describe("ops-payment-sync", () => {
     );
     expect(release).toHaveBeenCalled();
   });
+
+  it("reports stale pending purchases without cancelling when cancellation is disabled", async () => {
+    isCieloEcommerceConfigured.mockReturnValue(true);
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM compra") && sql.includes("LEFT JOIN LATERAL")) {
+        return {
+          rows: [
+            {
+              purchase_id: 322,
+              purchase_date: "2026-04-10",
+              purchase_status: "pend",
+              payment_id: null,
+              gateway_status: null,
+            },
+          ],
+        };
+      }
+
+      return { rows: [] };
+    });
+    getNativeCieloCheckoutStatus.mockResolvedValue({
+      status: "30",
+      msgRetorno: "Transacao nao encontrada.",
+    });
+
+    await expect(
+      syncOperationalPaymentStatuses({
+        cancelAfterDays: 5,
+        cancelStale: false,
+      }),
+    ).resolves.toMatchObject({
+      candidates: 1,
+      processed: 1,
+      reconciled: 0,
+      cancelled: 0,
+      missing: 1,
+      items: [
+        {
+          purchaseId: 322,
+          result: "not_found",
+          purchaseStatus: "pend",
+        },
+      ],
+    });
+
+    expect(query).toHaveBeenCalledTimes(1);
+  });
 });
