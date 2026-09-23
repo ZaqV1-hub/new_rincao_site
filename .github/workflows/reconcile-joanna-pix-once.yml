@@ -1,0 +1,75 @@
+name: One-time Rincao Pix reconciliation (purchase 189750)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - name: Configure SSH
+        shell: pwsh
+        env:
+          VM_SSH_PRIVATE_KEY: ${{ secrets.RINCAO_VM_SSH_KEY }}
+        run: |
+          $sshRoot = Join-Path $HOME ".ssh"
+          New-Item -ItemType Directory -Force -Path $sshRoot | Out-Null
+          $keyPath = Join-Path $sshRoot "id_ed25519"
+          $keyText = $env:VM_SSH_PRIVATE_KEY.Replace("`r", "").TrimEnd([char]10) + "`n"
+          [IO.File]::WriteAllText($keyPath, $keyText, [Text.UTF8Encoding]::new($false))
+          chmod 600 $keyPath
+          ssh-keygen -y -f $keyPath | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Chave SSH de deploy invalida." }
+          Set-Content -LiteralPath (Join-Path $sshRoot "known_hosts") -Value "vpsw2762.publiccloud.com.br ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP00dVds/2IZo5N04TEh63Ux/LAs4tK4RngUSSXXmdd4"
+
+      - name: Query Cielo and reconcile only purchase 189750 if paid
+        shell: pwsh
+        run: |
+          $remoteScript = @'
+          $ErrorActionPreference = "Stop"
+          $purchaseId = 189750
+          $environmentFile = "C:\SitesData\Rincao\prod\.env.local"
+
+          if (-not (Test-Path -LiteralPath $environmentFile)) {
+            throw "Arquivo de ambiente de producao nao encontrado."
+          }
+
+          $operationsToken = $null
+          Get-Content -LiteralPath $environmentFile | ForEach-Object {
+            $line = $_.Trim()
+            if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) { return }
+            $name, $value = $line -split "=", 2
+            if ($name.Trim() -eq "INGRESSO_OPERATIONS_API_TOKEN") {
+              $operationsToken = $value.Trim().Trim('"').Trim("'")
+            }
+          }
+
+          if (-not $operationsToken) {
+            throw "Token operacional nao configurado no ambiente de producao."
+          }
+
+          $headers = @{ Authorization = "Bearer $operationsToken" }
+          $body = @{ purchaseId = $purchaseId } | ConvertTo-Json -Compress
+          $result = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8061/api/ops/jobs/payment-sync" -Headers $headers -ContentType "application/json" -Body $body -TimeoutSec 45
+          $item = @($result.data.items | Where-Object { $_.purchaseId -eq $purchaseId }) | Select-Object -First 1
+
+          if (-not $result.ok -or -not $item) {
+            throw "A rotina nao retornou resultado para a compra solicitada."
+          }
+
+          Write-Output "purchase=$($item.purchaseId) result=$($item.result) purchaseStatus=$($item.purchaseStatus) gatewayStatus=$($item.gatewayStatus)"
+
+          if ($item.result -ne "reconciled" -or $item.purchaseStatus -ne "conc") {
+            throw "A compra nao foi reconciliada; o retorno da Cielo nao confirmou status pago."
+          }
+          '@
+
+          $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($remoteScript))
+          ssh -o BatchMode=yes -o ConnectTimeout=10 "Administrator@vpsw2762.publiccloud.com.br" powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand $encodedCommand
+          if ($LASTEXITCODE -ne 0) { throw "Conciliacao remota falhou com codigo $LASTEXITCODE." }
