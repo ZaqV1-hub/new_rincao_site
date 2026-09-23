@@ -44,18 +44,22 @@ Validar o dominio de homologacao e os uploads antes de repetir em producao:
 
 ## CI/CD
 
-O workflow `.github/workflows/deploy-vm.yml` exige um runner Windows registrado no repositorio `ZaqV1-hub/new_rincao_site` com o label `new-rincao-site`.
+O workflow `.github/workflows/deploy-vm.yml` usa um runner hospedado do GitHub para acessar a VM por SSH. O build continua sendo executado no Windows da VM, evitando artefatos ou dependencias nativas de outra plataforma.
+
+O repositorio precisa conter o secret `RINCAO_VM_SSH_KEY`, com a chave privada autorizada para o usuario `Administrator` da VM. A chave publica do host SSH esta fixada no workflow para impedir conexoes com um servidor diferente.
 
 O fluxo e:
 
-1. checkout do commit exato;
-2. `npm ci`;
-3. testes;
+1. conexao SSH autenticada com a VM;
+2. fetch e checkout do commit exato em `C:\Deploy\Rincao\<ambiente>\repo`;
+3. `npm ci --include=dev` com Node 20.19.5;
 4. build standalone;
 5. criacao de uma nova release;
 6. troca do processo Node;
 7. health check local e publico;
 8. rollback para a release anterior em caso de falha.
+
+As branches sao independentes: push em `develop` publica homologacao e push em `main` publica producao. A suite de testes ainda possui falhas legadas e, ate ser saneada, o gate automatico de deploy e o build completo seguido dos health checks.
 
 ## Rollback manual
 

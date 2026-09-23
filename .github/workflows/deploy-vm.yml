@@ -1,4 +1,4 @@
-name: Validate and deploy VM
+name: Deploy VM
 
 on:
   push:
@@ -15,41 +15,70 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  validate-and-deploy:
+  deploy:
     name: ${{ github.ref_name == 'main' && 'Production' || 'Homologation' }}
-    runs-on:
-      - self-hosted
-      - Windows
-      - X64
-      - new-rincao-site
+    runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'homologation' }}
     timeout-minutes: 45
     env:
       DEPLOY_ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'hml' }}
-      DEPLOYMENT_VERSION: ${{ github.sha }}
+      DEPLOY_REPOSITORY: C:\Deploy\Rincao\${{ github.ref_name == 'main' && 'prod' || 'hml' }}\repo
+      DEPLOY_BRANCH: ${{ github.ref_name }}
+      DEPLOY_SHA: ${{ github.sha }}
+      VM_HOST: vpsw2762.publiccloud.com.br
+      VM_USER: Administrator
 
     steps:
-      - name: Checkout exact commit
-        uses: actions/checkout@v4
-
-      - name: Configure Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
+      - name: Configure SSH
         shell: pwsh
-        run: npm ci
+        env:
+          VM_SSH_PRIVATE_KEY: ${{ secrets.RINCAO_VM_SSH_KEY }}
+        run: |
+          $sshRoot = Join-Path $HOME ".ssh"
+          New-Item -ItemType Directory -Force -Path $sshRoot | Out-Null
+          Set-Content -LiteralPath (Join-Path $sshRoot "id_ed25519") -Value $env:VM_SSH_PRIVATE_KEY -NoNewline
+          chmod 600 (Join-Path $sshRoot "id_ed25519")
+          Set-Content -LiteralPath (Join-Path $sshRoot "known_hosts") -Value "vpsw2762.publiccloud.com.br ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP00dVds/2IZo5N04TEh63Ux/LAs4tK4RngUSSXXmdd4"
 
-      - name: Run tests
+      - name: Build and deploy exact commit on the VM
         shell: pwsh
-        run: npm test
+        run: |
+          $remoteScript = @'
+          $ErrorActionPreference = "Stop"
+          $repo = "__REPOSITORY__"
+          $branch = "__BRANCH__"
+          $sha = "__SHA__"
+          $repositoryUrl = "https://github.com/ZaqV1-hub/new_rincao_site.git"
 
-      - name: Build and deploy release with rollback
-        shell: pwsh
-        run: >-
-          ./scripts/deploy-vm.ps1
-          -Environment $env:DEPLOY_ENVIRONMENT
-          -SourceRoot $env:GITHUB_WORKSPACE
-          -ReleaseId $env:GITHUB_SHA
+          if (-not (Test-Path -LiteralPath (Join-Path $repo ".git"))) {
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $repo) | Out-Null
+            git clone --no-checkout $repositoryUrl $repo
+            if ($LASTEXITCODE -ne 0) { throw "git clone falhou com codigo $LASTEXITCODE." }
+          }
+
+          git -C $repo fetch origin $branch
+          if ($LASTEXITCODE -ne 0) { throw "git fetch falhou com codigo $LASTEXITCODE." }
+
+          $fetchedSha = (git -C $repo rev-parse FETCH_HEAD).Trim()
+          if ($fetchedSha -ne $sha) {
+            throw "O commit remoto $fetchedSha difere do commit solicitado $sha."
+          }
+
+          git -C $repo checkout --detach --force $sha
+          if ($LASTEXITCODE -ne 0) { throw "git checkout falhou com codigo $LASTEXITCODE." }
+
+          & (Join-Path $repo "scripts\deploy-vm.ps1") `
+            -Environment "__ENVIRONMENT__" `
+            -SourceRoot $repo `
+            -ReleaseId $sha
+          '@
+
+          $remoteScript = $remoteScript.Replace("__REPOSITORY__", $env:DEPLOY_REPOSITORY)
+          $remoteScript = $remoteScript.Replace("__BRANCH__", $env:DEPLOY_BRANCH)
+          $remoteScript = $remoteScript.Replace("__SHA__", $env:DEPLOY_SHA)
+          $remoteScript = $remoteScript.Replace("__ENVIRONMENT__", $env:DEPLOY_ENVIRONMENT)
+          $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($remoteScript))
+
+          ssh -o BatchMode=yes "$($env:VM_USER)@$($env:VM_HOST)" `
+            powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand $encodedCommand
+          if ($LASTEXITCODE -ne 0) { throw "Deploy remoto falhou com codigo $LASTEXITCODE." }
