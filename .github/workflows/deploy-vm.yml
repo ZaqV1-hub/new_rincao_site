@@ -36,8 +36,12 @@ jobs:
         run: |
           $sshRoot = Join-Path $HOME ".ssh"
           New-Item -ItemType Directory -Force -Path $sshRoot | Out-Null
-          Set-Content -LiteralPath (Join-Path $sshRoot "id_ed25519") -Value $env:VM_SSH_PRIVATE_KEY -NoNewline
-          chmod 600 (Join-Path $sshRoot "id_ed25519")
+          $keyPath = Join-Path $sshRoot "id_ed25519"
+          $keyText = $env:VM_SSH_PRIVATE_KEY.Replace("`r", "").TrimEnd([char]10) + "`n"
+          [IO.File]::WriteAllText($keyPath, $keyText, [Text.UTF8Encoding]::new($false))
+          chmod 600 $keyPath
+          ssh-keygen -y -f $keyPath | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Chave SSH de deploy invalida." }
           Set-Content -LiteralPath (Join-Path $sshRoot "known_hosts") -Value "vpsw2762.publiccloud.com.br ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP00dVds/2IZo5N04TEh63Ux/LAs4tK4RngUSSXXmdd4"
 
       - name: Build and deploy exact commit on the VM
