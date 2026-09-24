@@ -29,6 +29,22 @@ function Write-PaymentSyncLog {
   Add-Content -LiteralPath $logFile -Value "$timestamp $Message" -Encoding UTF8
 }
 
+function Get-PaymentSyncErrorCategory {
+  param([string]$Note)
+
+  if ($Note -match "^cielo_ecommerce_error_(\d{3})") {
+    return "cielo_http_$($Matches[1])"
+  }
+
+  if ($Note -match "cielo_payment_id_invalid") { return "invalid_payment_id" }
+  if ($Note -match "payment_reference_mismatch") { return "reference_mismatch" }
+  if ($Note -match "payment_purchase_not_found") { return "purchase_not_found" }
+  if ($Note -match "abort|timed?\s*out|timeout") { return "timeout" }
+  if ($Note -match "fetch failed|ECONN|ENOTFOUND|EAI_AGAIN") { return "network" }
+
+  return "other"
+}
+
 if (-not (Test-Path -LiteralPath $environmentFile)) {
   Write-PaymentSyncLog "result=failed reason=environment_file_missing"
   throw "Arquivo de ambiente da conciliacao nao encontrado."
@@ -79,7 +95,50 @@ try {
     throw "A rotina de conciliacao nao concluiu a verificacao."
   }
 
-  $summary = "result=completed candidates=$($data.candidates) processed=$($data.processed) reconciled=$($data.reconciled) cancelled=$($data.cancelled) missing=$($data.missing) failed=$($data.failed)"
+  $purchaseStatusCounts = @{
+    conc = 0
+    pend = 0
+    canc = 0
+    unknown = 0
+  }
+  $gatewayStatusCounts = @{}
+  $errorCategoryCounts = @{}
+
+  foreach ($item in @($data.items)) {
+    $purchaseStatus = [string]$item.purchaseStatus
+    if (-not $purchaseStatusCounts.ContainsKey($purchaseStatus)) {
+      $purchaseStatus = "unknown"
+    }
+    $purchaseStatusCounts[$purchaseStatus] += 1
+
+    if ($null -ne $item.gatewayStatus) {
+      $gatewayStatus = [string]$item.gatewayStatus
+      if ($gatewayStatus -notmatch "^\d+$") { $gatewayStatus = "other" }
+      if (-not $gatewayStatusCounts.ContainsKey($gatewayStatus)) {
+        $gatewayStatusCounts[$gatewayStatus] = 0
+      }
+      $gatewayStatusCounts[$gatewayStatus] += 1
+    }
+
+    if ($item.result -eq "error") {
+      $category = Get-PaymentSyncErrorCategory -Note ([string]$item.note)
+      if (-not $errorCategoryCounts.ContainsKey($category)) {
+        $errorCategoryCounts[$category] = 0
+      }
+      $errorCategoryCounts[$category] += 1
+    }
+  }
+
+  $purchaseStatusSummary = ($purchaseStatusCounts.GetEnumerator() |
+    Sort-Object Name |
+    ForEach-Object { "$($_.Name):$($_.Value)" }) -join ","
+  $gatewayStatusSummary = ($gatewayStatusCounts.GetEnumerator() |
+    Sort-Object Name |
+    ForEach-Object { "$($_.Name):$($_.Value)" }) -join ","
+  $errorCategorySummary = ($errorCategoryCounts.GetEnumerator() |
+    Sort-Object Name |
+    ForEach-Object { "$($_.Name):$($_.Value)" }) -join ","
+  $summary = "result=completed candidates=$($data.candidates) processed=$($data.processed) reconciled=$($data.reconciled) cancelled=$($data.cancelled) missing=$($data.missing) failed=$($data.failed) purchase_status=[$purchaseStatusSummary] gateway_status=[$gatewayStatusSummary] error_category=[$errorCategorySummary]"
   Write-PaymentSyncLog $summary
   Write-Output $summary
 } catch {
