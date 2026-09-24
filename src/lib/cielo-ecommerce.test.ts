@@ -76,6 +76,7 @@ describe("cielo-ecommerce", () => {
       )
       .mockResolvedValueOnce(
         Response.json({
+          MerchantOrderId: "456",
           Payment: {
             PaymentId: "pid-456",
             Status: 2,
@@ -111,6 +112,102 @@ describe("cielo-ecommerce", () => {
       },
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to the matching merchant order after a payment id 404", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ message: "not found" }, { status: 404 }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ Payments: [{ PaymentId: "cielo-payment-456" }] }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          MerchantOrderId: "456",
+          Payment: {
+            PaymentId: "cielo-payment-456",
+            Status: 2,
+            Amount: 12990,
+            PaymentType: "Pix",
+          },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getNativeCieloCheckoutStatus({
+      paymentId: "legacy-payment-id",
+      reference: "456",
+      purchaseId: 456,
+    });
+
+    expect(result).toMatchObject({
+      status: "00",
+      dados: {
+        code: "cielo-payment-456",
+        reference: "456",
+        status: 3,
+        paymentMethod: { type: 11 },
+      },
+    });
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "https://query.example.test/1/sales/legacy-payment-id",
+      "https://query.example.test/1/sales?merchantOrderId=456",
+      "https://query.example.test/1/sales/cielo-payment-456",
+    ]);
+  });
+
+  it("does not reconcile a sale returned for a different merchant order", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ message: "not found" }, { status: 404 }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ Payments: [{ PaymentId: "cielo-payment-999" }] }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          MerchantOrderId: "999",
+          Payment: {
+            PaymentId: "cielo-payment-999",
+            Status: 2,
+            Amount: 12990,
+            PaymentType: "Pix",
+          },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getNativeCieloCheckoutStatus({
+        paymentId: "legacy-payment-id",
+        reference: "456",
+        purchaseId: 456,
+      }),
+    ).resolves.toMatchObject({
+      status: "30",
+      msgRetorno: "Transacao nao encontrada.",
+    });
+  });
+
+  it("does not fall back by merchant order for non-404 Cielo errors", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ message: "unauthorized" }, { status: 401 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getNativeCieloCheckoutStatus({
+        paymentId: "legacy-payment-id",
+        reference: "456",
+        purchaseId: 456,
+      }),
+    ).rejects.toThrow("cielo_ecommerce_error_401");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("creates native Cielo checkout payloads", async () => {

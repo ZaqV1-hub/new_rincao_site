@@ -519,6 +519,33 @@ function extractPaymentIds(value: unknown) {
     .filter(Boolean);
 }
 
+function getSaleMerchantOrderId(value: unknown) {
+  return getString(readObject(value), [
+    "MerchantOrderId",
+    "merchantOrderId",
+    "OrderNumber",
+    "orderNumber",
+    "reference",
+    "Reference",
+  ]);
+}
+
+function saleMatchesPurchase(value: unknown, purchaseId: number) {
+  const merchantOrderId = getSaleMerchantOrderId(value);
+
+  return (
+    merchantOrderId !== "" &&
+    merchantOrderId.replace(/[^A-Za-z0-9]/g, "") === String(purchaseId)
+  );
+}
+
+function isCieloNotFoundError(error: unknown) {
+  return (
+    error instanceof Error &&
+    /^cielo_ecommerce_error_404:/.test(error.message)
+  );
+}
+
 async function getSalesByReference(reference: string) {
   const result = await getCieloSaleByMerchantOrderId(reference);
   const paymentIds = extractPaymentIds(result);
@@ -526,15 +553,7 @@ async function getSalesByReference(reference: string) {
   if (paymentIds.length > 0) {
     const sales = await Promise.all(
       paymentIds.map(async (paymentId) => {
-        const sale = await getCieloSaleByPaymentId(paymentId);
-        const saleObject = readObject(sale);
-
-        return saleObject
-          ? {
-              ...saleObject,
-              MerchantOrderId: reference,
-            }
-          : sale;
+        return getCieloSaleByPaymentId(paymentId);
       }),
     );
 
@@ -597,11 +616,23 @@ export async function getNativeCieloCheckoutStatus({
   reference,
   purchaseId,
 }: CieloCheckoutStatusQuery) {
-  const sales = paymentId
-    ? [await getCieloSaleByPaymentId(paymentId)]
-    : reference
-      ? await getSalesByReference(reference)
-      : [];
+  let sales: unknown[] = [];
+
+  if (paymentId) {
+    try {
+      sales = [await getCieloSaleByPaymentId(paymentId)];
+    } catch (error) {
+      if (!isCieloNotFoundError(error) || !reference) {
+        throw error;
+      }
+
+      sales = await getSalesByReference(reference);
+    }
+  } else if (reference) {
+    sales = await getSalesByReference(reference);
+  }
+
+  sales = sales.filter((sale) => saleMatchesPurchase(sale, purchaseId));
 
   if (sales.length === 0) {
     return {
