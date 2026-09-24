@@ -508,7 +508,7 @@ function isSaleShape(value: unknown) {
   );
 }
 
-function extractPaymentIds(value: unknown) {
+function extractPaymentIds(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.flatMap(extractPaymentIds);
   }
