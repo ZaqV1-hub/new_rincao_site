@@ -222,4 +222,33 @@ describe("ops-payment-sync", () => {
 
     expect(query).toHaveBeenCalledTimes(1);
   });
+
+  it("limits candidates to 100 purchases per date and 700 in total", async () => {
+    isCieloEcommerceConfigured.mockReturnValue(true);
+    query.mockResolvedValue({ rows: [] });
+
+    await syncOperationalPaymentStatuses({
+      recentDays: 7,
+      limit: 700,
+      perDayLimit: 100,
+      cancelStale: false,
+    });
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringMatching(/PARTITION BY compra\.dtcompra::date[\s\S]*day_rank <= \$4[\s\S]*LIMIT \$2/),
+      [7, 700, null, 100],
+    );
+  });
+
+  it("caps requested batch size and per-date quota", async () => {
+    isCieloEcommerceConfigured.mockReturnValue(true);
+    query.mockResolvedValue({ rows: [] });
+
+    await syncOperationalPaymentStatuses({
+      limit: 900,
+      perDayLimit: 150,
+    });
+
+    expect(query).toHaveBeenCalledWith(expect.any(String), [7, 700, null, 100]);
+  });
 });

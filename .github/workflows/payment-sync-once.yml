@@ -1,0 +1,45 @@
+name: One-time Rincao payment sync (up to 700)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 45
+    steps:
+      - name: Configure SSH
+        shell: pwsh
+        env:
+          VM_SSH_PRIVATE_KEY: ${{ secrets.RINCAO_VM_SSH_KEY }}
+        run: |
+          $sshRoot = Join-Path $HOME ".ssh"
+          New-Item -ItemType Directory -Force -Path $sshRoot | Out-Null
+          $keyPath = Join-Path $sshRoot "id_ed25519"
+          $keyText = $env:VM_SSH_PRIVATE_KEY.Replace("`r", "").TrimEnd([char]10) + "`n"
+          [IO.File]::WriteAllText($keyPath, $keyText, [Text.UTF8Encoding]::new($false))
+          chmod 600 $keyPath
+          ssh-keygen -y -f $keyPath | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Chave SSH de deploy invalida." }
+          Set-Content -LiteralPath (Join-Path $sshRoot "known_hosts") -Value "vpsw2762.publiccloud.com.br ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP00dVds/2IZo5N04TEh63Ux/LAs4tK4RngUSSXXmdd4"
+
+      - name: Reconcile recent payments through the production job
+        shell: pwsh
+        run: |
+          $remoteScript = @'
+          $ErrorActionPreference = "Stop"
+          $jobScript = "C:\Deploy\Rincao\ops\run-payment-sync.ps1"
+          if (-not (Test-Path -LiteralPath $jobScript)) {
+            throw "Script operacional de conciliacao nao instalado."
+          }
+          & $jobScript -Environment prod
+          '@
+
+          $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($remoteScript))
+          ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=120 "Administrator@vpsw2762.publiccloud.com.br" powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand $encodedCommand
+          if ($LASTEXITCODE -ne 0) { throw "Conciliacao remota falhou com codigo $LASTEXITCODE." }

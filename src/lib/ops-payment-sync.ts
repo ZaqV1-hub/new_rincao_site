@@ -32,6 +32,7 @@ export type SyncOperationalPaymentStatusesInput = {
   cancelAfterDays?: number;
   cancelStale?: boolean;
   limit?: number;
+  perDayLimit?: number;
   purchaseId?: number;
 };
 
@@ -105,19 +106,20 @@ async function listPaymentSyncCandidates(
   recentDays: number,
   limit: number,
   purchaseId?: number,
+  perDayLimit?: number,
 ) {
   const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
-    const result = await client.query<PaymentSyncCandidateRow>(
-      `
-        SELECT
+    const candidateColumns = `
           compra.idcompra AS purchase_id,
           compra.dtcompra::text AS purchase_date,
           compra.stcompra AS purchase_status,
           pagamento.idpagseguro AS payment_id,
           pagamento.status::text AS gateway_status
+    `;
+    const candidateSource = `
         FROM compra
         LEFT JOIN LATERAL (
           SELECT
@@ -144,10 +146,33 @@ async function listPaymentSyncCandidates(
             OR pagamento.status IN (0, 1, 2, 5, 8, 9, 12)
             OR compra.stcompra = 'pend'
           )
+    `;
+    const sql = perDayLimit === undefined ?
+      `
+        SELECT ${candidateColumns}
+        ${candidateSource}
         ORDER BY compra.idcompra DESC
         LIMIT $2
-      `,
-      [recentDays, limit, purchaseId ?? null],
+      ` :
+      `
+        SELECT purchase_id, purchase_date, purchase_status, payment_id, gateway_status
+        FROM (
+          SELECT ${candidateColumns},
+            ROW_NUMBER() OVER (
+              PARTITION BY compra.dtcompra::date
+              ORDER BY compra.idcompra DESC
+            ) AS day_rank
+          ${candidateSource}
+        ) ranked_candidates
+        WHERE day_rank <= $4
+        ORDER BY purchase_id DESC
+        LIMIT $2
+      `;
+    const result = await client.query<PaymentSyncCandidateRow>(
+      sql,
+      perDayLimit === undefined ?
+        [recentDays, limit, purchaseId ?? null] :
+        [recentDays, limit, purchaseId ?? null, perDayLimit],
     );
 
     return result.rows;
@@ -180,7 +205,10 @@ export async function syncOperationalPaymentStatuses(
 ): Promise<SyncOperationalPaymentStatusesSuccess> {
   const recentDays = toValidInteger(input?.recentDays, 7, 1, 90);
   const cancelAfterDays = toValidInteger(input?.cancelAfterDays, 5, 1, 30);
-  const limit = toValidInteger(input?.limit, 50, 1, 200);
+  const limit = toValidInteger(input?.limit, 50, 1, 700);
+  const perDayLimit = input?.perDayLimit === undefined ?
+    undefined :
+    toValidInteger(input.perDayLimit, 100, 1, 100);
   const purchaseId = input?.purchaseId;
 
   if (
@@ -217,6 +245,7 @@ export async function syncOperationalPaymentStatuses(
     recentDays,
     purchaseId ? 1 : limit,
     purchaseId,
+    perDayLimit,
   );
   const items: OperationalPaymentSyncItem[] = [];
   let reconciled = 0;

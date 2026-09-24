@@ -26,6 +26,7 @@ type PaymentSyncPayload = {
   cancelAfterDays?: unknown;
   cancelStale?: unknown;
   limit?: unknown;
+  perDayLimit?: unknown;
   purchaseId?: unknown;
 };
 
@@ -71,6 +72,10 @@ export async function POST(request: Request) {
           undefined,
       cancelStale: payload?.cancelStale === false ? false : undefined,
       limit: typeof payload?.limit === "number" ? payload.limit : undefined,
+      perDayLimit:
+        typeof payload?.perDayLimit === "number" ?
+          payload.perDayLimit :
+          undefined,
       purchaseId:
         typeof payload?.purchaseId === "number" ? payload.purchaseId : undefined,
     });

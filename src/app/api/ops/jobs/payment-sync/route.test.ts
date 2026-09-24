@@ -47,7 +47,8 @@ describe("ops/jobs/payment-sync BFF route", () => {
           recentDays: 7,
           cancelAfterDays: 5,
           cancelStale: false,
-          limit: 50,
+          limit: 700,
+          perDayLimit: 100,
         }),
       }),
     );
@@ -62,7 +63,8 @@ describe("ops/jobs/payment-sync BFF route", () => {
       recentDays: 7,
       cancelAfterDays: 5,
       cancelStale: false,
-      limit: 50,
+      limit: 700,
+      perDayLimit: 100,
     });
     expect(body).toEqual({
       ok: true,
