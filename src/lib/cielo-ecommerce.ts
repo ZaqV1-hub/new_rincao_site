@@ -509,7 +509,17 @@ function isSaleShape(value: unknown) {
 }
 
 function extractPaymentIds(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.flatMap(extractPaymentIds);
+  }
+
   const object = readObject(value);
+  const paymentId = getString(object, ["PaymentId", "paymentId"]);
+
+  if (paymentId) {
+    return [paymentId];
+  }
+
   const payments = readArray(object?.Payments ?? object?.payments);
 
   return payments

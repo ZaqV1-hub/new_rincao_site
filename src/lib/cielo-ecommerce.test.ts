@@ -158,6 +158,48 @@ describe("cielo-ecommerce", () => {
     ]);
   });
 
+  it("reads the top-level PaymentId returned by Cielo merchant order lookup", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ message: "not found" }, { status: 404 }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          PaymentId: "replacement-payment-456",
+          ReceivedDate: "2026-09-24 12:00:00",
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          MerchantOrderId: "456",
+          Payment: {
+            PaymentId: "replacement-payment-456",
+            Status: 2,
+            Amount: 12990,
+            PaymentType: "Pix",
+          },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getNativeCieloCheckoutStatus({
+      paymentId: "legacy-payment-id",
+      reference: "456",
+      purchaseId: 456,
+    });
+
+    expect(result).toMatchObject({
+      status: "00",
+      dados: {
+        code: "replacement-payment-456",
+        reference: "456",
+        status: 3,
+      },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it("does not reconcile a sale returned for a different merchant order", async () => {
     const fetchMock = vi
       .fn()
