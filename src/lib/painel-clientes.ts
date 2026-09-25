@@ -10,6 +10,7 @@ import {
 } from "@/lib/ops-client-education";
 import {
   buildSchoolClassDisplay,
+  isSchoolClassLetterAllowed,
   normalizeSchoolClassLetter,
   normalizeSchoolEducationType,
   normalizeSchoolEducationYear,
@@ -1482,6 +1483,14 @@ export async function updatePainelTripVoucherStudent(
     throw new PainelClientesError(
       "invalid_trip_voucher_payload",
       "Turma invalida.",
+      400,
+    );
+  }
+
+  if (!isSchoolClassLetterAllowed(schoolId, classLetter)) {
+    throw new PainelClientesError(
+      "invalid_trip_voucher_payload",
+      "Turma invalida para esta escola.",
       400,
     );
   }

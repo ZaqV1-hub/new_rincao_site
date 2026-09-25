@@ -3,6 +3,7 @@ import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   buildSchoolClassDisplay,
   getSchoolEducationStructure,
+  isSchoolClassLetterAllowed,
   isSchoolEducationSelectionAllowed,
   normalizeSchoolClassLetter,
   normalizeSchoolEducationType,
@@ -201,7 +202,7 @@ export async function getSchoolPurchaseContext(
         date: row.dtagenda,
         label: formatDateLabel(row.dtagenda),
       })),
-      educationStructure: getSchoolEducationStructure(schoolType),
+      educationStructure: getSchoolEducationStructure(schoolType, schoolId),
     };
   } finally {
     client.release();
@@ -334,6 +335,14 @@ export async function createSchoolPurchase(
       throw new SchoolPurchaseError(
         "invalid_class_letter",
         "Selecione uma turma valida.",
+        400,
+      );
+    }
+
+    if (!isSchoolClassLetterAllowed(input.schoolId, classLetter)) {
+      throw new SchoolPurchaseError(
+        "invalid_class_letter",
+        "Selecione uma turma valida para esta escola.",
         400,
       );
     }

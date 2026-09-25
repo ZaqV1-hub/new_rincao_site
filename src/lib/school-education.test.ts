@@ -3,6 +3,7 @@ import {
   buildSchoolClassDisplay,
   getSchoolEducationStructure,
   inferSchoolTypeFromName,
+  isSchoolClassLetterAllowed,
   isSchoolEducationSelectionAllowed,
   normalizeSchoolClassLetter,
   normalizeSchoolEducationType,
@@ -47,6 +48,18 @@ describe("school education helpers", () => {
     expect(isSchoolEducationSelectionAllowed("cei", "fund1", "1")).toBe(false);
   });
 
+  it("oferece turmas até V somente para Milton Santos (ID 571)", () => {
+    const miltonSantos = getSchoolEducationStructure("emei", 571);
+    const anotherSchool = getSchoolEducationStructure("emei", 572);
+
+    expect(miltonSantos.classes).toHaveLength(22);
+    expect(miltonSantos.classes.at(-1)).toBe("V");
+    expect(anotherSchool.classes).toHaveLength(11);
+    expect(anotherSchool.classes.at(-1)).toBe("K");
+    expect(isSchoolClassLetterAllowed(571, "V")).toBe(true);
+    expect(isSchoolClassLetterAllowed(572, "V")).toBe(false);
+  });
+
   it("sugere o tipo a partir da sigla sem tornar a sugestão obrigatória", () => {
     expect(inferSchoolTypeFromName("EMEF CEU Butantã")).toBe("emef");
     expect(inferSchoolTypeFromName("CEMEI Jardim Azul")).toBe("cemei");
@@ -58,6 +71,7 @@ describe("school education helpers", () => {
     expect(normalizeSchoolEducationType("Ensino Fundamental II")).toBe("fund2");
     expect(normalizeSchoolEducationYear("Ensino Fundamental II", "8o ano")).toBe("8");
     expect(normalizeSchoolClassLetter("turma b")).toBe("B");
+    expect(normalizeSchoolClassLetter("turma v")).toBe("V");
   });
 
   it("builds the same display string persisted by the legacy flow", () => {

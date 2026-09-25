@@ -368,7 +368,7 @@ export async function getPainelClientTripDetail(
     educators,
     genericParticipants,
     isSchool: isSchoolClient(trip),
-    educationStructure: getSchoolEducationStructure(),
+    educationStructure: getSchoolEducationStructure(undefined, clientId),
   };
 }
 

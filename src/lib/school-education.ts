@@ -94,6 +94,21 @@ const rawEducationTypes = [
 ];
 
 const classLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"];
+const miltonSantosSchoolId = 571;
+const miltonSantosClassLetters = [
+  ...classLetters,
+  "L",
+  "M",
+  "N",
+  "O",
+  "P",
+  "Q",
+  "R",
+  "S",
+  "T",
+  "U",
+  "V",
+];
 
 const schoolTypeEducationRules: Record<Exclude<SchoolType, "particular">, Record<string, string[]>> = {
   cei: { infantil: ["bercario1", "bercario2", "minigrupo1", "minigrupo2"] },
@@ -142,6 +157,7 @@ export function inferSchoolTypeFromName(raw: string): SchoolType | null {
 
 export function getSchoolEducationStructure(
   schoolTypeRaw?: SchoolType | string | null,
+  schoolId?: number,
 ): SchoolEducationStructure {
   const schoolType = normalizeSchoolType(schoolTypeRaw);
   // TODO: definir a estrutura específica das escolas particulares em uma rodada futura.
@@ -156,7 +172,11 @@ export function getSchoolEducationStructure(
           .filter((year) => !rule || rule[type.id]?.includes(year.id))
           .map((year) => ({ ...year })),
       })),
-    classes: [...classLetters],
+    classes: [
+      ...(schoolId === miltonSantosSchoolId
+        ? miltonSantosClassLetters
+        : classLetters),
+    ],
   };
 }
 
@@ -260,8 +280,12 @@ export function normalizeSchoolClassLetter(raw: string) {
     return exact;
   }
 
-  const token = normalized.match(/\b([A-K])\b/u);
+  const token = normalized.match(/\b([A-V])\b/u);
   return token?.[1] ?? null;
+}
+
+export function isSchoolClassLetterAllowed(schoolId: number, classLetter: string) {
+  return getSchoolEducationStructure(null, schoolId).classes.includes(classLetter);
 }
 
 export function buildSchoolClassDisplay(
