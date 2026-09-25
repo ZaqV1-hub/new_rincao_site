@@ -105,6 +105,10 @@ export type PainelPurchaseGatewayConsultResult = {
   senderName: string | null;
   senderEmail: string | null;
   senderPhone: string | null;
+  pixId?: string | null;
+  pixTxId?: string | null;
+  pixNsu?: string | null;
+  pixTid?: string | null;
 };
 
 export type PainelPurchaseVoucherListFilters = {
@@ -1479,6 +1483,10 @@ export async function getPainelPurchaseGatewayConsult(
       senderName: null,
       senderEmail: null,
       senderPhone: null,
+      pixId: null,
+      pixTxId: null,
+      pixNsu: null,
+      pixTid: null,
     };
   }
 
@@ -1506,10 +1514,23 @@ export async function getPainelPurchaseGatewayConsult(
       senderName: null,
       senderEmail: null,
       senderPhone: null,
+      pixId: null,
+      pixTxId: null,
+      pixNsu: null,
+      pixTid: null,
     };
   }
 
   const normalized = normalizePaymentReconciliationPayload(payload, purchaseId);
+  const sale = readObject(readObject(payload)?.sale);
+  const payment = readObject(sale?.Payment ?? sale?.payment) ??
+    (Array.isArray(sale?.Payments) ? readObject(sale.Payments[0]) : null) ??
+    (Array.isArray(sale?.payments) ? readObject(sale.payments[0]) : null);
+  const readIdentifier = (
+    primary: Record<string, unknown> | null,
+    secondary: Record<string, unknown> | null,
+    keys: string[],
+  ) => readStringValue(primary, keys) || readStringValue(secondary, keys) || null;
 
   return {
     purchaseId,
@@ -1533,6 +1554,17 @@ export async function getPainelPurchaseGatewayConsult(
       normalized.senderPhoneNumber != null
         ? `${normalized.senderPhoneAreaCode ?? ""} ${normalized.senderPhoneNumber}`.trim()
         : null,
+    pixId: readIdentifier(payment, sale, ["EndToEndId", "endToEndId"]),
+    pixTxId: readIdentifier(sale, payment, [
+      "AcquirerOrderId",
+      "acquirerOrderId",
+      "SentOrderId",
+      "sentOrderId",
+      "TxId",
+      "txId",
+    ]),
+    pixNsu: readIdentifier(payment, sale, ["ProofOfSale", "proofOfSale", "Nsu", "NSU"]),
+    pixTid: readIdentifier(payment, sale, ["Tid", "TID", "tid"]),
   };
 }
 

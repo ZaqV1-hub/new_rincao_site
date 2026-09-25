@@ -123,6 +123,38 @@ export function PainelCompraGatewayStatusPage({
             )}
           </table>
         </div>
+
+        {consult.paymentMethodType === 11 ? (
+          <>
+            <h2 className="mt-8 text-[24px] font-semibold text-[#205a7f]">
+              Identificadores do Pix na Cielo
+            </h2>
+            <div className="mt-4 overflow-x-auto border border-[#cfcfcf]">
+              <table className="min-w-full border-collapse text-[15px]">
+                <tbody>
+                  {[
+                    ["ID Pix", consult.pixId],
+                    ["NSU", consult.pixNsu],
+                    ["TID", consult.pixTid],
+                    ["TxID", consult.pixTxId],
+                  ].map(([label, value]) => (
+                    <tr key={label}>
+                      <th className="w-1/3 border border-[#d7d7d7] bg-[#edf4fa] px-4 py-3 text-left font-medium">
+                        {label}
+                      </th>
+                      <td className="break-all border border-[#d7d7d7] px-4 py-3">
+                        {value || "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-sm text-[#5a5a5a]">
+              No Pix Cielo2, TID e NSU podem não ser fornecidos. O ID Pix aparece após a confirmação do pagamento.
+            </p>
+          </>
+        ) : null}
       </div>
 
       <aside className="grid content-start gap-5">
