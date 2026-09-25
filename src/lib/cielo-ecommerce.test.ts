@@ -200,6 +200,116 @@ describe("cielo-ecommerce", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it("selects a paid Pix attempt even when the saved payment is still pending", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith("/1/sales?merchantOrderId=456")) {
+        return Response.json({
+          Payments: [
+            { PaymentId: "pending-456" },
+            { PaymentId: "paid-456" },
+          ],
+        });
+      }
+
+      if (url.endsWith("/1/sales/paid-456")) {
+        return Response.json({
+          MerchantOrderId: "456",
+          Payment: {
+            PaymentId: "paid-456",
+            Status: 2,
+            Amount: 12990,
+            PaymentType: "Pix",
+            ReceivedDate: "2026-09-23T10:00:00Z",
+          },
+        });
+      }
+
+      return Response.json({
+        MerchantOrderId: "456",
+        Payment: {
+          PaymentId: "pending-456",
+          Status: 12,
+          Amount: 12990,
+          PaymentType: "Pix",
+          ReceivedDate: "2026-09-24T10:00:00Z",
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getNativeCieloCheckoutStatus({
+      paymentId: "pending-456",
+      reference: "456",
+      purchaseId: 456,
+    });
+
+    expect(result).toMatchObject({
+      status: "00",
+      dados: { code: "paid-456", reference: "456", status: 3 },
+      sale: { Payment: { PaymentId: "paid-456" } },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not choose between two confirmed charges for one purchase", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith("/1/sales?merchantOrderId=456")) {
+        return Response.json({
+          Payments: [{ PaymentId: "paid-one" }, { PaymentId: "paid-two" }],
+        });
+      }
+
+      return Response.json({
+        MerchantOrderId: "456",
+        Payment: {
+          PaymentId: url.endsWith("paid-one") ? "paid-one" : "paid-two",
+          Status: 2,
+          Amount: 12990,
+          PaymentType: "Pix",
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getNativeCieloCheckoutStatus({ reference: "456", purchaseId: 456 }),
+    ).rejects.toThrow("cielo_multiple_confirmed_payments:456");
+  });
+
+  it("keeps a confirmed attempt when another listed attempt is no longer found", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith("/1/sales?merchantOrderId=456")) {
+        return Response.json({
+          PaymentId: "missing-456",
+          Payments: [{ PaymentId: "paid-456" }],
+        });
+      }
+      if (url.endsWith("/1/sales/missing-456")) {
+        return Response.json({ message: "not found" }, { status: 404 });
+      }
+      return Response.json({
+        MerchantOrderId: "456",
+        Payment: {
+          PaymentId: "paid-456",
+          Status: 2,
+          Amount: 12990,
+          PaymentType: "Pix",
+        },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getNativeCieloCheckoutStatus({
+      reference: "456",
+      purchaseId: 456,
+    });
+
+    expect(result).toMatchObject({
+      status: "00",
+      dados: { code: "paid-456", status: 3 },
+    });
+  });
+
   it("does not reconcile a sale returned for a different merchant order", async () => {
     const fetchMock = vi
       .fn()

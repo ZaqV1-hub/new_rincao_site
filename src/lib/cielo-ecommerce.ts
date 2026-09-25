@@ -515,18 +515,24 @@ function extractPaymentIds(value: unknown): string[] {
 
   const object = readObject(value);
   const paymentId = getString(object, ["PaymentId", "paymentId"]);
-
-  if (paymentId) {
-    return [paymentId];
-  }
-
   const payments = readArray(object?.Payments ?? object?.payments);
 
-  return payments
-    .map((payment) =>
+  return [
+    ...(paymentId ? [paymentId] : []),
+    ...payments.map((payment) =>
       getString(readObject(payment), ["PaymentId", "paymentId", "Id", "id"]),
-    )
-    .filter(Boolean);
+    ),
+  ].filter(Boolean);
+}
+
+function getSalePaymentId(value: unknown) {
+  const sale = readObject(value);
+  return (
+    getString(readObject(sale?.Payment ?? sale?.payment), [
+      "PaymentId",
+      "paymentId",
+    ]) || getString(sale, ["PaymentId", "paymentId"])
+  );
 }
 
 function getSaleMerchantOrderId(value: unknown) {
@@ -558,16 +564,21 @@ function isCieloNotFoundError(error: unknown) {
 
 async function getSalesByReference(reference: string) {
   const result = await getCieloSaleByMerchantOrderId(reference);
-  const paymentIds = extractPaymentIds(result);
+  const paymentIds = [...new Set(extractPaymentIds(result))];
 
   if (paymentIds.length > 0) {
     const sales = await Promise.all(
       paymentIds.map(async (paymentId) => {
-        return getCieloSaleByPaymentId(paymentId);
+        try {
+          return await getCieloSaleByPaymentId(paymentId);
+        } catch (error) {
+          if (isCieloNotFoundError(error)) return null;
+          throw error;
+        }
       }),
     );
 
-    return sales;
+    return sales.filter((sale) => sale !== null);
   }
 
   if (isSaleShape(result)) {
@@ -635,11 +646,35 @@ export async function getNativeCieloCheckoutStatus({
       if (!isCieloNotFoundError(error) || !reference) {
         throw error;
       }
-
-      sales = await getSalesByReference(reference);
     }
-  } else if (reference) {
-    sales = await getSalesByReference(reference);
+  }
+
+  const savedSale = sales[0];
+  const savedRecord =
+    savedSale && saleMatchesPurchase(savedSale, purchaseId)
+      ? normalizePaymentReconciliationPayload(savedSale, purchaseId)
+      : null;
+
+  // A pending or cancelled saved attempt does not describe the whole order:
+  // another Pix attempt may already have been paid.
+  if (reference && (!savedRecord || savedRecord.purchaseStatus !== "conc")) {
+    try {
+      sales = await getSalesByReference(reference);
+    } catch (error) {
+      if (!savedSale || !isCieloNotFoundError(error)) {
+        throw error;
+      }
+    }
+
+    if (savedSale) {
+      const foundSavedSale = sales.some(
+        (sale) => getSalePaymentId(sale) === paymentId,
+      );
+
+      if (!foundSavedSale) {
+        sales.push(savedSale);
+      }
+    }
   }
 
   sales = sales.filter((sale) => saleMatchesPurchase(sale, purchaseId));
@@ -652,16 +687,28 @@ export async function getNativeCieloCheckoutStatus({
   }
 
   const normalized = sales
-    .map((sale) =>
-      normalizePaymentReconciliationPayload(sale, purchaseId),
-    )
-    .sort((a, b) => b.lastEventDate.getTime() - a.lastEventDate.getTime())
-    .map(recordToLegacyGatewayPayload);
+    .map((sale) => ({
+      sale,
+      record: normalizePaymentReconciliationPayload(sale, purchaseId),
+    }))
+    .sort(
+      (a, b) =>
+        b.record.lastEventDate.getTime() - a.record.lastEventDate.getTime(),
+    );
+  const confirmed = normalized.filter(
+    ({ record }) => record.purchaseStatus === "conc",
+  );
+
+  if (confirmed.length > 1) {
+    throw new Error(`cielo_multiple_confirmed_payments:${purchaseId}`);
+  }
+
+  const selected = confirmed[0] ?? normalized[0];
 
   return {
     status: "00",
-    dados: normalized.length === 1 ? normalized[0] : normalized,
-    sale: sales.length === 1 ? sales[0] : null,
+    dados: recordToLegacyGatewayPayload(selected.record),
+    sale: selected.sale,
   };
 }
 

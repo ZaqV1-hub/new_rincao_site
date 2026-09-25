@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getCieloSaleByPaymentId,
+  getNativeCieloCheckoutStatus,
   isCieloEcommerceConfigured,
 } from "@/lib/cielo-ecommerce";
 import { reconcilePaymentFromGatewayPayload } from "@/lib/payment-reconciliation";
@@ -12,6 +13,7 @@ vi.mock("@/lib/payment-reconciliation", () => ({
 
 vi.mock("@/lib/cielo-ecommerce", () => ({
   getCieloSaleByPaymentId: vi.fn(),
+  getNativeCieloCheckoutStatus: vi.fn(),
   isCieloEcommerceConfigured: vi.fn(() => false),
 }));
 
@@ -45,6 +47,11 @@ describe("checkout-notification-proxy", () => {
       Payment: { PaymentId: "pid-456", Status: 2, Amount: 12000 },
     };
     vi.mocked(getCieloSaleByPaymentId).mockResolvedValue(sale);
+    const orderStatus = {
+      status: "00",
+      dados: { code: "pid-456", reference: "456", status: 3 },
+    };
+    vi.mocked(getNativeCieloCheckoutStatus).mockResolvedValue(orderStatus);
 
     const result = await proxyCheckoutNotification(
       notification({ PaymentId: "pid-456", ChangeType: 1 }),
@@ -56,7 +63,12 @@ describe("checkout-notification-proxy", () => {
       body: "ok",
     });
     expect(getCieloSaleByPaymentId).toHaveBeenCalledWith("pid-456");
-    expect(reconcilePaymentFromGatewayPayload).toHaveBeenCalledWith(sale, 456);
+    expect(getNativeCieloCheckoutStatus).toHaveBeenCalledWith({
+      paymentId: "pid-456",
+      reference: "456",
+      purchaseId: 456,
+    });
+    expect(reconcilePaymentFromGatewayPayload).toHaveBeenCalledWith(orderStatus, 456);
   });
 
   it("uses the gateway status instead of an untrusted notification status", async () => {
@@ -66,6 +78,11 @@ describe("checkout-notification-proxy", () => {
       Payment: { PaymentId: "pid-456", Status: 12, Amount: 12000 },
     };
     vi.mocked(getCieloSaleByPaymentId).mockResolvedValue(sale);
+    const orderStatus = {
+      status: "00",
+      dados: { code: "other-paid-attempt", reference: "456", status: 3 },
+    };
+    vi.mocked(getNativeCieloCheckoutStatus).mockResolvedValue(orderStatus);
 
     const result = await proxyCheckoutNotification(
       notification({
@@ -75,7 +92,7 @@ describe("checkout-notification-proxy", () => {
     );
 
     expect(result.status).toBe(200);
-    expect(reconcilePaymentFromGatewayPayload).toHaveBeenCalledWith(sale, 456);
+    expect(reconcilePaymentFromGatewayPayload).toHaveBeenCalledWith(orderStatus, 456);
   });
 
   it("rejects a payment whose gateway reference differs from the notification", async () => {

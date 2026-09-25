@@ -10,6 +10,7 @@ const getNativeCieloCheckoutStatus = vi.fn();
 const cancelCieloPayment = vi.fn();
 const reconcilePaymentFromGatewayPayload = vi.fn();
 const dbQuery = vi.fn();
+const dbRelease = vi.fn();
 
 vi.mock("@/lib/auth-session", () => ({
   clearAuthCookie,
@@ -33,7 +34,7 @@ vi.mock("@/lib/cielo-ecommerce", () => ({
 
 vi.mock("@/lib/ingresso-db", () => ({
   getIngressoSistemaDbPool: () => ({
-    query: dbQuery,
+    connect: async () => ({ query: dbQuery, release: dbRelease }),
   }),
 }));
 
@@ -148,6 +149,7 @@ describe("checkout-link BFF route", () => {
       94127,
       456,
     ]);
+    expect(dbRelease).toHaveBeenCalledOnce();
   });
 
   it("blocks checkout without falling back when Cielo ecommerce credentials are missing", async () => {
@@ -225,6 +227,15 @@ describe("checkout-link BFF route", () => {
   });
 
   it("voids pending Pix before creating a new Pix payment", async () => {
+    getNativeCieloCheckoutStatus
+      .mockResolvedValueOnce({
+        status: "00",
+        dados: { code: "pid-pix-old", reference: "456", status: 1 },
+      })
+      .mockResolvedValueOnce({
+        status: "00",
+        dados: { code: "pid-pix-old", reference: "456", status: 7 },
+      });
     dbQuery.mockImplementation(async (sql: string) => {
       if (sql.includes("pg_try_advisory_lock")) {
         return { rows: [{ locked: true }] };
@@ -265,5 +276,99 @@ describe("checkout-link BFF route", () => {
       purchaseId: 456,
     });
     expect(createNativeCieloCheckout).toHaveBeenCalled();
+  });
+
+  it("reconciles an earlier paid Pix and does not create or void another payment", async () => {
+    getNativeCieloCheckoutStatus.mockResolvedValue({
+      status: "00",
+      dados: { code: "pid-paid", reference: "456", status: 3 },
+    });
+    dbQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("pg_try_advisory_lock")) {
+        return { rows: [{ locked: true }] };
+      }
+      if (sql.includes("FROM pagpagseguro")) {
+        return {
+          rows: [{
+            idpagseguro: "pid-pix-old",
+            status: 1,
+            paymentmethodtype: 11,
+          }],
+        };
+      }
+      return { rows: [] };
+    });
+
+    const { POST } = await import("@/app/api/checkout/checkout-link/route");
+    const response = await POST(
+      new Request("https://example.com/api/checkout/checkout-link", {
+        method: "POST",
+        body: JSON.stringify({ idcompra: 456, payment: { type: "Pix" } }),
+      }),
+    );
+
+    expect((await response.json()).status).toBe("10");
+    expect(reconcilePaymentFromGatewayPayload).toHaveBeenCalledOnce();
+    expect(cancelCieloPayment).not.toHaveBeenCalled();
+    expect(createNativeCieloCheckout).not.toHaveBeenCalled();
+  });
+
+  it("does not create a new Pix if the previous attempt became refunded", async () => {
+    getNativeCieloCheckoutStatus
+      .mockResolvedValueOnce({
+        status: "00",
+        dados: { code: "pid-pix-old", reference: "456", status: 1 },
+      })
+      .mockResolvedValueOnce({
+        status: "00",
+        dados: { code: "pid-pix-old", reference: "456", status: 6 },
+      });
+    dbQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("pg_try_advisory_lock")) {
+        return { rows: [{ locked: true }] };
+      }
+      if (sql.includes("FROM pagpagseguro")) {
+        return {
+          rows: [{
+            idpagseguro: "pid-pix-old",
+            status: 1,
+            paymentmethodtype: 11,
+          }],
+        };
+      }
+      return { rows: [] };
+    });
+
+    const { POST } = await import("@/app/api/checkout/checkout-link/route");
+    const response = await POST(
+      new Request("https://example.com/api/checkout/checkout-link", {
+        method: "POST",
+        body: JSON.stringify({ idcompra: 456, payment: { type: "Pix" } }),
+      }),
+    );
+
+    expect((await response.json()).status).toBe("10");
+    expect(cancelCieloPayment).toHaveBeenCalledWith("pid-pix-old");
+    expect(createNativeCieloCheckout).not.toHaveBeenCalled();
+  });
+
+  it("does not offer checkout for an already concluded purchase", async () => {
+    getUserVoucherPurchaseById.mockResolvedValue({
+      id: 456,
+      type: "ponli",
+      status: "conc",
+      totalValue: "129.90",
+    });
+
+    const { POST } = await import("@/app/api/checkout/checkout-link/route");
+    const response = await POST(
+      new Request("https://example.com/api/checkout/checkout-link", {
+        method: "POST",
+        body: JSON.stringify({ idcompra: 456, payment: { type: "Pix" } }),
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(createNativeCieloCheckout).not.toHaveBeenCalled();
   });
 });

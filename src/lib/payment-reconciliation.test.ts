@@ -241,4 +241,54 @@ describe("payment-reconciliation", () => {
       true,
     );
   });
+
+  it("does not replace a confirmed charge with a pending different attempt", async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("FROM compra")) {
+          return { rowCount: 1, rows: [{ idcompra: 123, vltotcompra: "120.00" }] };
+        }
+        if (sql.includes("FROM pagpagseguro")) {
+          return {
+            rowCount: 1,
+            rows: [{ idpagseguro: "confirmed-123", status: 3 }],
+          };
+        }
+        return { rowCount: 1, rows: [] };
+      }),
+    };
+
+    const result = await applyPaymentReconciliationRecord(
+      client as unknown as Parameters<typeof applyPaymentReconciliationRecord>[0],
+      baseRecord({
+        gatewayPaymentId: "pending-123",
+        status: 1,
+        purchaseStatus: "pend",
+      }),
+    );
+
+    expect(result).toMatchObject({
+      gatewayPaymentId: "confirmed-123",
+      purchaseStatus: "conc",
+      ledgerAction: "unchanged",
+    });
+    expect(client.query).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a confirmed charge with a different purchase amount", async () => {
+    const client = {
+      query: vi.fn(async () => ({
+        rowCount: 1,
+        rows: [{ idcompra: 123, vltotcompra: "120.00" }],
+      })),
+    };
+
+    await expect(
+      applyPaymentReconciliationRecord(
+        client as unknown as Parameters<typeof applyPaymentReconciliationRecord>[0],
+        baseRecord({ grossAmount: "90.00" }),
+      ),
+    ).rejects.toThrow("payment_amount_mismatch");
+    expect(client.query).toHaveBeenCalledTimes(1);
+  });
 });

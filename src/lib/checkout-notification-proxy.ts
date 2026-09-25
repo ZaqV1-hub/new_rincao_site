@@ -1,5 +1,6 @@
 import {
   getCieloSaleByPaymentId,
+  getNativeCieloCheckoutStatus,
   isCieloEcommerceConfigured,
 } from "@/lib/cielo-ecommerce";
 import { reconcilePaymentFromGatewayPayload } from "@/lib/payment-reconciliation";
@@ -100,7 +101,19 @@ async function tryNativeNotificationReconciliation(rawBody: string) {
     return false;
   }
 
-  await reconcilePaymentFromGatewayPayload(gatewaySale, purchaseId);
+  // Resolve the whole merchant order before writing the ledger. A later
+  // pending attempt must not conceal an earlier confirmed payment.
+  const orderStatus = await getNativeCieloCheckoutStatus({
+    paymentId: identifiers.paymentId,
+    reference: gatewayReference,
+    purchaseId,
+  });
+
+  if (orderStatus.status !== "00") {
+    return false;
+  }
+
+  await reconcilePaymentFromGatewayPayload(orderStatus, purchaseId);
   return true;
 }
 

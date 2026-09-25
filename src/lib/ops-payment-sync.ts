@@ -132,7 +132,6 @@ async function listPaymentSyncCandidates(
         ) pagamento ON true
         WHERE compra.tpcompra = 'ponli'
           AND compra.formapag = 'pgseg'
-          AND compra.stcompra <> 'canc'
           AND (
             ($3::integer IS NOT NULL AND compra.idcompra = $3)
             OR ($3::integer IS NULL AND compra.dtcompra >= CURRENT_DATE - $1::integer)
@@ -142,9 +141,8 @@ async function listPaymentSyncCandidates(
             OR compra.stcompra = 'pend'
           )
           AND (
-            pagamento.status IS NULL
-            OR pagamento.status IN (0, 1, 2, 5, 8, 9, 12)
-            OR compra.stcompra = 'pend'
+            compra.stcompra <> 'conc'
+            OR pagamento.status IS DISTINCT FROM 3
           )
     `;
     const sql = perDayLimit === undefined ?
@@ -160,7 +158,8 @@ async function listPaymentSyncCandidates(
           SELECT ${candidateColumns},
             ROW_NUMBER() OVER (
               PARTITION BY compra.dtcompra::date
-              ORDER BY compra.idcompra DESC
+              ORDER BY CASE WHEN pagamento.idpagseguro IS NULL THEN 1 ELSE 0 END,
+                       compra.idcompra DESC
             ) AS day_rank
           ${candidateSource}
         ) ranked_candidates

@@ -49,7 +49,7 @@ type PaymentReconciliationApplyResult = {
   gatewayPaymentId: string;
   gatewayStatus: number;
   purchaseStatus: GatewayPurchaseStatus;
-  ledgerAction: "inserted" | "updated";
+  ledgerAction: "inserted" | "updated" | "unchanged";
 };
 
 function readObject(value: unknown): Record<string, unknown> | null {
@@ -450,7 +450,7 @@ export async function applyPaymentReconciliationRecord(
   record: PaymentReconciliationRecord,
 ): Promise<PaymentReconciliationApplyResult> {
   const purchase = await client.query(
-    "SELECT idcompra FROM compra WHERE idcompra = $1 FOR UPDATE",
+    "SELECT idcompra, vltotcompra FROM compra WHERE idcompra = $1 FOR UPDATE",
     [record.purchaseId],
   );
 
@@ -458,10 +458,45 @@ export async function applyPaymentReconciliationRecord(
     throw new Error("payment_purchase_not_found");
   }
 
+  if (record.purchaseStatus === "conc") {
+    const expectedAmount = Number(purchase.rows[0]?.vltotcompra);
+    const paidAmount = Number(record.grossAmount);
+
+    if (
+      Number.isFinite(expectedAmount) &&
+      expectedAmount > 0 &&
+      (!Number.isFinite(paidAmount) ||
+        Math.abs(Math.round(expectedAmount * 100) - Math.round(paidAmount * 100)) > 1)
+    ) {
+      throw new Error("payment_amount_mismatch");
+    }
+  }
+
   const existingPayment = await client.query(
-    "SELECT idpagseguro FROM pagpagseguro WHERE idcompra = $1 LIMIT 1",
+    "SELECT idpagseguro, status FROM pagpagseguro WHERE idcompra = $1 LIMIT 1",
     [record.purchaseId],
   );
+  const currentPayment = existingPayment.rows[0] as
+    | { idpagseguro: string; status: number }
+    | undefined;
+
+  // A delayed callback for another attempt cannot overwrite a confirmed
+  // charge. A refund of that same charge is still allowed to change status.
+  if (
+    currentPayment &&
+    mapGatewayStatusToPurchaseStatus(currentPayment.status) === "conc" &&
+    record.purchaseStatus !== "conc" &&
+    (currentPayment.idpagseguro !== record.gatewayPaymentId ||
+      record.purchaseStatus === "pend")
+  ) {
+    return {
+      purchaseId: record.purchaseId,
+      gatewayPaymentId: currentPayment.idpagseguro,
+      gatewayStatus: currentPayment.status,
+      purchaseStatus: "conc",
+      ledgerAction: "unchanged",
+    };
+  }
   const paymentValues = [
     record.purchaseId,
     record.gatewayPaymentId,
@@ -635,7 +670,7 @@ export async function reconcilePaymentFromGatewayPayload(
     client.release();
   }
 
-  if (result.purchaseStatus === "conc") {
+  if (result.purchaseStatus === "conc" && result.ledgerAction !== "unchanged") {
     await processConfirmedPurchaseTickets(result.purchaseId)
       .then(async (ticketResult) => {
         console.info("confirmed-purchase-ticket-processing-result", {

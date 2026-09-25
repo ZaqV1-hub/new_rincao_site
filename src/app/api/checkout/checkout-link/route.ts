@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { PoolClient } from "pg";
 import type { AuthErrorResponse } from "@/lib/auth-contracts";
 import { clearAuthCookie, getAuthSession } from "@/lib/auth-session";
 import {
@@ -51,9 +52,8 @@ function getPaymentType(payload: CheckoutBody) {
   return String(payment.type ?? payment.Type ?? "CreditCard").toLowerCase();
 }
 
-async function getLatestPaymentLedger(purchaseId: number) {
-  const pool = getIngressoSistemaDbPool();
-  const result = await pool.query<PaymentLedgerRow>(
+async function getLatestPaymentLedger(client: PoolClient, purchaseId: number) {
+  const result = await client.query<PaymentLedgerRow>(
     `
       SELECT idpagseguro, status, paymentmethodtype
       FROM pagpagseguro
@@ -67,9 +67,8 @@ async function getLatestPaymentLedger(purchaseId: number) {
   return result.rows[0] ?? null;
 }
 
-async function tryCheckoutLock(purchaseId: number) {
-  const pool = getIngressoSistemaDbPool();
-  const result = await pool.query<{ locked: boolean }>(
+async function tryCheckoutLock(client: PoolClient, purchaseId: number) {
+  const result = await client.query<{ locked: boolean }>(
     "SELECT pg_try_advisory_lock($1, $2) AS locked",
     [94127, purchaseId],
   );
@@ -77,10 +76,22 @@ async function tryCheckoutLock(purchaseId: number) {
   return result.rows[0]?.locked === true;
 }
 
-async function releaseCheckoutLock(purchaseId: number) {
-  const pool = getIngressoSistemaDbPool();
+async function releaseCheckoutLock(client: PoolClient, purchaseId: number) {
+  await client.query("SELECT pg_advisory_unlock($1, $2)", [94127, purchaseId]);
+}
 
-  await pool.query("SELECT pg_advisory_unlock($1, $2)", [94127, purchaseId]);
+function checkoutStatusData(payload: unknown) {
+  if (!payload || typeof payload !== "object") return null;
+  const root = payload as Record<string, unknown>;
+  if (root.status !== "00" || !root.dados || typeof root.dados !== "object") {
+    return null;
+  }
+
+  const dados = root.dados as Record<string, unknown>;
+  const status = Number(dados.status);
+  return Number.isInteger(status)
+    ? { paymentId: String(dados.code ?? ""), status }
+    : null;
 }
 
 async function createNativeCheckoutResponse(
@@ -92,24 +103,34 @@ async function createNativeCheckoutResponse(
       ? (payload.payment as Record<string, unknown>)
       : payload;
   const type = getPaymentType(payload);
-  const locked = await tryCheckoutLock(purchase.id);
-
-  if (!locked) {
-    return NextResponse.json({
-      status: "10",
-      msg: "Pagamento ja esta sendo processado. Aguarde alguns instantes e tente novamente.",
-    });
-  }
+  const client = await getIngressoSistemaDbPool().connect();
+  let locked = false;
 
   try {
-    const latestLedger = await getLatestPaymentLedger(purchase.id);
+    locked = await tryCheckoutLock(client, purchase.id);
+
+    if (!locked) {
+      return NextResponse.json({
+        status: "10",
+        msg: "Pagamento ja esta sendo processado. Aguarde alguns instantes e tente novamente.",
+      });
+    }
+
+    const latestLedger = await getLatestPaymentLedger(client, purchase.id);
     const latestPurchaseStatus = mapGatewayStatusToPurchaseStatus(
       latestLedger?.status ?? null,
     );
 
+    if (latestPurchaseStatus === "conc") {
+      return NextResponse.json({
+        status: "10",
+        msg: "Esta compra ja foi paga. Consulte seus ingressos antes de tentar novamente.",
+      });
+    }
+
     if (
       type !== "pix" &&
-      (latestPurchaseStatus === "pend" || latestPurchaseStatus === "conc")
+      latestPurchaseStatus === "pend"
     ) {
       return NextResponse.json({
         status: "10",
@@ -123,15 +144,58 @@ async function createNativeCheckoutResponse(
       latestPurchaseStatus === "pend" &&
       latestLedger.idpagseguro
     ) {
-      await cancelCieloPayment(latestLedger.idpagseguro);
+      const previousPixStatus = await getNativeCieloCheckoutStatus({
+        paymentId: latestLedger.idpagseguro,
+        reference: String(purchase.id),
+        purchaseId: purchase.id,
+      });
+      const previousPix = checkoutStatusData(previousPixStatus);
+
+      if (!previousPix) {
+        return NextResponse.json({
+          status: "10",
+          msg: "Nao foi possivel confirmar o Pix anterior. Aguarde e tente novamente.",
+        });
+      }
+
+      if (mapGatewayStatusToPurchaseStatus(previousPix.status) === "conc") {
+        await reconcilePaymentFromGatewayPayload(previousPixStatus, purchase.id);
+        return NextResponse.json({
+          status: "10",
+          msg: "Esta compra ja foi paga. Consulte seus ingressos antes de tentar novamente.",
+        });
+      }
+
+      if (
+        mapGatewayStatusToPurchaseStatus(previousPix.status) === "pend" &&
+        previousPix.paymentId === latestLedger.idpagseguro
+      ) {
+        await cancelCieloPayment(latestLedger.idpagseguro);
+      }
+
       const cancelledPixStatus = await getNativeCieloCheckoutStatus({
         paymentId: latestLedger.idpagseguro,
         reference: String(purchase.id),
         purchaseId: purchase.id,
-      }).catch(() => null);
+      });
+      const cancelledPix = checkoutStatusData(cancelledPixStatus);
 
-      if (cancelledPixStatus?.status === "00") {
-        await reconcilePaymentFromGatewayPayload(cancelledPixStatus, purchase.id);
+      if (!cancelledPix) {
+        return NextResponse.json({
+          status: "10",
+          msg: "Nao foi possivel confirmar o Pix anterior. Aguarde e tente novamente.",
+        });
+      }
+
+      await reconcilePaymentFromGatewayPayload(cancelledPixStatus, purchase.id);
+
+      // A refund means the old Pix may have been paid during the retry.
+      // Only a voided/denied attempt can be replaced automatically.
+      if (cancelledPix.status !== 7) {
+        return NextResponse.json({
+          status: "10",
+          msg: "O Pix anterior ainda esta em processamento. Aguarde a confirmacao antes de tentar novamente.",
+        });
       }
     }
 
@@ -152,7 +216,11 @@ async function createNativeCheckoutResponse(
 
     return NextResponse.json(checkout);
   } finally {
-    await releaseCheckoutLock(purchase.id);
+    try {
+      if (locked) await releaseCheckoutLock(client, purchase.id);
+    } finally {
+      client.release();
+    }
   }
 }
 
@@ -205,7 +273,12 @@ export async function POST(request: Request) {
 
     const purchase = await getUserVoucherPurchaseById(user.cpf, purchaseId);
 
-    if (!purchase || purchase.type !== "ponli" || purchase.status === "canc") {
+    if (
+      !purchase ||
+      purchase.type !== "ponli" ||
+      purchase.status === "canc" ||
+      purchase.status === "conc"
+    ) {
       return errorResponse(
         "checkout_unavailable",
         "Esta compra nao esta disponivel para checkout.",
