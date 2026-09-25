@@ -2,12 +2,14 @@
 
 import {
   Document,
+  Image,
   Page,
   StyleSheet,
   Text,
   View,
   renderToBuffer,
 } from "@react-pdf/renderer";
+import { resolve } from "node:path";
 import type { PainelPurchaseDetail } from "@/lib/painel-compras";
 
 const styles = StyleSheet.create({
@@ -27,8 +29,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 12,
   },
-  brand: { width: 120, color: "#1c78ae", fontSize: 16, fontWeight: "bold" },
-  brandCaption: { marginTop: 2, color: "#64798c", fontSize: 7 },
+  brand: { width: 120, height: 55, objectFit: "contain" },
   title: { flexGrow: 1, paddingHorizontal: 8, textAlign: "center", fontSize: 14, fontWeight: "bold" },
   orderBox: { width: 90, border: "1 solid #aebdcb", borderRadius: 4, textAlign: "center", padding: 6 },
   orderLabel: { fontSize: 6, fontWeight: "bold" },
@@ -107,8 +108,10 @@ function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
       <Page size="A4" style={styles.page} wrap={false}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.brand}>Clube &amp; Park Rincão</Text>
-            <Text style={styles.brandCaption}>Pousada e Lazer</Text>
+            <Image
+              src={resolve(process.cwd(), "public", "brand", "rincao-logo.png")}
+              style={styles.brand}
+            />
           </View>
           <Text style={styles.title}>RESUMO DA COMPRA DE INGRESSOS</Text>
           <View style={styles.orderBox}>
