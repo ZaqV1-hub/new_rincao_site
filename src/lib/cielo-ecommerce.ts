@@ -661,6 +661,13 @@ export async function getNativeCieloCheckoutStatus({
     try {
       sales = await getSalesByReference(reference);
     } catch (error) {
+      if (!savedSale && isCieloNotFoundError(error)) {
+        return {
+          status: "30",
+          msgRetorno: "Transacao nao encontrada.",
+        };
+      }
+
       if (!savedSale || !isCieloNotFoundError(error)) {
         throw error;
       }

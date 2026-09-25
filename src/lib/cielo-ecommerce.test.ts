@@ -362,6 +362,30 @@ describe("cielo-ecommerce", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("returns not found when both the saved payment and merchant order return 404", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ message: "not found" }, { status: 404 }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ message: "not found" }, { status: 404 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getNativeCieloCheckoutStatus({
+        paymentId: "legacy-payment-id",
+        reference: "456",
+        purchaseId: 456,
+      }),
+    ).resolves.toMatchObject({
+      status: "30",
+      msgRetorno: "Transacao nao encontrada.",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("creates native Cielo checkout payloads", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json({
