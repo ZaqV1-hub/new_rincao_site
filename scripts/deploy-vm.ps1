@@ -124,14 +124,14 @@ if (-not (Test-Path -LiteralPath $releaseRoot)) {
 }
 
 function Wait-RuntimeHealth {
-  param([int]$Port, [int]$TimeoutSeconds = 45)
+  param([int]$Port, [int]$TimeoutSeconds = 90)
 
-  $healthUrl = "http://127.0.0.1:$Port/"
+  $healthUrl = "http://127.0.0.1:$Port/robots.txt"
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 
   while ((Get-Date) -lt $deadline) {
     try {
-      $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 $healthUrl
+      $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 $healthUrl
       if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
         return
       }
@@ -144,13 +144,13 @@ function Wait-RuntimeHealth {
 }
 
 function Wait-PublicHealth {
-  param([string]$Url, [int]$TimeoutSeconds = 45)
+  param([string]$Url, [int]$TimeoutSeconds = 90)
 
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 
   while ((Get-Date) -lt $deadline) {
     try {
-      $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 $Url
+      $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 $Url
       if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
         return
       }
@@ -173,7 +173,7 @@ try {
     Restart-WebAppPool -Name ([string]$config.IisAppPool)
   }
 
-  Wait-PublicHealth -Url ([string]$config.Domain)
+  Wait-PublicHealth -Url ([string]$config.Domain + "robots.txt")
 } catch {
   $deployError = $_
   if ($previousRelease -and (Test-Path -LiteralPath (Join-Path $previousRelease "server.js"))) {
