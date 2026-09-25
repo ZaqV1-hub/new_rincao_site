@@ -6,9 +6,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbPool: () => ({
     query: mocks.query,
   }),
+  getIngressoDbPool: () => ({ query: mocks.query }),
 }));
 
 describe("ops-school-trip-report", () => {

@@ -19,16 +19,19 @@ describe("ingresso/escola/acesso/plink/[plink] route", () => {
 
   it("streams the public school report pdf by permalink", async () => {
     getPublicSchoolTripReportByPermalink.mockResolvedValue({
-      trip: {
-        code: "ABC123",
-        date: "2026-05-20",
-        schoolName: "ESCOLA TESTE",
+      kind: "school",
+      report: {
+        trip: {
+          code: "ABC123",
+          date: "2026-05-20",
+          schoolName: "ESCOLA TESTE",
+        },
+        filters: { purchaseStatus: "conc" },
+        indicators: {},
+        statusOptions: [],
+        students: [],
+        educators: [],
       },
-      filters: { purchaseStatus: "conc" },
-      indicators: {},
-      statusOptions: [],
-      students: [],
-      educators: [],
     });
     renderOpsSchoolTripReportPdfBuffer.mockResolvedValue(Buffer.from("%PDF-fake"));
 

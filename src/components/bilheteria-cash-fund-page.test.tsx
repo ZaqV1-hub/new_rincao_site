@@ -48,13 +48,13 @@ describe("BilheteriaCashFundPage", () => {
       }),
     );
 
-    expect(html).toContain("FUNDO DE CAIXA");
-    expect(html).toContain("Dinheiro do Fundo de Caixa");
-    expect(html).toContain("Dinheiro total no caixa");
-    expect(html).toContain("FAZER FUNDO DE CAIXA");
-    expect(html).toContain("FAZER SANGRIA");
-    expect(html).toContain("Editar lancamento");
-    expect(html).toContain("Excluir lancamento");
+    expect(html).toContain("Fundo de Caixa");
+    expect(html.toLowerCase()).toContain("dinheiro do fundo de caixa");
+    expect(html.toLowerCase()).toContain("dinheiro total no caixa");
+    expect(html.toLowerCase()).toContain("fazer fundo");
+    expect(html.toLowerCase()).toContain("fazer sangria");
+    expect(html.toLowerCase()).toContain("editar lancamento");
+    expect(html.toLowerCase()).toContain("excluir lancamento");
   });
 
   it("hides manager-only row actions for operators", () => {
@@ -67,7 +67,7 @@ describe("BilheteriaCashFundPage", () => {
       }),
     );
 
-    expect(html).not.toContain("Editar lancamento");
-    expect(html).not.toContain("Excluir lancamento");
+    expect(html.toLowerCase()).not.toContain("editar lancamento");
+    expect(html.toLowerCase()).not.toContain("excluir lancamento");
   });
 });

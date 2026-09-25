@@ -14,13 +14,14 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbPool: () => ({
     query: mocks.query,
     connect: async () => ({
       query: mocks.query,
       release: mocks.release,
     }),
   }),
+  getIngressoDbPool: () => ({ query: mocks.query }),
 }));
 
 vi.mock("@/lib/ops-audit-log", () => ({

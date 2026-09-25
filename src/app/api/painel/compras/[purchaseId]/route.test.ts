@@ -42,7 +42,7 @@ describe("GET /api/painel/compras/[purchaseId]", () => {
 
     expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
-      ["vis_compra", "vis_bilhet"],
+      "vis_compra",
     );
     expect(getPainelPurchaseDetail).toHaveBeenCalledWith(551);
     expect(response.status).toBe(200);

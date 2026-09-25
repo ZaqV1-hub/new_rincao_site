@@ -14,7 +14,7 @@ vi.mock("@/lib/rincao-content-store", () => ({
         type: "passport",
         title: "Adulto",
         subtitle: "Ingresso adulto",
-        description: "Ingresso adulto para a data selecionada.",
+        description: "A partir de 12 anos.",
         imageSrc: "/theme/clube-park-rincao.jpg",
         sitePrice: "100.00",
         boxOfficePrice: "100.00",
@@ -28,7 +28,7 @@ vi.mock("@/lib/rincao-content-store", () => ({
         type: "passport",
         title: "Criança",
         subtitle: "Ingresso infantil",
-        description: "Ingresso infantil para a data selecionada.",
+        description: "De 4 a 9 anos.",
         imageSrc: "/theme/clube-park-rincao.jpg",
         sitePrice: "70.00",
         boxOfficePrice: "70.00",
@@ -42,7 +42,7 @@ vi.mock("@/lib/rincao-content-store", () => ({
         type: "passport",
         title: "Isento",
         subtitle: "Entrada sem cobrança",
-        description: "Ingresso isento para a data selecionada.",
+        description: "De 0 a 3 anos.",
         imageSrc: "/theme/clube-park-rincao.jpg",
         sitePrice: "0.00",
         boxOfficePrice: "0.00",
@@ -70,6 +70,9 @@ describe("b2c catalog", () => {
     ]);
     expect((await listB2cAddons()).map((product) => product.id)).toEqual([]);
     expect((await getB2cProduct("ingresso-adulto"))?.title).toBe("Adulto");
+    expect((await getB2cProduct("ingresso-adulto"))?.description).toBe(
+      "A partir de 12 anos.",
+    );
   });
 
   it("calculates cart totals and requires at least one ticket", async () => {

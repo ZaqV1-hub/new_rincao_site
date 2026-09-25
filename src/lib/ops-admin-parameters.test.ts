@@ -6,6 +6,7 @@ describe("ops-admin-parameters", () => {
     const definitions = getOpsAdminParameterDefinitions();
 
     expect(definitions.map((definition) => definition.id).sort()).toEqual([
+      "codcash",
       "codine",
       "codval",
       "codven",

@@ -50,7 +50,7 @@ describe("/painel root route", () => {
     expect(requirePainelSession).toHaveBeenCalledWith("/painel");
     expect(loadPainelHomePageData).toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
-    expect(html).toContain("Visao geral");
+    expect(html).toContain("Visão geral");
     expect(html).toContain("Resumo financeiro do dia");
   });
 

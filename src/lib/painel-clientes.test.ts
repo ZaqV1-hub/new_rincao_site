@@ -8,9 +8,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbPool: () => ({
     connect: mocks.connect,
   }),
+  getIngressoDbPool: () => ({ connect: mocks.connect }),
 }));
 
 describe("painel-clientes", () => {

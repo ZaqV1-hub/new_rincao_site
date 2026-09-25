@@ -3,17 +3,17 @@ import { buildPageMetadata } from "@/lib/site-metadata";
 import { contact, getInfoPage } from "@/lib/site-content";
 
 describe("site branding", () => {
-  it("uses Rincao in public metadata", () => {
+  it("uses Rincão in public metadata", () => {
     const metadata = buildPageMetadata("agenda");
 
-    expect(metadata.title).toContain("Rincao");
-    expect(metadata.openGraph?.siteName).toContain("Rincao");
-    expect(metadata.twitter?.title).toContain("Rincao");
+    expect(metadata.title).toContain("Rincão");
+    expect(metadata.openGraph?.siteName).toContain("Rincão");
+    expect(metadata.twitter?.title).toContain("Rincão");
   });
 
-  it("uses Rincao in core public content", () => {
-    expect(contact.company).toContain("Rincao");
-    expect(contact.email).not.toContain("cluberincao");
-    expect(getInfoPage("quem-somos").seoTitle).toContain("Rincao");
+  it("uses Rincão in core public content", () => {
+    expect(contact.company).toContain("Rincão");
+    expect(contact.email).toBe("atendimento@cluberincao.com.br");
+    expect(getInfoPage("quem-somos").seoTitle).toContain("Rincão");
   });
 });

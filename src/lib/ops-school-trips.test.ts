@@ -13,9 +13,10 @@ const { query, connect, release, registerOpsAuditLog } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbPool: () => ({
     connect,
   }),
+  getIngressoDbPool: () => ({ connect }),
 }));
 
 vi.mock("@/lib/ops-audit-log", () => ({
@@ -123,7 +124,7 @@ describe("ops-school-trips", () => {
       }
 
       if (sql.includes("FROM agenda") && sql.includes("WHERE agenda.dtagenda = $1")) {
-        expect(values).toEqual(["2026-06-15"]);
+        expect(values).toEqual(["2099-06-15"]);
         return {
           rows: [
             {
@@ -156,7 +157,7 @@ describe("ops-school-trips", () => {
       createOpsSchoolTripDate(
         {
           schoolId: 12,
-          visitDate: "15/06/2026",
+          visitDate: "15/06/2099",
           actor: {
             name: "Operador",
           },

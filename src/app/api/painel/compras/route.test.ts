@@ -66,7 +66,7 @@ describe("GET /api/painel/compras", () => {
 
     expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
-      ["vis_compra", "vis_bilhet"],
+      "vis_compra",
     );
     expect(listPainelPurchases).toHaveBeenCalledWith({
       page: "1",

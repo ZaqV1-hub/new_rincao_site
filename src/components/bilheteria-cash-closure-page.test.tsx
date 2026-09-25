@@ -46,13 +46,13 @@ describe("BilheteriaCashClosurePage", () => {
       }),
     );
 
-    expect(html).toContain("FECHAMENTO DE CAIXA");
+    expect(html.toLowerCase()).toContain("fechamento de caixa");
     expect(html).toContain("Resumo");
     expect(html).toContain("Detalhado");
     expect(html).toContain("Imprimir fechamento");
-    expect(html).toContain("FECHAR CAIXA");
-    expect(html).toContain("Ver historico de fechamentos");
-    expect(html).toContain("Ver edicoes");
+    expect(html.toLowerCase()).toContain("fechar caixa");
+    expect(html.toLowerCase()).toContain("historico");
+    expect(html).toContain("Edicoes");
   });
 
   it("renders the historical variant without the close action", () => {

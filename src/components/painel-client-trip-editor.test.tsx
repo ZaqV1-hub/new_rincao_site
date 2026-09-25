@@ -69,8 +69,8 @@ describe("PainelClientTripEditor", () => {
     );
 
     expect(html).toContain("Vincular passeio");
-    expect(html).toContain("Aceita familia?");
-    expect(html).toContain("Faixas de preco");
+    expect(html).toContain("Aceita família?");
+    expect(html).toContain("Faixas de preço");
     expect(html).toContain("Adicionar faixa");
     expect(html).toContain("Vincular");
   });
@@ -85,7 +85,7 @@ describe("PainelClientTripEditor", () => {
     expect(html).toContain("Editar passeio");
     expect(html).toContain("Alterar data do passeio");
     expect(html).toContain("Mover para data selecionada");
-    expect(html).toContain("Salvar alteracoes");
+    expect(html).toContain("Salvar alterações");
     expect(html).toContain("ABRAHAO DE MORAES PROF. E.E.");
     expect(html).toContain("10/05/2026");
   });

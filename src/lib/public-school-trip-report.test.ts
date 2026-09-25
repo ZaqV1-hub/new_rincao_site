@@ -7,9 +7,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoDbPool: () => ({
+  getIngressoSistemaDbPool: () => ({
     query: mocks.query,
   }),
+  getIngressoDbPool: () => ({ query: mocks.query }),
 }));
 
 vi.mock("@/lib/ops-school-trip-report", () => ({
@@ -43,13 +44,16 @@ describe("public-school-trip-report", () => {
     await expect(
       getPublicSchoolTripReportByPermalink("abc123slug"),
     ).resolves.toMatchObject({
-      trip: {
-        agendaId: 2306,
-        schoolId: 464,
-        schoolName: "ESCOLA TESTE",
-      },
-      filters: {
-        purchaseStatus: "conc",
+      kind: "school",
+      report: {
+        trip: {
+          agendaId: 2306,
+          schoolId: 464,
+          schoolName: "ESCOLA TESTE",
+        },
+        filters: {
+          purchaseStatus: "conc",
+        },
       },
     });
     expect(mocks.getOpsSchoolTripReport).toHaveBeenCalledWith({

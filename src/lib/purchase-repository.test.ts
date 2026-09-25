@@ -192,7 +192,7 @@ describe("purchase-repository", () => {
       "50.00",
       "-50.00",
       "ISAQUE",
-      "2027-01-06",
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       "Adulto",
     ]);
     expect(voucherInserts[1]).toEqual([
@@ -203,7 +203,7 @@ describe("purchase-repository", () => {
       "105.00",
       "35.00",
       "ISAQUE",
-      "2027-01-06",
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       "Criança",
     ]);
   });

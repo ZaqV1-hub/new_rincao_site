@@ -216,7 +216,7 @@ export function PainelCompraDetailPage({
 
       <aside className="grid content-start gap-5">
         <div className="rounded-[6px] border border-[#d4dde5] bg-white p-5 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
-          <h2 className="text-lg font-semibold text-[#205a7f]">A??es</h2>
+          <h2 className="text-lg font-semibold text-[#205a7f]">Ações</h2>
           <ul className="mt-4 grid gap-3 text-sm">
             <li>
               <Link className="text-[#1d68a2] underline" href="/painel/compras">

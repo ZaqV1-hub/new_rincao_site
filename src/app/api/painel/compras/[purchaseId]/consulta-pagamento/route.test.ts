@@ -45,7 +45,7 @@ describe("GET /api/painel/compras/[purchaseId]/consulta-pagamento", () => {
 
     expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
-      ["vis_compra", "vis_bilhet"],
+      "vis_compra",
     );
     expect(getPainelPurchaseGatewayConsult).toHaveBeenCalledWith(551);
     expect(response.status).toBe(200);

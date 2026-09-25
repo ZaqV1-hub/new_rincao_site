@@ -37,7 +37,7 @@ describe("painel-bilheteria-route", () => {
 
     expect(authorizeOpsRouteAccess).toHaveBeenCalledWith(request, {
       requiredPermission: "ops.purchases",
-      painelPermissions: ["vis_compra", "vis_bilhet"],
+      painelPermissions: ["vis_bilhet"],
     });
     expect(result).toEqual({
       ok: false,
@@ -140,7 +140,7 @@ describe("painel-bilheteria-route", () => {
 
     expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
-      ["vis_compra", "vis_bilhet"],
+      ["vis_bilhet"],
     );
     expect(readRouteActor).toHaveBeenCalledWith({
       name: "Operador",

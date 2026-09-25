@@ -58,7 +58,7 @@ describe("painel/bilheteria/reservations/[purchaseId]/pay BFF route", () => {
     expect(response.status).toBe(403);
     expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
-      ["vis_compra", "vis_bilhet"],
+      ["vis_bilhet"],
     );
   });
 
@@ -99,7 +99,7 @@ describe("painel/bilheteria/reservations/[purchaseId]/pay BFF route", () => {
 
     expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
-      ["vis_compra", "vis_bilhet"],
+      ["vis_bilhet"],
     );
     expect(payPainelBilheteriaReservation).toHaveBeenCalledWith({
       purchaseId: 10,

@@ -78,7 +78,7 @@ describe("school-contracts", () => {
       if (sql.includes("INSERT INTO contrato_escolar_agendamento")) {
         expect(values?.[0]).toBe(12);
         expect(values?.[1]).toBe(12);
-        expect(values?.[2]).toBe("2026-09-10");
+        expect(values?.[2]).toBe("2099-09-10");
         expect(values?.[4]).toBe(5);
         expect(values?.[5]).toBe("Maria Escola");
         expect(values?.[6]).toBe("maria@escola.test");
@@ -111,7 +111,7 @@ describe("school-contracts", () => {
 
     const result = await createSchoolContract({
       schoolId: 12,
-      visitDate: "2026-09-10",
+      visitDate: "2099-09-10",
       representativeId: 5,
       responsibleName: "Responsavel",
       responsiblePhone: "11999999999",
@@ -152,8 +152,8 @@ describe("school-contracts", () => {
               escola_nome: "Escola Rincao",
               escola_endereco: null,
               cliente_id: 44,
-              data_passeio: "2026-09-10",
-              data_passeio_fmt: "10/09/2026",
+              data_passeio: "2099-09-10",
+              data_passeio_fmt: "10/09/2099",
               representante_id: 5,
               representante_nome: "Maria Escola",
               representante_email: "maria@escola.test",
@@ -185,7 +185,7 @@ describe("school-contracts", () => {
     await expect(getSchoolContractApproval(token)).resolves.toMatchObject({
       status: "ready",
       schoolName: "Escola Rincao",
-      visitDateLabel: "10/09/2026",
+      visitDateLabel: "10/09/2099",
     });
   });
 
@@ -213,8 +213,8 @@ describe("school-contracts", () => {
               escola_nome: "Escola Rincao",
               escola_endereco: null,
               cliente_id: 44,
-              data_passeio: "2026-09-10",
-              data_passeio_fmt: "10/09/2026",
+              data_passeio: "2099-09-10",
+              data_passeio_fmt: "10/09/2099",
               representante_id: 5,
               representante_nome: "Maria Escola",
               representante_email: "maria@escola.test",

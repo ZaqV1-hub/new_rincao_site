@@ -352,11 +352,23 @@ function normalizeManagedProduct(item: B2cProduct, fallback: B2cProduct) {
     item.boxOfficePrice ?? item.sitePrice ?? item.fixedPrice ?? fallback.boxOfficePrice,
   );
 
+  const savedDescription = repairMojibakeText(item.description, fallback.description);
+  const oldDefaultDescriptions: Record<string, string> = {
+    "ingresso-adulto": "Ingresso adulto para a data selecionada.",
+    "ingresso-crianca": "Ingresso infantil para a data selecionada.",
+    "ingresso-isento": "Ingresso isento para a data selecionada.",
+  };
+  const description =
+    stripAccents(savedDescription) ===
+    stripAccents(oldDefaultDescriptions[item.id] ?? "")
+      ? fallback.description
+      : savedDescription;
+
   return {
     ...item,
     title: repairMojibakeText(item.title, fallback.title),
     subtitle: repairMojibakeText(item.subtitle, fallback.subtitle),
-    description: repairMojibakeText(item.description, fallback.description),
+    description,
     imageSrc: normalizeManagedImageSrc(item.imageSrc, fallback.imageSrc),
     sitePrice,
     boxOfficePrice,

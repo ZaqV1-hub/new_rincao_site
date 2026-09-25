@@ -70,11 +70,11 @@ describe("PainelCompraVouchersPage", () => {
       }),
     );
 
-    expect(html).toContain("Passaporte SITE");
+    expect(html).toContain("Passaporte");
     expect(html).toContain("&gt;</span><span>Vouchers</span>");
-    expect(html).toContain("Passaporte</th>");
+    expect(html).toContain("Ingresso</th>");
     expect(html).toContain("ABC-123");
-    expect(html).toContain("Passaporte</option>");
+    expect(html).toContain("Adulto</option>");
     expect(html).toContain("Remover Filtros");
     expect(html).toContain("Exportar (.xls)");
   });

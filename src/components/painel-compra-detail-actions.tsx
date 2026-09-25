@@ -92,6 +92,14 @@ export function PainelCompraDetailActions({
           >
             Imprimir QR-Codes
           </a>
+          <a
+            className="inline-flex items-center justify-center rounded-full bg-[#173f68] px-4 py-2 font-semibold text-white"
+            href={`/api/painel/compras/${purchaseId}/resumo`}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Gerar Resumo
+          </a>
           <button
             className="inline-flex items-center justify-center rounded-full bg-[#25D366] px-4 py-2 font-semibold text-white disabled:opacity-60"
             disabled={voucherIds.length === 0}
