@@ -162,14 +162,14 @@ function Wait-PublicHealth {
   throw "Dominio publico nao respondeu com sucesso em $Url."
 }
 
-function Warm-RuntimeHome {
-  param([int]$Port, [int]$TimeoutSeconds = 60)
+function Warm-PublicHome {
+  param([string]$Url, [int]$TimeoutSeconds = 60)
 
-  $homeUrl = "http://127.0.0.1:$Port/"
+  $homeUrl = $Url.TrimEnd("/") + "/"
   $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec $TimeoutSeconds $homeUrl
 
   if ($response.StatusCode -lt 200 -or $response.StatusCode -ge 400) {
-    throw "Home SSR nao aqueceu com sucesso em $homeUrl."
+    throw "Home publica nao aqueceu com sucesso em $homeUrl."
   }
 }
 
@@ -185,7 +185,7 @@ try {
   }
 
   Wait-PublicHealth -Url ([string]$config.Domain + "robots.txt")
-  Warm-RuntimeHome -Port ([int]$config.Port)
+  Warm-PublicHome -Url ([string]$config.Domain)
 } catch {
   $deployError = $_
   if ($previousRelease -and (Test-Path -LiteralPath (Join-Path $previousRelease "server.js"))) {
