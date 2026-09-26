@@ -54,7 +54,7 @@ export const DEFAULT_B2C_PRODUCTS: B2cProduct[] = [
     type: "passport",
     title: "Criança",
     subtitle: "Ingresso infantil",
-    description: "De 4 a 9 anos.",
+    description: "De 4 a 11 anos.",
     imageSrc: "/theme/clube-park-rincao.jpg",
     sitePrice: "70.00",
     boxOfficePrice: "70.00",

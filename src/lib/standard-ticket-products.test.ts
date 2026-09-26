@@ -20,5 +20,10 @@ describe("buildStandardTicketProducts", () => {
       "ingresso-crianca",
       "ingresso-isento",
     ]);
+    expect(products.map((product) => product.description)).toEqual([
+      "A partir de 12 anos.",
+      "De 4 a 11 anos.",
+      "De 0 a 3 anos.",
+    ]);
   });
 });
