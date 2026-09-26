@@ -61,7 +61,7 @@ try {
   const result = await client.query(
     `
       SELECT compra.idcompra, compra.tpcompra, compra.stcompra,
-             compra.dtcompra, compra.vltotcompra,
+             compra.dtcompra::text AS dtcompra, compra.vltotcompra,
              pagpagseguro.idpagseguro, pagpagseguro.status,
              pagpagseguro."grossAmount" AS gross_amount
       FROM compra
@@ -77,7 +77,10 @@ try {
   }
 
   const row = result.rows[0];
-  const purchaseDate = String(row.dtcompra).slice(0, 10);
+  const rawPurchaseDate = String(row.dtcompra).slice(0, 10);
+  const purchaseDate = /^\d{2}\/\d{2}\/\d{4}$/.test(rawPurchaseDate)
+    ? rawPurchaseDate.split("/").reverse().join("-")
+    : rawPurchaseDate;
 
   if (
     String(row.tpcompra).trim() !== "ponli" ||
