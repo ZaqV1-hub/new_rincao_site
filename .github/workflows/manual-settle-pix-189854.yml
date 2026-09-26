@@ -1,0 +1,47 @@
+name: One-time manual Pix settlement (purchase 189854)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  settle:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - name: Configure SSH
+        shell: pwsh
+        env:
+          VM_SSH_PRIVATE_KEY: ${{ secrets.RINCAO_VM_SSH_KEY }}
+        run: |
+          $sshRoot = Join-Path $HOME ".ssh"
+          New-Item -ItemType Directory -Force -Path $sshRoot | Out-Null
+          $keyPath = Join-Path $sshRoot "id_ed25519"
+          $keyText = $env:VM_SSH_PRIVATE_KEY.Replace("`r", "").TrimEnd([char]10) + "`n"
+          [IO.File]::WriteAllText($keyPath, $keyText, [Text.UTF8Encoding]::new($false))
+          chmod 600 $keyPath
+          ssh-keygen -y -f $keyPath | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Chave SSH de deploy invalida." }
+          Set-Content -LiteralPath (Join-Path $sshRoot "known_hosts") -Value "vpsw2762.publiccloud.com.br ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP00dVds/2IZo5N04TEh63Ux/LAs4tK4RngUSSXXmdd4"
+
+      - name: Mark only purchase 189854 as paid and audit the override
+        shell: pwsh
+        run: |
+          $remoteScript = @'
+          $ErrorActionPreference = "Stop"
+          $repo = "C:\Deploy\Rincao\prod\repo"
+          if (-not (Test-Path -LiteralPath (Join-Path $repo "scripts\manual-settle-pix-189854.mjs"))) {
+            throw "Script de baixa manual nao encontrado na producao."
+          }
+          Set-Location -LiteralPath $repo
+          node .\scripts\manual-settle-pix-189854.mjs
+          if ($LASTEXITCODE -ne 0) { throw "Baixa manual da compra 189854 falhou; confira a auditoria antes de tentar novamente." }
+          '@
+
+          $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($remoteScript))
+          ssh -o BatchMode=yes -o ConnectTimeout=10 "Administrator@vpsw2762.publiccloud.com.br" powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand $encodedCommand
+          if ($LASTEXITCODE -ne 0) { throw "Baixa manual remota falhou com codigo $LASTEXITCODE." }

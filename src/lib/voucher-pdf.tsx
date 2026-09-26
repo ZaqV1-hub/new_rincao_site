@@ -10,6 +10,7 @@ import {
   renderToBuffer,
 } from "@react-pdf/renderer";
 import type { UserVoucherPurchase } from "@/lib/voucher-contracts";
+import { formatCpf } from "@/lib/cpf";
 
 export type VoucherPdfVoucher = {
   id: number;
@@ -30,7 +31,7 @@ type VoucherPdfInput = {
   >;
   customer: {
     name: string;
-    cpfMasked: string;
+    cpf: string;
   };
   vouchers: VoucherPdfVoucher[];
   information: string | null;
@@ -254,7 +255,7 @@ function VoucherDocument({
                       </Text>
                       <Text>
                         <Text style={styles.primaryValue}>CPF: </Text>
-                        {input.customer.cpfMasked}
+                        {formatCpf(input.customer.cpf)}
                       </Text>
                     </>
                   )}

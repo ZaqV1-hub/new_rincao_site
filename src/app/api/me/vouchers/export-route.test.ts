@@ -160,7 +160,7 @@ describe("me/vouchers export BFF route", () => {
       }),
       customer: {
         name: "Cliente Teste",
-        cpfMasked: "529.***.***-25",
+        cpf: "52998224725",
       },
       vouchers: [
         expect.objectContaining({

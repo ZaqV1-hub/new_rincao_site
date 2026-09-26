@@ -110,7 +110,7 @@ export async function GET(
       purchase: exportData.purchase,
       customer: {
         name: user.name,
-        cpfMasked: user.cpfMasked,
+        cpf: user.cpf,
       },
       vouchers,
       information: exportData.information,
