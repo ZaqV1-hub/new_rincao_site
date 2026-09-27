@@ -313,6 +313,10 @@ export async function updatePainelUsuario(cpf: unknown, values: PainelUsuarioFor
     throw new PainelUsuariosError("invalid_user_role", "Informe um papel valido.", 400);
   }
 
+  const senha = normalizeText(values.senha);
+  const csenha = normalizeText(values.csenha);
+  const passwordValues = senha || csenha ? (validatePasswordPair(senha, csenha), { password: senha }) : {};
+
   return updateOpsAdminMasterData("internal-users", {
     id: normalizedCpf,
     values: {
@@ -321,6 +325,7 @@ export async function updatePainelUsuario(cpf: unknown, values: PainelUsuarioFor
       email,
       roleId: idpapel,
       status: normalizeStatus(values.stusuario) || "ati",
+      ...passwordValues,
     },
   });
 }

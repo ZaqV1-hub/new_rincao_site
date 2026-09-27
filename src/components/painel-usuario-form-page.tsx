@@ -206,26 +206,63 @@ export function PainelUsuarioFormPage({
                       </td>
                     </tr>
                     {mode === "edit" ? (
-                      <tr>
-                        <th className="border border-[#d7d7d7] bg-[#f7f7f7] px-4 py-3 font-semibold text-[#5a5a5a]">
-                          Status
-                        </th>
-                        <td className="border border-[#d7d7d7] px-4 py-3">
-                          <select
-                            className="w-full border border-[#d3dbe3] px-3 py-3"
-                            onChange={(event) =>
-                              setForm((current) => ({
-                                ...current,
-                                stusuario: event.target.value,
-                              }))
-                            }
-                            value={form.stusuario}
-                          >
-                            <option value="ati">Ativo</option>
-                            <option value="ina">Inativo</option>
-                          </select>
-                        </td>
-                      </tr>
+                      <>
+                        <tr>
+                          <th className="border border-[#d7d7d7] bg-[#f7f7f7] px-4 py-3 font-semibold text-[#5a5a5a]">
+                            Status
+                          </th>
+                          <td className="border border-[#d7d7d7] px-4 py-3">
+                            <select
+                              className="w-full border border-[#d3dbe3] px-3 py-3"
+                              onChange={(event) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  stusuario: event.target.value,
+                                }))
+                              }
+                              value={form.stusuario}
+                            >
+                              <option value="ati">Ativo</option>
+                              <option value="ina">Inativo</option>
+                            </select>
+                          </td>
+                        </tr>
+                        <tr>
+                          <th className="border border-[#d7d7d7] bg-[#f7f7f7] px-4 py-3 font-semibold text-[#5a5a5a]">
+                            Nova senha
+                          </th>
+                          <td className="border border-[#d7d7d7] px-4 py-3">
+                            <input
+                              autoComplete="new-password"
+                              className="w-full border border-[#d3dbe3] px-3 py-3"
+                              onChange={(event) =>
+                                setForm((current) => ({ ...current, senha: event.target.value }))
+                              }
+                              type="password"
+                              value={form.senha}
+                            />
+                            <p className="mt-2 text-sm text-[#666]">
+                              Deixe em branco para manter a senha atual.
+                            </p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <th className="border border-[#d7d7d7] bg-[#f7f7f7] px-4 py-3 font-semibold text-[#5a5a5a]">
+                            Confirmar nova senha
+                          </th>
+                          <td className="border border-[#d7d7d7] px-4 py-3">
+                            <input
+                              autoComplete="new-password"
+                              className="w-full border border-[#d3dbe3] px-3 py-3"
+                              onChange={(event) =>
+                                setForm((current) => ({ ...current, csenha: event.target.value }))
+                              }
+                              type="password"
+                              value={form.csenha}
+                            />
+                          </td>
+                        </tr>
+                      </>
                     ) : (
                       <>
                         <tr>
