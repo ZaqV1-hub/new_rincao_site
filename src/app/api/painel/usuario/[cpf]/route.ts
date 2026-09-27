@@ -5,6 +5,8 @@ import { runPainelUsuariosRoute } from "@/lib/painel-usuarios-route";
 export const runtime = "nodejs";
 
 type UsuarioPayload = {
+  senha?: unknown;
+  csenha?: unknown;
   nmusuario?: unknown;
   email?: unknown;
   idpapel?: unknown;
@@ -20,8 +22,8 @@ export async function PATCH(
     run: ({ params, payload }) =>
       updatePainelUsuario(params.cpf, {
         cpf: params.cpf,
-        senha: "",
-        csenha: "",
+        senha: typeof payload?.senha === "string" ? payload.senha : "",
+        csenha: typeof payload?.csenha === "string" ? payload.csenha : "",
         nmusuario: typeof payload?.nmusuario === "string" ? payload.nmusuario : "",
         email: typeof payload?.email === "string" ? payload.email : "",
         idpapel:
