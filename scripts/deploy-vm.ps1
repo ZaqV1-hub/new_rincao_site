@@ -22,6 +22,8 @@ $settings = @{
     SharedRoot = "C:\SitesData\Rincao\prod"
     DeploymentRoot = "C:\Deploy\Rincao\prod"
     LegacyRoot = "C:\Sites\AzureIIS\Novo_Site_do_Rincao"
+    RuntimeHealthTimeoutSeconds = 90
+    HomeWarmupTimeoutSeconds = 60
   }
   hml = @{
     Port = 8062
@@ -31,6 +33,8 @@ $settings = @{
     SharedRoot = "C:\SitesData\Rincao\hml"
     DeploymentRoot = "C:\Deploy\Rincao\hml"
     LegacyRoot = "C:\Sites\AzureIIS\Novo_Site_do_Rincao_HML"
+    RuntimeHealthTimeoutSeconds = 240
+    HomeWarmupTimeoutSeconds = 120
   }
 }
 
@@ -166,18 +170,29 @@ function Warm-PublicHome {
   param([string]$Url, [int]$TimeoutSeconds = 60)
 
   $homeUrl = $Url.TrimEnd("/") + "/"
-  $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec $TimeoutSeconds $homeUrl
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  $lastError = $null
 
-  if ($response.StatusCode -lt 200 -or $response.StatusCode -ge 400) {
-    throw "Home publica nao aqueceu com sucesso em $homeUrl."
+  while ((Get-Date) -lt $deadline) {
+    try {
+      $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 10 $homeUrl
+      if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400) {
+        return
+      }
+    } catch {
+      $lastError = $_.Exception.Message
+      Start-Sleep -Seconds 2
+    }
   }
+
+  throw "Home publica nao aqueceu com sucesso em $homeUrl. Ultimo erro: $lastError"
 }
 
 try {
   Set-Content -LiteralPath $currentFile -Value $releaseRoot -Encoding UTF8
   & $installScriptSource -Environment $Environment
   Start-ScheduledTask -TaskName ([string]$config.TaskName)
-  Wait-RuntimeHealth -Port ([int]$config.Port)
+  Wait-RuntimeHealth -Port ([int]$config.Port) -TimeoutSeconds ([int]$config.RuntimeHealthTimeoutSeconds)
 
   if ($config.IisAppPool) {
     Import-Module WebAdministration
@@ -185,7 +200,7 @@ try {
   }
 
   Wait-PublicHealth -Url ([string]$config.Domain + "robots.txt")
-  Warm-PublicHome -Url ([string]$config.Domain)
+  Warm-PublicHome -Url ([string]$config.Domain) -TimeoutSeconds ([int]$config.HomeWarmupTimeoutSeconds)
 } catch {
   $deployError = $_
   if ($previousRelease -and (Test-Path -LiteralPath (Join-Path $previousRelease "server.js"))) {
@@ -193,7 +208,7 @@ try {
     Stop-ScheduledTask -TaskName ([string]$config.TaskName) -ErrorAction SilentlyContinue
     Set-Content -LiteralPath $currentFile -Value $previousRelease -Encoding UTF8
     Start-ScheduledTask -TaskName ([string]$config.TaskName)
-    Wait-RuntimeHealth -Port ([int]$config.Port)
+    Wait-RuntimeHealth -Port ([int]$config.Port) -TimeoutSeconds ([int]$config.RuntimeHealthTimeoutSeconds)
     if ($config.IisAppPool) {
       Import-Module WebAdministration
       Restart-WebAppPool -Name ([string]$config.IisAppPool)
