@@ -19,14 +19,14 @@ export default async function PainelBilheteriaFundoCaixaPage() {
   const { hasOpenAgendaToday } = await getBilheteriaAgendaStatusToday();
   let warningMessage: string | null = hasOpenAgendaToday
     ? null
-    : "Nao existe agenda aberta para hoje. O fundo de caixa e a validacao continuam disponiveis; apenas novas vendas ficam indisponiveis.";
+    : "Não existe agenda aberta para hoje. O fundo de caixa e a validação continuam disponíveis; apenas novas vendas ficam indisponíveis.";
   let summary;
 
   try {
     summary = await getBilheteriaCashFundSummary();
   } catch {
     warningMessage =
-      "Nao foi possivel carregar o resumo do caixa agora. A tela continua acessivel para evitar erro de navegacao.";
+      "Não foi possível carregar o resumo do caixa agora. A tela continua acessivel para evitar erro de navegacao.";
     summary = {
       period: {
         id: 0,

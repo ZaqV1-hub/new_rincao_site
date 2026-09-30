@@ -53,8 +53,8 @@ describe("BilheteriaCashFundPage", () => {
     expect(html.toLowerCase()).toContain("dinheiro total no caixa");
     expect(html.toLowerCase()).toContain("fazer fundo");
     expect(html.toLowerCase()).toContain("fazer sangria");
-    expect(html.toLowerCase()).toContain("editar lancamento");
-    expect(html.toLowerCase()).toContain("excluir lancamento");
+    expect(html.toLowerCase()).toContain("editar lançamento");
+    expect(html.toLowerCase()).toContain("excluir lançamento");
   });
 
   it("hides manager-only row actions for operators", () => {
@@ -67,7 +67,7 @@ describe("BilheteriaCashFundPage", () => {
       }),
     );
 
-    expect(html.toLowerCase()).not.toContain("editar lancamento");
-    expect(html.toLowerCase()).not.toContain("excluir lancamento");
+    expect(html.toLowerCase()).not.toContain("editar lançamento");
+    expect(html.toLowerCase()).not.toContain("excluir lançamento");
   });
 });

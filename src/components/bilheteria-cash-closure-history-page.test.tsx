@@ -32,9 +32,9 @@ describe("BilheteriaCashClosureHistoryPage", () => {
       }),
     );
 
-    expect(html).toContain("Historico de fechamentos");
+    expect(html).toContain("Histórico de fechamentos");
     expect(html).toContain("Data do fechamento");
-    expect(html).toContain("Acoes");
+    expect(html).toContain("Ações");
     expect(html).toContain("Visualizar");
     expect(html).not.toContain("Operador");
     expect(html).not.toContain("Totais");

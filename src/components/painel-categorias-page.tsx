@@ -85,9 +85,9 @@ export function PainelCategoriasPage({ data }: Props) {
                   <tr>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">ID</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                      Descricao
+                      Descrição
                     </th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acoes</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -138,7 +138,7 @@ export function PainelCategoriasPage({ data }: Props) {
                     className="rounded-full border border-[#c9d8e3] px-4 py-2 text-sm font-semibold text-[#205a7f]"
                     href={nextHref}
                   >
-                    Proxima pagina
+                    Próxima pagina
                   </Link>
                 ) : null}
               </div>

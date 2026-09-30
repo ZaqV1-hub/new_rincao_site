@@ -4,7 +4,7 @@ import { getDefaultPainelPath, hasLegacyPanelResource } from "@/lib/painel-acces
 import { requirePainelSession } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Operacao | Rincao",
+  title: "Painel - Operação | Rincao",
   robots: {
     index: false,
     follow: false,

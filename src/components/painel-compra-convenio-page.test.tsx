@@ -54,9 +54,9 @@ describe("PainelCompraConvenioPage", () => {
       }),
     );
 
-    expect(html).toContain("Lista de Compras Convenio");
+    expect(html).toContain("Lista de Compras Convênio");
     expect(html).toContain("Exportar (.xls)");
-    expect(html).toContain("Tipo de Convenio");
+    expect(html).toContain("Tipo de Convênio");
     expect(html).toContain("Convenio Alfa");
   });
 });

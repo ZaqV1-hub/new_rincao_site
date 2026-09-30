@@ -119,7 +119,7 @@ export function PainelConvenioMemberFormPage({
             />
           </label>
           <label className="block text-sm font-semibold text-[#5a5a5a]">
-            Data Inicio
+            Data Início
             <input
               className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
               defaultValue={initialValues.dtiniado}

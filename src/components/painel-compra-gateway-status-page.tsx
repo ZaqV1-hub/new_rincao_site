@@ -53,7 +53,7 @@ export function PainelCompraGatewayStatusPage({
                 </tr>
                 <tr>
                   <td className="border border-[#d7d7d7] px-4 py-3">
-                    Dados nao encontrados na Cielo
+                    Dados não encontrados na Cielo
                   </td>
                 </tr>
               </tbody>
@@ -92,10 +92,10 @@ export function PainelCompraGatewayStatusPage({
                     Data de pagamento
                   </th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                    Inicio da operacao
+                    Início da operação
                   </th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                    Fim da operacao
+                    Fim da operação
                   </th>
                 </tr>
                 <tr>
@@ -159,7 +159,7 @@ export function PainelCompraGatewayStatusPage({
 
       <aside className="grid content-start gap-5">
         <div className="rounded-[6px] border border-[#d4dde5] bg-white p-5 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
-          <h2 className="text-lg font-semibold text-[#205a7f]">Acoes</h2>
+          <h2 className="text-lg font-semibold text-[#205a7f]">Ações</h2>
           <ul className="mt-4 grid gap-3 text-sm">
             <li>
               <Link className="text-[#1d68a2] underline" href="/painel/compras">

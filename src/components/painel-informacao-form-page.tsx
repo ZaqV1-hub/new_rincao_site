@@ -33,7 +33,7 @@ export function PainelInformacaoFormPage({
     status: information?.status || "ati",
   });
 
-  const title = mode === "create" ? "Adicionar informacao" : "Editar informacao";
+  const title = mode === "create" ? "Adicionar informação" : "Editar informação";
   const submitLabel = mode === "create" ? "Cadastrar" : "Salvar";
   const destination = useMemo(
     () => (mode === "create" ? "/api/painel/informacao" : `/api/painel/informacao/${information?.id}`),
@@ -64,12 +64,12 @@ export function PainelInformacaoFormPage({
           | null;
 
         if (!response.ok || !payload?.ok) {
-          throw new Error(payload?.error?.message || "Falha ao salvar a informacao.");
+          throw new Error(payload?.error?.message || "Falha ao salvar a informação.");
         }
 
         setFeedback({
           tone: "success",
-          message: payload.data?.message || "Informacao salva com sucesso.",
+          message: payload.data?.message || "Informação salva com sucesso.",
         });
         const nextId = payload.data?.id || information?.id;
         router.replace(nextId ? `/painel/informacao/${nextId}` : "/painel/informacao");
@@ -77,7 +77,7 @@ export function PainelInformacaoFormPage({
       } catch (error) {
         setFeedback({
           tone: "error",
-          message: error instanceof Error ? error.message : "Falha ao salvar a informacao.",
+          message: error instanceof Error ? error.message : "Falha ao salvar a informação.",
         });
       }
     });
@@ -90,7 +90,7 @@ export function PainelInformacaoFormPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/administrativo", label: "Acessos" },
-            { href: "/painel/informacao", label: "Informacoes" },
+            { href: "/painel/informacao", label: "Informações" },
             { label: title },
           ]}
         />

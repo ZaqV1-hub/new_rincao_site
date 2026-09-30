@@ -4,7 +4,7 @@ import { getPainelInformacao } from "@/lib/painel-informacoes";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Editar Informacao | Rincao",
+  title: "Painel - Editar Informação | Rincao",
   robots: {
     index: false,
     follow: false,

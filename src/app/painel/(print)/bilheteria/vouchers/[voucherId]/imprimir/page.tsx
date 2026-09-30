@@ -10,7 +10,7 @@ import { requirePainelAccess } from "@/lib/painel-session";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Painel - Impressao QR | Rincao",
+  title: "Painel - Impressão QR | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -63,10 +63,10 @@ export default async function PainelBilheteriaVoucherPrintPage({
       <main className="min-h-screen bg-[#f4f4f4] px-4 py-10">
         <div className="mx-auto max-w-[540px] rounded-[28px] border border-[#d7e5ef] bg-white p-6 shadow-[0_12px_34px_rgba(31,67,98,0.08)]">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#5d7282]">
-            Impressao de voucher
+            Impressão de voucher
           </p>
           <h1 className="legacy-condensed mt-2 text-4xl text-[#205a7f]">
-            Impressao indisponivel
+            Impressão indisponível
           </h1>
           <p className="mt-4 text-sm leading-6 text-[#5d7282]">
             {normalized.message}

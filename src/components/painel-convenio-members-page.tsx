@@ -209,17 +209,17 @@ export function PainelConvenioMembersPage({ data }: PainelConvenioMembersPagePro
                   <tr>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">CPF</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                      Usuario
+                      Usuário
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                      Numero de dependentes
+                      Número de dependentes
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                      Data Inicio
+                      Data Início
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data Fim</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acoes</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -305,7 +305,7 @@ export function PainelConvenioMembersPage({ data }: PainelConvenioMembersPagePro
                 className="rounded-full border border-[#c9d8e3] px-4 py-2 text-sm font-semibold text-[#205a7f] hover:bg-[#edf5fa]"
                 href={nextHref}
               >
-                Proxima pagina
+                Próxima pagina
               </Link>
             ) : null}
           </div>
@@ -314,7 +314,7 @@ export function PainelConvenioMembersPage({ data }: PainelConvenioMembersPagePro
 
       <aside className="self-start rounded-[6px] border border-[#d7d7d7] bg-[#f6f7f8] p-4 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
         <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#6f7f8d]">
-          Convenio
+          Convênio
         </h2>
         <ul className="mt-3 space-y-3 text-[15px]">
           <li>
@@ -368,7 +368,7 @@ export function PainelConvenioMembersPage({ data }: PainelConvenioMembersPagePro
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm font-semibold text-[#5a5a5a]">
-                Periodo de
+                Período de
                 <input
                   className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
                   defaultValue={data.filters.periodFrom ?? ""}
@@ -378,7 +378,7 @@ export function PainelConvenioMembersPage({ data }: PainelConvenioMembersPagePro
                 />
               </label>
               <label className="block text-sm font-semibold text-[#5a5a5a]">
-                ate
+                até
                 <input
                   className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
                   defaultValue={data.filters.periodTo ?? ""}

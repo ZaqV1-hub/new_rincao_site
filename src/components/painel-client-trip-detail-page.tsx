@@ -327,7 +327,7 @@ export function PainelClientTripDetailPage({
                 {data.trip.clientId} - {data.trip.clientName}
                 {data.trip.clientAddress ? (
                   <div className="mt-2 text-[12px] text-[#53697a]">
-                    Endereco: {data.trip.clientAddress}
+                    Endereço: {data.trip.clientAddress}
                   </div>
                 ) : null}
                 {data.trip.clientTypeName ? (

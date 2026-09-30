@@ -90,7 +90,7 @@ export function PainelBilheteriaPrintTicket({ vouchers }: Props) {
           margin: 0;
         }
 
-        @media print {
+        @média print {
           body {
             margin: 0;
             background: #ffffff;

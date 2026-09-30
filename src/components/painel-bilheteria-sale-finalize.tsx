@@ -39,11 +39,11 @@ type WhatsappResponse = {
 
 const paymentOptions = [
   { value: "dinhe", label: "Dinheiro" },
-  { value: "debit", label: "Debito" },
-  { value: "credi", label: "Credito" },
+  { value: "debit", label: "Débito" },
+  { value: "credi", label: "Crédito" },
   { value: "pix", label: "Pix" },
   { value: "chequ", label: "Cheque" },
-  { value: "tranb", label: "Trans. bancaria" },
+  { value: "tranb", label: "Trans. bancária" },
 ];
 
 function formatMoney(value: number) {
@@ -214,7 +214,7 @@ export function PainelBilheteriaSaleFinalize() {
 
       if (!response.ok || !payload?.ok || !payload.data) {
         setErrorMessage(
-          payload?.error?.message || "Nao foi possivel confirmar a venda agora.",
+          payload?.error?.message || "Não foi possível confirmar a venda agora.",
         );
         return;
       }
@@ -275,7 +275,7 @@ export function PainelBilheteriaSaleFinalize() {
       if (!response.ok || !payload?.ok) {
         setWhatsMessage(
           payload?.error?.message ||
-            "Nao foi possivel enviar os ingressos por WhatsApp.",
+            "Não foi possível enviar os ingressos por WhatsApp.",
         );
         return;
       }
@@ -507,7 +507,7 @@ export function PainelBilheteriaSaleFinalize() {
           </>
         ) : (
           <>
-            <p className="panel-eyebrow">Pagamento concluido</p>
+            <p className="panel-eyebrow">Pagamento concluído</p>
             <h2 className="mt-1 text-[18px] font-black text-[#17351f]">
               Compra #{success.purchaseId}
             </h2>

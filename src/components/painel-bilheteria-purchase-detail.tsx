@@ -191,7 +191,7 @@ export function PainelBilheteriaPurchaseDetail({
         setCancelError(
           await readErrorPayload(
             response,
-            "Nao foi possivel cancelar a compra agora.",
+            "Não foi possível cancelar a compra agora.",
           ),
         );
         return;
@@ -232,7 +232,7 @@ export function PainelBilheteriaPurchaseDetail({
         setPaymentError(
           await readErrorPayload(
             response,
-            "Nao foi possivel registrar o pagamento da reserva.",
+            "Não foi possível registrar o pagamento da reserva.",
           ),
         );
         return;
@@ -248,7 +248,7 @@ export function PainelBilheteriaPurchaseDetail({
       setPaymentSuccess(
         payload.data?.message ||
           (payload.data?.alreadyPaid
-            ? "Reserva ja estava paga."
+            ? "Reserva já estava paga."
             : "Pagamento registrado com sucesso."),
       );
       router.refresh();
@@ -273,7 +273,7 @@ export function PainelBilheteriaPurchaseDetail({
         setGatewayError(
           await readErrorPayload(
             response,
-            "Nao foi possivel consultar o gateway agora.",
+            "Não foi possível consultar o gateway agora.",
           ),
         );
         return;
@@ -318,7 +318,7 @@ export function PainelBilheteriaPurchaseDetail({
         setWhatsappError(
           await readErrorPayload(
             response,
-            "Nao foi possivel enviar o voucher por WhatsApp agora.",
+            "Não foi possível enviar o voucher por WhatsApp agora.",
           ),
         );
         return;
@@ -409,7 +409,7 @@ export function PainelBilheteriaPurchaseDetail({
         ) : null}
         {flashWarnings.length > 0 ? (
           <div className="mt-4 rounded-[18px] border border-[#f0d3a8] bg-[#fff6e3] px-4 py-3 text-sm text-[#8a6100]">
-            <p className="font-semibold">Avisos apos salvar</p>
+            <p className="font-semibold">Avisos após salvar</p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
               {flashWarnings.map((warning) => (
                 <li key={warning}>{warning}</li>
@@ -444,7 +444,7 @@ export function PainelBilheteriaPurchaseDetail({
                     <th className="px-4 py-3">Ingresso</th>
                     <th className="px-4 py-3 text-right">Valor</th>
                     <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Acao</th>
+                    <th className="px-4 py-3 text-right">Ação</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -459,7 +459,7 @@ export function PainelBilheteriaPurchaseDetail({
                       <td className="px-4 py-3 text-right">
                         {voucher.status === "s" ? (
                           <span className="text-xs font-semibold text-[#9f3d2f]">
-                            Ja usado
+                            Já usado
                           </span>
                         ) : (
                           <a
@@ -552,7 +552,7 @@ export function PainelBilheteriaPurchaseDetail({
                   <tr>
                     <th className="px-4 py-3">Forma</th>
                     <th className="px-4 py-3">Valor (R$)</th>
-                    <th className="w-[96px] px-4 py-3 text-right">Acao</th>
+                    <th className="w-[96px] px-4 py-3 text-right">Ação</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -641,10 +641,10 @@ export function PainelBilheteriaPurchaseDetail({
               Pagamento
             </p>
             <h3 className="mt-2 text-2xl font-semibold text-[#205a7f]">
-              Pagamento Concluido
+              Pagamento Concluído
             </h3>
             <p className="mt-3 text-sm leading-6 text-[#5d7282]">
-              Use as acoes abaixo para concluir o atendimento desta reserva.
+              Use as ações abaixo para concluir o atendimento desta reserva.
             </p>
 
             <div className="mt-5 grid gap-3">
@@ -682,7 +682,7 @@ export function PainelBilheteriaPurchaseDetail({
         {canManageHistory && detail.status !== "canc" ? (
           <section className="rounded-[28px] border border-[#d7e5ef] bg-white p-6 shadow-[0_12px_34px_rgba(31,67,98,0.08)]">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#5d7282]">
-              Historico
+              Histórico
             </p>
             <a
               href={editHref || `/painel/bilheteria/historico/${detail.purchaseId}/editar`}
@@ -738,7 +738,7 @@ export function PainelBilheteriaPurchaseDetail({
             Consulta manual
           </h3>
           <p className="mt-3 text-sm leading-6 text-[#5d7282]">
-            Consulte o ultimo status do gateway sem alterar a compra.
+            Consulte o último status do gateway sem alterar a compra.
           </p>
 
           <button
@@ -790,7 +790,7 @@ export function PainelBilheteriaPurchaseDetail({
                   {gatewayStatus.purchaseStatus || "-"}
                 </div>
                 <div>
-                  <span className="font-semibold text-[#205a7f]">Ultima atualizacao:</span>{" "}
+                  <span className="font-semibold text-[#205a7f]">Última atualização:</span>{" "}
                   {gatewayStatus.ledgerUpdatedAt ? gatewayStatus.ledgerUpdatedAt.replace("T", " ").slice(0, 19) : "-"}
                 </div>
               </div>
@@ -911,7 +911,7 @@ export function PainelBilheteriaPurchaseDetail({
                 onClick={() => setConfirmCancelOpen(false)}
                 className="rounded-full border border-[#c9d8e3] px-5 py-3 text-sm font-semibold text-[#205a7f]"
               >
-                Nao
+                Não
               </button>
               <button
                 type="button"

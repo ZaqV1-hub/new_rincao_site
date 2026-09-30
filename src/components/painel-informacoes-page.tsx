@@ -80,7 +80,7 @@ export function PainelInformacoesPage({
       }
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Informacao atualizada.",
+        message: payload.data?.message || "Informação atualizada.",
       });
       startTransition(() => router.refresh());
     } catch (error) {
@@ -112,17 +112,17 @@ export function PainelInformacoesPage({
           }
         | null;
       if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error?.message || "Falha ao remover a informacao.");
+        throw new Error(payload?.error?.message || "Falha ao remover a informação.");
       }
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Informacao removida com sucesso.",
+        message: payload.data?.message || "Informação removida com sucesso.",
       });
       startTransition(() => router.refresh());
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof Error ? error.message : "Falha ao remover a informacao.",
+        message: error instanceof Error ? error.message : "Falha ao remover a informação.",
       });
     } finally {
       setPendingId(null);
@@ -136,7 +136,7 @@ export function PainelInformacoesPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/administrativo", label: "Acessos" },
-            { label: "Informacoes" },
+            { label: "Informações" },
           ]}
         />
 
@@ -161,7 +161,7 @@ export function PainelInformacoesPage({
               </p>
             ) : (
               <p className="mb-4 text-[17px] text-[#5a5a5a]">
-                Nenhuma informacao encontrada.
+                Nenhuma informação encontrada.
               </p>
             )}
 
@@ -172,7 +172,7 @@ export function PainelInformacoesPage({
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">ID</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Nome</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acoes</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -237,7 +237,7 @@ export function PainelInformacoesPage({
                         className="border border-[#d7d7d7] px-4 py-8 text-center text-[#6f6f6f]"
                         colSpan={4}
                       >
-                        Nao ha dados
+                        Não ha dados
                       </td>
                     </tr>
                   )}
@@ -261,11 +261,11 @@ export function PainelInformacoesPage({
                 )}
                 {nextHref ? (
                   <Link className="border border-[#cfcfcf] px-3 py-2" href={nextHref}>
-                    Proxima
+                    Próxima
                   </Link>
                 ) : (
                   <span className="border border-[#e2e2e2] px-3 py-2 text-[#afafaf]">
-                    Proxima
+                    Próxima
                   </span>
                 )}
               </div>
@@ -276,7 +276,7 @@ export function PainelInformacoesPage({
             <section className="rounded-[6px] border border-[#d7e1e8] bg-white shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
               <div className="grid gap-3 px-6 py-5 text-[17px] text-[#5a5a5a]">
                 <Link className="text-[#666] underline" href="/painel/informacao/adicionar">
-                  Adicionar informacao
+                  Adicionar informação
                 </Link>
               </div>
             </section>

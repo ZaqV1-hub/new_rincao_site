@@ -85,14 +85,14 @@ function PainelClienteDetailContent({
                   className="border border-[#d7e3ee] px-4 py-3 text-left font-bold text-[#133d63]"
                   colSpan={3}
                 >
-                  Informacoes
+                  Informações
                 </th>
               </tr>
               <tr className="bg-[#f8fbfe]">
                 <td className="border border-[#d7e3ee] px-4 py-4 text-[#355066]" colSpan={3}>
                   <strong>ID:</strong> {data.client.id}
                   {"  "} | {"  "}
-                  <strong>Endereco:</strong> {data.client.address || "-"}
+                  <strong>Endereço:</strong> {data.client.address || "-"}
                   {"  "} | {"  "}
                   <strong>Criado em:</strong> {formatDate(data.client.createdAt, true)}
                   {"  "} | {"  "}
@@ -117,7 +117,7 @@ function PainelClienteDetailContent({
       </section>
 
       <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
-        <h2 className="text-[28px] text-[#123b63]">Historico de Datas de Passeio</h2>
+        <h2 className="text-[28px] text-[#123b63]">Histórico de Datas de Passeio</h2>
         <div className="mt-4 overflow-x-auto rounded-[6px] border border-[#d7e3ee]">
           <table className="min-w-full border-collapse text-[15px]">
             <thead className="bg-[#eef5fb] text-left text-[#133d63]">
@@ -149,7 +149,7 @@ function PainelClienteDetailContent({
               ) : (
                 <tr>
                   <td className="border border-[#d7e3ee] px-4 py-5 text-center text-[#355066]" colSpan={2}>
-                    Nao ha dados
+                    Não ha dados
                   </td>
                 </tr>
               )}
@@ -175,7 +175,7 @@ function PainelClienteDetailContent({
                     {classItem.periods.length > 0 ? (
                       classItem.periods.map((period) => period.name).join(", ")
                     ) : (
-                      <span>Nenhum periodo cadastrado.</span>
+                      <span>Nenhum período cadastrado.</span>
                     )}
                   </div>
                 </div>
@@ -223,7 +223,7 @@ export function PainelClienteDetailPage({
 
         if (!response.ok || !payload?.ok || !payload.data) {
           throw new Error(
-            payload?.error?.message || "Nao foi possivel carregar o cliente agora.",
+            payload?.error?.message || "Não foi possível carregar o cliente agora.",
           );
         }
 
@@ -240,7 +240,7 @@ export function PainelClienteDetailPage({
         setError(
           fetchError instanceof Error
             ? fetchError.message
-            : "Nao foi possivel carregar o cliente agora.",
+            : "Não foi possível carregar o cliente agora.",
         );
       } finally {
         if (active) {
@@ -268,7 +268,7 @@ export function PainelClienteDetailPage({
     return (
       <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
         <div className="border border-[#efc0c0] bg-[#fff0f0] px-4 py-3 text-sm text-[#7a2b2b]">
-          {error || "Nao foi possivel carregar o cliente agora."}
+          {error || "Não foi possível carregar o cliente agora."}
         </div>
         <div className="mt-4">
           <Link className="text-[#1868d6] underline" href="/painel/clientes">

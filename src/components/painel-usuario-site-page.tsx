@@ -86,13 +86,13 @@ export function PainelUsuarioSitePage({
 
       if (!response.ok || !payload?.ok) {
         throw new Error(
-          payload?.error?.message || "Falha ao alterar o status do usuario.",
+          payload?.error?.message || "Falha ao alterar o status do usuário.",
         );
       }
 
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Status do usuario atualizado com sucesso.",
+        message: payload.data?.message || "Status do usuário atualizado com sucesso.",
       });
       startTransition(() => router.refresh());
     } catch (error) {
@@ -101,7 +101,7 @@ export function PainelUsuarioSitePage({
         message:
           error instanceof Error
             ? error.message
-            : "Falha ao alterar o status do usuario.",
+            : "Falha ao alterar o status do usuário.",
       });
     } finally {
       setPendingCpf(null);
@@ -115,7 +115,7 @@ export function PainelUsuarioSitePage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/usuario", label: "Administrativo" },
-            { label: "Usuario Site" },
+            { label: "Usuário Site" },
           ]}
         />
 
@@ -139,7 +139,7 @@ export function PainelUsuarioSitePage({
                 <strong>{data.total}</strong>
               </p>
             ) : (
-              <p className="mb-4 text-[17px] text-[#5a5a5a]">Nenhum usuario encontrado.</p>
+              <p className="mb-4 text-[17px] text-[#5a5a5a]">Nenhum usuário encontrado.</p>
             )}
 
             <div className="overflow-x-auto border border-[#cfcfcf]">
@@ -183,7 +183,7 @@ export function PainelUsuarioSitePage({
                   ) : (
                     <tr>
                       <td className="border border-[#d7d7d7] px-4 py-8 text-center text-[#6f6f6f]" colSpan={5}>
-                        Nao ha dados
+                        Não ha dados
                       </td>
                     </tr>
                   )}
@@ -205,10 +205,10 @@ export function PainelUsuarioSitePage({
                 )}
                 {nextHref ? (
                   <Link className="border border-[#cfcfcf] px-3 py-2" href={nextHref}>
-                    Proxima
+                    Próxima
                   </Link>
                 ) : (
-                  <span className="border border-[#e2e2e2] px-3 py-2 text-[#afafaf]">Proxima</span>
+                  <span className="border border-[#e2e2e2] px-3 py-2 text-[#afafaf]">Próxima</span>
                 )}
               </div>
             </div>
@@ -217,7 +217,7 @@ export function PainelUsuarioSitePage({
           <aside className="space-y-5">
             <div className="border border-[#d8d8d8] bg-white">
               <div className="border-b border-[#d8d8d8] bg-[#f3f3f3] px-5 py-3 text-[20px] text-[#666]">
-                Acoes
+                Ações
               </div>
               <div className="grid gap-3 px-5 py-4 text-[15px]">
                 <a
@@ -263,7 +263,7 @@ export function PainelUsuarioSitePage({
                     <input className="border border-[#d3dbe3] px-3 py-3" defaultValue={data.filters.dtcadastroDe} name="dtcadastro[de]" type="date" />
                   </label>
                   <label className="grid gap-2 text-[15px] text-[#555]">
-                    ate
+                    até
                     <input className="border border-[#d3dbe3] px-3 py-3" defaultValue={data.filters.dtcadastroAte} name="dtcadastro[ate]" type="date" />
                   </label>
                 </div>

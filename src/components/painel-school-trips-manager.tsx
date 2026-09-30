@@ -63,7 +63,7 @@ export function PainelSchoolTripsManager({
       if (!response.ok || !payload?.ok) {
         throw new Error(
           payload?.error?.message ||
-            "Nao foi possivel vincular a data de passeio agora.",
+            "Não foi possível vincular a data de passeio agora.",
         );
       }
 
@@ -76,7 +76,7 @@ export function PainelSchoolTripsManager({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel vincular a data de passeio agora.",
+          : "Não foi possível vincular a data de passeio agora.",
       );
     } finally {
       setPendingKey(null);
@@ -120,7 +120,7 @@ export function PainelSchoolTripsManager({
       if (!response.ok || !payload?.ok) {
         throw new Error(
           payload?.error?.message ||
-            "Nao foi possivel atualizar o status da data agora.",
+            "Não foi possível atualizar o status da data agora.",
         );
       }
 
@@ -132,7 +132,7 @@ export function PainelSchoolTripsManager({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel atualizar o status da data agora.",
+          : "Não foi possível atualizar o status da data agora.",
       );
     } finally {
       setPendingKey(null);
@@ -144,7 +144,7 @@ export function PainelSchoolTripsManager({
       return;
     }
 
-    if (!window.confirm("Deseja realmente remover esta data de passeio?")) {
+    if (!window.confirm("Deseja realmente remover está data de passeio?")) {
       return;
     }
 
@@ -179,7 +179,7 @@ export function PainelSchoolTripsManager({
       if (!response.ok || !payload?.ok) {
         throw new Error(
           payload?.error?.message ||
-            "Nao foi possivel remover a data de passeio agora.",
+            "Não foi possível remover a data de passeio agora.",
         );
       }
 
@@ -191,7 +191,7 @@ export function PainelSchoolTripsManager({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel remover a data de passeio agora.",
+          : "Não foi possível remover a data de passeio agora.",
       );
     } finally {
       setPendingKey(null);
@@ -323,18 +323,18 @@ export function PainelSchoolTripsManager({
           <section className="rounded-[28px] border border-[#d7e5ef] bg-white p-6 shadow-[0_12px_34px_rgba(31,67,98,0.08)]">
             {selectedSchool.trips.length === 0 ? (
               <div className="rounded-[20px] border border-dashed border-[#c9d8e3] bg-[#f8fbfd] px-4 py-8 text-sm text-[#5d7282]">
-                Nenhuma data de passeio vinculada para esta escola.
+                Nenhuma data de passeio vinculada para está escola.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-[22px] border border-[#d9e3eb] text-sm">
                   <thead className="bg-[#edf5fa] text-left text-[#345062]">
                     <tr>
-                      <th className="px-4 py-3">Codigo</th>
+                      <th className="px-4 py-3">Código</th>
                       <th className="px-4 py-3">Data</th>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Permalink</th>
-                      <th className="px-4 py-3">Acoes</th>
+                      <th className="px-4 py-3">Ações</th>
                     </tr>
                   </thead>
                   <tbody>

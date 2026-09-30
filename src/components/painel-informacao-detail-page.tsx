@@ -19,7 +19,7 @@ export function PainelInformacaoDetailPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/administrativo", label: "Acessos" },
-            { href: "/painel/informacao", label: "Informacoes" },
+            { href: "/painel/informacao", label: "Informações" },
             { label: data.name },
           ]}
         />
@@ -60,7 +60,7 @@ export function PainelInformacaoDetailPage({
             <section className="rounded-[6px] border border-[#d7e1e8] bg-white shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
               <div className="grid gap-3 px-6 py-5 text-[17px] text-[#5a5a5a]">
                 <Link className="text-[#666] underline" href="/painel/informacao">
-                  Lista de informacoes
+                  Lista de informações
                 </Link>
                 <Link className="text-[#666] underline" href={`/painel/informacao/${data.id}/editar`}>
                   Editar

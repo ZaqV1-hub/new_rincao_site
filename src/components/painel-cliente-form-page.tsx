@@ -244,7 +244,7 @@ export function PainelClienteFormPage({
   }
 
   function removeObservation(observationId: number) {
-    if (!client || !window.confirm("Deseja remover esta observação?")) return;
+    if (!client || !window.confirm("Deseja remover está observação?")) return;
     startObservationTransition(async () => {
       setObservationError(null);
       const response = await fetch(`/api/painel/clientes/${client.client.id}/observacoes/${observationId}`, { method: "DELETE", credentials: "same-origin" });
@@ -454,7 +454,7 @@ export function PainelClienteFormPage({
 
             <div className="grid gap-2 rounded-[6px] border border-[#d7d7d7] p-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
               <label className="font-bold text-[#555]" htmlFor="endereco">
-                Endereco
+                Endereço
               </label>
               <input
                 className="h-11 w-full rounded-[6px] border border-[#b9d0e6] bg-[#f8fbff] px-3 text-[15px] text-[#133d63]"

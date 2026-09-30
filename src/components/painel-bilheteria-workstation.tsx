@@ -323,7 +323,7 @@ export function PainelBilheteriaWorkstation({
     if (!response.ok || !payload?.ok || !payload.data) {
       setMessage({
         tone: "error",
-        text: payload?.error?.message || "Nao foi possivel consultar este cliente.",
+        text: payload?.error?.message || "Não foi possível consultar este cliente.",
       });
       setCustomerLookup(null);
       return null;
@@ -378,14 +378,14 @@ export function PainelBilheteriaWorkstation({
         }
         setMessage({
           tone: "error",
-          text: payload?.error?.message || "Nao foi possivel concluir esta acao agora.",
+          text: payload?.error?.message || "Não foi possível concluir está ação agora.",
         });
         return false;
       }
 
       setMessage({
         tone: payload.data?.warnings?.length ? "warning" : "success",
-        text: payload.data?.message || "Operacao concluida com sucesso.",
+        text: payload.data?.message || "Operação concluída com sucesso.",
         warnings: payload.data?.warnings || [],
       });
       return true;
@@ -524,7 +524,7 @@ export function PainelBilheteriaWorkstation({
           tone: "error",
           text:
             payload?.error?.message ||
-            "Nao foi possivel enviar os vouchers selecionados por WhatsApp.",
+            "Não foi possível enviar os vouchers selecionados por WhatsApp.",
         });
         return;
       }
@@ -585,14 +585,14 @@ export function PainelBilheteriaWorkstation({
     if (!voucherNumber.trim()) {
       setMessage({
         tone: "warning",
-        text: "Informe o numero do voucher antes de validar.",
+        text: "Informe o número do voucher antes de validar.",
       });
       return;
     }
 
     setConfirmationState({
       kind: "validate-voucher",
-      title: "Confirmar validacao",
+      title: "Confirmar validação",
       description: `Deseja validar o ingresso ${voucherNumber.trim()} agora?`,
       confirmLabel: "Validar ingresso",
     });
@@ -615,7 +615,7 @@ export function PainelBilheteriaWorkstation({
     const lookup = ticketLookup.trim();
 
     if (!lookup) {
-      setTicketLookupError("Informe o ID ou numero do ingresso para consultar.");
+      setTicketLookupError("Informe o ID ou número do ingresso para consultar.");
       setTicketLookupResult(null);
       return;
     }
@@ -664,7 +664,7 @@ export function PainelBilheteriaWorkstation({
 
   async function handleSendTicketLookupWhatsapp() {
     if (!ticketLookupResult?.purchaseId) {
-      setTicketWhatsappError("Compra nao localizada para este ingresso.");
+      setTicketWhatsappError("Compra não localizada para este ingresso.");
       setTicketWhatsappSuccess(null);
       return;
     }
@@ -711,7 +711,7 @@ export function PainelBilheteriaWorkstation({
 
       if (!response.ok || !payload?.ok) {
         setTicketWhatsappError(
-          payload?.error?.message || "Nao foi possivel enviar este ingresso agora.",
+          payload?.error?.message || "Não foi possível enviar este ingresso agora.",
         );
         return;
       }
@@ -805,7 +805,7 @@ export function PainelBilheteriaWorkstation({
 
                     <p className="mt-3 text-sm text-[#5d7282]">
                       {form.id === "voucher-validation"
-                        ? "Digite o codigo do voucher para validar."
+                        ? "Digite o código do voucher para validar."
                         : "Digite o RG ou CPF do cliente para consultar."}
                     </p>
                   </div>
@@ -861,7 +861,7 @@ export function PainelBilheteriaWorkstation({
 
           <div className="mt-6 border-t border-[#d6e1eb] pt-4 text-sm leading-6 text-[#5d7282]">
             <div className="font-semibold text-[#123b63]">
-              {actorName || actorCpf || "Sessao operacional"}
+              {actorName || actorCpf || "Sessão operacional"}
             </div>
           </div>
         </aside>
@@ -913,7 +913,7 @@ export function PainelBilheteriaWorkstation({
           <div className="grid gap-4 px-5 py-5">
             <form onSubmit={handleTicketLookupSubmit} className="grid gap-3">
               <label className="grid gap-2 text-sm font-semibold text-[#35576f]">
-                Inserir ID ou numero do ingresso
+                Inserir ID ou número do ingresso
                 <input
                   value={ticketLookup}
                   onChange={(event) => {
@@ -922,7 +922,7 @@ export function PainelBilheteriaWorkstation({
                     setTicketWhatsappError(null);
                     setTicketWhatsappSuccess(null);
                   }}
-                  placeholder="ID ou numero do ingresso"
+                  placeholder="ID ou número do ingresso"
                   className="rincao-field min-h-[42px] px-4 py-2.5 text-sm"
                 />
               </label>
@@ -954,7 +954,7 @@ export function PainelBilheteriaWorkstation({
                   ) : null}
                   {ticketLookupResult.used ? (
                     <p className="mt-3 text-[#8a6100]">
-                      Este ingresso ja foi utilizado. Validacao segue bloqueada, mas a consulta permanece disponivel.
+                      Este ingresso já foi utilizado. Validação segue bloqueada, mas a consulta permanece disponível.
                     </p>
                   ) : null}
                   {ticketLookupResult.purchaseId ? (
@@ -1028,7 +1028,7 @@ export function PainelBilheteriaWorkstation({
                 Resultado do cliente
               </h2>
               <p className="mt-2 text-sm text-[#5d7282]">
-                {customerLookup.customer?.name || "Cliente nao identificado"} -{" "}
+                {customerLookup.customer?.name || "Cliente não identificado"} -{" "}
                 {customerLookup.customer?.cpfLabel || "-"}
               </p>
             </div>
@@ -1168,7 +1168,7 @@ export function PainelBilheteriaWorkstation({
                                 if (!selectionCapabilities.canValidate || validatableVoucherIds.length === 0) {
                                   setMessage({
                                     tone: "warning",
-                                    text: "Selecione somente vouchers nao usados para validar.",
+                                    text: "Selecione somente vouchers não usados para validar.",
                                   });
                                   return;
                                 }
@@ -1177,7 +1177,7 @@ export function PainelBilheteriaWorkstation({
                                   kind: "validate-selected",
                                   purchaseId: purchase.purchaseId,
                                   voucherIds: validatableVoucherIds,
-                                  title: "Confirmar validacao",
+                                  title: "Confirmar validação",
                                   description: `Deseja validar ${validatableVoucherIds.length} ingresso(s) da compra ${purchase.purchaseId}?`,
                                   confirmLabel: "Validar selecionados",
                                 });
@@ -1205,7 +1205,7 @@ export function PainelBilheteriaWorkstation({
                                   if (!selectionCapabilities.canUnvalidate || unvalidatableVoucherIds.length === 0) {
                                     setMessage({
                                       tone: "warning",
-                                      text: "Selecione somente vouchers ja validados para desvalidar.",
+                                      text: "Selecione somente vouchers já validados para desvalidar.",
                                     });
                                     return;
                                   }
@@ -1214,7 +1214,7 @@ export function PainelBilheteriaWorkstation({
                                     kind: "unvalidate-selected",
                                     purchaseId: purchase.purchaseId,
                                     voucherIds: unvalidatableVoucherIds,
-                                    title: "Confirmar desvalidacao",
+                                    title: "Confirmar desvalidação",
                                     description: `Deseja desvalidar ${unvalidatableVoucherIds.length} ingresso(s) da compra ${purchase.purchaseId}?`,
                                     confirmLabel: "Desvalidar selecionados",
                                   });
@@ -1300,7 +1300,7 @@ export function PainelBilheteriaWorkstation({
               id="painel-bilheteria-confirmation-title"
               className="text-lg font-black text-[#123b63]"
             >
-              {confirmationState?.title || "Confirmar operacao"}
+              {confirmationState?.title || "Confirmar operação"}
             </h2>
           </div>
 

@@ -43,7 +43,7 @@ export function PainelBilheteriaLegacyActions({
           {
             key: "history" as const,
             href: "/painel/bilheteria/historico",
-            label: "Historico de Vendas",
+            label: "Histórico de Vendas",
           },
         ]
       : []),

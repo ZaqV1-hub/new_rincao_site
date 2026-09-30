@@ -25,13 +25,13 @@ const purchaseLocationOptions = [
 
 const purchaseStatusOptions = [
   { value: "pend", label: "Em processamento" },
-  { value: "conc", label: "Concluida" },
+  { value: "conc", label: "Concluída" },
   { value: "canc", label: "Cancelada" },
 ];
 
 const usedStatusOptions = [
   { value: "s", label: "Sim" },
-  { value: "n", label: "Nao" },
+  { value: "n", label: "Não" },
 ];
 
 function renderSelect(
@@ -227,7 +227,7 @@ export function PainelCompraVouchersPage({
                 className="rounded-full border border-[#c9d8e3] px-4 py-2 text-sm font-semibold text-[#205a7f] hover:bg-[#edf5fa]"
                 href={nextHref}
               >
-                Proxima pagina
+                Próxima pagina
               </Link>
             ) : null}
           </div>
@@ -236,7 +236,7 @@ export function PainelCompraVouchersPage({
 
       <aside className="grid content-start gap-5">
         <div className="rounded-[6px] border border-[#d4dde5] bg-white p-5 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
-          <h2 className="text-lg font-semibold text-[#205a7f]">Acoes</h2>
+          <h2 className="text-lg font-semibold text-[#205a7f]">Ações</h2>
           <ul className="mt-4 grid gap-3 text-sm">
             <li>
               <a className="text-[#1d68a2] underline" href={exportHref}>
@@ -280,7 +280,7 @@ export function PainelCompraVouchersPage({
                 <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.purchaseDateFrom ?? ""} name="dtcompra[de]" type="date" />
               </label>
               <label className="grid gap-2 text-sm text-[#555]">
-                <span>Data da compra ate</span>
+                <span>Data da compra até</span>
                 <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.purchaseDateTo ?? ""} name="dtcompra[ate]" type="date" />
               </label>
             </div>
@@ -291,7 +291,7 @@ export function PainelCompraVouchersPage({
                 <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.usedDateFrom ?? ""} name="dtuso[de]" type="date" />
               </label>
               <label className="grid gap-2 text-sm text-[#555]">
-                <span>Data de uso ate</span>
+                <span>Data de uso até</span>
                 <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.usedDateTo ?? ""} name="dtuso[ate]" type="date" />
               </label>
             </div>
@@ -302,7 +302,7 @@ export function PainelCompraVouchersPage({
                 <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.visitDateFrom ?? ""} name="dtagenda[de]" type="date" />
               </label>
               <label className="grid gap-2 text-sm text-[#555]">
-                <span>Data de visita ate</span>
+                <span>Data de visita até</span>
                 <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.visitDateTo ?? ""} name="dtagenda[ate]" type="date" />
               </label>
             </div>

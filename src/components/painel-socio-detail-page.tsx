@@ -19,7 +19,7 @@ export function PainelSocioDetailPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/administrativo", label: "Acessos" },
-            { href: "/painel/socio", label: "Socios" },
+            { href: "/painel/socio", label: "Sócios" },
             { label: data.name },
           ]}
         />
@@ -36,7 +36,7 @@ export function PainelSocioDetailPage({
                       CPF
                     </th>
                     <th className="w-1/3 border border-[#d7d7d7] bg-[#f7f7f7] px-4 py-3 font-semibold text-[#5a5a5a]">
-                      Data inicio
+                      Data início
                     </th>
                     <th className="w-1/3 border border-[#d7d7d7] bg-[#f7f7f7] px-4 py-3 font-semibold text-[#5a5a5a]">
                       Data fim
@@ -86,14 +86,14 @@ export function PainelSocioDetailPage({
           <aside className="space-y-5">
             <div className="border border-[#d8d8d8] bg-white">
               <div className="border-b border-[#d8d8d8] bg-[#f3f3f3] px-5 py-3 text-[20px] text-[#666]">
-                Acoes
+                Ações
               </div>
               <div className="grid gap-3 px-5 py-4 text-[15px]">
                 <Link className="text-[#666] underline" href="/painel/socio/adicionar">
-                  Adicionar socio
+                  Adicionar sócio
                 </Link>
                 <Link className="text-[#666] underline" href="/painel/socio">
-                  Lista de socios
+                  Lista de sócios
                 </Link>
                 <Link className="text-[#666] underline" href={`/painel/socio/${data.cpf}/editar`}>
                   Editar

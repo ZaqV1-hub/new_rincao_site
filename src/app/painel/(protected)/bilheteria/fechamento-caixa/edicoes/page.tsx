@@ -5,7 +5,7 @@ import { listBilheteriaCashEdits } from "@/lib/bilheteria-cash-data";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Log de Edicoes do Caixa | Rincao",
+  title: "Painel - Log de Edições do Caixa | Rincao",
   robots: {
     index: false,
     follow: false,

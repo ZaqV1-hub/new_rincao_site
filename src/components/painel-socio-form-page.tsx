@@ -40,7 +40,7 @@ export function PainelSocioFormPage({
     stsocio: socio?.status || "ati",
   });
 
-  const title = mode === "create" ? "Adicionar socio" : "Editar socio";
+  const title = mode === "create" ? "Adicionar sócio" : "Editar sócio";
   const submitLabel = mode === "create" ? "Cadastrar" : "Salvar";
   const destination = useMemo(
     () => (mode === "create" ? "/api/painel/socio" : `/api/painel/socio/${socio?.cpf}`),
@@ -65,12 +65,12 @@ export function PainelSocioFormPage({
           | null;
 
         if (!response.ok || !payload?.ok) {
-          throw new Error(payload?.error?.message || "Falha ao salvar o socio.");
+          throw new Error(payload?.error?.message || "Falha ao salvar o sócio.");
         }
 
         setFeedback({
           tone: "success",
-          message: payload.data?.message || "Socio salvo com sucesso.",
+          message: payload.data?.message || "Sócio salvo com sucesso.",
         });
         const nextCpf = payload.data?.id || form.cpf.replace(/\D+/g, "") || socio?.cpf;
         router.replace(nextCpf ? `/painel/socio/${nextCpf}` : "/painel/socio");
@@ -78,7 +78,7 @@ export function PainelSocioFormPage({
       } catch (error) {
         setFeedback({
           tone: "error",
-          message: error instanceof Error ? error.message : "Falha ao salvar o socio.",
+          message: error instanceof Error ? error.message : "Falha ao salvar o sócio.",
         });
       }
     });
@@ -91,7 +91,7 @@ export function PainelSocioFormPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/administrativo", label: "Acessos" },
-            { href: "/painel/socio", label: "Socios" },
+            { href: "/painel/socio", label: "Sócios" },
             { label: title },
           ]}
         />
@@ -134,7 +134,7 @@ export function PainelSocioFormPage({
                     </tr>
                     <tr>
                       <th className="border border-[#d7d7d7] bg-[#f7f7f7] px-4 py-3 font-semibold text-[#5a5a5a]">
-                        Data Inicio
+                        Data Início
                       </th>
                       <td className="border border-[#d7d7d7] px-4 py-3">
                         <input

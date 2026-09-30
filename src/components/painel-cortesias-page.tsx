@@ -20,7 +20,7 @@ export function PainelCortesiasPage({ data }: Props) {
   const [isPending, startTransition] = useTransition();
 
   async function handleDelete(id: number) {
-    if (!window.confirm("Excluir esta cortesia?")) {
+    if (!window.confirm("Excluir está cortesia?")) {
       return;
     }
 
@@ -98,7 +98,7 @@ export function PainelCortesiasPage({ data }: Props) {
                 <tr>
                   <th className="px-3 py-2.5 text-xs font-semibold">ID</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">Nome</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold text-right">Acoes</th>
+                  <th className="px-3 py-2.5 text-xs font-semibold text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -150,7 +150,7 @@ export function PainelCortesiasPage({ data }: Props) {
               className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm font-semibold text-[#17351f]"
               href={nextHref}
             >
-              Proxima pagina
+              Próxima pagina
             </Link>
           ) : null}
         </div>

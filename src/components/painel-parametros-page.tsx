@@ -113,7 +113,7 @@ export function PainelParametrosPage({
                   <thead className="bg-[#5f84a3] text-left text-white">
                     <tr>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">ID</th>
-                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Descricao</th>
+                      <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Descrição</th>
                       <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
                     </tr>
                   </thead>

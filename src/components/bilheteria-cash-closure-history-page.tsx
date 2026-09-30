@@ -46,7 +46,7 @@ export function BilheteriaCashClosureHistoryPage({
         <div>
           <p className="panel-eyebrow">Caixa</p>
           <h1 className="text-[28px] font-black leading-tight text-[#17351f]">
-            Historico de fechamentos
+            Histórico de fechamentos
           </h1>
         </div>
 
@@ -56,7 +56,7 @@ export function BilheteriaCashClosureHistoryPage({
               <thead className="bg-[#5f84a3] text-left text-white">
                 <tr>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data do fechamento</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 text-right font-normal">Acoes</th>
+                  <th className="border border-[#6f8ea8] px-4 py-3 text-right font-normal">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -114,7 +114,7 @@ export function BilheteriaCashClosureHistoryPage({
                 className="rounded-[4px] border border-[#d0dbe7] bg-white px-3 py-2 font-bold text-[#205a7f]"
                 href={buildPageHref(history.page + 1)}
               >
-                Proxima
+                Próxima
               </Link>
             ) : null}
           </div>

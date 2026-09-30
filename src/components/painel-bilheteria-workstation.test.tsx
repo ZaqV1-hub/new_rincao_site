@@ -17,7 +17,7 @@ describe("PainelBilheteriaWorkstation", () => {
     expect(html).toContain("Consultar Ingresso");
     expect(html).toContain("Voucher");
     expect(html).toContain("RG ou CPF");
-    expect(html).toContain("Inserir ID ou numero do ingresso");
+    expect(html).toContain("Inserir ID ou número do ingresso");
     expect(html).toContain("Imprimir QR-Code");
     expect(html).toContain("Enviar no WhatsApp");
     expect(html).not.toContain("/painel/bilheteria?consult=1");
