@@ -107,7 +107,7 @@ export function PainelDescontosPage({ data }: Props) {
                   <th className="px-3 py-2.5 text-xs font-semibold">Nome</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">Aplicação</th>
                   <th className="px-3 py-2.5 text-xs font-semibold">Valor</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold text-right">Acoes</th>
+                  <th className="px-3 py-2.5 text-xs font-semibold text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,7 +162,7 @@ export function PainelDescontosPage({ data }: Props) {
               className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm font-semibold text-[#17351f]"
               href={nextHref}
             >
-              Proxima pagina
+              Próxima pagina
             </Link>
           ) : null}
         </div>

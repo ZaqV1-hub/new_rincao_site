@@ -27,7 +27,7 @@ const navItems = [
   {
     key: "history",
     href: "/painel/bilheteria/historico",
-    label: "Historico",
+    label: "Histórico",
   },
 ] as const;
 

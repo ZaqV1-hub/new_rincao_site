@@ -91,13 +91,13 @@ export function PainelUsuariosPage({
 
       if (!response.ok || !payload?.ok) {
         throw new Error(
-          payload?.error?.message || "Falha ao alterar o status do usuario.",
+          payload?.error?.message || "Falha ao alterar o status do usuário.",
         );
       }
 
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Status do usuario atualizado.",
+        message: payload.data?.message || "Status do usuário atualizado.",
       });
       startTransition(() => router.refresh());
     } catch (error) {
@@ -106,7 +106,7 @@ export function PainelUsuariosPage({
         message:
           error instanceof Error
             ? error.message
-            : "Falha ao alterar o status do usuario.",
+            : "Falha ao alterar o status do usuário.",
       });
     } finally {
       setPendingCpf(null);
@@ -136,13 +136,13 @@ export function PainelUsuariosPage({
 
       if (!response.ok || !payload?.ok) {
         throw new Error(
-          payload?.error?.message || "Falha ao remover o usuario.",
+          payload?.error?.message || "Falha ao remover o usuário.",
         );
       }
 
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Usuario removido com sucesso.",
+        message: payload.data?.message || "Usuário removido com sucesso.",
       });
       startTransition(() => router.refresh());
     } catch (error) {
@@ -151,7 +151,7 @@ export function PainelUsuariosPage({
         message:
           error instanceof Error
             ? error.message
-            : "Falha ao remover o usuario.",
+            : "Falha ao remover o usuário.",
       });
     } finally {
       setPendingCpf(null);
@@ -165,7 +165,7 @@ export function PainelUsuariosPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/usuario", label: "Administrativo" },
-            { label: "Usuarios" },
+            { label: "Usuários" },
           ]}
         />
 
@@ -190,7 +190,7 @@ export function PainelUsuariosPage({
               </p>
             ) : (
               <p className="mb-4 text-[17px] text-[#5a5a5a]">
-                Nenhum usuario encontrado.
+                Nenhum usuário encontrado.
               </p>
             )}
 
@@ -202,7 +202,7 @@ export function PainelUsuariosPage({
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Nome</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Papel</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acoes</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -285,7 +285,7 @@ export function PainelUsuariosPage({
                         className="border border-[#d7d7d7] px-4 py-8 text-center text-[#6f6f6f]"
                         colSpan={5}
                       >
-                        Nao ha dados
+                        Não ha dados
                       </td>
                     </tr>
                   )}
@@ -309,11 +309,11 @@ export function PainelUsuariosPage({
                 )}
                 {nextHref ? (
                   <Link className="border border-[#cfcfcf] px-3 py-2" href={nextHref}>
-                    Proxima
+                    Próxima
                   </Link>
                 ) : (
                   <span className="border border-[#e2e2e2] px-3 py-2 text-[#afafaf]">
-                    Proxima
+                    Próxima
                   </span>
                 )}
               </div>
@@ -324,7 +324,7 @@ export function PainelUsuariosPage({
             <section className="rounded-[6px] border border-[#d7e1e8] bg-white shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
               <div className="grid gap-3 px-6 py-5 text-[17px] text-[#5a5a5a]">
                 <Link className="text-[#666] underline" href="/painel/usuario/adicionar">
-                  Adicionar usuario
+                  Adicionar usuário
                 </Link>
                 <Link className="text-[#666] underline" href="/painel/usuario/minha-conta">
                   Minha conta

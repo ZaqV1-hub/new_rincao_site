@@ -108,7 +108,7 @@ export function BilheteriaCashClosurePage({
             message:
               payload && !payload.ok
                 ? payload.error.message
-                : "Nao foi possivel fechar o caixa agora.",
+                : "Não foi possível fechar o caixa agora.",
           });
           return;
         }
@@ -185,7 +185,7 @@ export function BilheteriaCashClosurePage({
             <h1 className="text-[28px] font-black leading-tight text-[#123b63]">
               Fechamento de caixa
             </h1>
-            {isHistorical ? <p className="mt-1 text-sm text-[#5d7282]">Historico salvo</p> : null}
+            {isHistorical ? <p className="mt-1 text-sm text-[#5d7282]">Histórico salvo</p> : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -195,7 +195,7 @@ export function BilheteriaCashClosurePage({
                   className="panel-button-secondary"
                   href="/painel/bilheteria/fechamento-caixa/historico"
                 >
-                  Historico
+                  Histórico
                 </Link>
                 <Link
                   className="panel-button-secondary"
@@ -205,7 +205,7 @@ export function BilheteriaCashClosurePage({
                       : "/painel/bilheteria/fechamento-caixa/edicoes"
                   }
                 >
-                  Edicoes
+                  Edições
                 </Link>
               </>
             ) : null}
@@ -250,7 +250,7 @@ export function BilheteriaCashClosurePage({
 
         <div className="rounded-[8px] border border-[#d6e1eb] bg-[#f5f9fd] px-4 py-3 text-sm text-[#35576f]">
           <strong className="block text-xs uppercase tracking-[0.06em]">
-            Periodo considerado
+            Período considerado
           </strong>
           {formatBilheteriaCashDateTime(report.period.openedAt)} &rarr;{" "}
           {formatBilheteriaCashDateTime(report.period.closedAt)}
@@ -259,7 +259,7 @@ export function BilheteriaCashClosurePage({
         <div className="grid gap-4 xl:grid-cols-4">
           <article className="overflow-hidden rounded-[8px] border border-[#dbe7d7] bg-white p-5 shadow-none">
             <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#5f7387]">
-              Publico
+              Público
             </span>
             <strong className="mt-3 block text-4xl font-bold text-[#204b71]">
               {report.kpis.people.total}
@@ -290,12 +290,12 @@ export function BilheteriaCashClosurePage({
               {formatBilheteriaCashMoney(report.kpis.cashInDrawer)}
             </strong>
             <small className="mt-3 block text-sm text-[#5f7387]">
-              Dinheiro em vendas, fundos e sangrias do periodo.
+              Dinheiro em vendas, fundos e sangrias do período.
             </small>
           </article>
           <article className="overflow-hidden rounded-[6px] border border-[#d8e3ef] bg-white p-5 shadow-[0_8px_22px_rgba(36,76,114,0.08)]">
             <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#5f7387]">
-              Ticket medio do dia
+              Ticket médio do dia
             </span>
             <strong className="mt-3 block text-4xl font-bold text-[#204b71]">
               {formatBilheteriaCashMoney(report.kpis.averageTicket)}
@@ -480,7 +480,7 @@ export function BilheteriaCashClosurePage({
                     {fundRows.map((row, index) => (
                       <tr key={`fund-${row.id}`}>
                         <td className="border border-[#d2dde6] px-4 py-3">
-                          Lancamento {index + 1} ({row.responsible})
+                          Lançamento {index + 1} ({row.responsible})
                         </td>
                         <td className="border border-[#d2dde6] px-4 py-3 text-right">
                           {formatBilheteriaCashMoney(row.numericValue)}
@@ -686,7 +686,7 @@ export function BilheteriaCashClosurePage({
         <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
           <div className="text-sm text-[#5f7387]">
             {isHistorical
-              ? "Visualizacao de um fechamento ja concluido."
+              ? "Visualização de um fechamento já concluído."
               : "Revise os totais antes de imprimir ou concluir o fechamento do caixa."}
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -753,7 +753,7 @@ export function BilheteriaCashClosurePage({
                 onClick={() => setShowCloseModal(false)}
                 type="button"
               >
-                Nao
+                Não
               </button>
               <button
                 className="rounded-[8px] bg-[#246b99] px-4 py-2 text-sm font-semibold text-white"

@@ -100,7 +100,7 @@ export function PainelCategoriaSocioPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/administrativo", label: "Acessos" },
-            { label: "Categoria Socio" },
+            { label: "Categoria Sócio" },
           ]}
         />
 
@@ -135,7 +135,7 @@ export function PainelCategoriaSocioPage({
                   <tr>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Nome</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Tabela de Preco</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acoes</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -183,7 +183,7 @@ export function PainelCategoriaSocioPage({
                         className="border border-[#d7d7d7] px-4 py-8 text-center text-[#6f6f6f]"
                         colSpan={3}
                       >
-                        Nao ha dados
+                        Não ha dados
                       </td>
                     </tr>
                   )}
@@ -207,11 +207,11 @@ export function PainelCategoriaSocioPage({
                 )}
                 {nextHref ? (
                   <Link className="border border-[#cfcfcf] px-3 py-2" href={nextHref}>
-                    Proxima
+                    Próxima
                   </Link>
                 ) : (
                   <span className="border border-[#e2e2e2] px-3 py-2 text-[#afafaf]">
-                    Proxima
+                    Próxima
                   </span>
                 )}
               </div>
@@ -222,7 +222,7 @@ export function PainelCategoriaSocioPage({
             <section className="rounded-[6px] border border-[#d7e1e8] bg-white shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
               <div className="grid gap-3 px-6 py-5 text-[17px] text-[#5a5a5a]">
                 <Link className="text-[#666] underline" href="/painel/categoria-socio/adicionar">
-                  Adicionar categoria de socio
+                  Adicionar categoria de sócio
                 </Link>
               </div>
             </section>

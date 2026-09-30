@@ -79,7 +79,7 @@ export function PainelUsuarioAccountPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/usuario", label: "Administrativo" },
-            { href: "/painel/usuario", label: "Usuarios" },
+            { href: "/painel/usuario", label: "Usuários" },
             { label: "Minha conta" },
           ]}
         />
@@ -137,7 +137,7 @@ export function PainelUsuarioAccountPage({
                 />
               </label>
               <label className="grid gap-2 text-sm font-semibold text-[#5a5a5a]">
-                Confirmacao da senha
+                Confirmação da senha
                 <input
                   className="border border-[#d3dbe3] px-3 py-3 text-base font-normal"
                   onChange={(event) => setCSenha(event.target.value)}

@@ -149,7 +149,7 @@ export function PainelBilheteriaReservationPayment({
 
       if (!response.ok || !payload?.ok) {
         setErrorMessage(
-          payload?.error?.message || "Nao foi possivel concluir o pagamento.",
+          payload?.error?.message || "Não foi possível concluir o pagamento.",
         );
         return;
       }
@@ -185,7 +185,7 @@ export function PainelBilheteriaReservationPayment({
       if (!response.ok || !payload?.ok) {
         setWhatsMessage(
           payload?.error?.message ||
-            "Nao foi possivel enviar os ingressos por WhatsApp.",
+            "Não foi possível enviar os ingressos por WhatsApp.",
         );
         return;
       }

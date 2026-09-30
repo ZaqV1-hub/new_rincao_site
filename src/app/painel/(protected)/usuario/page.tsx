@@ -4,7 +4,7 @@ import { listPainelUsuarios } from "@/lib/painel-usuarios";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Usuarios | Rincao",
+  title: "Painel - Usuários | Rincao",
   robots: {
     index: false,
     follow: false,

@@ -210,7 +210,7 @@ export function PainelTripSchoolReportPage({
       <section className="grid gap-4 md:grid-cols-5">
         <SummaryCard value={report.indicators.totalCount} label="Participantes" />
         <SummaryCard value={report.indicators.paidCount} label="Pagos" />
-        <SummaryCard value={report.indicators.unpaidCount} label="Nao pagos" />
+        <SummaryCard value={report.indicators.unpaidCount} label="Não pagos" />
         <SummaryCard value={report.indicators.usedCount} label="Usados" />
         <SummaryCard value={`R$ ${report.indicators.totalValue}`} label="Valor total" />
       </section>
@@ -227,7 +227,7 @@ export function PainelTripSchoolReportPage({
         title="Educadores"
         emptyLabel="Nenhum educador encontrado para o filtro atual."
         rows={report.educators}
-        thirdColumnLabel="Funcao"
+          thirdColumnLabel="Função"
         thirdColumnValue={(participant) => participant.role}
       />
     </div>

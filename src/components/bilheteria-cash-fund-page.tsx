@@ -101,7 +101,7 @@ export function BilheteriaCashFundPage({
             message:
               payload && !payload.ok
                 ? payload.error.message
-                : "Nao foi possivel concluir a operacao no caixa.",
+                : "Não foi possível concluir a operação no caixa.",
           });
           return;
         }
@@ -127,7 +127,7 @@ export function BilheteriaCashFundPage({
 
   function renderRows(type: "fundo" | "sangria") {
     const items = type === "fundo" ? currentSummary.funds : currentSummary.sangrias;
-    const emptyLabel = type === "fundo" ? "- Sem lancamentos -" : "- Sem sangrias -";
+    const emptyLabel = type === "fundo" ? "- Sem lançamentos -" : "- Sem sangrias -";
 
     if (items.length === 0) {
       return (
@@ -154,7 +154,7 @@ export function BilheteriaCashFundPage({
           <td className="border border-[#d2dde6] px-4 py-3">
             <div className="flex justify-end gap-2">
               <button
-                aria-label="Editar lancamento"
+                aria-label="Editar lançamento"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#d0dbe7] bg-white text-[#1d3348]"
                 onClick={() =>
                   setModalState({
@@ -170,7 +170,7 @@ export function BilheteriaCashFundPage({
                 ✎
               </button>
               <button
-                aria-label="Excluir lancamento"
+                aria-label="Excluir lançamento"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#f1c9c9] bg-white text-[#d33c3c]"
                 onClick={() =>
                   setModalState({
@@ -267,7 +267,7 @@ export function BilheteriaCashFundPage({
                   <tr>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">NOME</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
-                    {isManager ? <th className="border border-[#6f8ea8] px-4 py-3 text-right font-normal">Acoes</th> : null}
+                    {isManager ? <th className="border border-[#6f8ea8] px-4 py-3 text-right font-normal">Ações</th> : null}
                   </tr>
                 </thead>
                 <tbody>{renderRows("fundo")}</tbody>
@@ -288,7 +288,7 @@ export function BilheteriaCashFundPage({
                   <tr>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">NOME</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
-                    {isManager ? <th className="border border-[#6f8ea8] px-4 py-3 text-right font-normal">Acoes</th> : null}
+                    {isManager ? <th className="border border-[#6f8ea8] px-4 py-3 text-right font-normal">Ações</th> : null}
                   </tr>
                 </thead>
                 <tbody>{renderRows("sangria")}</tbody>
@@ -403,7 +403,7 @@ export function BilheteriaCashFundPage({
               >
                 <div className="border-b border-[#e6edf3] px-5 py-4">
                   <h2 className="text-lg font-semibold text-[#1d3348]">
-                    Editar lancamento
+                    Editar lançamento
                   </h2>
                 </div>
                 <div className="grid gap-4 px-5 py-5">
@@ -478,12 +478,12 @@ export function BilheteriaCashFundPage({
               >
                 <div className="border-b border-[#e6edf3] px-5 py-4">
                   <h2 className="text-lg font-semibold text-[#1d3348]">
-                    Excluir lancamento
+                    Excluir lançamento
                   </h2>
                 </div>
                 <div className="grid gap-4 px-5 py-5">
                   <p className="text-sm font-semibold text-[#1d3348]">
-                    Tem certeza que deseja excluir este lancamento?
+                    Tem certeza que deseja excluir este lançamento?
                   </p>
                   <label className="grid gap-2 text-sm font-semibold text-[#35576f]">
                     Explique o motivo da exclusao
@@ -500,7 +500,7 @@ export function BilheteriaCashFundPage({
                     onClick={closeModal}
                     type="button"
                   >
-                    Nao
+                    Não
                   </button>
                   <button
                     className="rounded-[8px] bg-[#d33c3c] px-4 py-2 text-sm font-semibold text-white"

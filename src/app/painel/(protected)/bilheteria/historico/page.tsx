@@ -17,7 +17,7 @@ import { readPainelBilheteriaFlashState } from "@/lib/painel-bilheteria-page";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Historico de Vendas | Rincao",
+  title: "Painel - Histórico de Vendas | Rincao",
   robots: {
     index: false,
     follow: false,
@@ -145,7 +145,7 @@ export default async function PainelBilheteriaHistoricoPage({
       <PainelBilheteriaPageHeader
         current="history"
         isManager
-        title="Historico de vendas"
+        title="Histórico de vendas"
         description="Consulta auditável de compras de bilheteria e reservas, com filtro operacional e abertura inline de detalhe ou edição."
         actorName={session.actorName}
       />
@@ -181,7 +181,7 @@ export default async function PainelBilheteriaHistoricoPage({
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Forma de pagamento</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acoes</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -266,7 +266,7 @@ export default async function PainelBilheteriaHistoricoPage({
                   })}
                   className="rounded-full border border-[#c9d8e3] px-4 py-2 text-sm font-semibold text-[#205a7f] hover:bg-[#edf5fa]"
                 >
-                  Proxima pagina
+                  Próxima pagina
                 </Link>
               ) : null}
             </div>
@@ -312,7 +312,7 @@ export default async function PainelBilheteriaHistoricoPage({
               />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-[#345062]">
-              Ate
+              Até
               <input
                 type="date"
                 name="dtfim"
@@ -356,7 +356,7 @@ export default async function PainelBilheteriaHistoricoPage({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#5d7282]">
-                    Historico de vendas
+                    Histórico de vendas
                   </p>
                   <h2 className="mt-2 text-2xl font-semibold text-[#205a7f]">
                     {selectedMode === "edit"

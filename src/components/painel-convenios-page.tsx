@@ -101,13 +101,13 @@ export function PainelConveniosPage({ data }: PainelConveniosPageProps) {
 
       if (!response.ok || !payload?.ok) {
         throw new Error(
-          payload?.error?.message || "Falha ao alterar o status do convenio.",
+          payload?.error?.message || "Falha ao alterar o status do convênio.",
         );
       }
 
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Status do convenio atualizado.",
+        message: payload.data?.message || "Status do convênio atualizado.",
       });
       startTransition(() => router.refresh());
     } catch (error) {
@@ -116,7 +116,7 @@ export function PainelConveniosPage({ data }: PainelConveniosPageProps) {
         message:
           error instanceof Error
             ? error.message
-            : "Falha ao alterar o status do convenio.",
+            : "Falha ao alterar o status do convênio.",
       });
     } finally {
       setPendingAgreementId(null);
@@ -146,12 +146,12 @@ export function PainelConveniosPage({ data }: PainelConveniosPageProps) {
         | null;
 
       if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error?.message || "Falha ao excluir o convenio.");
+        throw new Error(payload?.error?.message || "Falha ao excluir o convênio.");
       }
 
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Convenio removido com sucesso.",
+        message: payload.data?.message || "Convênio removido com sucesso.",
       });
       startTransition(() => router.refresh());
     } catch (error) {
@@ -160,7 +160,7 @@ export function PainelConveniosPage({ data }: PainelConveniosPageProps) {
         message:
           error instanceof Error
             ? error.message
-            : "Falha ao excluir o convenio.",
+            : "Falha ao excluir o convênio.",
       });
     } finally {
       setPendingAgreementId(null);
@@ -175,7 +175,7 @@ export function PainelConveniosPage({ data }: PainelConveniosPageProps) {
             Home
           </Link>{" "}
           <span className="mx-2 text-[#b8b8b8]">&gt;</span>
-          <span>Lista de convenios</span>
+          <span>Lista de convênios</span>
         </div>
 
         {feedback ? (
@@ -197,7 +197,7 @@ export function PainelConveniosPage({ data }: PainelConveniosPageProps) {
               <strong>{data.total}</strong>
             </p>
           ) : (
-            <p className="mb-4 text-[17px] text-[#5a5a5a]">Nenhum convenio encontrado.</p>
+            <p className="mb-4 text-[17px] text-[#5a5a5a]">Nenhum convênio encontrado.</p>
           )}
 
           {data.total > 0 ? (
@@ -211,13 +211,13 @@ export function PainelConveniosPage({ data }: PainelConveniosPageProps) {
                       Tabela de Preco
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                      Data Inicio
+                      Data Início
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
                       Data Fim
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acoes</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -308,7 +308,7 @@ export function PainelConveniosPage({ data }: PainelConveniosPageProps) {
                 className="rounded-full border border-[#c9d8e3] px-4 py-2 text-sm font-semibold text-[#205a7f] hover:bg-[#edf5fa]"
                 href={nextHref}
               >
-                Proxima pagina
+                Próxima pagina
               </Link>
             ) : null}
           </div>
@@ -319,7 +319,7 @@ export function PainelConveniosPage({ data }: PainelConveniosPageProps) {
         <ul className="space-y-3 text-[15px]">
           <li>
             <Link className="text-[#1d68a2] underline" href="/painel/convenios/adicionar">
-              Adicionar convenio
+              Adicionar convênio
             </Link>
           </li>
         </ul>
@@ -347,7 +347,7 @@ export function PainelConveniosPage({ data }: PainelConveniosPageProps) {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm font-semibold text-[#5a5a5a]">
-                Periodo de
+                Período de
                 <input
                   className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
                   defaultValue={data.filters.periodFrom ?? ""}
@@ -357,7 +357,7 @@ export function PainelConveniosPage({ data }: PainelConveniosPageProps) {
                 />
               </label>
               <label className="block text-sm font-semibold text-[#5a5a5a]">
-                ate
+                até
                 <input
                   className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
                   defaultValue={data.filters.periodTo ?? ""}

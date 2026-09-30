@@ -225,7 +225,7 @@ export function PainelCodIndicaDetailPage({
           </div>
           <div className="border border-[#d7d7d7] bg-[#f8fbfd] p-4">
             <div className="text-xs uppercase tracking-[0.12em] text-[#6f7f8d]">
-              Cashback disponivel
+              Cashback disponível
             </div>
             <div className="mt-2 text-[28px] font-semibold text-[#205a7f]">
               R$ {detail.indicators.cashbackDisponivelLabel}
@@ -271,7 +271,7 @@ export function PainelCodIndicaDetailPage({
               </label>
             </div>
             <p className="text-sm text-[#5a5a5a]">
-              Disponivel para pagamento: <strong>R$ {detail.indicators.cashbackDisponivelLabel}</strong>
+              Disponível para pagamento: <strong>R$ {detail.indicators.cashbackDisponivelLabel}</strong>
             </p>
             <button
               className="inline-flex items-center justify-center rounded-full bg-[#1f4f7a] px-6 py-3 text-sm font-semibold text-white hover:bg-[#173d61] disabled:opacity-60"
@@ -351,7 +351,7 @@ export function PainelCodIndicaDetailPage({
               Forma Pgto. Cielo
               <select className="mt-1 w-full border border-[#d7d7d7] px-3 py-2 text-sm" defaultValue={detail.filters.paymentmethodtype || "-1"} name="paymentmethodtype">
                 <option value="-1">Todos</option>
-                <option value="1">Cartao de credito</option>
+                <option value="1">Cartão de crédito</option>
                 <option value="2">Boleto</option>
                 <option value="11">Pix</option>
               </select>
@@ -361,7 +361,7 @@ export function PainelCodIndicaDetailPage({
               <select className="mt-1 w-full border border-[#d7d7d7] px-3 py-2 text-sm" defaultValue={detail.filters.status || "-1"} name="status">
                 <option value="-1">Todos</option>
                 <option value="1">Aguardando pagamento</option>
-                <option value="2">Em analise</option>
+                <option value="2">Em análise</option>
                 <option value="3">Paga</option>
                 <option value="7">Cancelada</option>
               </select>
@@ -371,7 +371,7 @@ export function PainelCodIndicaDetailPage({
               <select className="mt-1 w-full border border-[#d7d7d7] px-3 py-2 text-sm" defaultValue={detail.filters.stcompra || "-1"} name="stcompra">
                 <option value="-1">Todos</option>
                 <option value="pend">Pendente</option>
-                <option value="conc">Concluida</option>
+                <option value="conc">Concluída</option>
                 <option value="canc">Cancelada</option>
               </select>
             </label>
@@ -399,7 +399,7 @@ export function PainelCodIndicaDetailPage({
                 <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Desconto</th>
                 <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Cashback</th>
                 <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acoes</th>
+                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ações</th>
               </tr>
             </thead>
             <tbody>

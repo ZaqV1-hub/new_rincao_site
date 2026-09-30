@@ -77,8 +77,8 @@ export function BilheteriaCashClosureEditsPage({
 }: Props) {
   const title =
     edits.closureId != null
-      ? "Edicoes do fechamento"
-      : "Edicoes do periodo aberto";
+      ? "Edições do fechamento"
+      : "Edições do período aberto";
   const closureHref =
     edits.closureId != null
       ? `/painel/bilheteria/fechamento-caixa?fechamento_id=${edits.closureId}`
@@ -106,8 +106,8 @@ export function BilheteriaCashClosureEditsPage({
                 <tr>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data/Hora</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Registro</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acao</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Descricao</th>
+                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ação</th>
+                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Descrição</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Motivo</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Responsavel</th>
                 </tr>
@@ -127,7 +127,7 @@ export function BilheteriaCashClosureEditsPage({
                 ) : (
                   <tr>
                     <td className="px-4 py-5 text-center text-[#5f7387]" colSpan={6}>
-                      - Nenhuma edicao registrada -
+                      - Nenhuma edição registrada -
                     </td>
                   </tr>
                 )}
@@ -154,7 +154,7 @@ export function BilheteriaCashClosureEditsPage({
                 className="rounded-[4px] border border-[#d0dbe7] bg-white px-3 py-2 font-bold text-[#205a7f]"
                 href={buildPageHref(edits.page + 1, edits.closureId)}
               >
-                Proxima
+                Próxima
               </Link>
             ) : null}
           </div>

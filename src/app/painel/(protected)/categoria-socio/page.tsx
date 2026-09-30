@@ -4,7 +4,7 @@ import { listPainelCategoriasSocio } from "@/lib/painel-categoria-socio";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Categoria Socio | Rincao",
+  title: "Painel - Categoria Sócio | Rincao",
   robots: {
     index: false,
     follow: false,

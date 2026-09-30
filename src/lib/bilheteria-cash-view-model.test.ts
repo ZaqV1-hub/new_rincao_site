@@ -2,6 +2,36 @@ import { describe, expect, it } from "vitest";
 import { buildBilheteriaCashClosureReportModel } from "@/lib/bilheteria-cash-view-model";
 
 describe("bilheteria-cash-view-model", () => {
+  it("normalizes and consolidates equivalent ticket labels", () => {
+    const model = buildBilheteriaCashClosureReportModel({
+      period: { openedAt: null, closedAt: null },
+      siteRows: [
+        { voucherType: "Adulto", quantity: 2, totalValue: 100 },
+        { voucherType: "Ingresso padrão", voucherTypeCode: "norma", quantity: 3, totalValue: 150 },
+        { voucherType: "Criança", quantity: 1, totalValue: 20 },
+        { voucherType: "Ingresso infantil", voucherTypeCode: "infan", quantity: 4, totalValue: 80 },
+        { voucherType: "Isento", quantity: 1, totalValue: 0 },
+        { voucherType: "Isenção cadastrada", voucherTypeCode: "isent", quantity: 2, totalValue: 0 },
+      ],
+      boxOfficeRows: [],
+      discountGroups: [],
+      courtesyRows: [],
+      funds: [],
+      sangrias: [],
+      forms: {},
+      formsDesc: {},
+      totalFund: 0,
+      totalSangria: 0,
+      cashInDrawer: 0,
+    });
+
+    expect(model.siteRows).toEqual([
+      { quantity: 5, totalValue: 250, voucherType: "adulto", voucherTypeLabel: "Adulto", paymentMethod: null },
+      { quantity: 5, totalValue: 100, voucherType: "crianca", voucherTypeLabel: "Criança", paymentMethod: null },
+      { quantity: 3, totalValue: 0, voucherType: "isento", voucherTypeLabel: "Isento", paymentMethod: null },
+    ]);
+  });
+
   it("builds closure KPIs, grouped discounts and merged payment summaries", () => {
     const model = buildBilheteriaCashClosureReportModel({
       period: {
@@ -102,16 +132,16 @@ describe("bilheteria-cash-view-model", () => {
     ]);
     expect(model.boxOfficeSummaryRows).toEqual([
       {
-        quantity: 1,
-        totalValue: 20,
-        voucherType: "infan",
-        voucherTypeLabel: "infan",
-      },
-      {
         quantity: 2,
         totalValue: 50,
-        voucherType: "norma",
-        voucherTypeLabel: "norma",
+        voucherType: "adulto",
+        voucherTypeLabel: "Adulto",
+      },
+      {
+        quantity: 1,
+        totalValue: 20,
+        voucherType: "crianca",
+        voucherTypeLabel: "Criança",
       },
     ]);
     expect(model.discountPanels).toEqual([
@@ -125,8 +155,8 @@ describe("bilheteria-cash-view-model", () => {
             paymentMethod: "pix",
             quantity: 1,
             totalValue: 20,
-            voucherType: "infan",
-            voucherTypeLabel: "infan",
+            voucherType: "crianca",
+            voucherTypeLabel: "Criança",
           },
         ],
       },

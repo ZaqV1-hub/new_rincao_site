@@ -82,19 +82,19 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
         | null;
 
       if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error?.message || "Falha ao alterar o status do socio.");
+        throw new Error(payload?.error?.message || "Falha ao alterar o status do sócio.");
       }
 
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Status do socio atualizado com sucesso.",
+        message: payload.data?.message || "Status do sócio atualizado com sucesso.",
       });
       startTransition(() => router.refresh());
     } catch (error) {
       setFeedback({
         tone: "error",
         message:
-          error instanceof Error ? error.message : "Falha ao alterar o status do socio.",
+          error instanceof Error ? error.message : "Falha ao alterar o status do sócio.",
       });
     } finally {
       setPendingKey(null);
@@ -119,18 +119,18 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
         | null;
 
       if (!response.ok || !payload?.ok) {
-        throw new Error(payload?.error?.message || "Falha ao remover o socio.");
+        throw new Error(payload?.error?.message || "Falha ao remover o sócio.");
       }
 
       setFeedback({
         tone: "success",
-        message: payload.data?.message || "Socio removido com sucesso.",
+        message: payload.data?.message || "Sócio removido com sucesso.",
       });
       startTransition(() => router.refresh());
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof Error ? error.message : "Falha ao remover o socio.",
+        message: error instanceof Error ? error.message : "Falha ao remover o sócio.",
       });
     } finally {
       setPendingKey(null);
@@ -144,7 +144,7 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/administrativo", label: "Acessos" },
-            { label: "Socios" },
+            { label: "Sócios" },
           ]}
         />
 
@@ -168,7 +168,7 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
                 <strong>{data.total}</strong>
               </p>
             ) : (
-              <p className="mb-4 text-[17px] text-[#5a5a5a]">Nenhum socio encontrado.</p>
+              <p className="mb-4 text-[17px] text-[#5a5a5a]">Nenhum sócio encontrado.</p>
             )}
 
             <div className="overflow-x-auto border border-[#cfcfcf]">
@@ -178,10 +178,10 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">CPF</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Nome</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Categoria</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data Inicio</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data Início</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data Fim</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Acoes</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -244,7 +244,7 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
                         className="border border-[#d7d7d7] px-4 py-8 text-center text-[#6f6f6f]"
                         colSpan={7}
                       >
-                        Nao ha dados
+                        Não ha dados
                       </td>
                     </tr>
                   )}
@@ -266,10 +266,10 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
                 )}
                 {nextHref ? (
                   <Link className="border border-[#cfcfcf] px-3 py-2" href={nextHref}>
-                    Proxima
+                    Próxima
                   </Link>
                 ) : (
-                  <span className="border border-[#e2e2e2] px-3 py-2 text-[#afafaf]">Proxima</span>
+                  <span className="border border-[#e2e2e2] px-3 py-2 text-[#afafaf]">Próxima</span>
                 )}
               </div>
             </div>
@@ -278,11 +278,11 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
           <aside className="space-y-5">
             <div className="border border-[#d8d8d8] bg-white">
               <div className="border-b border-[#d8d8d8] bg-[#f3f3f3] px-5 py-3 text-[20px] text-[#666]">
-                Acoes
+                Ações
               </div>
               <div className="grid gap-3 px-5 py-4 text-[15px]">
                 <Link className="text-[#666] underline" href="/painel/socio/adicionar">
-                  Adicionar socio
+                  Adicionar sócio
                 </Link>
               </div>
             </div>
@@ -330,7 +330,7 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
                   <label className="grid gap-2 text-[15px] text-[#555]">
-                    Periodo de
+                    Período de
                     <input
                       className="border border-[#d3dbe3] px-3 py-3"
                       defaultValue={data.filters.periodoDe}
@@ -339,7 +339,7 @@ export function PainelSociosPage({ data, legacyResources }: PainelSociosPageProp
                     />
                   </label>
                   <label className="grid gap-2 text-[15px] text-[#555]">
-                    ate
+                    até
                     <input
                       className="border border-[#d3dbe3] px-3 py-3"
                       defaultValue={data.filters.periodoAte}

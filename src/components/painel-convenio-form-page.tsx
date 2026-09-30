@@ -66,7 +66,7 @@ export function PainelConvenioFormPage({
 
         if (!response.ok || !payload?.ok) {
           throw new Error(
-            payload?.error?.message || "Falha ao salvar o convenio.",
+            payload?.error?.message || "Falha ao salvar o convênio.",
           );
         }
 
@@ -77,12 +77,12 @@ export function PainelConvenioFormPage({
           return;
         }
 
-        setFeedback(payload.data?.message || "Convenio salvo com sucesso.");
+        setFeedback(payload.data?.message || "Convênio salvo com sucesso.");
       } catch (submitError) {
         setError(
           submitError instanceof Error
             ? submitError.message
-            : "Falha ao salvar o convenio.",
+            : "Falha ao salvar o convênio.",
         );
       }
     });
@@ -96,7 +96,7 @@ export function PainelConvenioFormPage({
         </Link>{" "}
         <span className="mx-2 text-[#b8b8b8]">&gt;</span>
         <Link className="text-[#1d68a2] underline" href="/painel/convenios">
-          Lista de convenios
+          Lista de convênios
         </Link>{" "}
         {mode === "edit" && agreementId ? (
           <>
@@ -137,7 +137,7 @@ export function PainelConvenioFormPage({
             />
           </label>
           <label className="block text-sm font-semibold text-[#5a5a5a]">
-            Data Inicio
+            Data Início
             <input
               className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
               defaultValue={initialValues.dtini}

@@ -20,17 +20,17 @@ const purchaseTypeOptions = [
 
 const usedStatusOptions = [
   { value: "s", label: "Sim" },
-  { value: "n", label: "Nao" },
+  { value: "n", label: "Não" },
 ];
 
 const purchaseStatusOptions = [
   { value: "pend", label: "Em processamento" },
-  { value: "conc", label: "Concluida" },
+  { value: "conc", label: "Concluída" },
   { value: "canc", label: "Cancelada" },
 ];
 
 const paymentMethodOptions = [
-  { value: "1", label: "Cartao de credito" },
+  { value: "1", label: "Cartão de crédito" },
   { value: "2", label: "Boleto" },
   { value: "3", label: "TEF" },
   { value: "4", label: "Saldo PagSeguro" },
@@ -40,9 +40,9 @@ const paymentMethodOptions = [
 
 const paymentStatusOptions = [
   { value: "1", label: "Aguardando pagamento" },
-  { value: "2", label: "Em analise" },
+  { value: "2", label: "Em análise" },
   { value: "3", label: "Paga" },
-  { value: "4", label: "Disponivel" },
+  { value: "4", label: "Disponível" },
   { value: "5", label: "Em disputa" },
   { value: "6", label: "Devolvida" },
   { value: "7", label: "Cancelada" },
@@ -119,7 +119,7 @@ export function PainelCompraConvenioPage({
             Home
           </Link>{" "}
           <span className="mx-2 text-[#b8b8b8]">&gt;</span>
-          <span>Lista de Compras Convenio</span>
+          <span>Lista de Compras Convênio</span>
         </div>
 
         <p className="my-6 border-t border-[#e3e8ed]" />
@@ -154,7 +154,7 @@ export function PainelCompraConvenioPage({
                   value: `R$ ${result.indicators.totalValue}`,
                 },
                 {
-                  label: "Convenio",
+                  label: "Convênio",
                   count: result.indicators.qtdconvenio,
                   value: formatMoney(result.indicators.vlconvenio),
                 },
@@ -177,7 +177,7 @@ export function PainelCompraConvenioPage({
                 <thead className="bg-[#5f84a3] text-left text-white">
                   <tr>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                      Convenios
+                      Convênios
                     </th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Passaporte</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
@@ -217,7 +217,7 @@ export function PainelCompraConvenioPage({
             </div>
           </>
         ) : (
-          <p className="text-[18px] text-[#5a5a5a]">Nenhuma compra de convenio encontrada.</p>
+          <p className="text-[18px] text-[#5a5a5a]">Nenhuma compra de convênio encontrada.</p>
         )}
       </div>
 
@@ -264,7 +264,7 @@ export function PainelCompraConvenioPage({
                 />
               </label>
               <label className="block text-sm font-semibold text-[#5a5a5a]">
-                ate
+                até
                 <input
                   className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
                   defaultValue={result.filters.visitDateTo ?? ""}
@@ -285,7 +285,7 @@ export function PainelCompraConvenioPage({
                 />
               </label>
               <label className="block text-sm font-semibold text-[#5a5a5a]">
-                ate
+                até
                 <input
                   className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
                   defaultValue={result.filters.usedDateTo ?? ""}
@@ -330,7 +330,7 @@ export function PainelCompraConvenioPage({
             </label>
 
             <label className="block text-sm font-semibold text-[#5a5a5a]">
-              Tipo de Convenio
+              Tipo de Convênio
               <select
                 className="w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
                 defaultValue={result.filters.agreementName ?? ""}

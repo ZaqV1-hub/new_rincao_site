@@ -170,7 +170,7 @@ export function PainelCompraDetailPage({
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Tipo</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Escola</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Turma</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Periodo</th>
+                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Período</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Usado?</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data de uso</th>

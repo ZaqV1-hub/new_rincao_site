@@ -63,6 +63,7 @@ function toAggregateRows(rows: AggregateRow[]): BilheteriaCashAggregateRow[] {
   return rows.map((row) => ({
     voucherType:
       String(row.descricao ?? "").trim() || String(row.tpvoucher ?? "").trim(),
+    voucherTypeCode: row.tpvoucher,
     quantity: normalizeNumber(row.quantidade),
     totalValue: normalizeNumber(row.valor_total),
   }));
@@ -181,6 +182,7 @@ async function queryDiscountRows(
     string,
     Array<{
       voucherType: string;
+      voucherTypeCode?: string | null;
       quantity: number;
       totalValue: number;
       paymentMethod: string | null;
@@ -195,6 +197,7 @@ async function queryDiscountRows(
     rows.push({
       voucherType:
         String(row.descricao ?? "").trim() || String(row.tpvoucher ?? "").trim(),
+      voucherTypeCode: row.tpvoucher,
       quantity: normalizeNumber(row.quantidade),
       totalValue: normalizeNumber(row.valor_total),
       paymentMethod: String(row.formapag ?? "").trim() || null,

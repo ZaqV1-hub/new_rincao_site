@@ -54,7 +54,7 @@ export default async function PainelBilheteriaPage({
           "message" in cause &&
           typeof (cause as PainelBilheteriaWorkstationError).message === "string"
             ? (cause as PainelBilheteriaWorkstationError).message
-            : "Nao foi possivel consultar este ingresso agora.";
+            : "Não foi possível consultar este ingresso agora.";
       }
     }
 
@@ -72,7 +72,7 @@ export default async function PainelBilheteriaPage({
         current="overview"
         isManager={session.legacyRoleId === 1}
         title="Bilheteria"
-        description="Posto operacional da bilheteria, com validacao por voucher, consulta por cliente e consulta rapida do historico."
+        description="Posto operacional da bilheteria, com validação por voucher, consulta por cliente e consulta rápida do histórico."
         actorName={session.actorName}
       />
 
@@ -80,10 +80,10 @@ export default async function PainelBilheteriaPage({
         <section className="panel-section p-6">
           <p className="panel-eyebrow">Bilheteria</p>
           <h2 className="mt-2 text-[34px] font-black leading-tight text-[#123b63]">
-            Agenda nao aberta
+            Agenda não aberta
           </h2>
           <p className="mt-3 text-[15px] leading-7 text-[#5d7282]">
-            Sem uma agenda aberta para hoje, novas vendas ficam bloqueadas. A validacao e as consultas de ingressos continuam disponiveis.
+            Sem uma agenda aberta para hoje, novas vendas ficam bloqueadas. A validação e as consultas de ingressos continuam disponíveis.
           </p>
         </section>
       ) : null}
@@ -97,7 +97,7 @@ export default async function PainelBilheteriaPage({
         agendaWarning={
           hasOpenAgendaToday
             ? null
-            : "Nao existe agenda aberta para hoje. Novas vendas ficam indisponiveis ate abrir uma data; validacoes continuam liberadas."
+            : "Não existe agenda aberta para hoje. Novas vendas ficam indisponíveis até abrir uma data; validacoes continuam liberadas."
         }
       />
     </div>

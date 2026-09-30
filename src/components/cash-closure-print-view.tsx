@@ -79,7 +79,7 @@ function PageChrome({
           <span className="pill">{pill}</span>
         </div>
         <div className="period-bar">
-          <strong>PERIODO CONSIDERADO (HORA LOCAL):</strong> {periodLabel}
+          <strong>PERÍODO CONSIDERADO (HORA LOCAL):</strong> {periodLabel}
         </div>
         {children}
       </div>
@@ -135,7 +135,7 @@ export function CashClosurePrintView({ model }: Props) {
         .payments { border-top: 1px solid #d4d4d4; }
         .payments td { padding: 3px 6px; font-size: 11px; }
         .payments td.value { text-align: right; }
-        @media print {
+        @média print {
           body { background: #fff; }
           .page { margin: 0; box-shadow: none; width: auto; }
           .page-content { padding: 12mm; }
@@ -283,7 +283,7 @@ export function CashClosurePrintView({ model }: Props) {
                   </tr>
                   {report.funds.map((row, index) => (
                     <tr key={`fund-${row.id}-${index}`}>
-                      <td>Lancamento {index + 1} ({row.responsible})</td>
+                      <td>Lançamento {index + 1} ({row.responsible})</td>
                       <td className="right">R$ {fmtMoney(row.numericValue)}</td>
                     </tr>
                   ))}

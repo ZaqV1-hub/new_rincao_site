@@ -29,7 +29,7 @@ export default async function PainelEventosRoute() {
               Datas promocionais
             </h2>
             <p className="mt-1 text-sm text-[#5f7564]">
-              Eventos e datas promocionais do site. A criacao e a edicao das datas promocionais ficam centralizadas na area de Site.
+              Eventos e datas promocionais do site. A criacao e a edição das datas promocionais ficam centralizadas na área de Site.
             </p>
           </div>
           <Link
@@ -73,7 +73,7 @@ export default async function PainelEventosRoute() {
             </>
           ) : (
             <div className="mt-3 rounded-[12px] border border-dashed border-[#d7e3d2] bg-[#f7fbf5] px-4 py-4 text-sm leading-6 text-[#5f7564]">
-              Nenhum evento atual cadastrado. Quando voce remover todos os eventos, esta area
+              Nenhum evento atual cadastrado. Quando você remover todos os eventos, esta área
               fica vazia mesmo.
             </div>
           )}
@@ -106,7 +106,7 @@ export default async function PainelEventosRoute() {
               ))
             ) : (
               <div className="rounded-[8px] border border-[#dbe7d7] bg-white px-3 py-3 text-sm text-[#5f7564]">
-                Nao ha eventos atuais cadastrados.
+                Não ha eventos atuais cadastrados.
               </div>
             )}
           </div>

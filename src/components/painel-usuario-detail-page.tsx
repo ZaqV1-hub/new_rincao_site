@@ -21,7 +21,7 @@ export function PainelUsuarioDetailPage({
           items={[
             { href: "/painel", label: "Home" },
             { href: "/painel/usuario", label: "Administrativo" },
-            { href: "/painel/usuario", label: "Usuarios" },
+            { href: "/painel/usuario", label: "Usuários" },
             { label: data.name },
           ]}
         />
@@ -41,7 +41,7 @@ export function PainelUsuarioDetailPage({
                     ["E-mail", data.email || "-"],
                     ["Status", data.statusLabel],
                     ["Data de cadastro", data.createdAt || "-"],
-                    ["Ultimo login", data.lastLoginLabel || "-"],
+                    ["Último login", data.lastLoginLabel || "-"],
                   ].map(([label, value]) => (
                     <tr key={label}>
                       <th className="w-[260px] border border-[#d7d7d7] bg-[#f7f7f7] px-4 py-3 font-semibold text-[#5a5a5a]">
@@ -61,7 +61,7 @@ export function PainelUsuarioDetailPage({
             <section className="rounded-[6px] border border-[#d7e1e8] bg-white shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
               <div className="grid gap-3 px-6 py-5 text-[17px] text-[#5a5a5a]">
                 <Link className="text-[#666] underline" href="/painel/usuario">
-                  Lista de usuarios
+                  Lista de usuários
                 </Link>
                 <Link className="text-[#666] underline" href={`/painel/usuario/editar/${data.cpf}`}>
                   Editar

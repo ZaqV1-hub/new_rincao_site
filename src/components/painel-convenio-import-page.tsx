@@ -257,7 +257,7 @@ export function PainelConvenioImportPage({
         {completed && !stage ? (
           <div className="mt-6 rounded-[4px] border border-[#d7d7d7] bg-[#fdfdfd] px-5 py-5">
             <p className="text-[15px] text-[#505050]">
-              A importacao dos conveniados foi concluida com sucesso.
+              A importacao dos conveniados foi concluída com sucesso.
             </p>
             <p className="mt-4">
               <Link

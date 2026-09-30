@@ -4,7 +4,7 @@ import { getPainelSocioFormContext } from "@/lib/painel-socios";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
-  title: "Painel - Adicionar Socio | Rincao",
+  title: "Painel - Adicionar Sócio | Rincao",
   robots: { index: false, follow: false },
 };
 

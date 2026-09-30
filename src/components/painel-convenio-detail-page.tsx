@@ -17,7 +17,7 @@ export function PainelConvenioDetailPage({
           </Link>{" "}
           <span className="mx-2 text-[#b8b8b8]">&gt;</span>
           <Link className="text-[#1d68a2] underline" href="/painel/convenios">
-            Lista de convenios
+            Lista de convênios
           </Link>{" "}
           <span className="mx-2 text-[#b8b8b8]">&gt;</span>
           <span>{agreement.name}</span>
@@ -33,7 +33,7 @@ export function PainelConvenioDetailPage({
                   Nome
                 </th>
                 <th className="border border-[#6f8ea8] px-4 py-3 text-left font-normal">
-                  Data inicio
+                  Data início
                 </th>
                 <th className="border border-[#6f8ea8] px-4 py-3 text-left font-normal">
                   Data fim
@@ -96,7 +96,7 @@ export function PainelConvenioDetailPage({
 
       <aside className="self-start rounded-[6px] border border-[#d7d7d7] bg-[#f6f7f8] p-4 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
         <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-[#6f7f8d]">
-          Convenio
+          Convênio
         </h2>
         <ul className="mt-3 space-y-3 text-[15px]">
           <li>
@@ -104,12 +104,12 @@ export function PainelConvenioDetailPage({
               className="text-[#1d68a2] underline"
               href="/painel/convenios/adicionar"
             >
-              Adicionar convenio
+              Adicionar convênio
             </Link>
           </li>
           <li>
             <Link className="text-[#1d68a2] underline" href="/painel/convenios">
-              Lista de convenios
+              Lista de convênios
             </Link>
           </li>
           <li>

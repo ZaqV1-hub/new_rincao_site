@@ -81,7 +81,7 @@ describe("PainelCompraGatewayStatusPage", () => {
         consult: {
           purchaseId: 551,
           found: false,
-          message: "Dados nao encontrados na Cielo",
+          message: "Dados não encontrados na Cielo",
           statusCode: null,
           statusLabel: null,
           paymentMethodType: null,
@@ -99,6 +99,6 @@ describe("PainelCompraGatewayStatusPage", () => {
       }),
     );
 
-    expect(html).toContain("Dados nao encontrados na Cielo");
+    expect(html).toContain("Dados não encontrados na Cielo");
   });
 });

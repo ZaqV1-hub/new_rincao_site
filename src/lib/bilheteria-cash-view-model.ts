@@ -27,6 +27,7 @@ const PAYMENT_METHOD_ORDER = [
 
 export type BilheteriaCashAggregateRow = {
   voucherType: string;
+  voucherTypeCode?: string | null;
   quantity: number;
   totalValue: number;
   paymentMethod?: string | null;
@@ -80,9 +81,61 @@ function normalizeCount(value: number | null | undefined) {
   return Number.isFinite(value) ? Number(value) : 0;
 }
 
-function resolveVoucherTypeLabel(code: string | null | undefined) {
-  const normalized = String(code ?? "").trim();
-  return normalized ? (VOUCHER_TYPE_LABELS[normalized] ?? normalized) : "-";
+function resolveTicketCategory(row: BilheteriaCashAggregateRow) {
+  for (const value of [row.voucherTypeCode, row.voucherType]) {
+    const normalized = String(value ?? "")
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("pt-BR")
+      .replace(/[^a-z0-9]/g, "");
+
+    if (["norma", "adulto"].includes(normalized)) {
+      return { key: "adulto", label: "Adulto" };
+    }
+    if (["infan", "crianca"].includes(normalized)) {
+      return { key: "crianca", label: "Criança" };
+    }
+    if (["isent", "isento"].includes(normalized)) {
+      return { key: "isento", label: "Isento" };
+    }
+  }
+
+  const rawType = String(row.voucherType ?? "").trim();
+  const code = String(row.voucherTypeCode ?? "").trim();
+  const key = rawType || code;
+  return {
+    key: key || "-",
+    label: key ? (VOUCHER_TYPE_LABELS[code || key] ?? key) : "-",
+  };
+}
+
+function aggregateTicketRows(rows: BilheteriaCashAggregateRow[]) {
+  const grouped = new Map<
+    string,
+    { quantity: number; totalValue: number; voucherType: string; voucherTypeLabel: string; paymentMethod: string | null }
+  >();
+
+  for (const row of rows) {
+    const category = resolveTicketCategory(row);
+    const paymentMethod = String(row.paymentMethod ?? "").trim() || null;
+    const current = grouped.get(category.key);
+    if (current) {
+      current.quantity += normalizeCount(row.quantity);
+      current.totalValue = roundMoney(current.totalValue + normalizeMoney(row.totalValue));
+      if (current.paymentMethod !== paymentMethod) current.paymentMethod = null;
+      continue;
+    }
+    grouped.set(category.key, {
+      quantity: normalizeCount(row.quantity),
+      totalValue: normalizeMoney(row.totalValue),
+      voucherType: category.key,
+      voucherTypeLabel: category.label,
+      paymentMethod,
+    });
+  }
+
+  return [...grouped.values()];
 }
 
 function resolvePaymentLabel(code: string | null | undefined) {
@@ -149,19 +202,9 @@ function buildDiscountPanelLabel(label: string) {
 export function buildBilheteriaCashClosureReportModel(
   input: BilheteriaCashClosureReportInput,
 ) {
-  const siteRows = input.siteRows.map((row) => ({
-    quantity: normalizeCount(row.quantity),
-    totalValue: normalizeMoney(row.totalValue),
-    voucherType: row.voucherType,
-    voucherTypeLabel: resolveVoucherTypeLabel(row.voucherType),
-  }));
+  const siteRows = aggregateTicketRows(input.siteRows);
 
-  const baseBoxOfficeRows = input.boxOfficeRows.map((row) => ({
-    quantity: normalizeCount(row.quantity),
-    totalValue: normalizeMoney(row.totalValue),
-    voucherType: row.voucherType,
-    voucherTypeLabel: resolveVoucherTypeLabel(row.voucherType),
-  }));
+  const baseBoxOfficeRows = aggregateTicketRows(input.boxOfficeRows);
 
   const discountPanels = input.discountGroups.map((group) => {
     const paymentMap = new Map<string, number>();
@@ -175,19 +218,14 @@ export function buildBilheteriaCashClosureReportModel(
         );
       }
 
-      return {
-        paymentMethod,
-        quantity: normalizeCount(row.quantity),
-        totalValue,
-        voucherType: row.voucherType,
-        voucherTypeLabel: resolveVoucherTypeLabel(row.voucherType),
-      };
+      return { ...row, paymentMethod, totalValue };
     });
+    const aggregatedRows = aggregateTicketRows(rows);
 
     return {
       label: buildDiscountPanelLabel(group.label),
-      quantity: rows.reduce((sum, row) => sum + row.quantity, 0),
-      totalValue: roundMoney(rows.reduce((sum, row) => sum + row.totalValue, 0)),
+      quantity: aggregatedRows.reduce((sum, row) => sum + row.quantity, 0),
+      totalValue: roundMoney(aggregatedRows.reduce((sum, row) => sum + row.totalValue, 0)),
       paymentRows: sortPaymentEntries([...paymentMap.entries()]).map(
         ([method, value]) => ({
           label: resolvePaymentLabel(method),
@@ -195,7 +233,7 @@ export function buildBilheteriaCashClosureReportModel(
           value,
         }),
       ),
-      rows,
+      rows: aggregatedRows,
     };
   });
 

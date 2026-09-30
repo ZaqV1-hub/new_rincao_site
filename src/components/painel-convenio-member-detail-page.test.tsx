@@ -41,6 +41,6 @@ describe("PainelConvenioMemberDetailPage", () => {
     expect(html).toContain("123.456.789-01");
     expect(html).toContain("Qtd. compra por dia");
     expect(html).toContain("Joao Silva");
-    expect(html).toContain("Ultimo Login");
+    expect(html).toContain("Último Login");
   });
 });

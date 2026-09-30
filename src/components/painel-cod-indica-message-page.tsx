@@ -78,7 +78,7 @@ export function PainelCodIndicaMessagePage({ data }: Props) {
 
       <form action={handleSubmit} className="mt-6 space-y-5">
         <label className="block text-sm font-semibold text-[#5a5a5a]">
-          Mensagem de validação
+          Mensagem de válidação
           <textarea
             className="mt-1 min-h-[140px] w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
             defaultValue={data.codval}

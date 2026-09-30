@@ -12,7 +12,7 @@ describe("PainelLoginPage helpers", () => {
     });
     expect(getPainelLoginFeedback("redirecting")).toMatchObject({
       buttonLabel: "Abrindo painel...",
-      statusTitle: "Login concluido",
+      statusTitle: "Login concluído",
     });
   });
 

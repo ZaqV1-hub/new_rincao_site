@@ -200,7 +200,7 @@ export function PainelComprasPageContent({
 
         if (!response.ok || !payload?.ok || !payload.data) {
           throw new Error(
-            payload?.error?.message || "Nao foi possivel carregar a lista de compras.",
+            payload?.error?.message || "Não foi possível carregar a lista de compras.",
           );
         }
 
@@ -212,7 +212,7 @@ export function PainelComprasPageContent({
 
         console.error("painel-compras-page-load-failed", error);
         setLoadErrorMessage(
-          "Nao foi possivel carregar as compras com os filtros informados agora. Ajuste a busca e tente novamente.",
+          "Não foi possível carregar as compras com os filtros informados agora. Ajuste a busca e tente novamente.",
         );
         setResult(createEmptyResult(initialFilters, initialPage));
       } finally {

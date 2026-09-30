@@ -37,7 +37,7 @@ export function PainelConvenioMemberDetailPage({
                   Qtd. compra por dia
                 </th>
                 <th className="border border-[#6f8ea8] px-4 py-3 text-left font-normal">
-                  Data inicio
+                  Data início
                 </th>
               </tr>
               <tr>
@@ -102,7 +102,7 @@ export function PainelConvenioMemberDetailPage({
                     Telefone
                   </th>
                   <th className="border border-[#6f8ea8] px-4 py-3 text-left font-normal">Celular</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 text-left font-normal">Endereco</th>
+                  <th className="border border-[#6f8ea8] px-4 py-3 text-left font-normal">Endereço</th>
                 </tr>
                 <tr>
                   <td className="border border-[#d7d7d7] px-4 py-3">{detail.phone ?? "-"}</td>
@@ -127,7 +127,7 @@ export function PainelConvenioMemberDetailPage({
                     Data de Cadastro
                   </th>
                   <th className="border border-[#d7d7d7] px-4 py-3 text-left font-semibold text-[#475a6b]">
-                    Ultimo Login
+                    Último Login
                   </th>
                 </tr>
                 <tr>

@@ -40,7 +40,7 @@ export default async function PainelBilheteriaIndicadoresPage({
         current="indicators"
         isManager={session.legacyRoleId === 1}
         title="Indicadores da bilheteria"
-        description="Leitura operacional do dia, com reservas previstas, compras online ainda nao usadas e entradas confirmadas."
+        description="Leitura operacional do dia, com reservas previstas, compras online ainda não usadas e entradas confirmadas."
       />
 
       <section className="rounded-[28px] border border-[#d7e5ef] bg-white p-6 shadow-[0_12px_34px_rgba(31,67,98,0.08)]">
