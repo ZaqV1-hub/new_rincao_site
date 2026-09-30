@@ -661,7 +661,8 @@ async function findNextStaleOpenCashPeriod(client: PoolClient) {
         folha_id
       FROM caixa_periodos
       WHERE fechado_em IS NULL
-        AND (aberto_em AT TIME ZONE 'America/Sao_Paulo')::date < CURRENT_DATE
+        AND (aberto_em AT TIME ZONE 'America/Sao_Paulo')::date
+          < (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
       ORDER BY aberto_em ASC
       LIMIT 1
       FOR UPDATE
