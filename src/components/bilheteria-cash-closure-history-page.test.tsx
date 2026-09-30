@@ -8,6 +8,7 @@ const history = {
     {
       id: 44,
       periodId: 12,
+      cashDate: "2026-05-05",
       openedAt: "2026-05-05 08:00:00+00",
       closedAt: "2026-05-05 18:00:00+00",
       operator: "Gestor Teste",

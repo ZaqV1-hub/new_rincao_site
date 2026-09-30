@@ -8,6 +8,7 @@ type Props = {
     items: Array<{
       id: number;
       periodId: number | null;
+      cashDate: string | null;
       openedAt: string | null;
       closedAt: string | null;
       operator: string | null;
@@ -68,7 +69,9 @@ export function BilheteriaCashClosureHistoryPage({
                           className="font-semibold text-[#205a7f]"
                           href={`/painel/bilheteria/fechamento-caixa?fechamento_id=${item.id}`}
                         >
-                          {formatBilheteriaCashDate(item.openedAt ?? item.closedAt)}
+                          {formatBilheteriaCashDate(
+                            item.cashDate ?? item.openedAt ?? item.closedAt,
+                          )}
                         </Link>
                       </td>
                       <td className="border border-[#d2dde6] px-4 py-3">

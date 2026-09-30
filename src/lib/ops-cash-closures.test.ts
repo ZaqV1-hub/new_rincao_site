@@ -58,6 +58,7 @@ describe("ops-cash-closures", () => {
             {
               id: 44,
               periodo_id: 7,
+              data_caixa: "2026-04-22",
               snapshot_json:
                 '{"period":{"ini":"2026-04-22 08:00:00+00","fim":"2026-04-22 18:00:00+00"},"operador":"Gestor Teste"}',
               totals_dinheiro: "320.00",
@@ -82,6 +83,7 @@ describe("ops-cash-closures", () => {
         {
           id: 44,
           periodId: 7,
+          cashDate: "2026-04-22",
           openedAt: "2026-04-22 08:00:00+00",
           closedAt: "2026-04-22 18:00:00+00",
           operator: "Gestor Teste",
@@ -436,7 +438,7 @@ describe("ops-cash-closures", () => {
         };
       }
 
-      if (sql.includes("AT TIME ZONE 'America/Sao_Paulo'")) {
+      if (sql.includes("date_trunc('day'")) {
         expect(values).toEqual(["2026-04-22 08:00:00+00"]);
 
         return {
@@ -478,6 +480,8 @@ describe("ops-cash-closures", () => {
         staleClosed = true;
 
         expect(values?.[0]).toBe(6);
+        expect(sql).toContain("data_caixa");
+        expect(values?.[5]).toBe("2026-04-22 08:00:00+00");
 
         return {
           rows: [{ id: 55 }],
