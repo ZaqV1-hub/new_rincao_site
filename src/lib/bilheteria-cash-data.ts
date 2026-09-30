@@ -19,9 +19,15 @@ type DiscountRow = {
   nome: string | null;
   descricao: string | null;
   tpvoucher: string | null;
-  formapag: string | null;
   quantidade: string | number | null;
   valor_total: string | number | null;
+};
+
+type DiscountPaymentRow = {
+  tipo: string | null;
+  nome: string | null;
+  method: string | null;
+  total: string | number | null;
 };
 
 type AggregateRow = {
@@ -152,17 +158,16 @@ async function queryDiscountRows(
   const result = await client.query<DiscountRow>(
     `
       SELECT
-        dt.descricao AS tipo,
-        d.nome AS nome,
+        COALESCE(dt.descricao, 'Desconto') AS tipo,
+        COALESCE(d.nome, '') AS nome,
         v.tpvoucher,
         COALESCE(NULLIF(BTRIM(v.descricao), ''), v.tpvoucher) AS descricao,
-        c.formapag,
         COUNT(*)::text AS quantidade,
         COALESCE(SUM(v.vlunicompra), 0)::text AS valor_total
       FROM voucher v
       JOIN compra c ON c.idcompra = v.idcompra
-      JOIN descontos d ON d.id = v.desconto_id
-      JOIN descontos_tipos dt ON dt.id = d.tipo_id
+      LEFT JOIN descontos d ON d.id = v.desconto_id
+      LEFT JOIN descontos_tipos dt ON dt.id = d.tipo_id
       WHERE c.tpcompra IN ('bilhe', 'reser')
         AND c.stcompra = 'conc'
         AND c.formapag IS NOT NULL
@@ -172,8 +177,9 @@ async function queryDiscountRows(
         AND v.tpvoucher <> 'corte'
         AND v.tpvoucher <> 'espec'
         AND v.stusado <> 'inv'
-      GROUP BY dt.descricao, d.nome, v.tpvoucher, COALESCE(NULLIF(BTRIM(v.descricao), ''), v.tpvoucher), c.formapag
-      ORDER BY dt.descricao, d.nome, COALESCE(NULLIF(BTRIM(v.descricao), ''), v.tpvoucher), c.formapag
+        AND v.desconto_id IS NOT NULL
+      GROUP BY COALESCE(dt.descricao, 'Desconto'), COALESCE(d.nome, ''), v.tpvoucher, COALESCE(NULLIF(BTRIM(v.descricao), ''), v.tpvoucher)
+      ORDER BY COALESCE(dt.descricao, 'Desconto'), COALESCE(d.nome, ''), COALESCE(NULLIF(BTRIM(v.descricao), ''), v.tpvoucher)
     `,
     [openedAt, closedAt],
   );
@@ -185,7 +191,6 @@ async function queryDiscountRows(
       voucherTypeCode?: string | null;
       quantity: number;
       totalValue: number;
-      paymentMethod: string | null;
     }>
   >();
 
@@ -200,14 +205,131 @@ async function queryDiscountRows(
       voucherTypeCode: row.tpvoucher,
       quantity: normalizeNumber(row.quantidade),
       totalValue: normalizeNumber(row.valor_total),
-      paymentMethod: String(row.formapag ?? "").trim() || null,
     });
     grouped.set(label, rows);
+  }
+
+  const paymentResult = await client.query<DiscountPaymentRow>(
+    `
+      WITH vouchers AS (
+        SELECT
+          v.idcompra,
+          SUM(CASE WHEN v.tpvoucher NOT IN ('corte', 'espec') THEN v.vlunicompra ELSE 0 END) AS total_vouchers,
+          SUM(CASE WHEN v.tpvoucher NOT IN ('corte', 'espec') AND v.desconto_id IS NULL THEN v.vlunicompra ELSE 0 END) AS regular_vouchers
+        FROM voucher v
+        JOIN compra c ON c.idcompra = v.idcompra
+        WHERE c.tpcompra IN ('bilhe', 'reser')
+          AND c.stcompra = 'conc'
+          AND c.formapag IS NOT NULL
+          AND c.formapag <> 'N/A'
+          AND (c.dtcompra + COALESCE(c.hrcompra, '00:00'::time)) >= $1::timestamptz
+          AND (c.dtcompra + COALESCE(c.hrcompra, '00:00'::time)) <= $2::timestamptz
+          AND v.stusado <> 'inv'
+        GROUP BY v.idcompra
+      ),
+      discount_groups AS (
+        SELECT
+          v.idcompra,
+          COALESCE(dt.descricao, 'Desconto') AS tipo,
+          COALESCE(d.nome, '') AS nome,
+          SUM(v.vlunicompra) AS group_total
+        FROM voucher v
+        JOIN compra c ON c.idcompra = v.idcompra
+        LEFT JOIN descontos d ON d.id = v.desconto_id
+        LEFT JOIN descontos_tipos dt ON dt.id = d.tipo_id
+        WHERE c.tpcompra IN ('bilhe', 'reser')
+          AND c.stcompra = 'conc'
+          AND c.formapag IS NOT NULL
+          AND c.formapag <> 'N/A'
+          AND (c.dtcompra + COALESCE(c.hrcompra, '00:00'::time)) >= $1::timestamptz
+          AND (c.dtcompra + COALESCE(c.hrcompra, '00:00'::time)) <= $2::timestamptz
+          AND v.tpvoucher NOT IN ('corte', 'espec')
+          AND v.stusado <> 'inv'
+          AND v.desconto_id IS NOT NULL
+        GROUP BY v.idcompra, COALESCE(dt.descricao, 'Desconto'), COALESCE(d.nome, '')
+      ),
+      payments AS (
+        SELECT
+          cp.idcompra,
+          TRIM(cp.forma_pagamento) AS method,
+          SUM(cp.valor) AS total
+        FROM compra_pagamentos cp
+        JOIN compra c ON c.idcompra = cp.idcompra
+        WHERE c.tpcompra IN ('bilhe', 'reser')
+          AND c.stcompra = 'conc'
+          AND c.formapag IS NOT NULL
+          AND c.formapag <> 'N/A'
+          AND (c.dtcompra + COALESCE(c.hrcompra, '00:00'::time)) >= $1::timestamptz
+          AND (c.dtcompra + COALESCE(c.hrcompra, '00:00'::time)) <= $2::timestamptz
+        GROUP BY cp.idcompra, TRIM(cp.forma_pagamento)
+      ),
+      candidates AS (
+        SELECT
+          groups.idcompra,
+          groups.tipo,
+          groups.nome,
+          payments.method,
+          groups.group_total,
+          SUM(groups.group_total) OVER (PARTITION BY groups.idcompra) AS discounted_total,
+          payments.total - ROUND(payments.total * vouchers.regular_vouchers / NULLIF(vouchers.total_vouchers, 0), 2) AS discounted_payment
+        FROM discount_groups groups
+        JOIN vouchers ON vouchers.idcompra = groups.idcompra
+        JOIN payments ON payments.idcompra = groups.idcompra
+        WHERE vouchers.total_vouchers > 0
+      ),
+      rounded AS (
+        SELECT
+          *,
+          ROUND(discounted_payment * group_total / NULLIF(discounted_total, 0), 2) AS rounded_share
+        FROM candidates
+      ),
+      allocated AS (
+        SELECT
+          *,
+          ROW_NUMBER() OVER (PARTITION BY idcompra, method ORDER BY tipo, nome) AS group_number,
+          COUNT(*) OVER (PARTITION BY idcompra, method) AS group_count,
+          SUM(rounded_share) OVER (
+            PARTITION BY idcompra, method
+            ORDER BY tipo, nome
+            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+          ) AS prior_share
+        FROM rounded
+      )
+      SELECT
+        tipo,
+        nome,
+        method,
+        SUM(
+          CASE
+            WHEN group_number = group_count THEN discounted_payment - COALESCE(prior_share, 0)
+            ELSE rounded_share
+          END
+        )::numeric(12, 2)::text AS total
+      FROM allocated
+      GROUP BY tipo, nome, method
+      ORDER BY tipo, nome, method
+    `,
+    [openedAt, closedAt],
+  );
+
+  const paymentGroups = new Map<string, Map<string, number>>();
+  for (const row of paymentResult.rows) {
+    const type = String(row.tipo ?? "Desconto").trim();
+    const name = String(row.nome ?? "").trim();
+    const label = `Descontos - ${type} - ${name}`.replace(/\s+-\s+-\s+/g, " - ");
+    const method = String(row.method ?? "").trim();
+    if (!method) continue;
+    const methods = paymentGroups.get(label) ?? new Map<string, number>();
+    methods.set(method, roundMoney((methods.get(method) ?? 0) + normalizeNumber(row.total)));
+    paymentGroups.set(label, methods);
   }
 
   return [...grouped.entries()].map(([label, rows]) => ({
     label,
     rows,
+    paymentRows: [...(paymentGroups.get(label) ?? new Map()).entries()].map(
+      ([method, value]) => ({ method, value }),
+    ),
   }));
 }
 
@@ -252,14 +374,8 @@ async function queryPaymentTotals(
       WITH vouchers AS (
         SELECT
           v.idcompra,
-          SUM(
-            CASE
-              WHEN v.tpvoucher NOT IN ('corte', 'espec')
-                AND ${discounted ? "v.desconto_id IS NOT NULL" : "v.desconto_id IS NULL"}
-              THEN v.vlunicompra
-              ELSE 0
-            END
-          ) AS total_vouchers
+          SUM(CASE WHEN v.tpvoucher NOT IN ('corte', 'espec') THEN v.vlunicompra ELSE 0 END) AS total_vouchers,
+          SUM(CASE WHEN v.tpvoucher NOT IN ('corte', 'espec') AND v.desconto_id IS NULL THEN v.vlunicompra ELSE 0 END) AS regular_vouchers
         FROM voucher v
         JOIN compra c ON c.idcompra = v.idcompra
         WHERE c.tpcompra IN ('bilhe', 'reser')
@@ -291,7 +407,10 @@ async function queryPaymentTotals(
         COALESCE(
           SUM(
             CASE
-              WHEN vouchers.total_vouchers > 0 THEN payments.total_pagamento
+              WHEN vouchers.total_vouchers > 0 THEN
+                ${discounted
+                  ? "payments.total_pagamento - ROUND(payments.total_pagamento * vouchers.regular_vouchers / NULLIF(vouchers.total_vouchers, 0), 2)"
+                  : "ROUND(payments.total_pagamento * vouchers.regular_vouchers / NULLIF(vouchers.total_vouchers, 0), 2)"}
               ELSE 0
             END
           ),
@@ -318,7 +437,14 @@ async function buildClosureRawRangeData(
   const discountGroups = await queryDiscountRows(client, openedAt, closedAt);
   const courtesyRows = await queryCourtesyRows(client, openedAt, closedAt);
   const forms = await queryPaymentTotals(client, openedAt, closedAt, false);
-  const formsDesc = await queryPaymentTotals(client, openedAt, closedAt, true);
+  const formsDesc = discountGroups.reduce<Record<string, number>>((totals, group) => {
+    for (const payment of group.paymentRows) {
+      totals[payment.method] = roundMoney(
+        (totals[payment.method] ?? 0) + payment.value,
+      );
+    }
+    return totals;
+  }, {});
   const funds = await listCashMovementsByType(client, "fundo", openedAt, closedAt);
   const sangrias = await listCashMovementsByType(client, "sangria", openedAt, closedAt);
 
