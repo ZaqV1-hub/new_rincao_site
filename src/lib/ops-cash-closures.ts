@@ -17,6 +17,7 @@ type CashClosureRow = {
   totals_fundo: string | null;
   totals_geral: string | null;
   created_at: string | null;
+  data_caixa?: string | null;
   periodo_aberto_em: string | null;
   periodo_fechado_em: string | null;
   periodo_operador: string | null;
@@ -25,6 +26,7 @@ type CashClosureRow = {
 export type OperationalCashClosureListItem = {
   id: number;
   periodId: number | null;
+  cashDate: string | null;
   openedAt: string | null;
   closedAt: string | null;
   operator: string | null;
@@ -45,7 +47,10 @@ export type OperationalCashClosureList = {
   };
 };
 
-export type OperationalCashClosureDetail = OperationalCashClosureListItem & {
+export type OperationalCashClosureDetail = Omit<
+  OperationalCashClosureListItem,
+  "cashDate"
+> & {
   snapshot: unknown;
 };
 
@@ -241,6 +246,7 @@ async function ensureCashClosuresTable(client: PoolClient) {
     CREATE TABLE IF NOT EXISTS caixa_fechamentos (
       id SERIAL PRIMARY KEY,
       periodo_id INTEGER NULL,
+      data_caixa DATE NULL,
       snapshot_json TEXT NULL,
       totals_dinheiro NUMERIC(12,2) NOT NULL DEFAULT 0,
       totals_fundo NUMERIC(12,2) NOT NULL DEFAULT 0,
@@ -251,6 +257,10 @@ async function ensureCashClosuresTable(client: PoolClient) {
   await client.query(`
     ALTER TABLE caixa_fechamentos
     ADD COLUMN IF NOT EXISTS periodo_id INTEGER
+  `);
+  await client.query(`
+    ALTER TABLE caixa_fechamentos
+    ADD COLUMN IF NOT EXISTS data_caixa DATE
   `);
 }
 
@@ -291,7 +301,11 @@ export async function listOperationalCashClosures(input?: {
           fechamento.created_at::text AS created_at,
           periodo.aberto_em::text AS periodo_aberto_em,
           periodo.fechado_em::text AS periodo_fechado_em,
-          periodo.operador AS periodo_operador
+          periodo.operador AS periodo_operador,
+          COALESCE(
+            fechamento.data_caixa,
+            (periodo.aberto_em AT TIME ZONE 'America/Sao_Paulo')::date
+          )::text AS data_caixa
         ${buildCashClosuresBaseQuery()}
         WHERE NOT (
           COALESCE(periodo.fechamento_auto, FALSE)
@@ -325,6 +339,7 @@ export async function listOperationalCashClosures(input?: {
         return {
           id: detail.id,
           periodId: detail.periodId,
+          cashDate: row.data_caixa ?? null,
           openedAt: detail.openedAt,
           closedAt: detail.closedAt,
           operator: detail.operator,
@@ -378,17 +393,27 @@ async function createCashClosureRecord(
     fund: string;
     overall: string;
   },
+  openedAt: string,
 ) {
   const result = await client.query<{ id: number }>(
     `
       INSERT INTO caixa_fechamentos (
         periodo_id,
+        data_caixa,
         snapshot_json,
         totals_dinheiro,
         totals_fundo,
         totals_geral,
         created_at
-      ) VALUES ($1, $2, $3, $4, $5, NOW())
+      ) VALUES (
+        $1,
+        ($6::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date,
+        $2,
+        $3,
+        $4,
+        $5,
+        NOW()
+      )
       RETURNING id
     `,
     [
@@ -397,6 +422,7 @@ async function createCashClosureRecord(
       totals.cash,
       totals.fund,
       totals.overall,
+      openedAt,
     ],
   );
 
@@ -720,6 +746,7 @@ async function closeCashPeriodInternal(
       fund: summary.totals.fund,
       overall: summary.totals.cashInDrawer,
     },
+    options.openedAt,
   );
 
   if (!closureId) {
