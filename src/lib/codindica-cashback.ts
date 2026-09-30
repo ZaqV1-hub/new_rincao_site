@@ -1,4 +1,5 @@
 import { getIngressoSistemaDbPool as getIngressoDbPool } from "@/lib/ingresso-db";
+import { queueLegacyEmail } from "@/lib/legacy-email";
 
 type PurchaseCashbackRow = {
   idcompra: number;
@@ -219,7 +220,7 @@ function buildRepresentativeEmailHtml(input: {
                 </tr>
                 <tr>
                   <td style="padding:0 32px 28px;">
-                    <table width="100%" cellpadding="8" cellspacing="0" border="1" style="border-collapse:collapse;border-color:#d5dde5;font-size:14px;">
+                    <table data-compra-id="${escapeHtml(String(input.purchase.idcompra))}" width="100%" cellpadding="8" cellspacing="0" border="1" style="border-collapse:collapse;border-color:#d5dde5;font-size:14px;">
                       <tr>
                         <td><strong>Compra No</strong></td>
                         <td>${escapeHtml(String(input.purchase.idcompra))}</td>
@@ -370,7 +371,7 @@ async function enqueueRepresentativeEmail(
 
   const history = await loadHistory(purchase.idcompra);
 
-  if (history?.stemail === "enviado" || history?.stemail === "pendente") {
+  if (history?.stemail === "enviado") {
     return;
   }
 
@@ -383,47 +384,80 @@ async function enqueueRepresentativeEmail(
     return;
   }
 
-  const summary = await loadCashbackSummary(code.codindica);
   const pool = getIngressoDbPool();
-
-  await pool.query(
+  const queuedEmailResult = await pool.query<{
+    idemail: number;
+    stemail: string;
+  }>(
     `
-      INSERT INTO email (
-        de,
-        nomede,
-        para,
-        nomepara,
-        resppara,
-        assunto,
-        conteudo,
-        dtemail,
-        hremail,
-        stemail,
-        erros
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, CURRENT_DATE, CURRENT_TIME, 'nov', 0
-      )
+      SELECT idemail, stemail
+      FROM email
+      WHERE para = $1
+        AND assunto = $2
+        AND stemail IN ('nov', 'env')
+        AND (
+          conteudo LIKE $3
+          OR (
+            conteudo LIKE '%<td><strong>Compra No</strong></td>%'
+            AND conteudo LIKE $4
+          )
+        )
+      ORDER BY idemail DESC
+      LIMIT 1
     `,
     [
-      "ingressos@rincao.local",
-      "Ingressos Rincao",
       representativeEmail,
-      code.nmrepresentante ?? representativeEmail,
-      "ingressos@rincao.local",
       "Rincao - Compra Finalizada",
-      buildRepresentativeEmailHtml({
-        purchase,
-        code,
-        cashbackAmount,
-        availableBalance: summary.available,
-      }),
+      `%data-compra-id="${purchase.idcompra}"%`,
+      `%<td>${escapeHtml(String(purchase.idcompra))}</td>%`,
     ],
   );
+  const queuedEmail = queuedEmailResult.rows[0];
+
+  if (queuedEmail?.stemail === "env") {
+    await updateHistoryEmailStatus(
+      purchase.idcompra,
+      "enviado",
+      "Email do representante enviado.",
+    );
+    return;
+  }
+
+  if (queuedEmail?.stemail === "nov") {
+    await updateHistoryEmailStatus(
+      purchase.idcompra,
+      "pendente",
+      "Email do representante ja esta na fila de envio.",
+    );
+    return;
+  }
+
+  const summary = await loadCashbackSummary(code.codindica);
+  const emailId = await queueLegacyEmail({
+    to: representativeEmail,
+    toName: code.nmrepresentante ?? representativeEmail,
+    subject: "Rincao - Compra Finalizada",
+    html: buildRepresentativeEmailHtml({
+      purchase,
+      code,
+      cashbackAmount,
+      availableBalance: summary.available,
+    }),
+  });
+  const deliveryResult = emailId
+    ? await pool.query<{ stemail: string }>(
+        "SELECT stemail FROM email WHERE idemail = $1 LIMIT 1",
+        [emailId],
+      )
+    : null;
+  const sentSynchronously = deliveryResult?.rows[0]?.stemail === "env";
 
   await updateHistoryEmailStatus(
     purchase.idcompra,
-    "pendente",
-    "Email do representante enfileirado no BFF.",
+    sentSynchronously ? "enviado" : "pendente",
+    sentSynchronously
+      ? "Email do representante enviado."
+      : "Email do representante enfileirado para envio.",
   );
 }
 
@@ -546,7 +580,7 @@ async function syncHistoryCashback(
           stcashback,
           stemail
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'gerado', 'pendente'
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'gerado', 'novo'
         )
       `,
       payload,
