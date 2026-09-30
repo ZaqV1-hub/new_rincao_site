@@ -2,6 +2,42 @@ import { describe, expect, it } from "vitest";
 import { buildBilheteriaCashClosureReportModel } from "@/lib/bilheteria-cash-view-model";
 
 describe("bilheteria-cash-view-model", () => {
+  it("uses the same allocated purchase payments in the summary and discount details", () => {
+    const model = buildBilheteriaCashClosureReportModel({
+      period: { openedAt: null, closedAt: null },
+      siteRows: [],
+      boxOfficeRows: [{ voucherType: "Adulto", quantity: 2, totalValue: 70 }],
+      discountGroups: [
+        {
+          label: "Descontos - Convenio - Parceiro",
+          rows: [{ voucherType: "Adulto", quantity: 1, totalValue: 30 }],
+          paymentRows: [
+            { method: "dinhe", value: 10 },
+            { method: "pix", value: 20 },
+          ],
+        },
+      ],
+      courtesyRows: [],
+      funds: [],
+      sangrias: [],
+      forms: { pix: 50, dinhe: 20 },
+      formsDesc: { pix: 20, dinhe: 10 },
+      totalFund: 0,
+      totalSangria: 0,
+      cashInDrawer: 30,
+    });
+
+    expect(model.discountPanels[0].paymentRows).toEqual([
+      { label: "Dinheiro", method: "dinhe", value: 10 },
+      { label: "Pix", method: "pix", value: 20 },
+    ]);
+    expect(model.summaryPaymentRows).toEqual([
+      { label: "Dinheiro", method: "dinhe", value: 30 },
+      { label: "Pix", method: "pix", value: 70 },
+    ]);
+    expect(model.kpis.billing.boxOffice).toBe(100);
+  });
+
   it("normalizes and consolidates equivalent ticket labels", () => {
     const model = buildBilheteriaCashClosureReportModel({
       period: { openedAt: null, closedAt: null },

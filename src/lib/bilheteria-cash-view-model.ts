@@ -49,6 +49,10 @@ export type BilheteriaCashClosureReportInput = {
   discountGroups: Array<{
     label: string;
     rows: BilheteriaCashAggregateRow[];
+    paymentRows?: Array<{
+      method: string;
+      value: number;
+    }>;
   }>;
   courtesyRows: BilheteriaCashCourtesyRow[];
   funds: OperationalCashMovement[];
@@ -208,10 +212,18 @@ export function buildBilheteriaCashClosureReportModel(
 
   const discountPanels = input.discountGroups.map((group) => {
     const paymentMap = new Map<string, number>();
+    for (const payment of group.paymentRows ?? []) {
+      const method = payment.method.trim();
+      const value = normalizeMoney(payment.value);
+      if (method && value > 0) {
+        paymentMap.set(method, roundMoney((paymentMap.get(method) ?? 0) + value));
+      }
+    }
+
     const rows = group.rows.map((row) => {
       const totalValue = normalizeMoney(row.totalValue);
       const paymentMethod = String(row.paymentMethod ?? "").trim() || null;
-      if (paymentMethod && totalValue > 0) {
+      if (!group.paymentRows && paymentMethod && totalValue > 0) {
         paymentMap.set(
           paymentMethod,
           roundMoney((paymentMap.get(paymentMethod) ?? 0) + totalValue),
