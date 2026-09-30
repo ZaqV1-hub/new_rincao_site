@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BilheteriaCashHeader } from "@/components/bilheteria-cash-header";
-import { formatBilheteriaCashDateTime } from "@/lib/bilheteria-cash-view-model";
+import { formatBilheteriaCashDate } from "@/lib/bilheteria-cash-view-model";
 
 type Props = {
   actorName?: string | null;
@@ -55,7 +55,7 @@ export function BilheteriaCashClosureHistoryPage({
             <table className="min-w-full border-collapse text-sm">
               <thead className="bg-[#5f84a3] text-left text-white">
                 <tr>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data do fechamento</th>
+                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data do caixa</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 text-right font-normal">Ações</th>
                 </tr>
               </thead>
@@ -68,7 +68,7 @@ export function BilheteriaCashClosureHistoryPage({
                           className="font-semibold text-[#205a7f]"
                           href={`/painel/bilheteria/fechamento-caixa?fechamento_id=${item.id}`}
                         >
-                          {formatBilheteriaCashDateTime(item.closedAt)}
+                          {formatBilheteriaCashDate(item.openedAt ?? item.closedAt)}
                         </Link>
                       </td>
                       <td className="border border-[#d2dde6] px-4 py-3">

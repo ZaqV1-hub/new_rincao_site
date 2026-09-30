@@ -41,12 +41,16 @@ describe("ops-cash-closures", () => {
   it("lists recent cash closures", async () => {
     query.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql.includes("SELECT COUNT(*)::text AS total")) {
+        expect(sql).toContain("COALESCE(periodo.fechamento_auto, FALSE)");
+        expect(sql).toContain("COALESCE(fechamento.totals_geral, 0) = 0");
         return {
           rows: [{ total: "1" }],
         };
       }
 
       if (sql.includes("FROM caixa_fechamentos")) {
+        expect(sql).toContain("COALESCE(periodo.fechamento_auto, FALSE)");
+        expect(sql).toContain("COALESCE(fechamento.totals_geral, 0) = 0");
         expect(values).toEqual([10, 0]);
 
         return {

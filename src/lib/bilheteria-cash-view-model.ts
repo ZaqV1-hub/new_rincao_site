@@ -409,6 +409,22 @@ export function formatBilheteriaCashDateTime(value: string | null | undefined) {
   }).format(date);
 }
 
+export function formatBilheteriaCashDate(value: string | null | undefined) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(date);
+}
+
 export function formatBilheteriaCashDateLong() {
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",

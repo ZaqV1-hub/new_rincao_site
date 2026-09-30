@@ -293,6 +293,12 @@ export async function listOperationalCashClosures(input?: {
           periodo.fechado_em::text AS periodo_fechado_em,
           periodo.operador AS periodo_operador
         ${buildCashClosuresBaseQuery()}
+        WHERE NOT (
+          COALESCE(periodo.fechamento_auto, FALSE)
+          AND COALESCE(fechamento.totals_dinheiro, 0) = 0
+          AND COALESCE(fechamento.totals_fundo, 0) = 0
+          AND COALESCE(fechamento.totals_geral, 0) = 0
+        )
         ORDER BY fechamento.id DESC
         LIMIT $1
         OFFSET $2
@@ -304,6 +310,12 @@ export async function listOperationalCashClosures(input?: {
       `
         SELECT COUNT(*)::text AS total
         ${buildCashClosuresBaseQuery()}
+        WHERE NOT (
+          COALESCE(periodo.fechamento_auto, FALSE)
+          AND COALESCE(fechamento.totals_dinheiro, 0) = 0
+          AND COALESCE(fechamento.totals_fundo, 0) = 0
+          AND COALESCE(fechamento.totals_geral, 0) = 0
+        )
       `,
     );
 
