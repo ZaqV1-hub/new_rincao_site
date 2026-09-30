@@ -412,7 +412,8 @@ describe("ops-cash-closures", () => {
 
       if (
         sql.includes("FROM caixa_periodos") &&
-        sql.includes("(aberto_em AT TIME ZONE 'America/Sao_Paulo')::date < CURRENT_DATE")
+        sql.includes("(aberto_em AT TIME ZONE 'America/Sao_Paulo')::date") &&
+        sql.includes("(NOW() AT TIME ZONE 'America/Sao_Paulo')::date")
       ) {
         if (staleClosed) {
           return { rows: [] };
