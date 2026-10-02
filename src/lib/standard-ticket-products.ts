@@ -14,14 +14,14 @@ const STANDARD_TICKET_LABELS = {
   "ingresso-adulto": {
     title: "Adulto",
     subtitle: "Ingresso adulto",
-    description: "A partir de 12 anos.",
+    description: "A partir de 10 anos.",
     voucherType: "norma",
     voucherPrefix: "A",
   },
   "ingresso-crianca": {
     title: "Criança",
     subtitle: "Ingresso infantil",
-    description: "De 4 a 11 anos.",
+    description: "De 4 a 9 anos.",
     voucherType: "infan",
     voucherPrefix: "C",
   },
