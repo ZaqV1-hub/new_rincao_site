@@ -121,6 +121,12 @@ export function PainelUsuarioSiteDetailPage({
           <section className="min-w-0">
             <h1 className="text-[42px] leading-none text-[#205a7f]">{data.name}</h1>
 
+            {!data.profileExists ? (
+              <div className="mt-5 rounded-[6px] border border-[#d7e3ee] bg-[#f8fbfe] px-4 py-3 text-sm text-[#35576f]">
+                <p>CPF: {data.cpfLabel}</p>
+                <p className="mt-2">Este CPF não tem cadastro de usuário do site. Abaixo estão as compras e observações disponíveis.</p>
+              </div>
+            ) : (
             <div className="mt-6 overflow-hidden rounded-[6px] border border-[#d7e3ee]">
               <table className="min-w-full border-collapse text-left text-[15px]">
                 <tbody>
@@ -187,6 +193,7 @@ export function PainelUsuarioSiteDetailPage({
                 </tbody>
               </table>
             </div>
+            )}
 
             {data.agreements.length > 0 ? (
               <>
@@ -266,7 +273,7 @@ export function PainelUsuarioSiteDetailPage({
               </div>
             ) : null}
 
-            {canManage ? <>
+            {canManage && data.profileExists ? <>
             <h2 className="mt-8 text-[30px] leading-none text-[#205a7f]">Alterar E-mail</h2>
             {feedback ? (
               <div

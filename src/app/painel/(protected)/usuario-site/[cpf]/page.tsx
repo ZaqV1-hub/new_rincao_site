@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { PainelUsuarioSiteDetailPage } from "@/components/painel-usuario-site-detail-page";
 import { hasLegacyPanelResource } from "@/lib/painel-access";
-import { getPainelUsuarioSite, PainelUsuarioSiteError } from "@/lib/painel-usuario-site";
+import { getPainelUsuarioSite, getPainelUsuarioSiteFallback, PainelUsuarioSiteError, type PainelUsuarioSiteDetail } from "@/lib/painel-usuario-site";
 import { requirePainelAccess } from "@/lib/painel-session";
 import { getPainelUsuario, PainelUsuariosError } from "@/lib/painel-usuarios";
 
@@ -24,7 +24,7 @@ export default async function PainelUsuarioSiteDetailPageRoute({
   const { cpf } = await params;
   const requestedPage = Number((await searchParams)?.comprasPagina ?? 1);
   const purchasePage = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  let data: Awaited<ReturnType<typeof getPainelUsuarioSite>>;
+  let data: PainelUsuarioSiteDetail | null = null;
 
   try {
     data = await getPainelUsuarioSite(cpf, purchasePage);
@@ -37,18 +37,21 @@ export default async function PainelUsuarioSiteDetailPageRoute({
       await getPainelUsuario(cpf);
     } catch (internalError) {
       if (internalError instanceof PainelUsuariosError && internalError.code === "user_not_found") {
-        notFound();
+        data = await getPainelUsuarioSiteFallback(cpf, purchasePage);
+      } else {
+        throw internalError;
       }
-      throw internalError;
     }
+  }
 
+  if (!data) {
     redirect(`/painel/usuario/detalhe/${encodeURIComponent(cpf)}`);
   }
 
   return (
     <PainelUsuarioSiteDetailPage
-      canDeleteObservations={session.legacyRoleId === 1}
-      canManage={hasLegacyPanelResource(session.legacyResources, "vis_situsu")}
+      canDeleteObservations={data.profileExists && session.legacyRoleId === 1}
+      canManage={data.profileExists && hasLegacyPanelResource(session.legacyResources, "vis_situsu")}
       data={data}
       legacyResources={session.legacyResources}
     />

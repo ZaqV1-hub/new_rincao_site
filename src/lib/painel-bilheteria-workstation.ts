@@ -11,7 +11,6 @@ type CustomerRow = {
   cpf: string;
   nmusuario: string | null;
   rg: string | null;
-  idpapel: number | null;
 };
 
 type CustomerPurchaseRow = {
@@ -106,7 +105,6 @@ export type PainelBilheteriaCustomerLookupPurchase = {
 export type PainelBilheteriaCustomerLookupResult = {
   lookup: string;
   documentKind: "cpf" | "rg";
-  hasProfile: boolean;
   customer: {
     cpf: string | null;
     cpfLabel: string;
@@ -320,7 +318,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
   if (documentKind === "cpf") {
     const customerResult = await pool.query<CustomerRow>(
       `
-        SELECT cpf, nmusuario, rg, idpapel
+        SELECT cpf, nmusuario, rg
         FROM usuario
         WHERE cpf = $1
         LIMIT 1
@@ -331,7 +329,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
   } else {
     const customerResult = await pool.query<CustomerRow>(
       `
-        SELECT cpf, nmusuario, rg, idpapel
+        SELECT cpf, nmusuario, rg
         FROM usuario
         WHERE REPLACE(REPLACE(REPLACE(COALESCE(rg, ''), '.', ''), '/', ''), '-', '') = $1
         LIMIT 1
@@ -346,7 +344,6 @@ export async function lookupPainelBilheteriaCustomerDocument(
     return {
       lookup,
       documentKind,
-      hasProfile: Boolean(customer && customer.idpapel === null),
       customer: customer
         ? {
             cpf: customer.cpf,
@@ -479,7 +476,6 @@ export async function lookupPainelBilheteriaCustomerDocument(
   return {
     lookup,
     documentKind,
-    hasProfile: Boolean(customer && customer.idpapel === null),
     customer: customer
       ? {
           cpf: customer.cpf,

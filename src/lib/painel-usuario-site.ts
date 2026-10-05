@@ -70,6 +70,7 @@ export type PainelUsuarioSiteAgreement = {
 };
 
 export type PainelUsuarioSiteDetail = PainelUsuarioSiteListItem & {
+  profileExists: boolean;
   rg: string;
   birthDateLabel: string;
   sexLabel: string;
@@ -444,6 +445,7 @@ export async function getPainelUsuarioSite(cpf: unknown, purchasePage = 1) {
 
   return {
     ...listItem,
+    profileExists: true,
     rg: normalizeText(row.rg) || "-",
     birthDateLabel: formatDateLabel(row.dtnascimento),
     sexLabel: mapSexLabel(row.sexo),
@@ -464,6 +466,44 @@ export async function getPainelUsuarioSite(cpf: unknown, purchasePage = 1) {
     observations,
     purchaseHistory,
   } satisfies PainelUsuarioSiteDetail;
+}
+
+export async function getPainelUsuarioSiteFallback(cpf: unknown, purchasePage = 1): Promise<PainelUsuarioSiteDetail> {
+  const normalizedCpf = assertCpf(cpf);
+  const [observations, purchaseHistory] = await Promise.all([
+    listSiteUserObservations(normalizedCpf),
+    listPainelPurchases({ page: purchasePage, perPage: 50, filters: { cpf: normalizedCpf } }),
+  ]);
+  const name = purchaseHistory.items.find((purchase) => purchase.userName?.trim())?.userName?.trim()
+    || `CPF ${formatCpf(normalizedCpf)}`;
+
+  return {
+    cpf: normalizedCpf,
+    cpfLabel: formatCpf(normalizedCpf),
+    name,
+    email: "-",
+    createdAt: null,
+    createdAtLabel: "-",
+    status: "ina",
+    statusLabel: "Sem cadastro no site",
+    profileExists: false,
+    rg: "-",
+    birthDateLabel: "-",
+    sexLabel: "-",
+    phone: "-",
+    mobile: "-",
+    address: "-",
+    number: "-",
+    cep: "-",
+    district: "-",
+    regionLabel: "-",
+    complement: "-",
+    lastLoginLabel: "-",
+    userType: "NORMAL",
+    agreements: [],
+    observations,
+    purchaseHistory,
+  };
 }
 
 export async function updatePainelUsuarioSiteEmail(cpf: unknown, email: unknown) {
