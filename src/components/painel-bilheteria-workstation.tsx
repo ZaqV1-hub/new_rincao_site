@@ -1034,7 +1034,7 @@ export function PainelBilheteriaWorkstation({
             </div>
             <div className="flex flex-col items-start gap-2 text-sm text-[#5d7282] sm:items-end">
               <span>Consulta por {customerLookup.documentKind.toUpperCase()}</span>
-              {customerLookup.hasProfile && customerLookup.customer?.cpf ? (
+              {customerLookup.customer?.cpf ? (
                 <Link
                   className="rounded-full border border-[#b9d0e6] bg-white px-4 py-2 font-semibold text-[#173f68]"
                   href={`/painel/usuario-site/${customerLookup.customer.cpf}`}
