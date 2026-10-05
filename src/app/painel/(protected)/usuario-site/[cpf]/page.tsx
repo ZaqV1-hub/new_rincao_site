@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { PainelUsuarioSiteDetailPage } from "@/components/painel-usuario-site-detail-page";
 import { hasLegacyPanelResource } from "@/lib/painel-access";
 import { getPainelUsuarioSite, getPainelUsuarioSiteFallback, PainelUsuarioSiteError, type PainelUsuarioSiteDetail } from "@/lib/painel-usuario-site";
 import { requirePainelAccess } from "@/lib/painel-session";
-import { getPainelUsuario, PainelUsuariosError } from "@/lib/painel-usuarios";
 
 export const metadata: Metadata = {
   title: "Painel - Detalhe Usuário Site | Rincao",
@@ -24,7 +22,7 @@ export default async function PainelUsuarioSiteDetailPageRoute({
   const { cpf } = await params;
   const requestedPage = Number((await searchParams)?.comprasPagina ?? 1);
   const purchasePage = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  let data: PainelUsuarioSiteDetail | null = null;
+  let data: PainelUsuarioSiteDetail;
 
   try {
     data = await getPainelUsuarioSite(cpf, purchasePage);
@@ -33,19 +31,7 @@ export default async function PainelUsuarioSiteDetailPageRoute({
       throw error;
     }
 
-    try {
-      await getPainelUsuario(cpf);
-    } catch (internalError) {
-      if (internalError instanceof PainelUsuariosError && internalError.code === "user_not_found") {
-        data = await getPainelUsuarioSiteFallback(cpf, purchasePage);
-      } else {
-        throw internalError;
-      }
-    }
-  }
-
-  if (!data) {
-    redirect(`/painel/usuario/detalhe/${encodeURIComponent(cpf)}`);
+    data = await getPainelUsuarioSiteFallback(cpf, purchasePage);
   }
 
   return (

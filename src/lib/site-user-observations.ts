@@ -1,5 +1,6 @@
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { ClientObservationError } from "@/lib/client-observations";
+import { ensureSiteAccountOverridesTable } from "@/lib/site-account-overrides";
 
 async function ensureSiteUserObservationsTable() {
   const pool = getIngressoSistemaDbPool();
@@ -52,9 +53,10 @@ export async function addSiteUserObservation(input: { cpf: unknown; text: unknow
   if (!text) throw new ClientObservationError("invalid_observation", "Escreva uma observação.", 400);
   if (text.length > 4000) throw new ClientObservationError("invalid_observation", "A observação pode ter até 4.000 caracteres.", 400);
   await ensureSiteUserObservationsTable();
+  await ensureSiteAccountOverridesTable();
   const pool = getIngressoSistemaDbPool();
   const user = await pool.query<{ cpf: string }>(
-    "SELECT cpf FROM usuario WHERE cpf = $1 AND idpapel IS NULL LIMIT 1",
+    "SELECT cpf FROM usuario_site_conta WHERE cpf = $1 UNION ALL SELECT cpf FROM usuario WHERE cpf = $1 AND idpapel IS NULL LIMIT 1",
     [cpf],
   );
   if (!user.rows[0]) throw new ClientObservationError("site_user_not_found", "Usuário do site não encontrado.", 404);

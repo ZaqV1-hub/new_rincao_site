@@ -1,5 +1,6 @@
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { hashPasswordForLegacyUser } from "@/lib/password-hashing";
+import { ensureSiteAccountOverridesTable, hasSiteAccountOverride } from "@/lib/site-account-overrides";
 import type { AuthUser } from "@/lib/auth-contracts";
 import { isValidCpf, sanitizeCpf } from "@/lib/cpf";
 import {
@@ -190,17 +191,21 @@ function legacyPasswordHash(password: string) {
 
 export async function authenticatePublicUser(cpf: string, password: string) {
   const pool = getIngressoSistemaDbPool();
+  await ensureSiteAccountOverridesTable();
   const result = await pool.query<UserRow>(
     `
-      SELECT cpf, nmusuario, email, stusuario
+      SELECT cpf, nmusuario, email, stusuario, 'override' AS account_source
+      FROM usuario_site_conta
+      WHERE cpf = $1 AND senha = $2
+      UNION ALL
+      SELECT cpf, nmusuario, email, stusuario, 'legacy' AS account_source
       FROM usuario
-      WHERE cpf = $1
-        AND senha = $2
+      WHERE cpf = $1 AND senha = $2 AND idpapel IS NULL
       LIMIT 1
     `,
     [sanitizeCpf(cpf), legacyPasswordHash(password)],
   );
-  const row = result.rows[0];
+  const row = result.rows[0] as (UserRow & { account_source: string }) | undefined;
 
   if (!row) {
     return null;
@@ -214,7 +219,7 @@ export async function authenticatePublicUser(cpf: string, password: string) {
 
   await pool.query(
     `
-      UPDATE usuario
+      UPDATE ${row.account_source === "override" ? "usuario_site_conta" : "usuario"}
       SET dtulogin = CURRENT_DATE,
           hrulogin = CURRENT_TIME
       WHERE cpf = $1
@@ -236,6 +241,7 @@ export async function authenticatePanelUser(login: string, password: string) {
       FROM usuario
       WHERE ${isEmailLogin ? "LOWER(email) = LOWER($1)" : "cpf = $1"}
         AND senha = $2
+        AND idpapel IS NOT NULL
       LIMIT 1
     `,
     [isEmailLogin ? normalizedLogin : normalizedCpf, legacyPasswordHash(password)],
@@ -257,7 +263,7 @@ export async function authenticatePanelUser(login: string, password: string) {
       UPDATE usuario
       SET dtulogin = CURRENT_DATE,
           hrulogin = CURRENT_TIME
-      WHERE cpf = $1
+      WHERE cpf = $1 AND idpapel IS NOT NULL
     `,
     [user.cpf],
   );
@@ -267,11 +273,16 @@ export async function authenticatePanelUser(login: string, password: string) {
 
 export async function getActivePublicUserByCpf(cpf: string) {
   const pool = getIngressoSistemaDbPool();
+  await ensureSiteAccountOverridesTable();
   const result = await pool.query<UserRow>(
     `
       SELECT cpf, nmusuario, email, stusuario
-      FROM usuario
+      FROM usuario_site_conta
       WHERE cpf = $1
+      UNION ALL
+      SELECT cpf, nmusuario, email, stusuario
+      FROM usuario
+      WHERE cpf = $1 AND idpapel IS NULL
       LIMIT 1
     `,
     [sanitizeCpf(cpf)],
@@ -289,11 +300,16 @@ export async function getActivePublicUserByCpf(cpf: string) {
 
 export async function findPublicUserByCpf(cpf: string) {
   const pool = getIngressoSistemaDbPool();
+  await ensureSiteAccountOverridesTable();
   const result = await pool.query<UserRow>(
     `
       SELECT cpf, nmusuario, email, stusuario
-      FROM usuario
+      FROM usuario_site_conta
       WHERE cpf = $1
+      UNION ALL
+      SELECT cpf, nmusuario, email, stusuario
+      FROM usuario
+      WHERE cpf = $1 AND idpapel IS NULL
       LIMIT 1
     `,
     [sanitizeCpf(cpf)],
@@ -305,6 +321,7 @@ export async function findPublicUserByCpf(cpf: string) {
 
 export async function getActivePublicUserProfileByCpf(cpf: string) {
   const pool = getIngressoSistemaDbPool();
+  await ensureSiteAccountOverridesTable();
   const result = await pool.query<UserProfileRow>(
     `
       SELECT
@@ -325,7 +342,15 @@ export async function getActivePublicUserProfileByCpf(cpf: string) {
         usuario.cidade,
         usuario.complemento,
         cidade.nmcidade
-      FROM usuario
+      FROM (
+        SELECT cpf, nmusuario, email, stusuario, rg, dtnascimento, sexo,
+          telefone, celular, endereco, numero, cep, bairro, uf, cidade, complemento
+        FROM usuario_site_conta WHERE cpf = $1
+        UNION ALL
+        SELECT cpf, nmusuario, email, stusuario, rg, dtnascimento, sexo,
+          telefone, celular, endereco, numero::text, cep, bairro, uf, cidade, complemento
+        FROM usuario WHERE cpf = $1 AND idpapel IS NULL
+      ) usuario
       LEFT JOIN cidade ON cidade.idcidade = usuario.cidade
       WHERE usuario.cpf = $1
       LIMIT 1
@@ -534,11 +559,16 @@ export async function getProfileCityById(cityId: number) {
 
 export async function findPublicUserByEmail(email: string) {
   const pool = getIngressoSistemaDbPool();
+  await ensureSiteAccountOverridesTable();
   const result = await pool.query<UserRow>(
     `
       SELECT cpf, nmusuario, email, stusuario
-      FROM usuario
+      FROM usuario_site_conta
       WHERE lower(email) = lower($1)
+      UNION ALL
+      SELECT cpf, nmusuario, email, stusuario
+      FROM usuario
+      WHERE lower(email) = lower($1) AND idpapel IS NULL
       LIMIT 1
     `,
     [email],
@@ -550,9 +580,16 @@ export async function findPublicUserByEmail(email: string) {
 
 export async function createPublicUser(input: PublicUserRegistrationInput) {
   const pool = getIngressoSistemaDbPool();
+  const cpf = sanitizeCpf(input.cpf);
+  await ensureSiteAccountOverridesTable();
+  const internalUser = await pool.query<{ cpf: string }>(
+    "SELECT cpf FROM usuario WHERE cpf = $1 AND idpapel IS NOT NULL LIMIT 1",
+    [cpf],
+  );
+  const accountTable = internalUser.rows[0] ? "usuario_site_conta" : "usuario";
   const result = await pool.query<UserRow>(
     `
-      INSERT INTO usuario (
+      INSERT INTO ${accountTable} (
         cpf,
         senha,
         nmusuario,
@@ -595,7 +632,7 @@ export async function createPublicUser(input: PublicUserRegistrationInput) {
       RETURNING cpf, nmusuario, email, stusuario
     `,
     [
-      sanitizeCpf(input.cpf),
+      cpf,
       legacyPasswordHash(input.password),
       input.name,
       input.rg,
@@ -624,10 +661,12 @@ export async function updatePublicUserProfile(
   input: PublicUserProfileInput,
 ) {
   const pool = getIngressoSistemaDbPool();
+  const normalizedCpf = sanitizeCpf(cpf);
+  const accountTable = (await hasSiteAccountOverride(normalizedCpf)) ? "usuario_site_conta" : "usuario";
 
   await pool.query(
     `
-      UPDATE usuario
+      UPDATE ${accountTable}
       SET nmusuario = $2,
           email = $3,
           rg = $4,
@@ -642,10 +681,10 @@ export async function updatePublicUserProfile(
           uf = $13,
           cidade = $14,
           complemento = $15
-      WHERE cpf = $1
+      WHERE cpf = $1 ${accountTable === "usuario" ? "AND idpapel IS NULL" : ""}
     `,
     [
-      sanitizeCpf(cpf),
+      normalizedCpf,
       input.name,
       input.email,
       input.rg,
@@ -668,12 +707,18 @@ export async function updatePublicUserProfile(
 
 export async function checkPublicUserPassword(cpf: string, password: string) {
   const pool = getIngressoSistemaDbPool();
+  await ensureSiteAccountOverridesTable();
   const result = await pool.query<{ cpf: string }>(
     `
+      SELECT cpf
+      FROM usuario_site_conta
+      WHERE cpf = $1 AND senha = $2
+      UNION ALL
       SELECT cpf
       FROM usuario
       WHERE cpf = $1
         AND senha = $2
+        AND idpapel IS NULL
       LIMIT 1
     `,
     [sanitizeCpf(cpf), legacyPasswordHash(password)],
@@ -684,13 +729,14 @@ export async function checkPublicUserPassword(cpf: string, password: string) {
 
 export async function updatePublicUserPassword(cpf: string, password: string) {
   const pool = getIngressoSistemaDbPool();
-
+  const normalizedCpf = sanitizeCpf(cpf);
+  const accountTable = (await hasSiteAccountOverride(normalizedCpf)) ? "usuario_site_conta" : "usuario";
   await pool.query(
     `
-      UPDATE usuario
+      UPDATE ${accountTable}
       SET senha = $2
-      WHERE cpf = $1
+      WHERE cpf = $1 ${accountTable === "usuario" ? "AND idpapel IS NULL" : ""}
     `,
-    [sanitizeCpf(cpf), legacyPasswordHash(password)],
+    [normalizedCpf, legacyPasswordHash(password)],
   );
 }

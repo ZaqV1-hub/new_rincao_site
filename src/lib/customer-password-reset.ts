@@ -1,16 +1,9 @@
-import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   getPasswordResetTicket,
   requestPasswordReset,
   resetPasswordByTicket,
 } from "@/lib/password-reset-workflow";
-import { sanitizeCpf } from "@/lib/user-repository";
-
-type PublicUserByCpfRow = {
-  cpf: string;
-  nmusuario: string;
-  email: string | null;
-};
+import { findPublicUserByCpf } from "@/lib/user-repository";
 
 function buildResetEmailHtml(input: {
   userName: string;
@@ -25,26 +18,13 @@ function buildResetEmailHtml(input: {
   `;
 }
 
-async function findPublicUserByCpf(cpf: string) {
-  const result = await getIngressoSistemaDbPool().query<PublicUserByCpfRow>(
-    `
-      SELECT cpf, nmusuario, email
-      FROM usuario
-      WHERE cpf = $1
-      LIMIT 1
-    `,
-    [sanitizeCpf(cpf)],
-  );
-
-  return result.rows[0] ?? null;
-}
-
 export async function requestCustomerPasswordReset(input: {
   cpf: string;
   origin: string;
 }) {
   return requestPasswordReset(
     {
+      audience: "public",
       async findUser(cpf) {
         const user = await findPublicUserByCpf(cpf);
 
@@ -52,7 +32,7 @@ export async function requestCustomerPasswordReset(input: {
           ? {
               cpf: user.cpf,
               email: user.email,
-              name: user.nmusuario,
+              name: user.name,
             }
           : null;
       },
@@ -69,12 +49,12 @@ export async function requestCustomerPasswordReset(input: {
 }
 
 export async function getCustomerPasswordResetTicket(ticket: string) {
-  return getPasswordResetTicket(ticket);
+  return getPasswordResetTicket(ticket, "public");
 }
 
 export async function resetCustomerPassword(input: {
   ticket: string;
   password: string;
 }) {
-  return resetPasswordByTicket(input);
+  return resetPasswordByTicket(input, "public");
 }

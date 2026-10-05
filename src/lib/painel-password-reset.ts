@@ -46,6 +46,7 @@ export async function requestPainelPasswordReset(input: {
 }) {
   return requestPasswordReset(
     {
+      audience: "panel",
       async findUser(email) {
         const user = await findPanelUserByEmail(email.trim().toLowerCase());
 
@@ -70,12 +71,12 @@ export async function requestPainelPasswordReset(input: {
 }
 
 export async function getPainelPasswordResetTicket(ticket: string) {
-  return getPasswordResetTicket(ticket);
+  return getPasswordResetTicket(ticket, "panel");
 }
 
 export async function resetPainelPassword(input: {
   ticket: string;
   password: string;
 }) {
-  return resetPasswordByTicket(input);
+  return resetPasswordByTicket(input, "panel");
 }

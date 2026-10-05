@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { queueLegacyEmail } from "@/lib/legacy-email";
 import { hashPasswordForLegacyUser } from "@/lib/password-hashing";
+import { ensureSiteAccountOverridesTable, hasSiteAccountOverride } from "@/lib/site-account-overrides";
 
 type PasswordResetEmailRow = {
   sent_at: string;
@@ -10,7 +11,19 @@ type PasswordResetEmailRow = {
 type PasswordResetTicketRow = {
   cpf: string;
   flusado: string | null;
+  audiencia: string | null;
 };
+
+type PasswordResetAudience = "public" | "panel";
+
+async function ensurePasswordResetAudienceTable() {
+  await getIngressoSistemaDbPool().query(`
+    CREATE TABLE IF NOT EXISTS trocasenha_audiencia (
+      ticket varchar(255) PRIMARY KEY,
+      audiencia varchar(10) NOT NULL
+    )
+  `);
+}
 
 type PasswordResetUser = {
   cpf: string;
@@ -45,6 +58,7 @@ export type PasswordResetRequestResult =
     };
 
 export type PasswordResetModuleConfig = {
+  audience: PasswordResetAudience;
   findUser(lookup: string): Promise<PasswordResetUser | null>;
   buildResetUrl(ticket: string, origin: string): string;
   buildEmailHtml(input: {
@@ -182,12 +196,17 @@ export async function requestPasswordReset(
   }
 
   const ticket = generateResetTicket();
+  await ensurePasswordResetAudienceTable();
   await getIngressoSistemaDbPool().query(
     `
       INSERT INTO trocasenha (flusado, cpf, ticket)
       VALUES ('n', $1, $2)
     `,
     [user.cpf, ticket],
+  );
+  await getIngressoSistemaDbPool().query(
+    "INSERT INTO trocasenha_audiencia (ticket, audiencia) VALUES ($1, $2)",
+    [ticket, config.audience],
   );
 
   const resetUrl = config.buildResetUrl(ticket, input.origin);
@@ -209,47 +228,65 @@ export async function requestPasswordReset(
   };
 }
 
-export async function getPasswordResetTicket(ticket: string) {
+export async function getPasswordResetTicket(ticket: string, audience: PasswordResetAudience) {
+  await ensurePasswordResetAudienceTable();
   const result = await getIngressoSistemaDbPool().query<PasswordResetTicketRow>(
     `
-      SELECT cpf, flusado
+      SELECT trocasenha.cpf, trocasenha.flusado, trocasenha_audiencia.audiencia
       FROM trocasenha
-      WHERE ticket = $1
+      LEFT JOIN trocasenha_audiencia ON trocasenha_audiencia.ticket = trocasenha.ticket
+      WHERE trocasenha.ticket = $1
       LIMIT 1
     `,
     [ticket.trim()],
   );
   const row = result.rows[0];
+  const allowed = Boolean(row && (row.audiencia === audience || (
+    !row.audiencia && !(await hasSiteAccountOverride(row.cpf))
+  )));
 
   return {
-    exists: Boolean(row),
-    valid: Boolean(row?.cpf && row.flusado === "n"),
-    cpf: row?.cpf ?? null,
+    exists: allowed,
+    valid: Boolean(allowed && row?.cpf && row.flusado === "n"),
+    cpf: allowed ? row?.cpf ?? null : null,
   };
 }
 
 export async function resetPasswordByTicket(input: {
   ticket: string;
   password: string;
-}) {
+}, audience: PasswordResetAudience) {
   const pool = getIngressoSistemaDbPool();
+  await ensurePasswordResetAudienceTable();
+  await ensureSiteAccountOverridesTable();
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
     const ticketResult = await client.query<PasswordResetTicketRow>(
       `
-        SELECT cpf, flusado
+        SELECT trocasenha.cpf, trocasenha.flusado, trocasenha_audiencia.audiencia
         FROM trocasenha
-        WHERE ticket = $1
+        LEFT JOIN trocasenha_audiencia ON trocasenha_audiencia.ticket = trocasenha.ticket
+        WHERE trocasenha.ticket = $1
         LIMIT 1
         FOR UPDATE
       `,
       [input.ticket.trim()],
     );
     const ticketRow = ticketResult.rows[0];
+    const hasTwoAccounts = ticketRow?.cpf && !ticketRow.audiencia
+      ? Boolean((await client.query(
+        "SELECT cpf FROM usuario_site_conta WHERE cpf = $1 LIMIT 1",
+        [ticketRow.cpf],
+      )).rows[0])
+      : false;
 
-    if (!ticketRow?.cpf || ticketRow.flusado !== "n") {
+    if (!ticketRow?.cpf || ticketRow.flusado !== "n" || (
+      ticketRow.audiencia !== audience && (
+        ticketRow.audiencia != null || hasTwoAccounts
+      )
+    )) {
       await client.query("ROLLBACK");
 
       return {
@@ -267,14 +304,26 @@ export async function resetPasswordByTicket(input: {
       `,
       [input.ticket.trim()],
     );
-    await client.query(
-      `
-        UPDATE usuario
-        SET senha = $1
-        WHERE cpf = $2
-      `,
-      [hashPasswordForLegacyUser(input.password), ticketRow.cpf],
-    );
+    const passwordHash = hashPasswordForLegacyUser(input.password);
+    let updated = 0;
+    if (audience === "public") {
+      const override = await client.query(
+        "UPDATE usuario_site_conta SET senha = $1 WHERE cpf = $2",
+        [passwordHash, ticketRow.cpf],
+      );
+      updated = override.rowCount ?? 0;
+    }
+    if (!updated) {
+      const legacy = await client.query(
+        `UPDATE usuario SET senha = $1 WHERE cpf = $2 AND idpapel IS ${audience === "panel" ? "NOT NULL" : "NULL"}`,
+        [passwordHash, ticketRow.cpf],
+      );
+      updated = legacy.rowCount ?? 0;
+    }
+    if (!updated) {
+      await client.query("ROLLBACK");
+      return { ok: false as const, code: "invalid_ticket" };
+    }
     await client.query("COMMIT");
 
     return {
