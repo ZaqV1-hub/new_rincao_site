@@ -57,6 +57,7 @@ export type PainelPurchaseDetailVoucher = {
   voucherType: string;
   voucherTypeLabel: string;
   schoolName: string | null;
+  studentName: string | null;
   className: string | null;
   periodName: string | null;
   unitValue: string;
@@ -272,6 +273,7 @@ type PainelPurchaseDetailVoucherRow = {
   idagenda: number | null;
   idescola: number | null;
   nmescola: string | null;
+  nomealuno: string | null;
   turma: string | null;
   periodo: string | null;
   vlunicompra: string | number | null;
@@ -603,12 +605,12 @@ function resolveDetailPaymentLabel(row: PainelPurchaseDetailRow) {
   return "-";
 }
 
-function buildSchoolTripHref(agendaId: number | null, schoolId: number | null) {
-  if (!agendaId || !schoolId) {
+function buildSchoolProfileHref(schoolId: number | null) {
+  if (!schoolId) {
     return null;
   }
 
-  return `/painel/clientes/passeios/${agendaId}/alunos`;
+  return `/painel/clientes/detalhe?id=${schoolId}`;
 }
 
 function readObject(value: unknown) {
@@ -1370,6 +1372,7 @@ export async function getPainelPurchaseDetail(
         agenda.dtagenda::text AS dtagenda,
         voucher.idescola,
         clientes.nome AS nmescola,
+        voucher.nomealuno,
         voucher.turma,
         voucher.periodo,
         voucher.vlunicompra::text AS vlunicompra,
@@ -1417,6 +1420,7 @@ export async function getPainelPurchaseDetail(
       voucherTypeLabel:
         String(voucher.descricao ?? "").trim() || formatVoucherTypeLabel(voucher.tpvoucher),
       schoolName: voucher.nmescola,
+      studentName: voucher.nomealuno,
       className: voucher.turma,
       periodName: voucher.periodo,
       unitValue: formatMoneyLabel(voucher.vlunicompra),
@@ -1424,7 +1428,7 @@ export async function getPainelPurchaseDetail(
       usedLabel: formatVoucherUsedLabel(voucher.stusado),
       usedDate: formatDateLabel(voucher.dtuso),
       usedTime: voucher.hruso ? String(voucher.hruso).slice(0, 8) : null,
-      schoolTripHref: buildSchoolTripHref(voucher.idagenda, voucher.idescola),
+      schoolTripHref: buildSchoolProfileHref(voucher.idescola),
     })),
   };
 }
