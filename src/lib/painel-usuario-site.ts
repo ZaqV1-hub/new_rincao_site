@@ -2,6 +2,7 @@ import { formatCpf, sanitizeCpf } from "@/lib/cpf";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { listPainelPurchases, type PainelPurchaseListResult } from "@/lib/painel-compras";
 import { listSiteUserObservations } from "@/lib/site-user-observations";
+import { ensureSiteAccountOverridesTable, hasSiteAccountOverride } from "@/lib/site-account-overrides";
 import {
   asOpsAdminMasterDataError,
   updateOpsAdminMasterData,
@@ -217,7 +218,7 @@ function buildListWhere(filters: {
   createdFrom: string;
   createdTo: string;
 }) {
-  const clauses = ["usuario.idpapel IS NULL"];
+  const clauses = ["1=1"];
   const params: Array<string | number> = [];
 
   if (filters.status !== "-1") {
@@ -258,6 +259,7 @@ function buildListWhere(filters: {
 
 async function getUsuarioSiteRaw(cpf: string) {
   const pool = getIngressoSistemaDbPool();
+  await ensureSiteAccountOverridesTable();
   const result = await pool.query<UsuarioSiteRow>(
     `
       SELECT
@@ -280,10 +282,19 @@ async function getUsuarioSiteRaw(cpf: string) {
         cidade.nmcidade,
         usuario.uf,
         usuario.complemento
-      FROM usuario
+      FROM (
+        SELECT cpf, nmusuario, email, stusuario, dtcadastro, dtulogin, hrulogin,
+          rg, dtnascimento, sexo, telefone, celular, endereco, numero, cep,
+          bairro, cidade, uf, complemento
+        FROM usuario_site_conta WHERE cpf = $1
+        UNION ALL
+        SELECT cpf, nmusuario, email, stusuario, dtcadastro, dtulogin, hrulogin,
+          rg, dtnascimento, sexo, telefone, celular, endereco, numero::text, cep,
+          bairro, cidade, uf, complemento
+        FROM usuario WHERE cpf = $1 AND idpapel IS NULL
+      ) usuario
       LEFT JOIN cidade ON cidade.idcidade = usuario.cidade
       WHERE usuario.cpf = $1
-        AND usuario.idpapel IS NULL
       LIMIT 1
     `,
     [cpf],
@@ -373,10 +384,18 @@ export async function listPainelUsuariosSite(input: Record<string, unknown>) {
     createdTo,
   });
   const pool = getIngressoSistemaDbPool();
+  await ensureSiteAccountOverridesTable();
   const countResult = await pool.query<{ total: string }>(
     `
+      WITH site_users AS (
+        SELECT cpf, nmusuario, email, stusuario, dtcadastro, dtulogin, hrulogin
+        FROM usuario WHERE idpapel IS NULL
+        UNION ALL
+        SELECT cpf, nmusuario, email, stusuario, dtcadastro, dtulogin, hrulogin
+        FROM usuario_site_conta
+      )
       SELECT COUNT(*)::text AS total
-      FROM usuario
+      FROM site_users usuario
       ${whereSql}
     `,
     params,
@@ -385,6 +404,13 @@ export async function listPainelUsuariosSite(input: Record<string, unknown>) {
   const paging = paginate(total, page, per);
   const result = await pool.query<UsuarioSiteRow>(
     `
+      WITH site_users AS (
+        SELECT cpf, nmusuario, email, stusuario, dtcadastro, dtulogin, hrulogin
+        FROM usuario WHERE idpapel IS NULL
+        UNION ALL
+        SELECT cpf, nmusuario, email, stusuario, dtcadastro, dtulogin, hrulogin
+        FROM usuario_site_conta
+      )
       SELECT
         usuario.cpf,
         usuario.nmusuario,
@@ -405,7 +431,7 @@ export async function listPainelUsuariosSite(input: Record<string, unknown>) {
         NULL::text AS nmcidade,
         NULL::text AS uf,
         NULL::text AS complemento
-      FROM usuario
+      FROM site_users usuario
       ${whereSql}
       ORDER BY usuario.nmusuario ASC, usuario.cpf ASC
       LIMIT $${params.length + 1}
@@ -518,6 +544,15 @@ export async function updatePainelUsuarioSiteEmail(cpf: unknown, email: unknown)
     );
   }
 
+  await getUsuarioSiteRaw(normalizedCpf);
+  if (await hasSiteAccountOverride(normalizedCpf)) {
+    await getIngressoSistemaDbPool().query(
+      "UPDATE usuario_site_conta SET email = $2 WHERE cpf = $1",
+      [normalizedCpf, normalizedEmail],
+    );
+    return { message: "E-mail alterado com sucesso." };
+  }
+
   return updateOpsAdminMasterData("site-users", {
     id: normalizedCpf,
     values: {
@@ -586,6 +621,15 @@ export async function updatePainelUsuarioSiteStatus(input: {
   }
 
   const status = normalizeText(input.status).toLowerCase() === "ina" ? "ina" : "ati";
+
+  await getUsuarioSiteRaw(normalizedCpf);
+  if (await hasSiteAccountOverride(normalizedCpf)) {
+    await getIngressoSistemaDbPool().query(
+      "UPDATE usuario_site_conta SET stusuario = $2 WHERE cpf = $1",
+      [normalizedCpf, status],
+    );
+    return { message: "Status alterado com sucesso." };
+  }
 
   return updateOpsAdminMasterData("site-users", {
     id: normalizedCpf,

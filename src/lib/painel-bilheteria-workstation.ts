@@ -1,6 +1,7 @@
 import { getIngressoDbPool, getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { isPainelBilheteriaVoucherVisibleForValidation } from "@/lib/painel-bilheteria-validation";
 import { listSiteUserObservations } from "@/lib/site-user-observations";
+import { ensureSiteAccountOverridesTable } from "@/lib/site-account-overrides";
 import {
   formatPainelBilheteriaCpf,
   formatPainelBilheteriaDate,
@@ -311,6 +312,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
   }
 
   const pool = getIngressoSistemaDbPool();
+  await ensureSiteAccountOverridesTable();
   const documentKind = lookup.length === 11 ? "cpf" : "rg";
   let customer: CustomerRow | null = null;
   let cpf = lookup.length === 11 ? lookup : null;
@@ -319,8 +321,11 @@ export async function lookupPainelBilheteriaCustomerDocument(
     const customerResult = await pool.query<CustomerRow>(
       `
         SELECT cpf, nmusuario, rg
-        FROM usuario
-        WHERE cpf = $1
+        FROM (
+          SELECT cpf, nmusuario, rg FROM usuario_site_conta WHERE cpf = $1
+          UNION ALL
+          SELECT cpf, nmusuario, rg FROM usuario WHERE cpf = $1
+        ) customer
         LIMIT 1
       `,
       [lookup],
@@ -330,7 +335,11 @@ export async function lookupPainelBilheteriaCustomerDocument(
     const customerResult = await pool.query<CustomerRow>(
       `
         SELECT cpf, nmusuario, rg
-        FROM usuario
+        FROM (
+          SELECT cpf, nmusuario, rg FROM usuario_site_conta
+          UNION ALL
+          SELECT cpf, nmusuario, rg FROM usuario
+        ) customer
         WHERE REPLACE(REPLACE(REPLACE(COALESCE(rg, ''), '.', ''), '/', ''), '-', '') = $1
         LIMIT 1
       `,

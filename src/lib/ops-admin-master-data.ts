@@ -5,6 +5,7 @@ import {
 } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { hashPasswordForLegacyUser } from "@/lib/password-hashing";
+import { preservePublicAccountBeforeInternalPromotion } from "@/lib/site-account-overrides";
 
 type FieldType =
   | "text"
@@ -813,6 +814,7 @@ async function createInternalUser(
   }
 
   if (existing) {
+    await preservePublicAccountBeforeInternalPromotion(client, cpf);
     const columns = Object.keys(payload).filter((column) => {
       if (column !== "email") {
         return true;
