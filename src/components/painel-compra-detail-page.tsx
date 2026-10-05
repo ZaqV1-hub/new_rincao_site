@@ -57,7 +57,11 @@ export function PainelCompraDetailPage({
                   {detail.purchaseDate ?? "-"}
                 </td>
                 <td className="border border-[#d7d7d7] px-4 py-3">{detail.typeLabel}</td>
-                <td className="border border-[#d7d7d7] px-4 py-3">{detail.statusLabel}</td>
+                <td className="border border-[#d7d7d7] px-4 py-3">
+                  <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${detail.status === "conc" ? "bg-[#e2f4e8] text-[#24733c]" : detail.status === "pend" ? "bg-[#fff3cd] text-[#8a6500]" : detail.status === "canc" ? "bg-[#fbe4e4] text-[#a83232]" : "bg-[#eef2f5] text-[#526779]"}`}>
+                    {detail.statusLabel}
+                  </span>
+                </td>
               </tr>
               <tr className="bg-[#5f84a3] text-left text-white">
                 <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Pagamento</th>
@@ -180,7 +184,7 @@ export function PainelCompraDetailPage({
               <tbody>
                 {detail.vouchers.map((voucher, index) => (
                   <tr
-                    className={index % 2 === 1 ? "bg-[#fafafa]" : "bg-white"}
+                    className={voucher.used === "s" ? "bg-[#eeeeee] text-[#68727b]" : index % 2 === 1 ? "bg-[#fafafa]" : "bg-white"}
                     key={voucher.voucherId}
                   >
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.voucherId}</td>
@@ -203,7 +207,11 @@ export function PainelCompraDetailPage({
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.className ?? "-"}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.periodName ?? "-"}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.unitValue}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{voucher.usedLabel}</td>
+                    <td className="border border-[#d7d7d7] px-4 py-3">
+                      <span className={voucher.used === "s" ? "font-bold text-[#68727b]" : "text-[#24733c]"}>
+                        {voucher.used === "s" ? "USADO" : "NÃO USADO"}
+                      </span>
+                    </td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.usedDate ?? "-"}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.usedTime ?? "-"}</td>
                   </tr>

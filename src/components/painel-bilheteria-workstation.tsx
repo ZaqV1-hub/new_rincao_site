@@ -1120,7 +1120,7 @@ export function PainelBilheteriaWorkstation({
                               {purchase.vouchers.map((voucher) => (
                                 <tr
                                   key={voucher.voucherId}
-                                  className="bg-white"
+                                  className={voucher.statusCode?.trim().toLowerCase() === "s" ? "bg-[#eeeeee] text-[#68727b]" : "bg-white"}
                                 >
                                   <td className="border border-[#d2dde6] px-4 py-3">
                                     <input
@@ -1145,7 +1145,16 @@ export function PainelBilheteriaWorkstation({
                                   </td>
                                   <td className="border border-[#d2dde6] px-4 py-3">{voucher.voucherTypeLabel}</td>
                                   <td className="border border-[#d2dde6] px-4 py-3">{voucher.unitValue}</td>
-                                  <td className="border border-[#d2dde6] px-4 py-3">{voucher.statusLabel}</td>
+                                  <td className="border border-[#d2dde6] px-4 py-3">
+                                    <span className={voucher.statusCode?.trim().toLowerCase() === "s" ? "font-bold text-[#68727b]" : "font-semibold text-[#24733c]"}>
+                                      {voucher.statusCode?.trim().toLowerCase() === "s" ? "USADO" : "NÃO USADO"}
+                                    </span>
+                                    {voucher.usedDate ? (
+                                      <span className="mt-1 block text-xs text-[#68727b]">
+                                        {formatPainelBilheteriaDate(voucher.usedDate)}{voucher.usedTime ? ` às ${voucher.usedTime}` : ""}
+                                      </span>
+                                    ) : null}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
