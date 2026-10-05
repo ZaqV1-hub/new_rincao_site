@@ -140,7 +140,21 @@ function PurchasesTable({ items }: { items: PainelPurchaseListItem[] }) {
               </td>
               <td className="px-3 py-3 align-top">{item.purchaseDate ?? "-"}</td>
               <td className="px-3 py-3 align-top">{item.typeLabel}</td>
-              <td className="px-3 py-3 align-top">{item.statusLabel}</td>
+              <td className="px-3 py-3 align-top">
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    item.status === "conc"
+                      ? "bg-[#e2f4e8] text-[#24733c]"
+                      : item.status === "pend"
+                        ? "bg-[#fff3cd] text-[#8a6500]"
+                        : item.status === "canc"
+                          ? "bg-[#fbe4e4] text-[#a83232]"
+                          : "bg-[#eef2f5] text-[#526779]"
+                  }`}
+                >
+                  {item.statusLabel}
+                </span>
+              </td>
               <td className="px-3 py-3 align-top">{item.paymentMethodLabel}</td>
               <td className="px-3 py-3 align-top">{item.paymentLabel}</td>
               <td className="px-3 py-3 align-top">{item.cpf ?? "-"}</td>

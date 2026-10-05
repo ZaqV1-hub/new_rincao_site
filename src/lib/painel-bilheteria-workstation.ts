@@ -30,6 +30,8 @@ type CustomerVoucherRow = {
   tpvoucher: string | null;
   descricao: string | null;
   stusado: string | null;
+  dtuso: string | null;
+  hruso: string | null;
   agenda_data: string | null;
   vlunicompra: string | null;
 };
@@ -68,6 +70,8 @@ export type PainelBilheteriaLookupVoucher = {
   statusCode: string | null;
   voucherTypeLabel: string;
   statusLabel: string;
+  usedDate: string | null;
+  usedTime: string | null;
   visitDate: string | null;
   unitValue: string;
 };
@@ -398,6 +402,8 @@ export async function lookupPainelBilheteriaCustomerDocument(
           v.tpvoucher,
           v.descricao,
           v.stusado,
+          v.dtuso::text AS dtuso,
+          v.hruso::text AS hruso,
           a.dtagenda::text AS agenda_data,
           v.vlunicompra::text AS vlunicompra
         FROM voucher v
@@ -417,6 +423,8 @@ export async function lookupPainelBilheteriaCustomerDocument(
         statusCode: row.stusado,
         voucherTypeLabel: resolveVoucherDisplayLabel(row.descricao, row.tpvoucher),
         statusLabel: formatVoucherStatusLabel(row.stusado),
+        usedDate: row.dtuso ? row.dtuso.slice(0, 10) : null,
+        usedTime: row.hruso ? row.hruso.slice(0, 8) : null,
         visitDate: row.agenda_data ? row.agenda_data.slice(0, 10) : null,
         unitValue: formatPainelBilheteriaMoney(row.vlunicompra),
       });
