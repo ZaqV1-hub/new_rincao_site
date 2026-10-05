@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { PainelClientObservations } from "@/components/painel-client-observations";
 import type { PainelClienteDetailResult } from "@/lib/painel-clientes";
 
 type PainelClienteDetailPageProps = {
   clientId?: number;
   data?: PainelClienteDetailResult | null;
+  canDeleteObservations?: boolean;
 };
 
 function formatDate(value: string | null, withTime = false) {
@@ -43,8 +45,10 @@ function formatDate(value: string | null, withTime = false) {
 
 function PainelClienteDetailContent({
   data,
+  canDeleteObservations,
 }: {
   data: PainelClienteDetailResult;
+  canDeleteObservations: boolean;
 }) {
   return (
     <div className="grid gap-5">
@@ -115,6 +119,13 @@ function PainelClienteDetailContent({
           </Link>
         </div>
       </section>
+
+      <PainelClientObservations
+        apiUrl={`/api/painel/clientes/${data.client.id}/observacoes`}
+        canDelete={canDeleteObservations}
+        initialObservations={data.observations}
+        key={data.client.id}
+      />
 
       <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
         <h2 className="text-[28px] text-[#123b63]">Histórico de Datas de Passeio</h2>
@@ -193,6 +204,7 @@ function PainelClienteDetailContent({
 export function PainelClienteDetailPage({
   clientId,
   data: initialData = null,
+  canDeleteObservations = false,
 }: PainelClienteDetailPageProps) {
   const [data, setData] = useState<PainelClienteDetailResult | null>(initialData);
   const [loading, setLoading] = useState(!initialData && Boolean(clientId));
@@ -279,5 +291,5 @@ export function PainelClienteDetailPage({
     );
   }
 
-  return <PainelClienteDetailContent data={data} />;
+  return <PainelClienteDetailContent canDeleteObservations={canDeleteObservations} data={data} />;
 }

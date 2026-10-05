@@ -18,7 +18,7 @@ export default async function PainelClientesDetalhePage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requirePainelAccess(["vis_clientes", "vis_escola"], "/painel/clientes/detalhe");
+  const session = await requirePainelAccess(["vis_clientes", "vis_escola"], "/painel/clientes/detalhe");
   const params = (await searchParams) ?? {};
   const idValue = Array.isArray(params.id) ? params.id[0] : params.id;
   const clientId = Number(idValue);
@@ -27,5 +27,5 @@ export default async function PainelClientesDetalhePage({
     redirect("/painel/clientes");
   }
 
-  return <PainelClienteDetailPage clientId={clientId} />;
+  return <PainelClienteDetailPage canDeleteObservations={session.legacyRoleId === 1} clientId={clientId} />;
 }
