@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type {
-  PainelPurchaseVoucherIndicators,
   PainelPurchaseVoucherListFilters,
   PainelPurchaseVoucherListResult,
 } from "@/lib/painel-compras";
@@ -82,42 +81,6 @@ function hasActiveFilters(filters: PainelPurchaseVoucherListFilters) {
   return Object.values(filters).some((value) => value != null && value !== "");
 }
 
-function indicatorCards(indicators: PainelPurchaseVoucherIndicators) {
-  return [
-    { label: "Ingresso Adulto SITE", count: indicators.qtdnormal_site, value: indicators.vlnormal_site },
-    {
-      label: "Ingresso Infantil SITE",
-      count: indicators.qtdinfantil_site,
-      value: indicators.vlinfantil_site,
-    },
-    {
-      label: "Ingresso Adulto NO PARQUE",
-      count: indicators.qtdnormal_parque,
-      value: indicators.vlnormal_parque,
-    },
-    {
-      label: "Ingresso Infantil NO PARQUE",
-      count: indicators.qtdinfantil_parque,
-      value: indicators.vlinfantil_parque,
-    },
-    { label: "Escolar", count: indicators.qtdescola, value: indicators.vlescola },
-    {
-      label: "INGRESSO ADULTO RESERVA",
-      count: indicators.qtdadulto_reserva,
-      value: indicators.vladulto_reserva,
-    },
-    {
-      label: "INGRESSO INFANTIL RESERVA",
-      count: indicators.qtdinfantil_reserva,
-      value: indicators.vlinfantil_reserva,
-    },
-    { label: "ESPECIAIS", count: indicators.qtespecial, value: indicators.vlespecial },
-    { label: "CORTESIAS", count: indicators.qtdcortesia, value: "-" },
-    { label: "Isento", count: indicators.qtdisento, value: "-" },
-    { label: "Total", count: indicators.totalCount, value: indicators.totalValue },
-  ];
-}
-
 export function PainelCompraVouchersPage({
   result,
 }: PainelCompraVouchersPageProps) {
@@ -134,7 +97,7 @@ export function PainelCompraVouchersPage({
   );
 
   return (
-    <section className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <section className="grid gap-3">
       <div className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
         <div className="border-b border-[#d8d8d8] pb-3 text-sm text-[#909090]">
           <Link className="text-[#1d68a2] underline" href="/painel">
@@ -148,28 +111,81 @@ export function PainelCompraVouchersPage({
           <span>Vouchers</span>
         </div>
 
-        <p className="my-6 border-t border-[#e3e8ed]" />
+        <div className="mt-6 rounded-[6px] border border-[#d4dde5] bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-[#205a7f]">Filtrar vouchers</h2>
+              <p className="mt-1 text-sm text-[#58728b]">{result.total} voucher(s) encontrado(s).</p>
+            </div>
+            <div className="flex gap-2">
+              <a className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-xs font-semibold text-[#133d63]" href={exportHref}>
+                Exportar (.xls)
+              </a>
+              {filtersActive ? (
+                <Link className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-xs font-semibold text-[#133d63]" href="/painel/compras/vouchers">
+                  Limpar filtros
+                </Link>
+              ) : null}
+            </div>
+          </div>
+          <form action="/painel/compras/vouchers" className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" method="get">
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Voucher</span>
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.voucherId ?? ""} name="idvoucher" type="text" />
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Data da compra de</span>
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.purchaseDateFrom ?? ""} name="dtcompra[de]" type="date" />
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Data da compra até</span>
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.purchaseDateTo ?? ""} name="dtcompra[ate]" type="date" />
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Data de uso de</span>
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.usedDateFrom ?? ""} name="dtuso[de]" type="date" />
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Data de uso até</span>
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.usedDateTo ?? ""} name="dtuso[ate]" type="date" />
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Data de visita de</span>
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.visitDateFrom ?? ""} name="dtagenda[de]" type="date" />
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Data de visita até</span>
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.visitDateTo ?? ""} name="dtagenda[ate]" type="date" />
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Ingresso</span>
+              {renderSelect("tpvoucher", result.filters.voucherType, voucherTypeOptions)}
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Onde</span>
+              {renderSelect("tpcompra", result.filters.purchaseLocation, purchaseLocationOptions)}
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Status da compra</span>
+              {renderSelect("stcompra", result.filters.purchaseStatus, purchaseStatusOptions)}
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Usado?</span>
+              {renderSelect("stusado", result.filters.usedStatus, usedStatusOptions)}
+            </label>
+            <div className="flex items-end">
+              <button className="min-h-11 rounded-[8px] bg-[#133d63] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1d5686]" type="submit">
+                Filtrar
+              </button>
+            </div>
+          </form>
+        </div>
 
+        <div className="mt-5">
         {result.items.length === 0 ? (
-          <h2 className="text-[24px] text-[#5a5a5a]">Nenhum voucher encontrado</h2>
+          <h2 className="text-[20px] text-[#5a5a5a]">Nenhum voucher encontrado</h2>
         ) : (
           <>
-            <div className="grid gap-3 lg:grid-cols-4 2xl:grid-cols-6">
-              {indicatorCards(result.indicators).map((card) => (
-                <div
-                  className="rounded-[6px] border border-[#d9e3eb] bg-[#f7fbfe] px-4 py-3 text-center"
-                  key={card.label}
-                >
-                  <strong className="block text-xl text-[#205a7f]">{card.count}</strong>
-                  <span className="block text-xs uppercase tracking-[0.16em] text-[#607282]">
-                    {card.label}
-                  </span>
-                  <span className="mt-1 block text-sm text-[#3a5568]">
-                    {card.value === "-" ? "-" : `R$ ${card.value}`}
-                  </span>
-                </div>
-              ))}
-            </div>
 
             <div className="mt-6 overflow-x-auto border border-[#cfcfcf]">
               <table className="min-w-full border-collapse text-[15px]">
@@ -211,6 +227,7 @@ export function PainelCompraVouchersPage({
             </div>
           </>
         )}
+        </div>
 
         {result.totalPages > 1 ? (
           <div className="mt-5 flex flex-wrap justify-end gap-3">
@@ -234,105 +251,6 @@ export function PainelCompraVouchersPage({
         ) : null}
       </div>
 
-      <aside className="grid content-start gap-5">
-        <div className="rounded-[6px] border border-[#d4dde5] bg-white p-5 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
-          <h2 className="text-lg font-semibold text-[#205a7f]">Ações</h2>
-          <ul className="mt-4 grid gap-3 text-sm">
-            <li>
-              <a className="text-[#1d68a2] underline" href={exportHref}>
-                Exportar (.xls)
-              </a>
-            </li>
-            <li>
-              <Link className="text-[#1d68a2] underline" href="/painel/compras">
-                Lista de compras / reservas
-              </Link>
-            </li>
-          </ul>
-        </div>
-
-        <div className="rounded-[6px] border border-[#d4dde5] bg-white p-5 shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-[#205a7f]">Filtrar</h2>
-            {filtersActive ? (
-              <Link
-                className="text-sm text-[#1d68a2] underline"
-                href="/painel/compras/vouchers"
-              >
-                Remover Filtros
-              </Link>
-            ) : null}
-          </div>
-          <form action="/painel/compras/vouchers" className="mt-4 grid gap-4" method="get">
-            <label className="grid gap-2 text-sm text-[#555]">
-              <span>Voucher</span>
-              <input
-                className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]"
-                defaultValue={result.filters.voucherId ?? ""}
-                name="idvoucher"
-                type="text"
-              />
-            </label>
-
-            <div className="grid gap-2">
-              <label className="grid gap-2 text-sm text-[#555]">
-                <span>Data da compra de</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.purchaseDateFrom ?? ""} name="dtcompra[de]" type="date" />
-              </label>
-              <label className="grid gap-2 text-sm text-[#555]">
-                <span>Data da compra até</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.purchaseDateTo ?? ""} name="dtcompra[ate]" type="date" />
-              </label>
-            </div>
-
-            <div className="grid gap-2">
-              <label className="grid gap-2 text-sm text-[#555]">
-                <span>Data de uso de</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.usedDateFrom ?? ""} name="dtuso[de]" type="date" />
-              </label>
-              <label className="grid gap-2 text-sm text-[#555]">
-                <span>Data de uso até</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.usedDateTo ?? ""} name="dtuso[ate]" type="date" />
-              </label>
-            </div>
-
-            <div className="grid gap-2">
-              <label className="grid gap-2 text-sm text-[#555]">
-                <span>Data de visita de</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.visitDateFrom ?? ""} name="dtagenda[de]" type="date" />
-              </label>
-              <label className="grid gap-2 text-sm text-[#555]">
-                <span>Data de visita até</span>
-                <input className="border border-[#c8c8c8] px-3 py-2 text-sm text-[#444]" defaultValue={result.filters.visitDateTo ?? ""} name="dtagenda[ate]" type="date" />
-              </label>
-            </div>
-
-            <label className="grid gap-2 text-sm text-[#555]">
-              <span>Ingresso</span>
-              {renderSelect("tpvoucher", result.filters.voucherType, voucherTypeOptions)}
-            </label>
-            <label className="grid gap-2 text-sm text-[#555]">
-              <span>Onde</span>
-              {renderSelect("tpcompra", result.filters.purchaseLocation, purchaseLocationOptions)}
-            </label>
-            <label className="grid gap-2 text-sm text-[#555]">
-              <span>Status</span>
-              {renderSelect("stcompra", result.filters.purchaseStatus, purchaseStatusOptions)}
-            </label>
-            <label className="grid gap-2 text-sm text-[#555]">
-              <span>Usado?</span>
-              {renderSelect("stusado", result.filters.usedStatus, usedStatusOptions)}
-            </label>
-
-            <button
-              className="inline-flex items-center justify-center bg-[#8f8f8f] px-5 py-3 text-sm font-semibold text-white hover:bg-[#7c7c7c]"
-              type="submit"
-            >
-              Filtrar
-            </button>
-          </form>
-        </div>
-      </aside>
     </section>
   );
 }
