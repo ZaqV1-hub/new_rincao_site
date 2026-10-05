@@ -28,6 +28,7 @@ const detail: PainelPurchaseDetail = {
       voucherType: "norma",
       voucherTypeLabel: "Adulto",
       schoolName: null,
+      studentName: null,
       className: null,
       periodName: null,
       unitValue: "70,00",
