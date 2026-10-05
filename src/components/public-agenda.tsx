@@ -109,6 +109,23 @@ function formatSelectedDate(event: PublicAgendaEvent) {
   return selectedDateFormatter.format(new Date(`${event.date}T12:00:00`));
 }
 
+function formatAgendaPrice(value: string | null) {
+  if (value === null || value.trim() === "") {
+    return "Consulte na próxima etapa";
+  }
+
+  const numeric = Number(value);
+
+  if (!Number.isFinite(numeric)) {
+    return "Consulte na próxima etapa";
+  }
+
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(numeric);
+}
+
 function isPromotionalEvent(event: PublicAgendaEvent | null | undefined) {
   return event?.type === "promo";
 }
@@ -467,6 +484,29 @@ export function PublicAgenda({
                     ) : null}
                   </div>
                 ) : null}
+
+                <div className="mt-4 rounded-[10px] border border-[#d7e3ee] bg-[#f7fafd] px-3 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#3f78ab]">
+                    Valores para esta data
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div className="rounded-[8px] bg-white px-2.5 py-2">
+                      <span className="block text-[11px] text-[#5f748b]">Adulto</span>
+                      <strong className="mt-0.5 block text-[14px] font-extrabold text-[#143b63]">
+                        {formatAgendaPrice(selectedEvent.priceTable.normal)}
+                      </strong>
+                    </div>
+                    <div className="rounded-[8px] bg-white px-2.5 py-2">
+                      <span className="block text-[11px] text-[#5f748b]">Criança</span>
+                      <strong className="mt-0.5 block text-[14px] font-extrabold text-[#143b63]">
+                        {formatAgendaPrice(selectedEvent.priceTable.child)}
+                      </strong>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[11px] text-[#5f748b]">
+                    Isento (0 a 3 anos): gratuito.
+                  </p>
+                </div>
 
                 <PrimaryFlowButton
                   href={buildPublicAgendaPurchaseHref(selectedEvent)}
