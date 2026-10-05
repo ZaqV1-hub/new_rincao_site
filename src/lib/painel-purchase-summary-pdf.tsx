@@ -56,9 +56,16 @@ const styles = StyleSheet.create({
   value: { color: "#183c62", fontSize: 8, fontWeight: "bold" },
   paid: { color: "#22854b" },
   pending: { color: "#bf7218" },
-  vouchersHeader: { flexDirection: "row", marginTop: 0 },
-  voucherHeading: { backgroundColor: "#173f68", color: "#ffffff", fontSize: 6, fontWeight: "bold", padding: 4 },
-  voucherCell: { border: "1 solid #d3dce5", fontSize: 6.3, paddingHorizontal: 3, paddingVertical: 4, justifyContent: "center" },
+  voucherCard: { border: "1 solid #c8d8e6", borderRadius: 4, marginTop: 5, padding: 7 },
+  voucherTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  voucherMeta: { flexDirection: "row", marginTop: 5 },
+  voucherField: { marginRight: 12, flexShrink: 1 },
+  voucherLabel: { color: "#60788f", fontSize: 6, marginBottom: 2 },
+  voucherValue: { color: "#173f68", fontSize: 8, fontWeight: "bold" },
+  voucherUsed: { backgroundColor: "#f0f1f2", borderColor: "#d0d4d8" },
+  voucherUsedText: { color: "#6f7881" },
+  voucherAvailable: { backgroundColor: "#f5fbf7", borderColor: "#b7d9c3" },
+  voucherAvailableText: { color: "#277144" },
   totalBar: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -70,9 +77,9 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: "bold",
   },
-  usedNotice: { flexDirection: "row", alignItems: "center", border: "1.5 solid #d8343f", borderRadius: 5, backgroundColor: "#fff7f7", padding: 10, marginTop: 8 },
-  usedIcon: { width: 44, height: 44, border: "3 solid #d8343f", borderRadius: 22, color: "#d8343f", textAlign: "center", fontSize: 26, fontWeight: "bold", marginRight: 14 },
-  usedTitle: { color: "#d8343f", fontSize: 14, fontWeight: "bold", marginBottom: 5 },
+  usedNotice: { flexDirection: "row", alignItems: "center", border: "1 solid #cfd5db", borderRadius: 5, backgroundColor: "#f2f3f4", padding: 10, marginTop: 8 },
+  usedIcon: { width: 44, height: 44, border: "2 solid #84909b", borderRadius: 22, color: "#84909b", textAlign: "center", fontSize: 26, fontWeight: "bold", marginRight: 14 },
+  usedTitle: { color: "#586674", fontSize: 14, fontWeight: "bold", marginBottom: 5 },
   usedText: { color: "#263b53", fontSize: 7.5, marginBottom: 4 },
   footer: { marginTop: 7, borderTop: "1 solid #d3dce5", paddingTop: 5, color: "#5f7488", textAlign: "center", fontSize: 6 },
 });
@@ -80,20 +87,6 @@ const styles = StyleSheet.create({
 const logoSource = `data:image/png;base64,${readFileSync(
   resolve(process.cwd(), "public", "brand", "rincao-logo.png"),
 ).toString("base64")}`;
-
-const voucherColumns = [
-  { label: "ID VOUCHER", width: "9%" },
-  { label: "CÓDIGO", width: "8%" },
-  { label: "DATA DA VISITA", width: "11%" },
-  { label: "TIPO", width: "11%" },
-  { label: "ESCOLA", width: "10%" },
-  { label: "TURMA", width: "8%" },
-  { label: "PERÍODO", width: "8%" },
-  { label: "VALOR", width: "8%" },
-  { label: "STATUS", width: "9%" },
-  { label: "DATA DE USO", width: "9%" },
-  { label: "HORA DE USO", width: "9%" },
-];
 
 function display(value: string | null | undefined, maxLength = 20) {
   const text = String(value ?? "-").trim() || "-";
@@ -106,8 +99,6 @@ function paidStatus(status: string) {
 }
 
 function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
-  const rowFontSize = detail.vouchers.length > 22 ? 5 : detail.vouchers.length > 14 ? 5.6 : 6.3;
-  const rowPadding = detail.vouchers.length > 22 ? 2 : 4;
   const paymentIsPaid = paidStatus(detail.statusLabel);
   const usedVouchers = detail.vouchers.filter((voucher) => voucher.usedLabel.toLowerCase() === "sim");
   const usedDates = [...new Set(usedVouchers.map((voucher) => voucher.usedDate).filter(Boolean))];
@@ -215,42 +206,63 @@ function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>VOUCHERS (INGRESSOS)</Text>
-          <View style={styles.vouchersHeader}>
-            {voucherColumns.map((column) => (
-              <Text key={column.label} style={[styles.voucherHeading, { width: column.width }]}>
-                {column.label}
-              </Text>
-            ))}
-          </View>
-          {detail.vouchers.length ? detail.vouchers.map((voucher, index) => {
-            const cells = [
-              String(voucher.voucherId),
-              voucher.voucherNumber,
-              voucher.visitDate,
-              voucher.voucherTypeLabel,
-              voucher.schoolName,
-              voucher.className,
-              voucher.periodName,
-              voucher.unitValue,
-              voucher.usedLabel,
-              voucher.usedDate ?? "-",
-              voucher.usedTime?.slice(0, 8) ?? "-",
-            ];
-
+          {detail.vouchers.length ? detail.vouchers.map((voucher) => {
+            const used = voucher.usedLabel.toLowerCase() === "sim";
             return (
-              <View key={voucher.voucherId} style={[styles.row, { minHeight: detail.vouchers.length > 22 ? 10 : 15 }]} wrap={false}>
-                {cells.map((cell, cellIndex) => (
-                  <Text
-                    key={voucherColumns[cellIndex].label}
-                    style={[
-                      styles.voucherCell,
-                      { width: voucherColumns[cellIndex].width, fontSize: rowFontSize, paddingVertical: rowPadding },
-                      index % 2 === 1 ? { backgroundColor: "#f3f6f9" } : {},
-                    ]}
-                  >
-                    {display(cell, 21)}
+              <View
+                key={voucher.voucherId}
+                style={[styles.voucherCard, used ? styles.voucherUsed : styles.voucherAvailable]}
+                wrap={false}
+              >
+                <View style={styles.voucherTop}>
+                  <Text style={[styles.voucherValue, used ? styles.voucherUsedText : {}]}>
+                    Voucher #{voucher.voucherId} · {voucher.voucherNumber || "Sem código"}
                   </Text>
-                ))}
+                  <Text style={[styles.voucherValue, used ? styles.voucherUsedText : styles.voucherAvailableText]}>
+                    {used ? "USADO" : "NÃO USADO"}
+                  </Text>
+                </View>
+                <View style={styles.voucherMeta}>
+                  <View style={[styles.voucherField, { width: "28%" }]}>
+                    <Text style={styles.voucherLabel}>DATA DA VISITA</Text>
+                    <Text style={[styles.voucherValue, used ? styles.voucherUsedText : {}]}>{voucher.visitDate || "-"}</Text>
+                  </View>
+                  <View style={[styles.voucherField, { width: "44%" }]}>
+                    <Text style={styles.voucherLabel}>TIPO</Text>
+                    <Text style={[styles.voucherValue, used ? styles.voucherUsedText : {}]}>{voucher.voucherTypeLabel}</Text>
+                  </View>
+                  <View style={{ width: "20%" }}>
+                    <Text style={styles.voucherLabel}>VALOR</Text>
+                    <Text style={[styles.voucherValue, used ? styles.voucherUsedText : {}]}>R$ {voucher.unitValue}</Text>
+                  </View>
+                </View>
+                {voucher.schoolName || voucher.studentName || voucher.className ? (
+                  <View style={{ marginTop: 6, borderTop: "1 solid #d5e1e9", paddingTop: 5 }}>
+                    {voucher.schoolName ? (
+                      <View style={styles.voucherField}>
+                        <Text style={styles.voucherLabel}>ESCOLA</Text>
+                        <Text style={[styles.voucherValue, used ? styles.voucherUsedText : {}]}>{voucher.schoolName}</Text>
+                      </View>
+                    ) : null}
+                    {voucher.studentName ? (
+                      <View style={[styles.voucherField, { marginTop: 5 }]}>
+                        <Text style={styles.voucherLabel}>ALUNO</Text>
+                        <Text style={[styles.voucherValue, used ? styles.voucherUsedText : {}]}>{voucher.studentName}</Text>
+                      </View>
+                    ) : null}
+                    {voucher.className ? (
+                      <View style={[styles.voucherField, { marginTop: 5 }]}>
+                        <Text style={styles.voucherLabel}>TURMA</Text>
+                        <Text style={[styles.voucherValue, used ? styles.voucherUsedText : {}]}>{voucher.className}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+                {used ? (
+                  <Text style={[styles.voucherLabel, { marginTop: 6 }]}>
+                    Utilizado em {voucher.usedDate || "data não informada"} às {voucher.usedTime || "horário não informado"}
+                  </Text>
+                ) : null}
               </View>
             );
           }) : (
@@ -277,7 +289,7 @@ function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
                   : `${usedVouchers.length} de ${detail.vouchers.length} ingressos desta compra já foram utilizados.`}
                 {usedDates.length ? ` Registro de uso em ${usedDates.join(", ")}.` : ""}
               </Text>
-              <Text style={[styles.usedText, { color: "#c92532", fontWeight: "bold" }]}>
+              <Text style={[styles.usedText, { color: "#586674", fontWeight: "bold" }]}>
                 {usedVouchers.length === detail.vouchers.length
                   ? "ESTES INGRESSOS JÁ FORAM UTILIZADOS E NÃO PODERÃO SER UTILIZADOS NOVAMENTE."
                   : "OS INGRESSOS MARCADOS COMO UTILIZADOS NÃO PODERÃO SER UTILIZADOS NOVAMENTE."}
