@@ -66,6 +66,11 @@ const styles = StyleSheet.create({
   voucherUsedText: { color: "#6f7881" },
   voucherAvailable: { backgroundColor: "#f5fbf7", borderColor: "#b7d9c3" },
   voucherAvailableText: { color: "#277144" },
+  voucherTableHeader: { flexDirection: "row", backgroundColor: "#173f68", color: "#ffffff", marginTop: 5 },
+  voucherTableRow: { flexDirection: "row", borderBottom: "1 solid #d3dce5" },
+  voucherTableCell: { paddingVertical: 6, paddingHorizontal: 5, borderRight: "1 solid #d3dce5", justifyContent: "center" },
+  voucherTableHeading: { fontSize: 6, fontWeight: "bold", color: "#ffffff" },
+  voucherTableValue: { fontSize: 7, color: "#173f68" },
   totalBar: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -103,6 +108,9 @@ function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
   const usedVouchers = detail.vouchers.filter((voucher) => voucher.usedLabel.toLowerCase() === "sim");
   const usedDates = [...new Set(usedVouchers.map((voucher) => voucher.usedDate).filter(Boolean))];
   const usedTimes = usedVouchers.map((voucher) => voucher.usedTime).filter((value): value is string => Boolean(value)).sort();
+  const hasSchoolVoucher = detail.vouchers.some((voucher) =>
+    voucher.voucherType.toLowerCase() === "escol" || Boolean(voucher.schoolName || voucher.studentName || voucher.className),
+  );
 
   return (
     <Document title={`Resumo da compra ${detail.purchaseId}`}>
@@ -206,7 +214,43 @@ function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>VOUCHERS (INGRESSOS)</Text>
-          {detail.vouchers.length ? detail.vouchers.map((voucher) => {
+          {detail.vouchers.length && !hasSchoolVoucher ? (
+            <View>
+              <View style={styles.voucherTableHeader}>
+                {([
+                  ["ID", "9%"], ["CÓDIGO", "13%"], ["DATA DA VISITA", "16%"],
+                  ["TIPO", "28%"], ["VALOR", "13%"], ["STATUS", "21%"],
+                ] as const).map(([label, width]) => (
+                  <View key={label} style={[styles.voucherTableCell, { width }]}>
+                    <Text style={styles.voucherTableHeading}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+              {detail.vouchers.map((voucher) => {
+                const used = voucher.usedLabel.toLowerCase() === "sim";
+                const valueStyle = [styles.voucherTableValue, used ? styles.voucherUsedText : {}];
+                return (
+                  <View
+                    key={voucher.voucherId}
+                    style={[styles.voucherTableRow, used ? styles.voucherUsed : styles.voucherAvailable]}
+                    wrap={false}
+                  >
+                    <View style={[styles.voucherTableCell, { width: "9%" }]}><Text style={valueStyle}>{voucher.voucherId}</Text></View>
+                    <View style={[styles.voucherTableCell, { width: "13%" }]}><Text style={valueStyle}>{voucher.voucherNumber || "-"}</Text></View>
+                    <View style={[styles.voucherTableCell, { width: "16%" }]}><Text style={valueStyle}>{voucher.visitDate || "-"}</Text></View>
+                    <View style={[styles.voucherTableCell, { width: "28%" }]}><Text style={valueStyle}>{voucher.voucherTypeLabel}</Text></View>
+                    <View style={[styles.voucherTableCell, { width: "13%" }]}><Text style={valueStyle}>R$ {voucher.unitValue}</Text></View>
+                    <View style={[styles.voucherTableCell, { width: "21%" }]}>
+                      <Text style={[styles.voucherTableValue, used ? styles.voucherUsedText : styles.voucherAvailableText, { fontWeight: "bold" }]}>
+                        {used ? "USADO" : "NÃO USADO"}
+                      </Text>
+                      {used ? <Text style={[styles.voucherTableValue, styles.voucherUsedText]}>{voucher.usedDate || "-"} às {voucher.usedTime || "-"}</Text> : null}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : detail.vouchers.length ? detail.vouchers.map((voucher) => {
             const used = voucher.usedLabel.toLowerCase() === "sim";
             return (
               <View
