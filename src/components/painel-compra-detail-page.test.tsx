@@ -40,6 +40,7 @@ describe("PainelCompraDetailPage", () => {
               voucherType: "escol",
               voucherTypeLabel: "Escolar",
               schoolName: "Colegio Rincao",
+              studentName: "Ana Souza",
               className: "7A",
               periodName: "Manha",
               unitValue: "40,00",
@@ -47,7 +48,7 @@ describe("PainelCompraDetailPage", () => {
               usedLabel: "Nao",
               usedDate: null,
               usedTime: null,
-              schoolTripHref: "/painel/clientes/passeios/2306/alunos",
+              schoolTripHref: "/painel/clientes/detalhe?id=2306",
             },
           ],
         },
@@ -61,7 +62,9 @@ describe("PainelCompraDetailPage", () => {
     expect(html).toContain("Consultar pagamento (Cielo)");
     expect(html).toContain("PainelCompraDetailActions");
     expect(html).toContain("Colegio Rincao");
-    expect(html).toContain("/painel/clientes/passeios/2306/alunos");
+    expect(html).toContain("Ana Souza");
+    expect(html).not.toContain("Período");
+    expect(html).toContain("/painel/clientes/detalhe?id=2306");
     expect(html).toContain('/painel/usuario-site/12345678901');
   });
 });

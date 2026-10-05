@@ -172,9 +172,9 @@ export function PainelCompraDetailPage({
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Voucher</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data da visita</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Tipo</th>
+                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Aluno</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Escola</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Turma</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Período</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Usado?</th>
                   <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data de uso</th>
@@ -195,6 +195,7 @@ export function PainelCompraDetailPage({
                     </td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.visitDate ?? "-"}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.voucherTypeLabel}</td>
+                    <td className="border border-[#d7d7d7] px-4 py-3">{voucher.studentName ?? "-"}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">
                       {voucher.schoolName && voucher.schoolTripHref ? (
                         <Link className="text-[#1868d6] underline" href={voucher.schoolTripHref}>
@@ -205,7 +206,6 @@ export function PainelCompraDetailPage({
                       )}
                     </td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.className ?? "-"}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{voucher.periodName ?? "-"}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.unitValue}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">
                       <span className={voucher.used === "s" ? "font-bold text-[#68727b]" : "text-[#24733c]"}>
