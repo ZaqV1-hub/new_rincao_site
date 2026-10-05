@@ -449,24 +449,57 @@ export function PainelAgendaManager({ data }: PainelAgendaManagerProps) {
           ) : null}
 
           {selectedAgenda ? (
-            <div
-              className={`mt-3 rounded-[12px] border p-3 text-sm ${getSelectedDayCardClasses(
-                selectedAgenda,
-              )}`}
-            >
-              <div className="grid gap-x-4 gap-y-2">
-                <div>
-                  <span className="font-semibold">Tipo:</span> {selectedAgenda.typeLabel}
-                </div>
-                <div>
-                  <span className="font-semibold">Status:</span> {selectedAgenda.statusLabel}
-                </div>
-                <div>
-                  <span className="font-semibold">Ingressos vendidos:</span>{" "}
-                  {selectedVoucherCount}
+            <>
+              <div
+                className={`mt-3 rounded-[12px] border p-3 text-sm ${getSelectedDayCardClasses(
+                  selectedAgenda,
+                )}`}
+              >
+                <div className="grid gap-x-4 gap-y-2">
+                  <div>
+                    <span className="font-semibold">Tipo:</span> {selectedAgenda.typeLabel}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Status:</span> {selectedAgenda.statusLabel}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Ingressos vendidos:</span>{" "}
+                    {selectedVoucherCount}
+                  </div>
                 </div>
               </div>
-            </div>
+
+              <div className="mt-3 hidden rounded-[12px] border border-[#d4dfeb] bg-white p-3 text-sm text-[#123b63] xl:block">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#4d7398]">
+                  Tabela de preço aplicada
+                </p>
+                <p className="mt-1 font-bold">
+                  {selectedAgenda.priceTableName ||
+                    (selectedAgenda.priceTableId
+                      ? `Tabela ${selectedAgenda.priceTableId}`
+                      : "Tabela não identificada")}
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-[8px] bg-[#f3f7fb] px-2.5 py-2">
+                    <span className="block text-[11px] text-[#60758d]">Adulto · site</span>
+                    <strong>{formatMoney(selectedAgenda.normalValue)}</strong>
+                  </div>
+                  <div className="rounded-[8px] bg-[#f3f7fb] px-2.5 py-2">
+                    <span className="block text-[11px] text-[#60758d]">Criança · site</span>
+                    <strong>{formatMoney(selectedAgenda.childValue)}</strong>
+                  </div>
+                </div>
+                <div className="mt-3 border-t border-[#e4ebf2] pt-2">
+                  <span className="block text-[11px] font-semibold text-[#60758d]">
+                    Bilheteria
+                  </span>
+                  <p className="mt-1 text-xs">
+                    Adulto {formatMoney(selectedAgenda.gateNormalValue)} · Criança{" "}
+                    {formatMoney(selectedAgenda.gateChildValue)}
+                  </p>
+                </div>
+              </div>
+            </>
           ) : null}
 
           <div className="mt-3 flex flex-wrap gap-2">
