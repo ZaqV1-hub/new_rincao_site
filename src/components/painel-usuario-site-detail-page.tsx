@@ -5,16 +5,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PainelAdminBreadcrumb } from "@/components/painel-admin-breadcrumb";
 import { PainelAdminSidebar } from "@/components/painel-admin-sidebar";
+import { PainelClientObservations } from "@/components/painel-client-observations";
 import type { PainelUsuarioSiteDetail } from "@/lib/painel-usuario-site";
 
 type PainelUsuarioSiteDetailPageProps = {
   data: PainelUsuarioSiteDetail;
   legacyResources: readonly string[];
+  canDeleteObservations: boolean;
+  canManage: boolean;
 };
 
 export function PainelUsuarioSiteDetailPage({
   data,
   legacyResources,
+  canDeleteObservations,
+  canManage,
 }: PainelUsuarioSiteDetailPageProps) {
   const router = useRouter();
   const [email, setEmail] = useState(data.email === "-" ? "" : data.email);
@@ -209,6 +214,59 @@ export function PainelUsuarioSiteDetailPage({
               </>
             ) : null}
 
+            <h2 className="mt-8 text-[30px] leading-none text-[#205a7f]">Compras do cliente</h2>
+            <p className="mt-2 text-sm text-[#5d7282]">
+              {data.purchaseHistory.total} compra{data.purchaseHistory.total === 1 ? "" : "s"} encontrada{data.purchaseHistory.total === 1 ? "" : "s"}.
+            </p>
+            {data.purchaseHistory.items.length ? (
+              <div className="mt-4 overflow-x-auto rounded-[6px] border border-[#d7e3ee]">
+                <table className="min-w-full border-collapse text-left text-sm">
+                  <thead className="bg-[#eef5fb] text-[#133d63]">
+                    <tr>
+                      <th className="border border-[#d7e3ee] px-3 py-3">Compra</th>
+                      <th className="border border-[#d7e3ee] px-3 py-3">Data</th>
+                      <th className="border border-[#d7e3ee] px-3 py-3">Tipo</th>
+                      <th className="border border-[#d7e3ee] px-3 py-3">Status</th>
+                      <th className="border border-[#d7e3ee] px-3 py-3">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.purchaseHistory.items.map((purchase) => (
+                      <tr className="even:bg-[#f8fbfe]" key={purchase.purchaseId}>
+                        <td className="border border-[#d7e3ee] px-3 py-3">
+                          {canManage ? (
+                            <Link className="font-semibold text-[#1868d6] underline" href={`/painel/compras/${purchase.purchaseId}`}>
+                              #{purchase.purchaseId}
+                            </Link>
+                          ) : `#${purchase.purchaseId}`}
+                        </td>
+                        <td className="border border-[#d7e3ee] px-3 py-3">{purchase.purchaseDate || "-"}</td>
+                        <td className="border border-[#d7e3ee] px-3 py-3">{purchase.typeLabel}</td>
+                        <td className="border border-[#d7e3ee] px-3 py-3">{purchase.statusLabel}</td>
+                        <td className="border border-[#d7e3ee] px-3 py-3">R$ {purchase.totalValue}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            {data.purchaseHistory.totalPages > 1 ? (
+              <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-[#35576f]">
+                {data.purchaseHistory.page > 1 ? (
+                  <Link className="font-semibold text-[#1868d6] underline" href={`/painel/usuario-site/${data.cpf}?comprasPagina=${data.purchaseHistory.page - 1}`}>
+                    Compras anteriores
+                  </Link>
+                ) : null}
+                <span>Página {data.purchaseHistory.page} de {data.purchaseHistory.totalPages}</span>
+                {data.purchaseHistory.page < data.purchaseHistory.totalPages ? (
+                  <Link className="font-semibold text-[#1868d6] underline" href={`/painel/usuario-site/${data.cpf}?comprasPagina=${data.purchaseHistory.page + 1}`}>
+                    Próximas compras
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
+
+            {canManage ? <>
             <h2 className="mt-8 text-[30px] leading-none text-[#205a7f]">Alterar E-mail</h2>
             {feedback ? (
               <div
@@ -285,20 +343,28 @@ export function PainelUsuarioSiteDetailPage({
                 </button>
               </div>
             </form>
+            </> : null}
           </section>
 
           <aside className="space-y-5">
+            <PainelClientObservations
+              apiUrl={`/api/painel/usuario-site/${data.cpf}/observacoes`}
+              canAdd={canManage}
+              canDelete={canDeleteObservations}
+              initialObservations={data.observations}
+              key={data.cpf}
+            />
             <div className="rounded-[6px] border border-[#d7e3ee] bg-white shadow-[0_10px_28px_rgba(26,61,94,0.08)]">
               <div className="border-b border-[#d7e3ee] bg-[#eef5fb] px-5 py-3 text-[20px] text-[#36536b]">
                 Ações
               </div>
               <div className="grid gap-3 px-5 py-4 text-[15px]">
-                <Link className="text-[#666] underline" href="/painel/usuario-site">
-                  Lista de usuários
+                <Link className="text-[#666] underline" href={canManage ? "/painel/usuario-site" : "/painel/bilheteria"}>
+                  {canManage ? "Lista de usuários" : "Voltar à bilheteria"}
                 </Link>
               </div>
             </div>
-            <PainelAdminSidebar currentHref="/painel/usuario-site" legacyResources={legacyResources} />
+            {canManage ? <PainelAdminSidebar currentHref="/painel/usuario-site" legacyResources={legacyResources} /> : null}
           </aside>
         </div>
       </section>

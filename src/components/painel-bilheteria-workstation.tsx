@@ -1032,10 +1032,35 @@ export function PainelBilheteriaWorkstation({
                 {customerLookup.customer?.cpfLabel || "-"}
               </p>
             </div>
-            <div className="text-sm text-[#5d7282]">
-              Consulta por {customerLookup.documentKind.toUpperCase()}
+            <div className="flex flex-col items-start gap-2 text-sm text-[#5d7282] sm:items-end">
+              <span>Consulta por {customerLookup.documentKind.toUpperCase()}</span>
+              {customerLookup.hasProfile && customerLookup.customer?.cpf ? (
+                <Link
+                  className="rounded-full border border-[#b9d0e6] bg-white px-4 py-2 font-semibold text-[#173f68]"
+                  href={`/painel/usuario-site/${customerLookup.customer.cpf}`}
+                >
+                  Mais detalhes do cliente
+                </Link>
+              ) : null}
             </div>
           </div>
+
+          {customerLookup.observations.length ? (
+            <div className="mt-5 rounded-[18px] border border-[#c8d8e6] bg-[#f5f9fd] p-4">
+              <h3 className="text-lg font-semibold text-[#173f68]">Observações do cliente</h3>
+              <div className="mt-3 grid gap-3">
+                {customerLookup.observations.map((observation) => (
+                  <article className="rounded-[12px] border border-[#d7e3ee] bg-white p-4" key={observation.id}>
+                    <p className="whitespace-pre-wrap break-words text-sm text-[#173f68]">{observation.text}</p>
+                    <p className="mt-2 text-xs text-[#65798c]">
+                      {observation.createdAt.slice(0, 16).replace("T", " ")}
+                      {observation.createdBy ? ` · ${observation.createdBy}` : ""}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {customerLookup.purchases.length === 0 ? (
             <p className="mt-5 text-sm text-[#5d7282]">

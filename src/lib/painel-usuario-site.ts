@@ -1,5 +1,7 @@
 import { formatCpf, sanitizeCpf } from "@/lib/cpf";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
+import { listPainelPurchases, type PainelPurchaseListResult } from "@/lib/painel-compras";
+import { listSiteUserObservations } from "@/lib/site-user-observations";
 import {
   asOpsAdminMasterDataError,
   updateOpsAdminMasterData,
@@ -82,6 +84,8 @@ export type PainelUsuarioSiteDetail = PainelUsuarioSiteListItem & {
   lastLoginLabel: string;
   userType: "ASSOCIADO / CONVENIADO" | "ASSOCIADO" | "CONVENIADO" | "NORMAL";
   agreements: PainelUsuarioSiteAgreement[];
+  observations: Awaited<ReturnType<typeof listSiteUserObservations>>;
+  purchaseHistory: PainelPurchaseListResult;
 };
 
 export class PainelUsuarioSiteError extends Error {
@@ -428,11 +432,13 @@ export async function listPainelUsuariosSite(input: Record<string, unknown>) {
   } satisfies PainelUsuarioSiteListResult;
 }
 
-export async function getPainelUsuarioSite(cpf: unknown) {
+export async function getPainelUsuarioSite(cpf: unknown, purchasePage = 1) {
   const normalizedCpf = assertCpf(cpf);
-  const [row, relationships] = await Promise.all([
-    getUsuarioSiteRaw(normalizedCpf),
+  const row = await getUsuarioSiteRaw(normalizedCpf);
+  const [relationships, observations, purchaseHistory] = await Promise.all([
     getUsuarioSiteRelationships(normalizedCpf),
+    listSiteUserObservations(normalizedCpf),
+    listPainelPurchases({ page: purchasePage, perPage: 50, filters: { cpf: normalizedCpf } }),
   ]);
   const listItem = mapListItem(row);
 
@@ -455,6 +461,8 @@ export async function getPainelUsuarioSite(cpf: unknown) {
     lastLoginLabel: formatLastLoginLabel(row.dtulogin, row.hrulogin),
     userType: mapUserType(relationships.hasAssociate, relationships.agreements.length),
     agreements: relationships.agreements,
+    observations,
+    purchaseHistory,
   } satisfies PainelUsuarioSiteDetail;
 }
 

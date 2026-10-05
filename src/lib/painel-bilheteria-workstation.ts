@@ -1,5 +1,6 @@
 import { getIngressoDbPool, getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { isPainelBilheteriaVoucherVisibleForValidation } from "@/lib/painel-bilheteria-validation";
+import { listSiteUserObservations } from "@/lib/site-user-observations";
 import {
   formatPainelBilheteriaCpf,
   formatPainelBilheteriaDate,
@@ -10,6 +11,7 @@ type CustomerRow = {
   cpf: string;
   nmusuario: string | null;
   rg: string | null;
+  idpapel: number | null;
 };
 
 type CustomerPurchaseRow = {
@@ -104,6 +106,7 @@ export type PainelBilheteriaCustomerLookupPurchase = {
 export type PainelBilheteriaCustomerLookupResult = {
   lookup: string;
   documentKind: "cpf" | "rg";
+  hasProfile: boolean;
   customer: {
     cpf: string | null;
     cpfLabel: string;
@@ -111,6 +114,7 @@ export type PainelBilheteriaCustomerLookupResult = {
     rg: string | null;
   } | null;
   purchases: PainelBilheteriaCustomerLookupPurchase[];
+  observations: Awaited<ReturnType<typeof listSiteUserObservations>>;
 };
 
 export type PainelBilheteriaTripLookupItem = {
@@ -316,7 +320,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
   if (documentKind === "cpf") {
     const customerResult = await pool.query<CustomerRow>(
       `
-        SELECT cpf, nmusuario, rg
+        SELECT cpf, nmusuario, rg, idpapel
         FROM usuario
         WHERE cpf = $1
         LIMIT 1
@@ -327,7 +331,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
   } else {
     const customerResult = await pool.query<CustomerRow>(
       `
-        SELECT cpf, nmusuario, rg
+        SELECT cpf, nmusuario, rg, idpapel
         FROM usuario
         WHERE REPLACE(REPLACE(REPLACE(COALESCE(rg, ''), '.', ''), '/', ''), '-', '') = $1
         LIMIT 1
@@ -342,6 +346,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
     return {
       lookup,
       documentKind,
+      hasProfile: Boolean(customer && customer.idpapel === null),
       customer: customer
         ? {
             cpf: customer.cpf,
@@ -351,8 +356,11 @@ export async function lookupPainelBilheteriaCustomerDocument(
           }
         : null,
       purchases: [],
+      observations: [],
     };
   }
+
+  const observations = await listSiteUserObservations(cpf);
 
   const purchasesResult = await pool.query<CustomerPurchaseRow>(
     `
@@ -471,6 +479,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
   return {
     lookup,
     documentKind,
+    hasProfile: Boolean(customer && customer.idpapel === null),
     customer: customer
       ? {
           cpf: customer.cpf,
@@ -485,6 +494,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
           rg: null,
         },
     purchases,
+    observations,
   };
 }
 
