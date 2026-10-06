@@ -13,6 +13,7 @@ type PainelUsuarioSiteDetailPageProps = {
   legacyResources: readonly string[];
   canDeleteObservations: boolean;
   canManage: boolean;
+  canViewPurchases: boolean;
 };
 
 export function PainelUsuarioSiteDetailPage({
@@ -20,6 +21,7 @@ export function PainelUsuarioSiteDetailPage({
   legacyResources,
   canDeleteObservations,
   canManage,
+  canViewPurchases,
 }: PainelUsuarioSiteDetailPageProps) {
   const router = useRouter();
   const [email, setEmail] = useState(data.email === "-" ? "" : data.email);
@@ -241,7 +243,7 @@ export function PainelUsuarioSiteDetailPage({
                     {data.purchaseHistory.items.map((purchase) => (
                       <tr className="even:bg-[#f8fbfe]" key={purchase.purchaseId}>
                         <td className="border border-[#d7e3ee] px-3 py-3">
-                          {canManage ? (
+                          {canViewPurchases ? (
                             <Link className="font-semibold text-[#1868d6] underline" href={`/painel/compras/${purchase.purchaseId}`}>
                               #{purchase.purchaseId}
                             </Link>
@@ -249,7 +251,21 @@ export function PainelUsuarioSiteDetailPage({
                         </td>
                         <td className="border border-[#d7e3ee] px-3 py-3">{purchase.purchaseDate || "-"}</td>
                         <td className="border border-[#d7e3ee] px-3 py-3">{purchase.typeLabel}</td>
-                        <td className="border border-[#d7e3ee] px-3 py-3">{purchase.statusLabel}</td>
+                        <td className="border border-[#d7e3ee] px-3 py-3">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              purchase.status === "conc"
+                                ? "bg-[#e2f4e8] text-[#24733c]"
+                                : purchase.status === "pend"
+                                  ? "bg-[#fff3cd] text-[#8a6500]"
+                                  : purchase.status === "canc"
+                                    ? "bg-[#fbe4e4] text-[#a83232]"
+                                    : "bg-[#eef2f5] text-[#526779]"
+                            }`}
+                          >
+                            {purchase.statusLabel}
+                          </span>
+                        </td>
                         <td className="border border-[#d7e3ee] px-3 py-3">R$ {purchase.totalValue}</td>
                       </tr>
                     ))}
