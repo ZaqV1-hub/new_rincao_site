@@ -120,11 +120,35 @@ describe("normalizePainelPurchaseVoucherListFilters", () => {
       purchaseLocation: "parq",
       purchaseStatus: null,
       usedStatus: "s",
+      origin: null,
     });
   });
 });
 
 describe("buildPainelPurchaseListWhere", () => {
+  it("combines persisted origin with CPF, dates and purchase status", () => {
+    const filters = normalizePainelPurchaseListFilters({
+      origem_checkout: "lumi", cpf: "52998224725", stcompra: "pend",
+      "dtcompra[de]": "01/10/2026", "dtcompra[ate]": "06/10/2026",
+    });
+    const { sql } = buildPainelPurchaseListWhere(filters);
+
+    expect(sql).toContain("compra.origem_checkout = 'lumi'");
+    expect(sql).toContain("compra.cpf = '52998224725'");
+    expect(sql).toContain("compra.stcompra = 'pend'");
+    expect(sql).toContain("TO_DATE('01/10/2026'");
+    expect(sql).toContain("TO_DATE('06/10/2026'");
+    expect(normalizePainelPurchaseListFilters({ origem_checkout: "unsupported" }).origin).toBeNull();
+  });
+
+  it("filters voucher rows by the persisted purchase origin", () => {
+    const filters = normalizePainelPurchaseVoucherListFilters({ origem_checkout: "lumi", tpcompra: "site" });
+    const { sql } = buildPainelPurchaseVoucherListWhere(filters);
+
+    expect(sql).toContain("c.origem_checkout = 'lumi'");
+    expect(sql).toContain("c.tpcompra = 'ponli'");
+  });
+
   it("builds the legacy corte clause with grouped bilheteria fallback and courtesy semantics", () => {
     const { sql } = buildPainelPurchaseListWhere({
       ticketPaymentMethod: "corte",
@@ -195,7 +219,7 @@ describe("buildPainelPurchaseListWhere", () => {
         AND pagpagseguro.paymentmethodtype = '4'
         AND pagpagseguro.status = '3'
         AND compra.cpf = '12345678900'
-        AND usuario.nmusuario ILIKE '%Maria Silva%'
+        AND COALESCE(compra.checkout_buyer_name, usuario.nmusuario) ILIKE '%Maria Silva%'
         AND compra.dtcompra >= TO_DATE('01/05/2026', 'DD/MM/YYYY')
         AND compra.dtcompra <= TO_DATE('07/05/2026', 'DD/MM/YYYY')`),
     );
@@ -224,6 +248,7 @@ describe("buildPainelPurchaseVoucherListWhere", () => {
       purchaseLocation: "parq",
       purchaseStatus: "conc",
       usedStatus: "n",
+      origin: null,
     });
 
     expect(normalizeSql(sql)).toBe(
@@ -260,7 +285,11 @@ describe("mapPainelPurchaseListExportRows", () => {
           paymentLabel: "Paga",
           cpf: "123.456.789-01",
           userName: "DEV",
+          buyerPhone: null,
+          hasUserAccount: true,
           totalValue: "80,00",
+          origin: null,
+          originLabel: "Não identificado",
         },
       ],
       total: 1,
@@ -278,6 +307,7 @@ describe("mapPainelPurchaseListExportRows", () => {
         userName: null,
         dateFrom: null,
         dateTo: null,
+        origin: null,
       },
     };
 
@@ -330,6 +360,8 @@ describe("mapPainelPurchaseVoucherListExportRows", () => {
           usedDate: null,
           usedTime: null,
           purchaseTypeLabel: "Compra",
+          origin: null,
+          originLabel: "Não identificado",
         },
       ],
       total: 1,
@@ -348,6 +380,7 @@ describe("mapPainelPurchaseVoucherListExportRows", () => {
         purchaseLocation: null,
         purchaseStatus: null,
         usedStatus: null,
+        origin: null,
       },
       indicators: {
         qtdnormal_site: 1,
@@ -391,6 +424,44 @@ describe("mapPainelPurchaseVoucherListExportRows", () => {
 });
 
 describe("listPainelPurchases", () => {
+  it("shows pending checkout buyer identity before the site account exists", async () => {
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("COUNT(*)::text AS total")) return { rows: [{ total: "1" }] };
+      return {
+        rowCount: 1,
+        rows: [{
+          idcompra: 781,
+          dtcompra: "2026-10-06",
+          tpcompra: "ponli",
+          stcompra: "pend",
+          formapag: "pgseg",
+          dtpagamento: null,
+          hrpagamento: null,
+          cpf: "52998224725",
+          nmusuario: "Pessoa Exemplo",
+          checkout_buyer_phone: "5511999999999",
+          vltotcompra: "129.90",
+          origem_checkout: "lumi",
+        }],
+      };
+    });
+
+    const result = await listPainelPurchases({ filters: { cpf: "52998224725", origin: "lumi" } });
+
+    expect(result.items[0]).toMatchObject({
+      purchaseId: 781,
+      status: "pend",
+      cpf: "529.982.247-25",
+      userName: "Pessoa Exemplo",
+      buyerPhone: "5511999999999",
+      hasUserAccount: false,
+      origin: "lumi",
+    });
+    expect(mocks.query.mock.calls.map(([sql]) => String(sql)).join("\n")).toContain(
+      "COALESCE(compra.checkout_buyer_phone, usuario.celular, usuario.telefone)",
+    );
+  });
+
   it("loads the main purchase list with legacy mapping and pagination", async () => {
     mocks.query.mockImplementation(async (sql: string) => {
       if (sql.includes("COUNT(*)::text AS total")) {
@@ -414,6 +485,7 @@ describe("listPainelPurchases", () => {
             dtpagamento: "2026-05-07",
             hrpagamento: "10:15:00",
             cpf: "12345678901",
+            usuario_cpf: "12345678901",
             nmusuario: "DEV",
             vltotcompra: "80.00",
           },
@@ -445,7 +517,11 @@ describe("listPainelPurchases", () => {
           paymentLabel: "Bilheteria",
           cpf: "123.456.789-01",
           userName: "DEV",
+          buyerPhone: null,
+          hasUserAccount: true,
           totalValue: "80,00",
+          origin: null,
+          originLabel: "Não identificado",
         },
       ],
       total: 1,
@@ -464,6 +540,7 @@ describe("listPainelPurchases", () => {
         userName: null,
         dateFrom: null,
         dateTo: null,
+        origin: null,
       },
     });
 
@@ -599,7 +676,7 @@ describe("getPainelPurchaseDetail", () => {
           usedLabel: "Nao",
           usedDate: null,
           usedTime: null,
-          schoolTripHref: "/painel/clientes/detalhe?id=2306",
+          schoolTripHref: "/painel/clientes/detalhe?id=77",
         },
       ],
     });
@@ -825,6 +902,8 @@ describe("listPainelPurchaseVouchers", () => {
           usedDate: null,
           usedTime: null,
           purchaseTypeLabel: "Compra",
+          origin: null,
+          originLabel: "Não identificado",
         },
       ],
       total: 1,
@@ -843,6 +922,7 @@ describe("listPainelPurchaseVouchers", () => {
         purchaseLocation: "site",
         purchaseStatus: null,
         usedStatus: null,
+        origin: null,
       },
       indicators: {
         qtdnormal_site: 1,

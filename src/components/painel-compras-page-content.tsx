@@ -80,6 +80,10 @@ function buildComprasHref(filters: PainelPurchaseListFilters, page: number) {
     params.set("nmusuario", filters.userName);
   }
 
+  if (filters.origin) {
+    params.set("origem_checkout", filters.origin);
+  }
+
   if (page > 1) {
     params.set("page", String(page));
   }
@@ -115,11 +119,13 @@ function PurchasesTable({ items }: { items: PainelPurchaseListItem[] }) {
             <th className="px-3 py-2.5 text-xs font-semibold">ID</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Data</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Tipo</th>
+            <th className="px-3 py-2.5 text-xs font-semibold">Origem</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Status</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Forma</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Pagamento</th>
             <th className="px-3 py-2.5 text-xs font-semibold">CPF</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Usuário</th>
+            <th className="px-3 py-2.5 text-xs font-semibold">WhatsApp</th>
             <th className="px-3 py-2.5 text-xs font-semibold text-right">Valor</th>
           </tr>
         </thead>
@@ -140,6 +146,7 @@ function PurchasesTable({ items }: { items: PainelPurchaseListItem[] }) {
               </td>
               <td className="px-3 py-3 align-top">{item.purchaseDate ?? "-"}</td>
               <td className="px-3 py-3 align-top">{item.typeLabel}</td>
+              <td className="px-3 py-3 align-top">{item.originLabel}</td>
               <td className="px-3 py-3 align-top">
                 <span
                   className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -159,7 +166,7 @@ function PurchasesTable({ items }: { items: PainelPurchaseListItem[] }) {
               <td className="px-3 py-3 align-top">{item.paymentLabel}</td>
               <td className="px-3 py-3 align-top">{item.cpf ?? "-"}</td>
               <td className="px-3 py-3 align-top">
-                {item.userName && item.cpf ? (
+                {item.userName && item.cpf && item.hasUserAccount ? (
                   <a
                     className="underline decoration-[#7aa7cf] underline-offset-2"
                     href={buildLegacyUserHref(item.cpf)}
@@ -170,6 +177,7 @@ function PurchasesTable({ items }: { items: PainelPurchaseListItem[] }) {
                   item.userName ?? "-"
                 )}
               </td>
+              <td className="px-3 py-3 align-top">{item.buyerPhone ?? "-"}</td>
               <td className="px-3 py-3 align-top text-right font-semibold text-[#133d63]">
                 {item.totalValue}
               </td>

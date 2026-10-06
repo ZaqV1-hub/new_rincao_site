@@ -69,6 +69,7 @@ function buildVoucherListHref(
   if (filters.visitDateTo) params.set("dtagenda[ate]", filters.visitDateTo);
   if (filters.voucherType) params.set("tpvoucher", filters.voucherType);
   if (filters.purchaseLocation) params.set("tpcompra", filters.purchaseLocation);
+  if (filters.origin) params.set("origem_checkout", filters.origin);
   if (filters.purchaseStatus) params.set("stcompra", filters.purchaseStatus);
   if (filters.usedStatus) params.set("stusado", filters.usedStatus);
   if (page > 1) params.set("page", String(page));
@@ -166,6 +167,13 @@ export function PainelCompraVouchersPage({
               {renderSelect("tpcompra", result.filters.purchaseLocation, purchaseLocationOptions)}
             </label>
             <label className="grid gap-2 text-sm font-medium text-[#173f61]">
+              <span>Origem</span>
+              {renderSelect("origem_checkout", result.filters.origin, [
+                { value: "site", label: "Site" },
+                { value: "lumi", label: "Lumi" },
+              ])}
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#173f61]">
               <span>Status da compra</span>
               {renderSelect("stcompra", result.filters.purchaseStatus, purchaseStatusOptions)}
             </label>
@@ -196,6 +204,7 @@ export function PainelCompraVouchersPage({
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Voucher</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data Visita</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Ingresso</th>
+                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Origem</th>
                     <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
                   </tr>
                 </thead>
@@ -219,6 +228,7 @@ export function PainelCompraVouchersPage({
                       </td>
                       <td className="border border-[#d7d7d7] px-4 py-3">{item.visitDate ?? "-"}</td>
                       <td className="border border-[#d7d7d7] px-4 py-3">{item.ticketTypeLabel}</td>
+                      <td className="border border-[#d7d7d7] px-4 py-3">{item.originLabel}</td>
                       <td className="border border-[#d7d7d7] px-4 py-3">{item.unitValue}</td>
                     </tr>
                   ))}

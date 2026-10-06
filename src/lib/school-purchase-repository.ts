@@ -401,7 +401,8 @@ export async function createSchoolPurchase(
           formapag,
           vltotcompra,
           stcompra,
-          flenvio
+          flenvio,
+          origem_checkout
         )
         VALUES (
           $1,
@@ -411,7 +412,8 @@ export async function createSchoolPurchase(
           'pgseg',
           $2,
           'pend',
-          'nao'
+          'nao',
+          'site'
         )
         RETURNING idcompra
       `,
