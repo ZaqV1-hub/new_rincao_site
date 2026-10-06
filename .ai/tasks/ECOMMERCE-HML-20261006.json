@@ -30,7 +30,7 @@
     {
       "scope": "Comprador sem conta no painel",
       "result": "PASS local; HML deploy pending",
-      "evidence": "A migração aditiva HML também criou checkout_buyer_name/phone; 167183 compras preservadas, colunas novas NULL e sem backfill. Snapshot estrutural privado commerce-contact-before-2026-10-06T16-05-14-098Z.json, SHA256 4f2247853ddc4725c796d05901f779630747afa6e6ea7a159134fd8f5e9ff540. A listagem mostra nome/WhatsApp da sessão antes de existir conta e só linka o usuário quando a conta está presente. 23 testes da listagem, ESLint dos arquivos alterados e node --check passaram. Typecheck geral continua falhando em cinco erros preexistentes de testes de checkout/notificação, sem erros nos arquivos deste escopo."
+      "evidence": "A migração aditiva HML também criou checkout_buyer_name/phone; 167183 compras preservadas, colunas novas NULL e sem backfill. Snapshot estrutural privado commerce-contact-before-2026-10-06T16-05-14-098Z.json, SHA256 4f2247853ddc4725c796d05901f779630747afa6e6ea7a159134fd8f5e9ff540. A listagem mostra nome/WhatsApp da sessão antes de existir conta e só linka o usuário quando a conta está presente. 23 testes da listagem, ESLint dos arquivos alterados, node --check e `npm run build` passaram. Typecheck geral continua falhando em cinco erros preexistentes de testes de checkout/notificação, sem erros nos arquivos deste escopo."
     }
   ],
   "target_reconciliation": {
