@@ -39,6 +39,8 @@ export type PainelPurchaseListItem = {
   paymentLabel: string;
   cpf: string | null;
   userName: string | null;
+  buyerPhone: string | null;
+  hasUserAccount: boolean;
   totalValue: string;
   origin: string | null;
   originLabel: string;
@@ -251,7 +253,9 @@ type PainelPurchaseListRow = {
   dtpagamento: string | null;
   hrpagamento: string | null;
   cpf: string | null;
+  usuario_cpf?: string | null;
   nmusuario: string | null;
+  checkout_buyer_phone?: string | null;
   vltotcompra: string | number | null;
   origem_checkout: string | null;
 };
@@ -770,6 +774,8 @@ function buildPurchaseListItem(row: PainelPurchaseListRow): PainelPurchaseListIt
     paymentLabel: resolvePaymentLabel(row),
     cpf: row.cpf ? formatCpf(row.cpf) : null,
     userName: row.nmusuario,
+    buyerPhone: row.checkout_buyer_phone ?? null,
+    hasUserAccount: Boolean(row.usuario_cpf),
     totalValue: formatMoneyLabel(row.vltotcompra),
     origin: row.origem_checkout ?? null,
     originLabel: formatPurchaseOriginLabel(row.origem_checkout),
@@ -882,7 +888,7 @@ export function buildPainelPurchaseListWhere(
 
   if (normalizedFilters.userName) {
     clauses.push(
-      `usuario.nmusuario ILIKE '%${escapeSqlLikeLiteral(normalizedFilters.userName)}%'`,
+      `COALESCE(compra.checkout_buyer_name, usuario.nmusuario) ILIKE '%${escapeSqlLikeLiteral(normalizedFilters.userName)}%'`,
     );
   }
 
@@ -1042,7 +1048,9 @@ export async function listPainelPurchases(input: {
         compra.dtpagamento::text AS dtpagamento,
         compra.hrpagamento::text AS hrpagamento,
         compra.cpf,
-        usuario.nmusuario,
+        usuario.cpf AS usuario_cpf,
+        COALESCE(compra.checkout_buyer_name, usuario.nmusuario) AS nmusuario,
+        COALESCE(compra.checkout_buyer_phone, usuario.celular, usuario.telefone) AS checkout_buyer_phone,
         pagpagseguro.idpagseguro,
         pagpagseguro.paymentmethodtype,
         pagpagseguro.status

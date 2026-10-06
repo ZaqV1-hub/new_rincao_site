@@ -87,7 +87,9 @@ async function ensureMigration(client) {
     await client.query(`
       ALTER TABLE public.compra
         ADD COLUMN IF NOT EXISTS origem_checkout character varying(12),
-        ADD COLUMN IF NOT EXISTS checkout_session_id character varying(120)
+        ADD COLUMN IF NOT EXISTS checkout_session_id character varying(120),
+        ADD COLUMN IF NOT EXISTS checkout_buyer_name character varying(120),
+        ADD COLUMN IF NOT EXISTS checkout_buyer_phone character varying(32)
     `);
     await client.query(`
       DO $$ BEGIN
@@ -111,6 +113,10 @@ async function ensureMigration(client) {
       'Origem persistida do checkout: site ou lumi; NULL preserva origem historica desconhecida.'`);
     await client.query(`COMMENT ON COLUMN public.compra.checkout_session_id IS
       'Identificador idempotente da sessao de checkout externa, quando aplicavel.'`);
+    await client.query(`COMMENT ON COLUMN public.compra.checkout_buyer_name IS
+      'Nome informado no checkout enquanto a conta do comprador ainda nao esta vinculada.'`);
+    await client.query(`COMMENT ON COLUMN public.compra.checkout_buyer_phone IS
+      'Telefone informado no checkout enquanto a conta do comprador ainda nao esta vinculada.'`);
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -125,7 +131,7 @@ try {
   const client = await pool.connect();
   try {
     const before = await readSnapshot(client);
-    const expected = new Set(["origem_checkout", "checkout_session_id"]);
+    const expected = new Set(["origem_checkout", "checkout_session_id", "checkout_buyer_name", "checkout_buyer_phone"]);
     let backupPath = null;
     if (apply) {
       await mkdir(backupRoot, { recursive: true });

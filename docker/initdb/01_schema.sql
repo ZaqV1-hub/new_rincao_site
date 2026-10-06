@@ -650,7 +650,9 @@ CREATE TABLE public.compra (
 
 ALTER TABLE public.compra
     ADD COLUMN origem_checkout character varying(12),
-    ADD COLUMN checkout_session_id character varying(120);
+    ADD COLUMN checkout_session_id character varying(120),
+    ADD COLUMN checkout_buyer_name character varying(120),
+    ADD COLUMN checkout_buyer_phone character varying(32);
 
 ALTER TABLE ONLY public.compra
     ADD CONSTRAINT compra_origem_checkout_check

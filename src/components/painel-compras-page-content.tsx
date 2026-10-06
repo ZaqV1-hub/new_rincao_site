@@ -125,6 +125,7 @@ function PurchasesTable({ items }: { items: PainelPurchaseListItem[] }) {
             <th className="px-3 py-2.5 text-xs font-semibold">Pagamento</th>
             <th className="px-3 py-2.5 text-xs font-semibold">CPF</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Usuário</th>
+            <th className="px-3 py-2.5 text-xs font-semibold">WhatsApp</th>
             <th className="px-3 py-2.5 text-xs font-semibold text-right">Valor</th>
           </tr>
         </thead>
@@ -165,7 +166,7 @@ function PurchasesTable({ items }: { items: PainelPurchaseListItem[] }) {
               <td className="px-3 py-3 align-top">{item.paymentLabel}</td>
               <td className="px-3 py-3 align-top">{item.cpf ?? "-"}</td>
               <td className="px-3 py-3 align-top">
-                {item.userName && item.cpf ? (
+                {item.userName && item.cpf && item.hasUserAccount ? (
                   <a
                     className="underline decoration-[#7aa7cf] underline-offset-2"
                     href={buildLegacyUserHref(item.cpf)}
@@ -176,6 +177,7 @@ function PurchasesTable({ items }: { items: PainelPurchaseListItem[] }) {
                   item.userName ?? "-"
                 )}
               </td>
+              <td className="px-3 py-3 align-top">{item.buyerPhone ?? "-"}</td>
               <td className="px-3 py-3 align-top text-right font-semibold text-[#133d63]">
                 {item.totalValue}
               </td>

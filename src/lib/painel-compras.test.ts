@@ -219,7 +219,7 @@ describe("buildPainelPurchaseListWhere", () => {
         AND pagpagseguro.paymentmethodtype = '4'
         AND pagpagseguro.status = '3'
         AND compra.cpf = '12345678900'
-        AND usuario.nmusuario ILIKE '%Maria Silva%'
+        AND COALESCE(compra.checkout_buyer_name, usuario.nmusuario) ILIKE '%Maria Silva%'
         AND compra.dtcompra >= TO_DATE('01/05/2026', 'DD/MM/YYYY')
         AND compra.dtcompra <= TO_DATE('07/05/2026', 'DD/MM/YYYY')`),
     );
@@ -285,6 +285,8 @@ describe("mapPainelPurchaseListExportRows", () => {
           paymentLabel: "Paga",
           cpf: "123.456.789-01",
           userName: "DEV",
+          buyerPhone: null,
+          hasUserAccount: true,
           totalValue: "80,00",
           origin: null,
           originLabel: "Não identificado",
@@ -422,6 +424,44 @@ describe("mapPainelPurchaseVoucherListExportRows", () => {
 });
 
 describe("listPainelPurchases", () => {
+  it("shows pending checkout buyer identity before the site account exists", async () => {
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("COUNT(*)::text AS total")) return { rows: [{ total: "1" }] };
+      return {
+        rowCount: 1,
+        rows: [{
+          idcompra: 781,
+          dtcompra: "2026-10-06",
+          tpcompra: "ponli",
+          stcompra: "pend",
+          formapag: "pgseg",
+          dtpagamento: null,
+          hrpagamento: null,
+          cpf: "52998224725",
+          nmusuario: "Pessoa Exemplo",
+          checkout_buyer_phone: "5511999999999",
+          vltotcompra: "129.90",
+          origem_checkout: "lumi",
+        }],
+      };
+    });
+
+    const result = await listPainelPurchases({ filters: { cpf: "52998224725", origin: "lumi" } });
+
+    expect(result.items[0]).toMatchObject({
+      purchaseId: 781,
+      status: "pend",
+      cpf: "529.982.247-25",
+      userName: "Pessoa Exemplo",
+      buyerPhone: "5511999999999",
+      hasUserAccount: false,
+      origin: "lumi",
+    });
+    expect(mocks.query.mock.calls.map(([sql]) => String(sql)).join("\n")).toContain(
+      "COALESCE(compra.checkout_buyer_phone, usuario.celular, usuario.telefone)",
+    );
+  });
+
   it("loads the main purchase list with legacy mapping and pagination", async () => {
     mocks.query.mockImplementation(async (sql: string) => {
       if (sql.includes("COUNT(*)::text AS total")) {
@@ -445,6 +485,7 @@ describe("listPainelPurchases", () => {
             dtpagamento: "2026-05-07",
             hrpagamento: "10:15:00",
             cpf: "12345678901",
+            usuario_cpf: "12345678901",
             nmusuario: "DEV",
             vltotcompra: "80.00",
           },
@@ -476,6 +517,8 @@ describe("listPainelPurchases", () => {
           paymentLabel: "Bilheteria",
           cpf: "123.456.789-01",
           userName: "DEV",
+          buyerPhone: null,
+          hasUserAccount: true,
           totalValue: "80,00",
           origin: null,
           originLabel: "Não identificado",
