@@ -8,7 +8,7 @@
   "base_sha": "953d4003ec16aa93dd7956866b6a036fa68ab141",
   "production_reference": { "branch": "origin/main", "sha": "8a4be0f51f9bd1e7f062b038fb3674927ba05a2b" },
   "target_branch": "develop",
-  "paths_owned": ["src/lib/painel-compras.ts", "src/components/painel-compras-page-content.tsx", "src/components/painel-compras-filters-form.tsx", "src/components/painel-compra-vouchers-page.tsx", "src/lib/purchase-repository.ts", "src/lib/school-purchase-repository.ts", "docker/initdb/", "docs/sql/2026-10-06-commerce-source.sql", ".ai/tasks/ECOMMERCE-HML-20261006.json"],
+  "paths_owned": ["src/lib/painel-compras.ts", "src/components/painel-compras-page-content.tsx", "src/components/painel-compras-filters-form.tsx", "src/components/painel-compra-vouchers-page.tsx", "src/lib/purchase-repository.ts", "src/lib/school-purchase-repository.ts", "docker/initdb/**", "docs/sql/2026-10-06-commerce-source.sql", "scripts/migrate-commerce-source.mjs", ".ai/tasks/ECOMMERCE-HML-20261006.json"],
   "shared_paths": ["compra/voucher source schema", "purchase and voucher panel query contract"],
   "forbidden_paths": ["legacy checkout application", "historical purchase source backfill"],
   "capabilities_to_preserve": ["existing purchase filters", "pagination and totals", "existing online and website attribution"],
@@ -16,7 +16,24 @@
   "planned_removals": [],
   "depends_on_prs": [],
   "required_tests": ["source filter on purchase and voucher lists", "source persisted across retries", "combined CPF/date/status/source filters", "pagination and count parity"],
-  "schema_or_migration_impact": "Additive nullable origem_checkout and checkout_session_id columns with unique partial idempotency index; SQL migration is prepared but must be applied to HML with backup before release smoke. NULL historical purchases remain unclassified.",
+  "completed_evidence": [
+    {
+      "scope": "Painel origem de compra",
+      "result": "PASS local; HML deploy pending",
+      "evidence": "27 testes focados passaram para filtros/listas/paginação; ESLint e node --check passaram para os arquivos alterados."
+    },
+    {
+      "scope": "Banco HML",
+      "result": "PASS migration",
+      "evidence": "PostgreSQL 16.14; adicionadas origem_checkout e checkout_session_id, check de origem e índice único parcial. 167183 linhas preservadas e ainda sem classificação. Snapshot estrutural privado commerce-source-before-2026-10-06T16-00-11-442Z.json, SHA256 d744b9d4de23b46045cda27c29b7fcae9482bcf2a5238e90192800ce8d584208."
+    }
+  ],
+  "target_reconciliation": {
+    "checked_at": "2026-10-06",
+    "target_sha": "575228207c4f1b861721f97fdff2e8d26d0fcf54",
+    "evidence": "Após fetch --prune, origin/develop avançou uma mudança isolada de enfermaria. A branch do painel foi rebaseada sem conflito; base_sha original permanece imutável no contrato."
+  },
+  "schema_or_migration_impact": "HML recebeu colunas nullable origem_checkout e checkout_session_id, check de valores site/lumi e índice único parcial idempotente. Snapshot estrutural pré-migração guardado somente no diretório privado de backups HML; nenhuma compra foi reclassificada. O script scripts/migrate-commerce-source.mjs repete a migração com preflight, backup e validação.",
   "destructive_change": false,
   "status": "IN_PROGRESS"
 }

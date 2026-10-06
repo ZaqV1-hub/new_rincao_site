@@ -1,4 +1,6 @@
 -- Additive checkout attribution contract. Existing purchases remain NULL (unknown).
+-- For HML, use scripts/migrate-commerce-source.mjs so it captures a private
+-- structural snapshot and validates the row count before and after this DDL.
 ALTER TABLE public.compra
   ADD COLUMN IF NOT EXISTS origem_checkout character varying(12),
   ADD COLUMN IF NOT EXISTS checkout_session_id character varying(120);
