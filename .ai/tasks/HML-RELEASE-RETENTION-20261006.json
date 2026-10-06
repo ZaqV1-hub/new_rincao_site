@@ -6,14 +6,43 @@
   "created_at": "2026-10-06",
   "base_branch": "origin/develop",
   "base_sha": "a7350c8f6233ae406dadf89edf0abb0f70b0f878",
-  "production_reference": { "branch": "origin/main", "sha": "8a4be0f51f9bd1e7f062b038fb3674927ba05a2b" },
+  "production_reference": {
+    "branch": "origin/main",
+    "sha": "8a4be0f51f9bd1e7f062b038fb3674927ba05a2b"
+  },
   "target_branch": "develop",
-  "paths_owned": ["scripts/hml-release-retention.mjs", "scripts/hml-release-retention.test.mjs", "scripts/deploy-vm.ps1", "docs/runbooks/hml-release-retention.md", "ops/hml-capacity-recovery-20261006/**", ".ai/tasks/HML-RELEASE-RETENTION-20261006.json"],
-  "shared_paths": ["scripts/deploy-vm.ps1"],
-  "forbidden_paths": ["src/**", "docker/**", "package.json", "package-lock.json", "persistent application data", "database backups", "production releases", "environment files"],
-  "capabilities_to_preserve": ["exact-commit deployment", "active runtime release", "previous runtime release for rollback", "shared persistent storage", "production deployment behavior"],
+  "paths_owned": [
+    "scripts/hml-release-retention.mjs",
+    "scripts/hml-release-retention.test.mjs",
+    "scripts/deploy-vm.ps1",
+    "docs/runbooks/hml-release-retention.md",
+    "ops/hml-capacity-recovery-20261006/**",
+    ".ai/tasks/HML-RELEASE-RETENTION-20261006.json"
+  ],
+  "shared_paths": [
+    "scripts/deploy-vm.ps1"
+  ],
+  "forbidden_paths": [
+    "src/**",
+    "docker/**",
+    "package.json",
+    "package-lock.json",
+    "persistent application data",
+    "database backups",
+    "production releases",
+    "environment files"
+  ],
+  "capabilities_to_preserve": [
+    "exact-commit deployment",
+    "active runtime release",
+    "previous runtime release for rollback",
+    "shared persistent storage",
+    "production deployment behavior"
+  ],
   "planned_replacements": [],
-  "planned_removals": ["Old reconstructible HML standalone release directories only when their source files match an immutable Git commit and their plan remains unchanged"],
+  "planned_removals": [
+    "Old reconstructible HML standalone release directories only when their source files match an immutable Git commit and their plan remains unchanged"
+  ],
   "depends_on_prs": [],
   "overlap_acknowledgements": [],
   "acceptance_criteria": [
@@ -24,13 +53,40 @@
     "A successful HML deploy records its previous release and applies the same conservative retention",
     "HML runtime health and active release remain unchanged after storage recovery, and the unchanged 25 GiB disk/3 GiB build RAM gate is rechecked"
   ],
-  "required_tests": ["Real temporary Git repositories exercise protected releases, unknown/tampered source, stale plan refusal, symlink isolation, dry-run and actual removal", "Node syntax check, scoped tests, PowerShell parser validation on the VM, diff review", "Record redacted HML capacity, plan hash, removal receipt, active identity and health evidence"],
+  "required_tests": [
+    "Real temporary Git repositories exercise protected releases, unknown/tampered source, stale plan refusal, symlink isolation, dry-run and actual removal",
+    "Node syntax check, scoped tests, PowerShell parser validation on the VM, diff review",
+    "Record redacted HML capacity, plan hash, removal receipt, active identity and health evidence"
+  ],
   "completed_evidence": [
-    {"scope": "read-only capacity diagnosis", "result": "PASS", "evidence": "Lumi HML remains at baee0da7ee1d192311d74b2ce77e640ee698fffe. Measured 23.913 GiB free disk and 5.569 GiB free RAM. Versioned build gate is 25 GiB disk/3 GiB RAM. Existing Lumi cache retention reached two protected releases without recovering enough space. Site HML has 54 retained release directories and no retention call in its deployment script."}
+    {
+      "scope": "read-only capacity diagnosis",
+      "result": "PASS",
+      "evidence": "Lumi HML remains at baee0da7ee1d192311d74b2ce77e640ee698fffe. Measured 23.913 GiB free disk and 5.569 GiB free RAM. Versioned build gate is 25 GiB disk/3 GiB RAM. Existing Lumi cache retention reached two protected releases without recovering enough space. Site HML has 54 retained release directories and no retention call in its deployment script."
+    },
+    {
+      "scope": "focused filesystem/Git regression tests",
+      "result": "PASS",
+      "evidence": "10/10 on local Node and on VM Node 20.19.5; Node syntax and git diff --check passed. Windows PowerShell parser passed. Tests cover real removal and unchanged external junction target, exact Git blob / CRLF validation, unknown upload preservation, protected current/previous, stale plans, wrong hash, competing lock and production refusal."
+    },
+    {
+      "scope": "baseline site TypeScript",
+      "result": "FAIL",
+      "evidence": "npx tsc --noEmit reports five existing errors in checkout-mode.test.ts, checkout-notification-proxy.test.ts and checkout-status.test.ts. No TypeScript source changed in this task. Deployment-only tests passed; unrelated test typing preserved."
+    },
+    {
+      "scope": "live retention application",
+      "result": "NOT_TESTED",
+      "evidence": "Verified inventory in progress. No live release removed yet; deploy rerun depends on an applied receipt, health confirmation and unchanged Lumi capacity gate passing."
+    }
   ],
   "schema_or_migration_impact": "None. Only reconstructible deployment artifacts; environment and persistent app data live outside releases.",
   "destructive_change": true,
   "authorization_boundary": "The owner requested a concrete capacity recovery to continue HML deployment. Unknown files, production state, databases, backups and secrets remain outside removal scope. No production operation or financial transaction is authorized.",
   "status": "IN_PROGRESS",
-  "target_reconciliation": {"checked_at": "2026-10-06", "target_sha": "a7350c8f6233ae406dadf89edf0abb0f70b0f878", "evidence": "fetch/prune completed; clean worktree; no other open site PR. Branch created from exact origin/develop; origin/main recorded separately."}
+  "target_reconciliation": {
+    "checked_at": "2026-10-06",
+    "target_sha": "a7350c8f6233ae406dadf89edf0abb0f70b0f878",
+    "evidence": "fetch/prune completed; clean worktree; no other open site PR. Branch created from exact origin/develop; origin/main recorded separately."
+  }
 }

@@ -44,6 +44,7 @@ $sharedRoot = [string]$config.SharedRoot
 $legacyRoot = [string]$config.LegacyRoot
 $releasesRoot = Join-Path $deploymentRoot "releases"
 $currentFile = Join-Path $deploymentRoot "current.txt"
+$previousFile = Join-Path $deploymentRoot "previous.txt"
 $opsRoot = "C:\Deploy\Rincao\ops"
 $nodeRoot = "C:\Tools\node-v20.19.5-win-x64"
 $nodeExe = Join-Path $nodeRoot "node.exe"
@@ -58,6 +59,32 @@ $releaseRoot = Join-Path $releasesRoot $safeReleaseId
 $standaloneRoot = Join-Path $SourceRoot ".next\standalone"
 $installScriptSource = Join-Path $SourceRoot "scripts\install-vm-runtime.ps1"
 $envFile = Join-Path $sharedRoot ".env.local"
+
+function Invoke-HmlReleaseRetention {
+  if ($Environment -ne "hml" -or -not (Test-Path -LiteralPath $currentFile)) { return }
+  $retentionRoot = Join-Path $deploymentRoot "retention"
+  New-Item -ItemType Directory -Force -Path $retentionRoot | Out-Null
+  $receiptId = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss") + "-" + [guid]::NewGuid().ToString("N")
+  $plan = Join-Path $retentionRoot "plan-$receiptId.json"
+  $receipt = Join-Path $retentionRoot "receipt-$receiptId.json"
+  $pruner = Join-Path $SourceRoot "scripts\hml-release-retention.mjs"
+  & $nodeExe $pruner --deployment-root $deploymentRoot --repo-root $SourceRoot --keep-releases 4 --report $plan
+  if ($LASTEXITCODE -ne 0) { throw "HML retention plan failed; review $plan." }
+  $planHash = (Get-FileHash -LiteralPath $plan -Algorithm SHA256).Hash.ToLowerInvariant()
+  & $nodeExe $pruner --apply-plan $plan --plan-sha256 $planHash --receipt $receipt
+  if ($LASTEXITCODE -ne 0) { throw "HML retention failed; review $receipt." }
+}
+
+if ($Environment -eq "hml") {
+  if (Test-Path -LiteralPath (Join-Path $deploymentRoot ".hml-retention.lock")) {
+    throw "HML release retention is in progress."
+  }
+  if (Test-Path -LiteralPath $previousFile) {
+    Invoke-HmlReleaseRetention
+  } else {
+    Write-Host "HML retention bootstrap: previous release will be recorded after successful health checks."
+  }
+}
 
 if (-not (Test-Path -LiteralPath $envFile)) {
   throw "Execute scripts\migrate-vm-storage.ps1 -Environment $Environment antes do primeiro deploy."
@@ -188,6 +215,11 @@ function Warm-PublicHome {
   throw "Home publica nao aqueceu com sucesso em $homeUrl. Ultimo erro: $lastError"
 }
 
+$pointerLock = $null
+$pointerLockPath = Join-Path $deploymentRoot ".hml-retention.lock"
+if ($Environment -eq "hml") {
+  $pointerLock = [System.IO.File]::Open($pointerLockPath, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+}
 try {
   Set-Content -LiteralPath $currentFile -Value $releaseRoot -Encoding UTF8
   & $installScriptSource -Environment $Environment
@@ -201,6 +233,9 @@ try {
 
   Wait-PublicHealth -Url ([string]$config.Domain + "robots.txt")
   Warm-PublicHome -Url ([string]$config.Domain) -TimeoutSeconds ([int]$config.HomeWarmupTimeoutSeconds)
+  if ($Environment -eq "hml" -and $previousRelease -and $previousRelease -ne $releaseRoot) {
+    Set-Content -LiteralPath $previousFile -Value $previousRelease -Encoding UTF8
+  }
 } catch {
   $deployError = $_
   if ($previousRelease -and (Test-Path -LiteralPath (Join-Path $previousRelease "server.js"))) {
@@ -215,6 +250,12 @@ try {
     }
   }
   throw $deployError
+} finally {
+  if ($pointerLock) {
+    $pointerLock.Dispose()
+    Remove-Item -LiteralPath $pointerLockPath -Force
+  }
 }
 
+Invoke-HmlReleaseRetention
 Write-Host "Deploy concluido: ambiente=$Environment release=$releaseRoot dominio=$($config.Domain)"
