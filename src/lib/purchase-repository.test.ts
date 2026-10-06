@@ -74,6 +74,8 @@ describe("purchase-repository", () => {
 
       if (sql.includes("INSERT INTO compra")) {
         expect(values).toEqual(["52998224725", "270.00", null, null]);
+        expect(sql).toContain("origem_checkout");
+        expect(sql).toContain("'site'");
         return { rows: [{ idcompra: 901 }] };
       }
 

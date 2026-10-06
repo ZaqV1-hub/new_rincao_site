@@ -30,6 +30,7 @@ describe("PainelComprasPage", () => {
           userName: null,
           dateFrom: "01/05/2026",
           dateTo: null,
+          origin: null,
         },
       }),
     );
@@ -60,6 +61,7 @@ describe("PainelComprasPage", () => {
           userName: null,
           dateFrom: null,
           dateTo: null,
+          origin: null,
         },
       }),
     );

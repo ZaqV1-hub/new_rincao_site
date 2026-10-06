@@ -124,6 +124,13 @@ export function PainelComprasFiltersForm({
           {renderSelect("tpcompra", filters.type, typeOptions)}
         </label>
         <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
+          Origem
+          {renderSelect("origem_checkout", filters.origin, [
+            { value: "site", label: "Site" },
+            { value: "lumi", label: "Lumi" },
+          ])}
+        </label>
+        <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">
           Status
           {renderSelect("stcompra", filters.purchaseStatus, purchaseStatusOptions)}
         </label>

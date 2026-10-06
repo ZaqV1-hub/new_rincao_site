@@ -1,0 +1,22 @@
+{
+  "schema_version": "ai_task_contract_v1",
+  "task_id": "ECOMMERCE-HML-20261006-PANEL",
+  "title": "Persistir e apresentar a origem da compra Lumi no painel",
+  "owner": "Codex, conforme autorização explícita do owner na tarefa",
+  "created_at": "2026-10-06",
+  "base_branch": "origin/develop",
+  "base_sha": "953d4003ec16aa93dd7956866b6a036fa68ab141",
+  "production_reference": { "branch": "origin/main", "sha": "8a4be0f51f9bd1e7f062b038fb3674927ba05a2b" },
+  "target_branch": "develop",
+  "paths_owned": ["src/lib/painel-compras.ts", "src/components/painel-compras-page-content.tsx", "src/components/painel-compras-filters-form.tsx", "src/components/painel-compra-vouchers-page.tsx", "src/lib/purchase-repository.ts", "src/lib/school-purchase-repository.ts", "docker/initdb/", "docs/sql/2026-10-06-commerce-source.sql", ".ai/tasks/ECOMMERCE-HML-20261006.json"],
+  "shared_paths": ["compra/voucher source schema", "purchase and voucher panel query contract"],
+  "forbidden_paths": ["legacy checkout application", "historical purchase source backfill"],
+  "capabilities_to_preserve": ["existing purchase filters", "pagination and totals", "existing online and website attribution"],
+  "planned_replacements": [],
+  "planned_removals": [],
+  "depends_on_prs": [],
+  "required_tests": ["source filter on purchase and voucher lists", "source persisted across retries", "combined CPF/date/status/source filters", "pagination and count parity"],
+  "schema_or_migration_impact": "Additive nullable origem_checkout and checkout_session_id columns with unique partial idempotency index; SQL migration is prepared but must be applied to HML with backup before release smoke. NULL historical purchases remain unclassified.",
+  "destructive_change": false,
+  "status": "IN_PROGRESS"
+}

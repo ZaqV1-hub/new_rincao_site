@@ -120,11 +120,35 @@ describe("normalizePainelPurchaseVoucherListFilters", () => {
       purchaseLocation: "parq",
       purchaseStatus: null,
       usedStatus: "s",
+      origin: null,
     });
   });
 });
 
 describe("buildPainelPurchaseListWhere", () => {
+  it("combines persisted origin with CPF, dates and purchase status", () => {
+    const filters = normalizePainelPurchaseListFilters({
+      origem_checkout: "lumi", cpf: "52998224725", stcompra: "pend",
+      "dtcompra[de]": "01/10/2026", "dtcompra[ate]": "06/10/2026",
+    });
+    const { sql } = buildPainelPurchaseListWhere(filters);
+
+    expect(sql).toContain("compra.origem_checkout = 'lumi'");
+    expect(sql).toContain("compra.cpf = '52998224725'");
+    expect(sql).toContain("compra.stcompra = 'pend'");
+    expect(sql).toContain("TO_DATE('01/10/2026'");
+    expect(sql).toContain("TO_DATE('06/10/2026'");
+    expect(normalizePainelPurchaseListFilters({ origem_checkout: "unsupported" }).origin).toBeNull();
+  });
+
+  it("filters voucher rows by the persisted purchase origin", () => {
+    const filters = normalizePainelPurchaseVoucherListFilters({ origem_checkout: "lumi", tpcompra: "site" });
+    const { sql } = buildPainelPurchaseVoucherListWhere(filters);
+
+    expect(sql).toContain("c.origem_checkout = 'lumi'");
+    expect(sql).toContain("c.tpcompra = 'ponli'");
+  });
+
   it("builds the legacy corte clause with grouped bilheteria fallback and courtesy semantics", () => {
     const { sql } = buildPainelPurchaseListWhere({
       ticketPaymentMethod: "corte",
@@ -224,6 +248,7 @@ describe("buildPainelPurchaseVoucherListWhere", () => {
       purchaseLocation: "parq",
       purchaseStatus: "conc",
       usedStatus: "n",
+      origin: null,
     });
 
     expect(normalizeSql(sql)).toBe(
@@ -261,6 +286,8 @@ describe("mapPainelPurchaseListExportRows", () => {
           cpf: "123.456.789-01",
           userName: "DEV",
           totalValue: "80,00",
+          origin: null,
+          originLabel: "Não identificado",
         },
       ],
       total: 1,
@@ -278,6 +305,7 @@ describe("mapPainelPurchaseListExportRows", () => {
         userName: null,
         dateFrom: null,
         dateTo: null,
+        origin: null,
       },
     };
 
@@ -330,6 +358,8 @@ describe("mapPainelPurchaseVoucherListExportRows", () => {
           usedDate: null,
           usedTime: null,
           purchaseTypeLabel: "Compra",
+          origin: null,
+          originLabel: "Não identificado",
         },
       ],
       total: 1,
@@ -348,6 +378,7 @@ describe("mapPainelPurchaseVoucherListExportRows", () => {
         purchaseLocation: null,
         purchaseStatus: null,
         usedStatus: null,
+        origin: null,
       },
       indicators: {
         qtdnormal_site: 1,
@@ -446,6 +477,8 @@ describe("listPainelPurchases", () => {
           cpf: "123.456.789-01",
           userName: "DEV",
           totalValue: "80,00",
+          origin: null,
+          originLabel: "Não identificado",
         },
       ],
       total: 1,
@@ -464,6 +497,7 @@ describe("listPainelPurchases", () => {
         userName: null,
         dateFrom: null,
         dateTo: null,
+        origin: null,
       },
     });
 
@@ -599,7 +633,7 @@ describe("getPainelPurchaseDetail", () => {
           usedLabel: "Nao",
           usedDate: null,
           usedTime: null,
-          schoolTripHref: "/painel/clientes/detalhe?id=2306",
+          schoolTripHref: "/painel/clientes/detalhe?id=77",
         },
       ],
     });
@@ -825,6 +859,8 @@ describe("listPainelPurchaseVouchers", () => {
           usedDate: null,
           usedTime: null,
           purchaseTypeLabel: "Compra",
+          origin: null,
+          originLabel: "Não identificado",
         },
       ],
       total: 1,
@@ -843,6 +879,7 @@ describe("listPainelPurchaseVouchers", () => {
         purchaseLocation: "site",
         purchaseStatus: null,
         usedStatus: null,
+        origin: null,
       },
       indicators: {
         qtdnormal_site: 1,

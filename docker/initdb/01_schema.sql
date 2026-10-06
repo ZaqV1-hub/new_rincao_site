@@ -648,6 +648,21 @@ CREATE TABLE public.compra (
     vlcashback numeric(10,2) DEFAULT 0
 );
 
+ALTER TABLE public.compra
+    ADD COLUMN origem_checkout character varying(12),
+    ADD COLUMN checkout_session_id character varying(120);
+
+ALTER TABLE ONLY public.compra
+    ADD CONSTRAINT compra_origem_checkout_check
+    CHECK (origem_checkout IS NULL OR origem_checkout IN ('site', 'lumi'));
+
+CREATE UNIQUE INDEX compra_checkout_session_id_uq
+    ON public.compra USING btree (checkout_session_id)
+    WHERE checkout_session_id IS NOT NULL;
+
+COMMENT ON COLUMN public.compra.origem_checkout IS 'Origem persistida do checkout: site ou lumi; NULL preserva origem historica desconhecida.';
+COMMENT ON COLUMN public.compra.checkout_session_id IS 'Identificador idempotente da sessao de checkout externa, quando aplicavel.';
+
 
 --
 -- Name: COLUMN compra.tpcompra; Type: COMMENT; Schema: public; Owner: -

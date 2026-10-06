@@ -25,6 +25,8 @@ describe("PainelCompraVouchersPage", () => {
               usedDate: null,
               usedTime: null,
               purchaseTypeLabel: "Compra",
+              origin: "site",
+              originLabel: "Site",
             },
           ],
           total: 1,
@@ -43,6 +45,7 @@ describe("PainelCompraVouchersPage", () => {
             purchaseLocation: "site",
             purchaseStatus: null,
             usedStatus: null,
+            origin: null,
           },
           indicators: {
             qtdnormal_site: 1,
@@ -75,7 +78,7 @@ describe("PainelCompraVouchersPage", () => {
     expect(html).toContain("Ingresso</th>");
     expect(html).toContain("ABC-123");
     expect(html).toContain("Adulto</option>");
-    expect(html).toContain("Remover Filtros");
+    expect(html).toContain("Limpar filtros");
     expect(html).toContain("Exportar (.xls)");
   });
 });

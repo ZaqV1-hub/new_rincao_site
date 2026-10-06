@@ -80,6 +80,10 @@ function buildComprasHref(filters: PainelPurchaseListFilters, page: number) {
     params.set("nmusuario", filters.userName);
   }
 
+  if (filters.origin) {
+    params.set("origem_checkout", filters.origin);
+  }
+
   if (page > 1) {
     params.set("page", String(page));
   }
@@ -115,6 +119,7 @@ function PurchasesTable({ items }: { items: PainelPurchaseListItem[] }) {
             <th className="px-3 py-2.5 text-xs font-semibold">ID</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Data</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Tipo</th>
+            <th className="px-3 py-2.5 text-xs font-semibold">Origem</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Status</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Forma</th>
             <th className="px-3 py-2.5 text-xs font-semibold">Pagamento</th>
@@ -140,6 +145,7 @@ function PurchasesTable({ items }: { items: PainelPurchaseListItem[] }) {
               </td>
               <td className="px-3 py-3 align-top">{item.purchaseDate ?? "-"}</td>
               <td className="px-3 py-3 align-top">{item.typeLabel}</td>
+              <td className="px-3 py-3 align-top">{item.originLabel}</td>
               <td className="px-3 py-3 align-top">
                 <span
                   className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${

@@ -23,6 +23,7 @@ export type PainelPurchaseListFilters = {
   userName: string | null;
   dateFrom: string | null;
   dateTo: string | null;
+  origin: string | null;
 };
 
 export type PainelPurchaseListItem = {
@@ -39,6 +40,8 @@ export type PainelPurchaseListItem = {
   cpf: string | null;
   userName: string | null;
   totalValue: string;
+  origin: string | null;
+  originLabel: string;
 };
 
 export type PainelPurchaseListResult = {
@@ -124,6 +127,7 @@ export type PainelPurchaseVoucherListFilters = {
   purchaseLocation: string | null;
   purchaseStatus: string | null;
   usedStatus: string | null;
+  origin: string | null;
 };
 
 export type PainelPurchaseVoucherListItem = {
@@ -142,6 +146,8 @@ export type PainelPurchaseVoucherListItem = {
   usedDate: string | null;
   usedTime: string | null;
   purchaseTypeLabel: string;
+  origin: string | null;
+  originLabel: string;
 };
 
 export type PainelPurchaseVoucherIndicators = {
@@ -207,6 +213,7 @@ type PainelPurchaseListFilterInput = Record<string, unknown> & {
   status?: unknown;
   cpf?: unknown;
   nmusuario?: unknown;
+  origem_checkout?: unknown;
   "dtcompra[de]"?: unknown;
   "dtcompra[ate]"?: unknown;
   dtcompra?: LegacyDateRangeShape;
@@ -218,6 +225,7 @@ type PainelPurchaseVoucherFilterInput = Record<string, unknown> & {
   tpcompra?: unknown;
   stcompra?: unknown;
   stusado?: unknown;
+  origem_checkout?: unknown;
   "dtcompra[de]"?: unknown;
   "dtcompra[ate]"?: unknown;
   dtcompra?: LegacyDateRangeShape;
@@ -245,6 +253,7 @@ type PainelPurchaseListRow = {
   cpf: string | null;
   nmusuario: string | null;
   vltotcompra: string | number | null;
+  origem_checkout: string | null;
 };
 
 type PainelPurchaseDetailRow = {
@@ -302,6 +311,7 @@ type PainelPurchaseVoucherListRow = {
   stusado: string | null;
   dtuso: string | null;
   hruso: string | null;
+  origem_checkout: string | null;
 };
 
 type PainelPurchaseVoucherIndicatorsRow = {
@@ -492,6 +502,11 @@ function normalizeCpf(value: string | null | undefined) {
   return digits ? digits : null;
 }
 
+function normalizePurchaseOrigin(value: unknown) {
+  const normalized = normalizePainelCompraScalarFilterValue(value);
+  return normalized === "site" || normalized === "lumi" ? normalized : null;
+}
+
 function normalizeWhereFilters(
   filters: PainelPurchaseListWhereInput,
 ): PainelPurchaseListFilters {
@@ -507,6 +522,7 @@ function normalizeWhereFilters(
     userName: normalizePainelCompraScalarFilterValue(filters.userName),
     dateFrom: normalizePainelCompraDateFilterValue(filters.dateFrom),
     dateTo: normalizePainelCompraDateFilterValue(filters.dateTo),
+    origin: normalizePurchaseOrigin(filters.origin),
   };
 }
 
@@ -547,6 +563,14 @@ function formatPurchaseTypeLabel(code: string | null | undefined) {
 function formatPurchaseStatusLabel(code: string | null | undefined) {
   const normalized = String(code ?? "").trim();
   return normalized ? purchaseStatusLabels[normalized] ?? normalized : "-";
+}
+
+function formatPurchaseOriginLabel(code: string | null | undefined) {
+  switch (String(code ?? "").trim()) {
+    case "lumi": return "Lumi";
+    case "site": return "Site";
+    default: return "Não identificado";
+  }
 }
 
 function formatTicketPaymentMethodLabel(code: string | null | undefined) {
@@ -747,6 +771,8 @@ function buildPurchaseListItem(row: PainelPurchaseListRow): PainelPurchaseListIt
     cpf: row.cpf ? formatCpf(row.cpf) : null,
     userName: row.nmusuario,
     totalValue: formatMoneyLabel(row.vltotcompra),
+    origin: row.origem_checkout ?? null,
+    originLabel: formatPurchaseOriginLabel(row.origem_checkout),
   };
 }
 
@@ -767,6 +793,7 @@ export function normalizePainelPurchaseListFilters(
     userName: normalizePainelCompraScalarFilterValue(input.nmusuario),
     dateFrom: resolveDateRangeValue(input, "de"),
     dateTo: resolveDateRangeValue(input, "ate"),
+    origin: normalizePurchaseOrigin(input.origem_checkout),
   };
 }
 
@@ -785,6 +812,7 @@ export function normalizePainelPurchaseVoucherListFilters(
     purchaseLocation: normalizePainelCompraScalarFilterValue(input.tpcompra),
     purchaseStatus: normalizePainelCompraScalarFilterValue(input.stcompra),
     usedStatus: normalizePainelCompraScalarFilterValue(input.stusado),
+    origin: normalizePurchaseOrigin(input.origem_checkout),
   };
 }
 
@@ -830,6 +858,10 @@ export function buildPainelPurchaseListWhere(
     clauses.push(
       `compra.stcompra = '${escapeSqlLiteral(normalizedFilters.purchaseStatus)}'`,
     );
+  }
+
+  if (normalizedFilters.origin) {
+    clauses.push(`compra.origem_checkout = '${escapeSqlLiteral(normalizedFilters.origin)}'`);
   }
 
   if (normalizedFilters.gatewayPaymentMethod) {
@@ -957,6 +989,10 @@ export function buildPainelPurchaseVoucherListWhere(
     clauses.push(`c.stcompra = '${escapeSqlLiteral(filters.purchaseStatus)}'`);
   }
 
+  if (filters.origin) {
+    clauses.push(`c.origem_checkout = '${escapeSqlLiteral(filters.origin)}'`);
+  }
+
   if (filters.usedStatus) {
     clauses.push(`voucher.stusado = '${escapeSqlLiteral(filters.usedStatus)}'`);
   }
@@ -1002,6 +1038,7 @@ export async function listPainelPurchases(input: {
         compra.stcompra,
         compra.formapag,
         compra.vltotcompra::text AS vltotcompra,
+        compra.origem_checkout,
         compra.dtpagamento::text AS dtpagamento,
         compra.hrpagamento::text AS hrpagamento,
         compra.cpf,
@@ -1149,6 +1186,8 @@ function mapPainelPurchaseVoucherListItem(
     usedDate: formatDateLabel(row.dtuso),
     usedTime: row.hruso ? String(row.hruso).slice(0, 8) : null,
     purchaseTypeLabel: formatPurchaseTypeLabel(row.tpcompra),
+    origin: row.origem_checkout ?? null,
+    originLabel: formatPurchaseOriginLabel(row.origem_checkout),
   };
 }
 
@@ -1184,6 +1223,7 @@ export async function listPainelPurchaseVouchers(input: {
           voucher.identificacao,
           c.tpcompra,
           c.stcompra,
+          c.origem_checkout,
           voucher.vlunicompra::text AS vlunicompra,
           voucher.stusado,
           voucher.dtuso::text AS dtuso,
