@@ -4,6 +4,6 @@ import { requirePainelAccess } from "@/lib/painel-session";
 export const dynamic = "force-dynamic";
 
 export default async function EnfermariaPage() {
-  await requirePainelAccess("vis_enfermaria", "/painel/enfermaria");
-  return <EnfermariaDashboard />;
+  const session = await requirePainelAccess("vis_enfermaria", "/painel/enfermaria");
+  return <EnfermariaDashboard canManage={session.legacyRoleId === 1} />;
 }

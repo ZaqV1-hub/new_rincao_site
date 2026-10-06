@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import styles from "./enfermaria-visual.module.css";
 
 type Client = { id: number; name: string; address: string; hasTripToday: boolean };
 type Trip = { id: number; date: string; status: string };
@@ -75,7 +76,7 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
   const buttonClass = "rounded-lg bg-[#176b96] px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
-    <div className="mx-auto grid w-full max-w-5xl gap-6">
+    <div className={`${styles.page} ${styles.workflowPage} grid w-full gap-6 pb-7`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><p className="text-sm text-slate-500">Enfermaria / Novo atendimento</p><h1 className="mt-1 text-3xl font-semibold text-[#194d6b]">Novo atendimento</h1></div>
         <Link className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700" href="/painel/enfermaria">Voltar ao painel</Link>
@@ -84,9 +85,13 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
         {!registerNoAccount ? <>
           <h2 className="text-xl font-semibold text-slate-800">A quem fica vinculado?</h2>
           <p className="mt-2 text-sm text-slate-600">Procure o cadastro primeiro. Se não encontrar, você pode registrar sem cadastro.</p>
-          <div className="mt-5 flex gap-2">
-            <button onClick={() => { setKind("cliente"); setSearched(false); setClients([]); setSelectedClient(null); }} className={`rounded-full px-4 py-2 text-sm ${kind === "cliente" ? "bg-[#176b96] text-white" : "bg-slate-100 text-slate-700"}`}>Cliente</button>
-            <button onClick={() => { setKind("day_use"); setSearched(false); setPurchases([]); setSelectedPurchase(null); }} className={`rounded-full px-4 py-2 text-sm ${kind === "day_use" ? "bg-[#176b96] text-white" : "bg-slate-100 text-slate-700"}`}>Day use</button>
+          <div className={styles.choices}>
+            <button onClick={() => { setKind("cliente"); setSearched(false); setClients([]); setSelectedClient(null); }} className={`${styles.choice} ${kind === "cliente" ? styles.choiceActive : ""}`} aria-pressed={kind === "cliente"}>
+              <span className={styles.choiceTitle}>Cliente</span><span className={styles.choiceDescription}>Escola, grupo ou empresa com cadastro no painel.</span>
+            </button>
+            <button onClick={() => { setKind("day_use"); setSearched(false); setPurchases([]); setSelectedPurchase(null); }} className={`${styles.choice} ${kind === "day_use" ? styles.choiceActive : ""}`} aria-pressed={kind === "day_use"}>
+              <span className={styles.choiceTitle}>Day use</span><span className={styles.choiceDescription}>Localize a compra pelo CPF de quem comprou os ingressos.</span>
+            </button>
           </div>
           {kind === "cliente" ? <>
             <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="client-search">Buscar cliente</label>
