@@ -1,0 +1,434 @@
+{
+  "schema_version": "hml_capacity_recovery_evidence_v1",
+  "status": "CAPACITY_RECOVERED",
+  "cause": "Insufficient free disk, not an observed build RAM failure",
+  "failed_workflow": {
+    "repository": "felipebertoliniteach/lumi-sparkmandrill-v2",
+    "run_id": 37506134096,
+    "head_sha": "4b921fce02634a3d84507455fc02b423c009f74f",
+    "error": "free disk 23.92 GiB < 25.00 GiB",
+    "build_and_switch": "SKIPPED"
+  },
+  "before": {
+    "generated_at": "2026-10-06T18:25:26.322Z",
+    "free_disk_gib": 23.86,
+    "free_memory_gib": 3.251,
+    "manifests": [
+      {
+        "environment": "hml",
+        "git_sha": "baee0da7ee1d192311d74b2ce77e640ee698fffe",
+        "release_id": "280-baee0da7ee1d192311d74b2ce77e640ee698fffe",
+        "manifest_sha256": "4d01040ce5e12e34649b83bc72295d31f7106ba260578588b31f31e7ed43a668"
+      },
+      {
+        "environment": "prod",
+        "git_sha": "63a54ea86d3fd00ade0a11db27ed99a3f1b8e839",
+        "release_id": "243-63a54ea86d3fd00ade0a11db27ed99a3f1b8e839",
+        "manifest_sha256": "e35c03eceee532e4ec94e0413de3e023466e59eee7d5487d819d9294227430c3"
+      }
+    ],
+    "pointers": [
+      {
+        "environment": "hml",
+        "current_sha": "a7350c8f6233ae406dadf89edf0abb0f70b0f878",
+        "pointer_sha256": "e5fe093f77ecb958eed1bdf941b4ff1bb51b7c3536dfdba39de1e93c44d7d443"
+      },
+      {
+        "environment": "prod",
+        "current_sha": "8a4be0f51f9bd1e7f062b038fb3674927ba05a2b",
+        "pointer_sha256": "d18cf0cdfffbd3e11addb8158f75fa8adf521cb8eb8955f8c9e9fef028acd3f5"
+      }
+    ],
+    "health": [
+      {
+        "name": "site_hml",
+        "status": "unavailable"
+      },
+      {
+        "name": "lumi_hml",
+        "http_status": 200
+      }
+    ]
+  },
+  "site_hml_health_retry": {
+    "http_status": 200,
+    "note": "Snapshot initial request timed out; subsequent read-only request and pre-apply health check returned 200."
+  },
+  "reviewed_module_sha256": "3b3d4ac0c10c2f9d495eac1079d9558e4b7eb62013dbe51666ee7f81583ed684",
+  "plan_sha256": "2a2bcaa83daab8284a5f672a6f09b2143e96834d27b3ddc51ac13834edbb8bdd",
+  "plan": {
+    "schema_version": "hml_release_retention_v1",
+    "deployment_root": "C:\\Deploy\\Rincao\\hml",
+    "repo_root": "C:\\Deploy\\Rincao\\hml\\repo",
+    "keep_releases": 4,
+    "explicit_protected_releases": [
+      "61d0ed176f098edca6f9e6e98fb199bb5a524fde"
+    ],
+    "current": {
+      "release": "a7350c8f6233ae406dadf89edf0abb0f70b0f878",
+      "hash": "e5fe093f77ecb958eed1bdf941b4ff1bb51b7c3536dfdba39de1e93c44d7d443"
+    },
+    "previous": null,
+    "protected_releases": [
+      "5315289f98d54e5d689be3b8d76d64edec2d315a",
+      "575228207c4f1b861721f97fdff2e8d26d0fcf54",
+      "61d0ed176f098edca6f9e6e98fb199bb5a524fde",
+      "a7350c8f6233ae406dadf89edf0abb0f70b0f878"
+    ],
+    "removable": [
+      {
+        "id": "0614fecc991d8e15ee216f0c456750c59e638d44",
+        "verified": true,
+        "fingerprint": "fd111f1c2b22c9a961f6fff6ba80d183a86e5929835a113a47894b6ae0ce7c90"
+      },
+      {
+        "id": "07fb2fbcd317f5b92d7639085ac96ed57eeabee5",
+        "verified": true,
+        "fingerprint": "faf2880b39bc631026ec167644717cc16bc050ae255c5e86c89eaab30fe36e8a"
+      },
+      {
+        "id": "0d149549845affc083c3831cd05dc7e08b4a3bb5",
+        "verified": true,
+        "fingerprint": "e1ec3f75827b42b225e897e745ab7ebeb32c6d676867d0b20ea23ea5f47282ac"
+      },
+      {
+        "id": "0d96d3d4d6a8ec420b53f1e474e5365f56649489",
+        "verified": true,
+        "fingerprint": "8642700ef3ef2c775ca82ab1c297131e174d639602792a49bdc8a38f38601ec3"
+      },
+      {
+        "id": "0ec4e6c12198e20b8809bceedef1cdac2661046c",
+        "verified": true,
+        "fingerprint": "9cd49285a9a1538291bef065215045e9cb151e80ea2f582cc0328d213dfdf599"
+      },
+      {
+        "id": "11c5c74a4e00a3152fd82068b2d7d7a871338c8b",
+        "verified": true,
+        "fingerprint": "7b67947c9ac493778042119079a5f258c7e88a6f8f113e0f65280c406def9ccc"
+      },
+      {
+        "id": "1701c757966393d492757a4b1240bf0335884abb",
+        "verified": true,
+        "fingerprint": "805e9263e1a490f588bf37eb2cd7982f9ee01e7ae484dbf76d94717f75700f3b"
+      },
+      {
+        "id": "1ffaf38928b5c8b0698fd8a332ffe052817d6d3d",
+        "verified": true,
+        "fingerprint": "de375e2460ac83ce386d3ab8d0413448929079f3b1eeef589ec726290aedb8b8"
+      },
+      {
+        "id": "3084378a42cbc9448f074752436531763fc54464",
+        "verified": true,
+        "fingerprint": "ee2a3a001997cf68a0c177024880bf35d60a0bf08c9c506da91bd91bc6845216"
+      },
+      {
+        "id": "351003d5a501e11a7247e5ee2a10dc9600eaf636",
+        "verified": true,
+        "fingerprint": "0c3cbd19f797f0fd876c33217a5727650a72e1368ded90415649440435930f0a"
+      },
+      {
+        "id": "357bdda02be8aff2979bbfd12c79fa50e9a9e65d",
+        "verified": true,
+        "fingerprint": "8c1a3262fda081f7ffb07d1d1c44bc7891968f4612973f1c320cdca66f8f68c4"
+      },
+      {
+        "id": "420d4d6af731cd8df3993b661d6a4503b52376bf",
+        "verified": true,
+        "fingerprint": "06afef53cb3fd4997dfaf6b42a5ff4fa9443f44f6c698ca6933f92ebc4a1d00d"
+      },
+      {
+        "id": "4763d2a2b3e395e46f938cdbefca7ed4f3b4c716",
+        "verified": true,
+        "fingerprint": "c12f6a40d1ef1aba17513573956c064137fcd35543d6a3b4c68c61924eae38fe"
+      },
+      {
+        "id": "4860c6cf690fa850d40c15036f6df552f52d11de",
+        "verified": true,
+        "fingerprint": "3565ea95bd1097c32ef36a29b1e4582e55af130dfee926301a69e242faa3e83f"
+      },
+      {
+        "id": "509fde8b3cb13b605cedaaa33201bfcda06f82ae",
+        "verified": true,
+        "fingerprint": "cf4996a121362199d59bf36a66b983ec0919cb1d48389dae07314c02cb3ee519"
+      },
+      {
+        "id": "51366286b8cc733e37f4d0d5b6df0a72bec8966f",
+        "verified": true,
+        "fingerprint": "1d9444a7021e5b8fa42a3495c3457a6ce17ccc7e3a301a8be51438b78658e14a"
+      },
+      {
+        "id": "58e6dca01e636027819440ba5f00d4e6075369b7",
+        "verified": true,
+        "fingerprint": "ddeb0055f91ff17784170549f7622651d84763fa945f26575f790decaf63f1d8"
+      },
+      {
+        "id": "637515821954be86d93515282136c8597850e5fc",
+        "verified": true,
+        "fingerprint": "a03f59ac34ce08c199eefa45053e59be9a9630c4cfdec24daac7e222e54b2a6c"
+      },
+      {
+        "id": "6e041e2b8c0e6071bc78b8cf64c9cb578528ce84",
+        "verified": true,
+        "fingerprint": "ea6d367705143db946744f6b63162464d668dabadc59010f68b8caac084c9b63"
+      },
+      {
+        "id": "7019bbcc513eb73e32a16d7d7764329bade889b5",
+        "verified": true,
+        "fingerprint": "5d6f692c0f9016fd35dd8b4434b11073a5085f81dc8b731f5b86dad266eb4c2a"
+      },
+      {
+        "id": "74cf24911f09e8f5c8fa15a7eeff45005876da60",
+        "verified": true,
+        "fingerprint": "374aa279f38f50eb92cc80d15894256f4672c9d7827b9e2d3c4e03a93897f1f4"
+      },
+      {
+        "id": "831a7618f976154b322a5590ae75bd955a981646",
+        "verified": true,
+        "fingerprint": "c58585213446e16c778be18cc6ceb2a174cde98f578e520ea8e2b349ca68270a"
+      },
+      {
+        "id": "898e358fc025f0d99b829f67a0aaf5258828823d",
+        "verified": true,
+        "fingerprint": "ea94d5eb40ca102c7a8d127f6e32326ff783cad12817a821a6fa3c55dbd5ed2b"
+      },
+      {
+        "id": "8af7b53cd6e352c82b2abc8b3e6f1d28d859aa51",
+        "verified": true,
+        "fingerprint": "5237909cc08458f267123db932e946b8c37424a21adbb24c53dc48daaf2c82b8"
+      },
+      {
+        "id": "953d4003ec16aa93dd7956866b6a036fa68ab141",
+        "verified": true,
+        "fingerprint": "b03b6520fa9a148bc57bd6662cd9a1d95aef5f57c7c96d50018a39b623c283c3"
+      },
+      {
+        "id": "99e154bb80d3da4208a628a7777251866455d60f",
+        "verified": true,
+        "fingerprint": "fffb4252102dda94320ff8387c6ac38ba07204f14342b713fe63202a1f399a50"
+      },
+      {
+        "id": "9cd85dbddd1d4d6f1a4efeed78892a4aba42b9d4",
+        "verified": true,
+        "fingerprint": "c605508169d11d35a5465d644897624d8b5d99978d507737853afaf91b3179f3"
+      },
+      {
+        "id": "a0eddeb0800df8e64458080c8defa244cf4c04b5",
+        "verified": true,
+        "fingerprint": "929cdae061cf24a416cccc3f3b72f9879df3473a912b9d15a66a4f721de153d8"
+      },
+      {
+        "id": "a18cfe79b06a5656774f18316a04a2523b00212b",
+        "verified": true,
+        "fingerprint": "0da3b5e71c771f65944921f120504119618889b93979a4bcfe288db6e7ea2230"
+      },
+      {
+        "id": "a1f337a8dc5cbdcb208a138d4428436545f5c2d5",
+        "verified": true,
+        "fingerprint": "e53cf71a4593ed00d1c90bf0f195ba2f3498a28913f2288a26abaceac04824ae"
+      },
+      {
+        "id": "b0195a903ddde8999e4f18977d0a650fbc6363e8",
+        "verified": true,
+        "fingerprint": "d474577536f82b58649e570c588d97bc42f0ed54ed8e1167a46b81ab68af26ee"
+      },
+      {
+        "id": "b12a80c1c74c3a697a550431ca45912f563211f3",
+        "verified": true,
+        "fingerprint": "2e236bb2ea36768843a50def455499e312fea391aff9936bfd9aaf2ee5e14eb7"
+      },
+      {
+        "id": "bbc074034a01801efe89b346262dfaf7d28b36b5",
+        "verified": true,
+        "fingerprint": "e6a032b9192aa1f562f43821dfe8931af4eedf00b5d79a8b66ac9b9693ed3702"
+      },
+      {
+        "id": "bf49e87711118b9e9656168ea017fc8f80a7f1bc",
+        "verified": true,
+        "fingerprint": "820853574d61b2a08e654c6b1093de763d5ef1728dc83eef410c393b0ba453f3"
+      },
+      {
+        "id": "d177b89f2ef612fc75bb0ea86cea786dc97f64bb",
+        "verified": true,
+        "fingerprint": "e523d6289be8b0cbd95dddd14fc5ab33bc0103aedeea04c88a59b4f26e129e8b"
+      },
+      {
+        "id": "d4806eb007aca98ad185b73ccf5e22ca92f3bb6f",
+        "verified": true,
+        "fingerprint": "04a9e5d87964415fbbcdb32eb35e7052ef2de3232411e646645d26cf2f64aa23"
+      },
+      {
+        "id": "d4b940d3982a0cc22b982889a698e9becd37ae54",
+        "verified": true,
+        "fingerprint": "f65a5430b31f19e5eed0d687dd87b2fb9c828e639b115ea9c9015be0e8dcc530"
+      },
+      {
+        "id": "d7c4fe53d1f26e2ed4372787df2ea82b400c74b6",
+        "verified": true,
+        "fingerprint": "7bfc104b9f146d8523594aea7bca329360e4cfd55349d06d9fa5ffcbf56dd2ce"
+      },
+      {
+        "id": "e02c3ee8940f40d0d6b56ecf36607bb3494e375b",
+        "verified": true,
+        "fingerprint": "4509109122ddf10f5ca46e3fbab0329159fa95751a8488486cef1e266ac29942"
+      },
+      {
+        "id": "e06419d530a693caa1ea99d0e555a79fa65b6dba",
+        "verified": true,
+        "fingerprint": "e7ad5f1f02c4fbd89f30de69c0d32212f2e3062ba0bf876ef0b432c3ebd89076"
+      },
+      {
+        "id": "e1df8f63474a69d6bfe34b1323941c9bdff90b93",
+        "verified": true,
+        "fingerprint": "43d1eb62fdaf4bfcaf38e3e6cd4c37b8346b410b19bdff4176aa951cd019ba2f"
+      },
+      {
+        "id": "e6ef4d13d439d47c74203014410e0f1bf28ee609",
+        "verified": true,
+        "fingerprint": "d25107c99239c334b60e2dd336d3187c8edfcb81f9528699812130be4e6522ae"
+      },
+      {
+        "id": "e81d48289a759fee60ddf4d8e1da1225ced94f8d",
+        "verified": true,
+        "fingerprint": "5925bbeb53b13fbd6b189e5e19373aba630858eced93bd49d8be413982fa1309"
+      },
+      {
+        "id": "e82978babfe990f024fdc06796b23ad364b35c9b",
+        "verified": true,
+        "fingerprint": "0ff30d0b541056b48110a91496fa004a5f17ca3c2286ec7a8f48657063a6196c"
+      },
+      {
+        "id": "ec520410f186265c90d9a467dee74a38287284f1",
+        "verified": true,
+        "fingerprint": "bd39dc4a588de77ff7a7e1a11b88929f236bf93b2cc873b210b520bc5b9e64a2"
+      },
+      {
+        "id": "faf9667deb8b36c19089c6f2651e745a235334df",
+        "verified": true,
+        "fingerprint": "200f6ae0058dabdf8a8f419dac7fee05a5c7c1a061b2b4c2f00e0cea7a3d04ad"
+      }
+    ],
+    "preserved_unknown": [
+      {
+        "id": "756ba48",
+        "verified": false,
+        "reason": "non_commit_release_preserved"
+      },
+      {
+        "id": "78949ee-cielo-card-fix-20260921",
+        "verified": false,
+        "reason": "non_commit_release_preserved"
+      },
+      {
+        "id": "f47bc74-404-return-20260921",
+        "verified": false,
+        "reason": "non_commit_release_preserved"
+      },
+      {
+        "id": "legacy-20260921-143632",
+        "verified": false,
+        "reason": "non_commit_release_preserved"
+      }
+    ]
+  },
+  "tests": {
+    "local_node": "10/10 PASS",
+    "vm_node_20_19_5": "10/10 PASS",
+    "powershell_parser": "PASS",
+    "baseline_typescript": "Five pre-existing test typing errors; no TypeScript code modified"
+  },
+  "evolution_eligibility": {
+    "type": "deployment_capacity_failure_recovery",
+    "eligible": true,
+    "redacted": true,
+    "publication": "traceable artifact recorded; not claimed as ingested runtime signal"
+  },
+  "financial_operations": false,
+  "live_apply_result": "PASS",
+  "after": {
+    "generated_at": "2026-10-06T18:36:56.449Z",
+    "receipt": {
+      "schema_version": "hml_release_retention_receipt_v1",
+      "plan_sha256": "2a2bcaa83daab8284a5f672a6f09b2143e96834d27b3ddc51ac13834edbb8bdd",
+      "status": "applied",
+      "removed": [
+        "0614fecc991d8e15ee216f0c456750c59e638d44",
+        "07fb2fbcd317f5b92d7639085ac96ed57eeabee5",
+        "0d149549845affc083c3831cd05dc7e08b4a3bb5",
+        "0d96d3d4d6a8ec420b53f1e474e5365f56649489",
+        "0ec4e6c12198e20b8809bceedef1cdac2661046c",
+        "11c5c74a4e00a3152fd82068b2d7d7a871338c8b",
+        "1701c757966393d492757a4b1240bf0335884abb",
+        "1ffaf38928b5c8b0698fd8a332ffe052817d6d3d",
+        "3084378a42cbc9448f074752436531763fc54464",
+        "351003d5a501e11a7247e5ee2a10dc9600eaf636",
+        "357bdda02be8aff2979bbfd12c79fa50e9a9e65d",
+        "420d4d6af731cd8df3993b661d6a4503b52376bf",
+        "4763d2a2b3e395e46f938cdbefca7ed4f3b4c716",
+        "4860c6cf690fa850d40c15036f6df552f52d11de",
+        "509fde8b3cb13b605cedaaa33201bfcda06f82ae",
+        "51366286b8cc733e37f4d0d5b6df0a72bec8966f",
+        "58e6dca01e636027819440ba5f00d4e6075369b7",
+        "637515821954be86d93515282136c8597850e5fc",
+        "6e041e2b8c0e6071bc78b8cf64c9cb578528ce84",
+        "7019bbcc513eb73e32a16d7d7764329bade889b5",
+        "74cf24911f09e8f5c8fa15a7eeff45005876da60",
+        "831a7618f976154b322a5590ae75bd955a981646",
+        "898e358fc025f0d99b829f67a0aaf5258828823d",
+        "8af7b53cd6e352c82b2abc8b3e6f1d28d859aa51",
+        "953d4003ec16aa93dd7956866b6a036fa68ab141",
+        "99e154bb80d3da4208a628a7777251866455d60f",
+        "9cd85dbddd1d4d6f1a4efeed78892a4aba42b9d4",
+        "a0eddeb0800df8e64458080c8defa244cf4c04b5",
+        "a18cfe79b06a5656774f18316a04a2523b00212b",
+        "a1f337a8dc5cbdcb208a138d4428436545f5c2d5",
+        "b0195a903ddde8999e4f18977d0a650fbc6363e8",
+        "b12a80c1c74c3a697a550431ca45912f563211f3",
+        "bbc074034a01801efe89b346262dfaf7d28b36b5",
+        "bf49e87711118b9e9656168ea017fc8f80a7f1bc",
+        "d177b89f2ef612fc75bb0ea86cea786dc97f64bb",
+        "d4806eb007aca98ad185b73ccf5e22ca92f3bb6f",
+        "d4b940d3982a0cc22b982889a698e9becd37ae54",
+        "d7c4fe53d1f26e2ed4372787df2ea82b400c74b6",
+        "e02c3ee8940f40d0d6b56ecf36607bb3494e375b",
+        "e06419d530a693caa1ea99d0e555a79fa65b6dba",
+        "e1df8f63474a69d6bfe34b1323941c9bdff90b93",
+        "e6ef4d13d439d47c74203014410e0f1bf28ee609",
+        "e81d48289a759fee60ddf4d8e1da1225ced94f8d",
+        "e82978babfe990f024fdc06796b23ad364b35c9b",
+        "ec520410f186265c90d9a467dee74a38287284f1",
+        "faf9667deb8b36c19089c6f2651e745a235334df"
+      ],
+      "protected_releases": [
+        "5315289f98d54e5d689be3b8d76d64edec2d315a",
+        "575228207c4f1b861721f97fdff2e8d26d0fcf54",
+        "61d0ed176f098edca6f9e6e98fb199bb5a524fde",
+        "a7350c8f6233ae406dadf89edf0abb0f70b0f878"
+      ],
+      "free_bytes_before": 25613856768,
+      "generated_at": "2026-10-06T18:28:32.058Z",
+      "free_bytes_after": 30564769792
+    },
+    "unchanged": {
+      "lumi_manifests": true,
+      "site_pointers": true
+    },
+    "protected_release_files_present": true,
+    "health": [
+      {
+        "name": "site_hml",
+        "http_status": 200
+      },
+      {
+        "name": "lumi_hml",
+        "http_status": 200
+      }
+    ],
+    "free_disk_gib": 28.463,
+    "free_memory_gib": 5.167,
+    "capacity_gate": {
+      "status": "PASS",
+      "stdout": "{\"root\":\"C:\\\\Lumi\",\"free_memory_gib\":5.14,\"free_disk_gib\":28.46}"
+    }
+  },
+  "automatic_deploy_retention": "NOT_TESTED"
+}
