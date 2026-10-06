@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
   SchoolContractActor,
@@ -39,10 +39,7 @@ function formatCurrencyInput(value: string) {
   }).format(Number(digits) / 100);
 }
 
-export function SchoolContractCreatePage({
-  options,
-  actor: _actor,
-}: SchoolContractCreatePageProps) {
+export function SchoolContractCreatePage({ options }: SchoolContractCreatePageProps) {
   const router = useRouter();
   const [schoolId, setSchoolId] = useState("");
   const [schoolSearch, setSchoolSearch] = useState("");
@@ -60,10 +57,12 @@ export function SchoolContractCreatePage({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedSchoolName = useMemo(
-    () => options.schools.find((school) => String(school.id) === schoolId)?.name ?? "",
+  const selectedSchool = useMemo(
+    () => options.schools.find((school) => String(school.id) === schoolId),
     [options.schools, schoolId],
   );
+  const selectedSchoolName = selectedSchool?.name ?? "";
+  const currentSchoolAddress = isNewSchool ? schoolAddress : selectedSchool?.address ?? "";
 
   const filteredSchools = useMemo(() => {
     const query = schoolSearch.trim().toLowerCase();
@@ -76,22 +75,6 @@ export function SchoolContractCreatePage({
       .filter((school) => school.name.toLowerCase().includes(query))
       .slice(0, 20);
   }, [options.schools, schoolSearch]);
-
-  useEffect(() => {
-    if (selectedSchoolName && !isNewSchool) {
-      setSchoolSearch(selectedSchoolName);
-    }
-  }, [isNewSchool, selectedSchoolName]);
-
-  useEffect(() => {
-    if (isNewSchool) {
-      setSchoolAddress("");
-      return;
-    }
-
-    const selectedSchool = options.schools.find((school) => String(school.id) === schoolId);
-    setSchoolAddress(selectedSchool?.address ?? "");
-  }, [isNewSchool, options.schools, schoolId]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,7 +92,7 @@ export function SchoolContractCreatePage({
         body: JSON.stringify({
           schoolId: isNewSchool ? null : schoolId,
           newSchoolName: isNewSchool ? newSchoolName : "",
-          schoolAddress,
+          schoolAddress: currentSchoolAddress,
           visitDate,
           negotiatedValue,
           observation,
@@ -199,7 +182,7 @@ export function SchoolContractCreatePage({
                       }
                     }}
                     placeholder="Digite para buscar a escola"
-                    value={isNewSchool ? "" : schoolSearch}
+                    value={isNewSchool ? "" : selectedSchoolName || schoolSearch}
                   />
 
                   {!isNewSchool && isSchoolListOpen ? (
@@ -275,7 +258,7 @@ export function SchoolContractCreatePage({
                   }}
                   placeholder={isNewSchool ? "Digite o endereço da escola" : ""}
                   readOnly={!isNewSchool}
-                  value={schoolAddress}
+                  value={currentSchoolAddress}
                 />
               </label>
 
