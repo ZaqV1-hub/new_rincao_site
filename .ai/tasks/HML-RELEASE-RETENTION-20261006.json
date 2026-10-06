@@ -76,8 +76,8 @@
     },
     {
       "scope": "live retention application",
-      "result": "NOT_TESTED",
-      "evidence": "Verified inventory in progress. No live release removed yet; deploy rerun depends on an applied receipt, health confirmation and unchanged Lumi capacity gate passing."
+      "result": "PASS",
+      "evidence": "ops/hml-capacity-recovery-20261006/evidence.json: reviewed plan 2a2bcaa83daab8284a5f672a6f09b2143e96834d27b3ddc51ac13834edbb8bdd applied, 46 verified old HML releases removed, 4 latest and 4 legacy directories preserved; runtime identities and production pointers unchanged, HML site/Lumi HTTP 200; original Lumi gate PASS at 28.46 GiB disk/5.14 GiB RAM."
     }
   ],
   "schema_or_migration_impact": "None. Only reconstructible deployment artifacts; environment and persistent app data live outside releases.",
