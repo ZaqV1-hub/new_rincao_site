@@ -61,6 +61,7 @@ const INTERNAL_USER_ROLE_CATALOG = [
   { id: 2, name: "Funcionario" },
   { id: 3, name: "Bilheteria" },
   { id: 4, name: "Representante" },
+  { id: 5, name: "Enfermeiro(a)" },
 ] as const;
 
 export type OpsAdminMasterDataIdentifier = number | string;
@@ -272,7 +273,7 @@ const resourceConfigs: Record<OpsAdminMasterDataResource, AdminResourceConfig> =
         column: "idpapel",
         type: "integer",
         required: true,
-        allowedIntegers: [1, 2, 3, 4],
+        allowedIntegers: [1, 2, 3, 4, 5],
       },
       { name: "status", column: "stusuario", type: "status", allowed: ["ati", "ina"] },
     ],

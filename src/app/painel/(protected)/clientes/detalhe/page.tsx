@@ -27,5 +27,5 @@ export default async function PainelClientesDetalhePage({
     redirect("/painel/clientes");
   }
 
-  return <PainelClienteDetailPage canDeleteObservations={session.legacyRoleId === 1} clientId={clientId} />;
+  return <PainelClienteDetailPage canDeleteObservations={session.legacyRoleId === 1} canViewEnfermaria={session.legacyRoleId === 1} clientId={clientId} />;
 }

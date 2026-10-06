@@ -18,6 +18,7 @@ const roleOptions = [
   { value: "3", label: "Bilheteria" },
   { value: "2", label: "Funcionário" },
   { value: "4", label: "Representante" },
+  { value: "5", label: "Enfermeiro(a)" },
 ];
 
 export function PainelUsuarioFormPage({
@@ -333,4 +334,3 @@ export function PainelUsuarioFormPage({
     </div>
   );
 }
-

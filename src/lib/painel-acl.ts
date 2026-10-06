@@ -13,6 +13,10 @@ type AclRow = {
 export async function listLegacyPanelResourcesForRole(
   roleId: LegacyPanelRoleId,
 ) {
+  if (roleId === 5) {
+    return getLegacyPanelResources(roleId);
+  }
+
   const pool = getIngressoSistemaDbPool();
   const result = await pool.query<AclRow>(
     `
