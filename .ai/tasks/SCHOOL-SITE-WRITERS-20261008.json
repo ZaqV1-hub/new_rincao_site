@@ -1,0 +1,61 @@
+{
+  "schema_version": "ai_task_contract_v1",
+  "task_id": "SCHOOL-SITE-WRITERS-20261008",
+  "title": "Revis\u00e3o escolar \u00fanica entre site e Lumi com reten\u00e7\u00e3o operacional",
+  "owner": "Codex single-agent; owner fez pedido expl\u00edcito fa\u00e7a",
+  "created_at": "2026-10-08",
+  "base_branch": "origin/develop",
+  "base_sha": "86f5bb88e6b2018cd15b309dd9bc18fb66e61f03",
+  "production_reference": {
+    "branch": "main",
+    "sha": "4c728f2ed8399961a7a9a731abb286929a7188fd"
+  },
+  "target_branch": "develop",
+  "paths_owned": [
+    ".ai/tasks/SCHOOL-SITE-WRITERS-20261008.json",
+    "ops/hml-ecommerce-spec-review-20261006/BACKLOG-SCHOOL-SITE-WRITERS-20261008.md",
+    "src/lib/school-*",
+    "src/lib/payment-reconciliation*",
+    "src/lib/ticket-service.ts",
+    "src/lib/ticket-purchase-eligibility.ts",
+    "src/lib/ops-voucher-validation*",
+    "src/app/api/painel/compras/[purchaseId]/school-review/*",
+    "src/app/api/escola/purchases/route.ts",
+    "src/components/painel/school-payment-review.tsx"
+  ],
+  "shared_paths": [
+    "src/lib/payment-reconciliation.ts",
+    "src/lib/ticket-service.ts",
+    "src/lib/ops-voucher-validation.ts"
+  ],
+  "forbidden_paths": [
+    "**/*.env*"
+  ],
+  "capabilities_to_preserve": [
+    "Lumi school one-use review, accounting and durable delivery",
+    "Site pending vouchers and original provider financial payload; site origin",
+    "Exact equality only; LLM authority and canonical Human Gate; no automatic refunds"
+  ],
+  "planned_replacements": [
+    "Extract hold persistence/review lock contract so site and Lumi obey one documented identity contract; additive recovery payload for site without overwriting provider payload."
+  ],
+  "planned_removals": [],
+  "depends_on_prs": [
+    "https://github.com/juansouza09/rincao-dados/pull/19"
+  ],
+  "overlap_acknowledgements": [],
+  "required_tests": [
+    "Focused tenant tests/build; site typecheck and related tests",
+    "Two isolated PostgreSQL and actual HTTP/HMAC quote/review; independent site and tenant payment writers race",
+    "Accounting stays durable, holds prevent use/send, decision releases once, replay/conflicts and operator permissions/audit"
+  ],
+  "schema_or_migration_impact": "Additive site school snapshot column, recovery source/payload and operational-event metadata on existing hold tables. Existing merged schema unchanged semantically, no deletion/backfill or production mutation. HML activation only after both consumers are compatible.",
+  "destructive_change": false,
+  "status": "IN_PROGRESS",
+  "target_reconciliation": {
+    "checked_at": "2026-10-08",
+    "target_sha": "86f5bb88e6b2018cd15b309dd9bc18fb66e61f03",
+    "evidence": "Fetched origin/develop before branching; five pre-existing typecheck errors recorded. No source edits at preflight."
+  },
+  "branch": "codex/school-site-writers-20261008"
+}
