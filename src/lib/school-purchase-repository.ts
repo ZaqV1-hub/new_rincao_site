@@ -1,7 +1,7 @@
+import { formatDateLabel, parseSchoolValueInput, normalizeMoney } from "@/lib/school-purchase-values";
 import { encodeLegacyId } from "@/lib/agenda-id";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
-  buildSchoolClassDisplay,
   getSchoolEducationStructure,
   isSchoolClassLetterAllowed,
   isSchoolEducationSelectionAllowed,
@@ -11,7 +11,6 @@ import {
   type SchoolEducationStructure,
 } from "@/lib/school-education";
 import { ensureSchoolTypeColumn, normalizeStoredSchoolType } from "@/lib/school-profile";
-import { generateUniqueVoucherNumber } from "@/lib/voucher-number";
 
 type SchoolRow = {
   id: number;
@@ -57,72 +56,11 @@ export type SchoolPurchasePreset = {
   agendaLabel: string;
 };
 
-export type CreateStudentPurchaseInput = {
-  participantType?: "student";
-  schoolId: number;
-  studentName: string;
-  educationType: string;
-  educationYear: string;
-  classLetter: string;
-  agendaId: number;
-  value: string;
-};
-
-export type CreateEducatorPurchaseInput = {
-  participantType: "educator";
-  schoolId: number;
-  educatorName: string;
-  educatorRole: string;
-  agendaId: number;
-  value: string;
-};
-
-export type CreateSchoolPurchaseInput =
-  | CreateStudentPurchaseInput
-  | CreateEducatorPurchaseInput;
-
-export class SchoolPurchaseError extends Error {
-  code: string;
-  status: number;
-
-  constructor(code: string, message: string, status: number) {
-    super(message);
-    this.name = "SchoolPurchaseError";
-    this.code = code;
-    this.status = status;
-  }
-}
-
-function formatDateLabel(date: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(`${date}T12:00:00`));
-}
-
-function parseSchoolValueInput(raw: string) {
-  const trimmed = raw.trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
-  const normalized = trimmed.includes(",")
-    ? trimmed.replace(/\./g, "").replace(",", ".")
-    : trimmed;
-  const numeric = Number(normalized);
-
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return null;
-  }
-
-  return numeric;
-}
-
-function normalizeMoney(value: number) {
-  return value.toFixed(2);
-}
+export { SchoolPurchaseError } from "@/lib/school-purchase-input";
+export type { CreateSchoolPurchaseInput } from "@/lib/school-purchase-input";
+import { SchoolPurchaseError, type CreateSchoolPurchaseInput } from "@/lib/school-purchase-input";
+import { admitSiteSchoolPurchase, bindSiteSchoolPurchase } from "@/lib/school-commerce-admission";
+import { insertSchoolPurchaseVoucher } from "@/lib/school-purchase-voucher";
 
 export async function searchSchoolsByName(term: string) {
   const normalized = term.trim();
@@ -370,7 +308,7 @@ export async function createSchoolPurchase(
   }
 
   if (
-    input.participantType === "student" &&
+    input.participantType !== "educator" &&
     !isSchoolEducationSelectionAllowed(
       normalizeStoredSchoolType(availableTrip.school_type),
       input.educationType,
@@ -390,6 +328,10 @@ export async function createSchoolPurchase(
 
   try {
     await client.query("BEGIN");
+    const schoolAdmission = input.participantType === "educator" ? null : await admitSiteSchoolPurchase(client, cpf,
+      { schoolId: input.schoolId, agendaId: input.agendaId, schoolName: availableTrip.school_name,
+        visitDate: availableTrip.dtagenda, studentName, educationType: educationType!, educationYear: educationYear!,
+        classLetter: classLetter!, amount: parsedValue });
 
     const purchaseResult = await client.query<PurchaseInsertRow>(
       `
@@ -425,107 +367,10 @@ export async function createSchoolPurchase(
       throw new Error("school_purchase_insert_failed");
     }
 
-    const voucherNumber = await generateUniqueVoucherNumber(client, "ESC-");
-
-    if (input.participantType === "educator") {
-      await client.query(
-        `
-          INSERT INTO voucher (
-            idcompra,
-            numvoucher,
-            idagenda,
-            tpvoucher,
-            vlunicompra,
-            stusado,
-            fldesconto,
-            idescola,
-            tpparticipante,
-            nomeeducador,
-            funcaoeducador,
-            dtvalidade
-          )
-          VALUES (
-            $1,
-            $2,
-            $3,
-            'escol',
-            $4,
-            'n',
-            'n',
-            $5,
-            $6,
-            $7,
-            $8,
-            $9::date
-          )
-        `,
-        [
-          purchaseId,
-          voucherNumber,
-          input.agendaId,
-          totalValue,
-          input.schoolId,
-          "educador",
-          educatorName,
-          educatorRole,
-          availableTrip.dtagenda,
-        ],
-      );
-    } else {
-      await client.query(
-        `
-          INSERT INTO voucher (
-            idcompra,
-            numvoucher,
-            idagenda,
-            tpvoucher,
-            vlunicompra,
-            stusado,
-            fldesconto,
-            idescola,
-            tpparticipante,
-            nomealuno,
-            ensino_tipo,
-            ensino_ano,
-            turma_letra,
-            turma,
-            periodo,
-            dtvalidade
-          )
-          VALUES (
-            $1,
-            $2,
-            $3,
-            'escol',
-            $4,
-            'n',
-            'n',
-            $5,
-            'aluno',
-            $6,
-            $7,
-            $8,
-            $9,
-            $10,
-            '',
-            $11::date
-          )
-        `,
-        [
-          purchaseId,
-          voucherNumber,
-          input.agendaId,
-          totalValue,
-          input.schoolId,
-          studentName,
-          educationType!,
-          educationYear!,
-          classLetter!,
-          buildSchoolClassDisplay(educationType!, educationYear!, classLetter!),
-          availableTrip.dtagenda,
-        ],
-      );
-    }
+    await bindSiteSchoolPurchase(client, purchaseId, schoolAdmission);
+    await insertSchoolPurchaseVoucher(client, input, purchaseId, totalValue, availableTrip.dtagenda,
+      { studentName, educationType, educationYear, classLetter, educatorName, educatorRole,
+        classDisplay: schoolAdmission?.quote.school_purchase.class_display });
 
     await client.query("COMMIT");
 

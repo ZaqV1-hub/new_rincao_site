@@ -4,15 +4,10 @@ import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { queuePurchaseConfirmationEmail } from "@/lib/purchase-confirmation-email";
 import { sendPurchaseTicketsWhatsApp } from "@/lib/ticket-service";
 import { mapCheckoutStatusPayload } from "@/lib/checkout-status";
-import {
-  generateVoucherQrcodes,
-  TicketApiError,
-} from "@/lib/ticket-api";
-
-type BilheteriaActor = {
-  name?: string | null;
-  cpf?: string | null;
-};
+import { createPainelBilheteriaPrintServices } from "@/lib/painel-bilheteria-print";
+import { PainelBilheteriaError, type BilheteriaActor, type PurchaseVoucherRow } from "@/lib/painel-bilheteria-print-contract";
+export { PainelBilheteriaError } from "@/lib/painel-bilheteria-print-contract";
+export type { PainelBilheteriaVoucherPrintModel, PainelBilheteriaPurchasePrintModel } from "@/lib/painel-bilheteria-print-contract";
 
 type PurchaseHistoryRow = {
   idcompra: number;
@@ -41,24 +36,6 @@ type PurchaseDetailRow = {
   vltotcompra: string | null;
   dtpagamento: string | null;
   hrpagamento: string | null;
-};
-
-type PurchaseVoucherRow = {
-  idvoucher: number;
-  idcompra?: number | null;
-  idagenda?: number | null;
-  numvoucher: string | null;
-  tpvoucher: string | null;
-  stusado: string | null;
-  dtuso?: string | null;
-  vlunicompra: string | null;
-  desconto_id: number | null;
-  descricao: string | null;
-  agenda_data: string | null;
-  dtvalidade: string | null;
-  cpf?: string | null;
-  tpcompra?: string | null;
-  dtcompra?: string | null;
 };
 
 type PurchasePaymentRow = {
@@ -218,29 +195,6 @@ export type PainelBilheteriaGatewayStatus = {
   message: string;
 };
 
-export type PainelBilheteriaVoucherPrintModel = {
-  purchaseId: number;
-  voucherId: number;
-  voucherCode: string;
-  voucherNumber: string | null;
-  cpf: string | null;
-  type: string | null;
-  typeLabel: string;
-  description: string | null;
-  purchaseLocation: string;
-  purchaseDate: string | null;
-  price: string;
-  tpcompra: string | null;
-  visitDate: string | null;
-  validUntil: string;
-  qrCodeUrl: string | null;
-};
-
-export type PainelBilheteriaPurchasePrintModel = {
-  purchaseId: number;
-  vouchers: PainelBilheteriaVoucherPrintModel[];
-};
-
 export type SendPainelBilheteriaVoucherWhatsappSuccess = {
   purchaseId: number;
   voucherId: number;
@@ -249,18 +203,6 @@ export type SendPainelBilheteriaVoucherWhatsappSuccess = {
   message: string;
   auditLogId: number | null;
 };
-
-export class PainelBilheteriaError extends Error {
-  code: string;
-  status: number;
-
-  constructor(code: string, message: string, status = 400) {
-    super(message);
-    this.name = "PainelBilheteriaError";
-    this.code = code;
-    this.status = status;
-  }
-}
 
 const paymentMethodLabels: Record<string, string> = {
   dinhe: "Dinheiro",
@@ -1074,221 +1016,8 @@ export async function sendPainelBilheteriaVoucherWhatsapp(
   }
 }
 
-export async function getPainelBilheteriaVoucherPrintModel(
-  voucherId: number,
-  actor?: BilheteriaActor | null,
-): Promise<PainelBilheteriaVoucherPrintModel> {
-  if (!Number.isInteger(voucherId) || voucherId <= 0) {
-    throw new PainelBilheteriaError(
-      "invalid_voucher_id",
-      "Voucher invalido.",
-      400,
-    );
-  }
-
-  const pool = getIngressoSistemaDbPool();
-  const client = await pool.connect();
-
-  try {
-    await client.query("BEGIN");
-    const voucherResult = await client.query<PurchaseVoucherRow>(
-      `
-        SELECT
-          voucher.idvoucher,
-          voucher.idcompra,
-          voucher.idagenda,
-          voucher.numvoucher,
-          voucher.tpvoucher,
-          voucher.stusado,
-          voucher.dtuso::text AS dtuso,
-          voucher.vlunicompra::text AS vlunicompra,
-          voucher.desconto_id,
-          voucher.descricao,
-          voucher.dtvalidade::text AS dtvalidade,
-          compra.cpf,
-          compra.tpcompra,
-          compra.dtcompra::text AS dtcompra
-        FROM voucher
-        JOIN compra ON compra.idcompra = voucher.idcompra
-        WHERE voucher.idvoucher = $1
-        LIMIT 1
-        FOR UPDATE
-      `,
-      [voucherId],
-    );
-    const voucher = voucherResult.rows[0] ?? null;
-
-    if (!voucher || !voucher.idcompra) {
-      throw new PainelBilheteriaError(
-        "voucher_not_found",
-        "Voucher nao encontrado.",
-        404,
-      );
-    }
-
-    let agendaDate: string | null = null;
-
-    if (voucher.idagenda && Number(voucher.idagenda) > 0) {
-      const agendaResult = await client.query<{ dtagenda: string | null }>(
-        `
-          SELECT agenda.dtagenda::text AS dtagenda
-          FROM agenda
-          WHERE agenda.idagenda = $1
-          LIMIT 1
-        `,
-        [voucher.idagenda],
-      );
-      agendaDate = agendaResult.rows[0]?.dtagenda ?? null;
-    }
-
-    const validUntil = new Date();
-    validUntil.setDate(validUntil.getDate() + 1);
-    const validUntilText = validUntil.toISOString().slice(0, 10);
-
-    await client.query(
-      `
-        UPDATE voucher
-        SET dtvalidade = $2::date
-        WHERE idvoucher = $1
-      `,
-      [voucherId, validUntilText],
-    );
-
-    await registerOpsAuditLog(
-      client,
-      {
-        origem: "compra",
-        acao: "editar",
-        compraId: voucher.idcompra,
-        descricao: `Impressao operacional do voucher ${voucherId}.`,
-        motivo: "Reemissao de QR individual no painel.",
-        usuarioNome:
-          [String(actor?.name ?? "").trim(), normalizeCpf(actor?.cpf ?? "")]
-            .filter(Boolean)
-            .join(" ") || null,
-        detalhes: {
-          via: "apps/web",
-          voucherId,
-          validUntil: validUntilText,
-        },
-      },
-      "postgres",
-    );
-
-    await client.query("COMMIT");
-
-    const qrCodeMap = await generateVoucherQrcodes([
-      {
-        purchaseId: voucher.idcompra,
-        voucherId,
-        cpf: String(voucher.cpf ?? "").trim(),
-        type: voucher.tpvoucher,
-        purchaseLocation: "Bilheteria",
-        purchaseDate: voucher.dtcompra ? voucher.dtcompra.slice(0, 10) : null,
-        price: Number(voucher.vlunicompra ?? 0),
-        tpcompra: String(voucher.tpcompra ?? "").trim(),
-      },
-    ]).catch((error) => {
-      console.error("painel-bilheteria-print-qrcode-failed", error);
-      return {} as Record<string, string>;
-    });
-    const qrCodeUrl = qrCodeMap[voucherId] ?? null;
-
-    return {
-      purchaseId: voucher.idcompra,
-      voucherId,
-      voucherCode: String(voucher.numvoucher ?? "").trim() || String(voucherId),
-      voucherNumber: voucher.numvoucher,
-      cpf: voucher.cpf ?? null,
-      type: voucher.tpvoucher ?? null,
-      typeLabel: resolveVoucherDisplayLabel(voucher),
-      description: voucher.descricao,
-      purchaseLocation: "Bilheteria",
-      purchaseDate: voucher.dtcompra ? voucher.dtcompra.slice(0, 10) : null,
-      price: formatMoney(voucher.vlunicompra),
-      tpcompra: voucher.tpcompra ?? null,
-      visitDate: agendaDate ? agendaDate.slice(0, 10) : null,
-      validUntil: validUntilText,
-      qrCodeUrl,
-    };
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
-
-    if (error instanceof TicketApiError) {
-      throw new PainelBilheteriaError(
-        "voucher_print_unavailable",
-        error.message,
-        error.status,
-      );
-    }
-
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
-export async function getPainelBilheteriaPurchasePrintModel(
-  purchaseId: number,
-  actor?: BilheteriaActor | null,
-): Promise<PainelBilheteriaPurchasePrintModel> {
-  if (!Number.isInteger(purchaseId) || purchaseId <= 0) {
-    throw new PainelBilheteriaError(
-      "invalid_purchase_id",
-      "Compra invalida.",
-      400,
-    );
-  }
-
-  const pool = getIngressoSistemaDbPool();
-  const purchaseResult = await pool.query<{ idcompra: number }>(
-    `
-      SELECT compra.idcompra
-      FROM compra
-      WHERE compra.idcompra = $1
-        AND compra.tpcompra IN ('bilhe', 'reser', 'ponli')
-      LIMIT 1
-    `,
-    [purchaseId],
-  );
-
-  if (purchaseResult.rowCount === 0) {
-    throw new PainelBilheteriaError(
-      "purchase_not_found",
-      "Compra nao encontrada.",
-      404,
-    );
-  }
-
-  const voucherResult = await pool.query<{ idvoucher: number }>(
-    `
-      SELECT voucher.idvoucher
-      FROM voucher
-      WHERE voucher.idcompra = $1
-      ORDER BY voucher.idvoucher
-    `,
-    [purchaseId],
-  );
-
-  if (voucherResult.rowCount === 0) {
-    throw new PainelBilheteriaError(
-      "voucher_not_found",
-      "Nenhum voucher encontrado para impressao.",
-      404,
-    );
-  }
-
-  const vouchers = await Promise.all(
-    voucherResult.rows.map((row) =>
-      getPainelBilheteriaVoucherPrintModel(row.idvoucher, actor),
-    ),
-  );
-
-  return {
-    purchaseId,
-    vouchers,
-  };
-}
+export const { getPainelBilheteriaVoucherPrintModel, getPainelBilheteriaPurchasePrintModel } =
+  createPainelBilheteriaPrintServices({ normalizeCpf, formatMoney, resolveVoucherDisplayLabel });
 
 export async function getPainelBilheteriaGatewayStatus(
   purchaseId: number,

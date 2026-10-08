@@ -6,6 +6,10 @@ const getActivePublicUserByCpf = vi.fn();
 const getUserVoucherExportData = vi.fn();
 const sendPurchaseTicketsWhatsApp = vi.fn();
 
+const schoolMocks = vi.hoisted(() => ({ getSchoolPaymentHold: vi.fn(async () => null as { status: string; source: string } | null) }));
+vi.mock("@/lib/school-payment-eligibility", () => ({ getSchoolPaymentHold: schoolMocks.getSchoolPaymentHold }));
+vi.mock("@/lib/ingresso-db", () => ({ getIngressoSistemaDbPool: () => ({ query: vi.fn() }) }));
+
 vi.mock("@/lib/auth-session", () => ({
   clearAuthCookie,
   getAuthSession,
@@ -26,6 +30,7 @@ vi.mock("@/lib/ticket-service", () => ({
 describe("me/vouchers whatsapp BFF route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    schoolMocks.getSchoolPaymentHold.mockResolvedValue(null);
   });
 
   it("sends selected vouchers by whatsapp for the authenticated user", async () => {
@@ -147,4 +152,17 @@ describe("me/vouchers whatsapp BFF route", () => {
       },
     });
   });
+  it("refuses a retained school purchase before producing or sending a voucher", async () => {
+    getAuthSession.mockResolvedValue({ sub: "52998224725" });
+    getActivePublicUserByCpf.mockResolvedValue({ cpf: "52998224725", name: "Pessoa Exemplo" });
+    getUserVoucherExportData.mockResolvedValue({ purchase: { id: 101, canGenerateVoucher: true }, vouchers: [{ id: 11 }], isSchool: true });
+    schoolMocks.getSchoolPaymentHold.mockResolvedValue({ status: "review_required", source: "site" });
+    const { POST } = await import("@/app/api/me/vouchers/[voucherId]/whatsapp/route");
+    const request = new Request("https://example.test/api/me/vouchers/101/whatsapp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ voucherIds: [11], phoneNumber: "5500000000000" }) });
+    const response = await POST(request, { params: Promise.resolve({ voucherId: "101" }) });
+    expect(response.status).toBe(409);
+    expect((await response.json()).error.code).toBe("school_payment_held");
+    expect(sendPurchaseTicketsWhatsApp).not.toHaveBeenCalled();
+  });
+
 });

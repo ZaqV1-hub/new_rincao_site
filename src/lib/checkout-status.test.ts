@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCheckoutReturnUrl,
   mapCheckoutStatusPayload,
@@ -27,9 +27,11 @@ vi.mock("@/lib/payment-reconciliation", async () => {
 });
 
 describe("checkout-status", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.NODE_ENV = "test";
+    vi.stubEnv("NODE_ENV", "test");
   });
 
   it("maps paid gateway statuses to confirmed purchases", () => {

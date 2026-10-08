@@ -8,6 +8,7 @@ const dbQuery = vi.fn();
 const originalEnv = process.env;
 
 vi.mock("@/lib/ingresso-db", () => ({
+  getIngressoSistemaDbPool: () => ({ query: dbQuery }),
   getIngressoDbPool: () => ({
     query: dbQuery,
   }),
