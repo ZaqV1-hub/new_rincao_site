@@ -77,11 +77,39 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
   }
 
   const nodemailer = await import("nodemailer");
+  const smtpTrace: string[] = [];
+  const recordSmtp = (...params: unknown[]) => {
+    const entry = (params[0] && typeof params[0] === "object" ? params[0] : {}) as {
+      tnx?: string;
+      resolved?: string;
+      cached?: boolean;
+      remoteAddress?: string;
+      remotePort?: number;
+    };
+    const message = String(params[1] ?? "");
+    if (entry.tnx === "dns") {
+      smtpTrace.push(`dns:${entry.resolved ?? "unknown"}:${entry.cached ? "cached" : "fresh"}`);
+    } else if (entry.tnx === "network") {
+      smtpTrace.push(`network:${message.slice(0, 80)}:${entry.remoteAddress ?? ""}:${entry.remotePort ?? ""}`);
+    } else if (entry.tnx === "smtp" && /handshake|authenticated|secure/i.test(message)) {
+      smtpTrace.push(`smtp:${message.slice(0, 80)}`);
+    }
+  };
+  const smtpLogger = {
+    level: () => {},
+    trace: recordSmtp,
+    debug: recordSmtp,
+    info: recordSmtp,
+    warn: recordSmtp,
+    error: recordSmtp,
+    fatal: recordSmtp,
+  };
   const transporter = nodemailer.createTransport({
     host: config.host,
     port: config.port,
     secure: config.secure,
     requireTLS: !config.secure,
+    logger: smtpLogger,
     auth: {
       user: config.username,
       pass: config.password,
@@ -144,6 +172,7 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
       port: config.port,
       secure: config.secure,
       nodeVersion: process.version,
+      trace: smtpTrace.slice(-25),
       error,
     });
 
