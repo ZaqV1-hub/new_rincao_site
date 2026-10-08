@@ -97,7 +97,12 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
     } else if (entry.tnx === "client") {
       const command = ["EHLO", "HELO", "STARTTLS", "AUTH", "MAIL FROM", "RCPT TO", "DATA", "QUIT"]
         .find((value) => message.startsWith(value));
-      if (command) smtpTrace.push(`client:${command.replace(" ", "_")}`);
+      if (command === "MAIL FROM") {
+        const envelopeAddress = message.match(/^MAIL FROM:<([^>]*)>/)?.[1];
+        smtpTrace.push(`client:MAIL_FROM:${envelopeAddress === config.fromEmail ? "configured" : "different"}`);
+      } else if (command) {
+        smtpTrace.push(`client:${command.replace(" ", "_")}`);
+      }
     } else if (entry.tnx === "smtp" && /handshake|authenticated|secure/i.test(message)) {
       smtpTrace.push(`smtp:${message.slice(0, 80)}`);
     }
@@ -126,8 +131,9 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
 
   try {
     const message = {
-      from: `"${config.fromName}" <${config.fromEmail}>`,
-      to: input.toName ? `"${input.toName}" <${input.to}>` : input.to,
+      from: { name: config.fromName, address: config.fromEmail },
+      to: { name: input.toName ?? "", address: input.to },
+      envelope: { from: config.fromEmail, to: [input.to] },
       replyTo: config.replyToEmail,
       subject: input.subject,
       html: input.html,
