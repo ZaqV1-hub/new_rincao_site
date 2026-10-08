@@ -91,6 +91,13 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
       smtpTrace.push(`dns:${entry.resolved ?? "unknown"}:${entry.cached ? "cached" : "fresh"}`);
     } else if (entry.tnx === "network") {
       smtpTrace.push(`network:${message.slice(0, 80)}:${entry.remoteAddress ?? ""}:${entry.remotePort ?? ""}`);
+    } else if (entry.tnx === "server") {
+      const code = message.match(/^\d{3}/)?.[0];
+      if (code) smtpTrace.push(`server:${code}`);
+    } else if (entry.tnx === "client") {
+      const command = ["EHLO", "HELO", "STARTTLS", "AUTH", "MAIL FROM", "RCPT TO", "DATA", "QUIT"]
+        .find((value) => message.startsWith(value));
+      if (command) smtpTrace.push(`client:${command.replace(" ", "_")}`);
     } else if (entry.tnx === "smtp" && /handshake|authenticated|secure/i.test(message)) {
       smtpTrace.push(`smtp:${message.slice(0, 80)}`);
     }
@@ -110,6 +117,7 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
     secure: config.secure,
     requireTLS: !config.secure,
     logger: smtpLogger,
+    debug: true,
     auth: {
       user: config.username,
       pass: config.password,
