@@ -33,6 +33,7 @@ const nextConfig: NextConfig = {
   deploymentId: process.env.DEPLOYMENT_VERSION?.trim() || undefined,
   devIndicators: false,
   output: "standalone",
+  serverExternalPackages: ["nodemailer"],
   async headers() {
     return [
       {
