@@ -147,4 +147,3 @@ export async function validatePurchaseVouchers(
     client.release();
   }
 }
-

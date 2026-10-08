@@ -43,4 +43,3 @@ export type PaymentReconciliationApplyResult = {
   purchaseStatus: GatewayPurchaseStatus;
   ledgerAction: "inserted" | "updated" | "unchanged";
 };
-

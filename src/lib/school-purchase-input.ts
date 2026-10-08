@@ -33,4 +33,3 @@ export class SchoolPurchaseError extends Error {
     this.status = status;
   }
 }
-

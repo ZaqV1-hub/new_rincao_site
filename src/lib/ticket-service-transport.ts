@@ -97,4 +97,3 @@ export async function authenticate(config: TicketServiceConfig) {
 
   return typeof token === "string" && token ? token : null;
 }
-

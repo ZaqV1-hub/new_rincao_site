@@ -72,4 +72,3 @@ export async function listPendingTicketDeliveryPurchases(
 
   return result.rows;
 }
-

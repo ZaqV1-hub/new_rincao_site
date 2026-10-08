@@ -211,4 +211,3 @@ export async function applyPaymentReconciliationRecord(
     ledgerAction: existingPayment.rowCount === 0 ? "inserted" : "updated",
   };
 }
-

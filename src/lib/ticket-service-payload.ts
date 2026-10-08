@@ -92,4 +92,3 @@ export function buildTicketPayload(
     dtAgenda: String(voucher.dtagenda ?? ""),
   }));
 }
-

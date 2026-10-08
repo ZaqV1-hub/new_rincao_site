@@ -113,4 +113,3 @@ export async function markVouchersSent(voucherIds: number[]) {
     [voucherIds],
   );
 }
-

@@ -63,4 +63,3 @@ export class VoucherOperationError extends Error {
     this.status = status;
   }
 }
-

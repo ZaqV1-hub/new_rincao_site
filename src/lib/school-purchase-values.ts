@@ -28,4 +28,3 @@ export function parseSchoolValueInput(raw: string) {
 export function normalizeMoney(value: number) {
   return value.toFixed(2);
 }
-

@@ -392,4 +392,3 @@ export function normalizePaymentReconciliationPayload(
 
   return normalizeCieloPayload(payloadObject, expectedPurchaseId);
 }
-

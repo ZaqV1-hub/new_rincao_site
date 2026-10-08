@@ -55,4 +55,3 @@ export class PainelBilheteriaError extends Error {
     this.status = status;
   }
 }
-

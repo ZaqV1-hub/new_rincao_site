@@ -140,4 +140,3 @@ export function toValidInteger(value: unknown, fallback: number, min: number, ma
 
   return Math.min(Math.max(parsed, min), max);
 }
-

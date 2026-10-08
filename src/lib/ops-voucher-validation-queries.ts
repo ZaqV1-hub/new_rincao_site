@@ -82,4 +82,3 @@ export async function getSchoolTripVouchers(
 
   return result.rows;
 }
-
