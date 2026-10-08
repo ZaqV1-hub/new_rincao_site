@@ -46,9 +46,9 @@ function readBooleanEnv(value: string | undefined, fallback: boolean) {
 function getLegacyEmailConfig() {
   return {
     host: process.env.EMAIL_SMTP_SERVER?.trim() || "smtp.zoho.com",
-    port: Number(process.env.EMAIL_SMTP_PORT ?? 465),
+    port: Number(process.env.EMAIL_SMTP_PORT ?? 587),
     secure:
-      String(process.env.EMAIL_SMTP_SSL ?? "SSL").trim().toUpperCase() === "SSL",
+      String(process.env.EMAIL_SMTP_SSL ?? "TLS").trim().toUpperCase() === "SSL",
     username: process.env.EMAIL_SMTP_USERNAME?.trim() || "",
     password: process.env.EMAIL_SMTP_PASSWORD?.trim() || "",
     fromEmail:
@@ -81,6 +81,7 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
     host: config.host,
     port: config.port,
     secure: config.secure,
+    requireTLS: !config.secure,
     auth: {
       user: config.username,
       pass: config.password,
@@ -105,8 +106,26 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
         throw error;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      await transporter.sendMail(message);
+      if (
+        config.port === 465 &&
+        config.secure &&
+        config.host.toLowerCase().endsWith(".zoho.com")
+      ) {
+        const tlsTransporter = nodemailer.createTransport({
+          host: config.host,
+          port: 587,
+          secure: false,
+          requireTLS: true,
+          auth: {
+            user: config.username,
+            pass: config.password,
+          },
+        });
+        await tlsTransporter.sendMail(message);
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        await transporter.sendMail(message);
+      }
     }
 
     await getIngressoSistemaDbPool().query(

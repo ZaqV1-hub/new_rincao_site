@@ -41,6 +41,7 @@ export function SiteShell({
     pathname.startsWith("/comprar/") ||
     pathname.startsWith("/checkout/") ||
     pathname === "/login" ||
+    pathname.startsWith("/login/") ||
     pathname === "/cadastro" ||
     pathname === "/meus-ingressos" ||
     pathname === "/minha-conta" ||
