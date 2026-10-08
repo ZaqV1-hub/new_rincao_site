@@ -139,7 +139,13 @@ async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {
       [idemail],
     );
   } catch (error) {
-    console.error("legacy-email-send-failed", error);
+    console.error("legacy-email-send-failed", {
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      nodeVersion: process.version,
+      error,
+    });
 
     await getIngressoSistemaDbPool().query(
       `
