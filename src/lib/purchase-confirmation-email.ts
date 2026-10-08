@@ -1,3 +1,5 @@
+import { getSchoolPaymentHold } from "@/lib/school-payment-eligibility";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getIngressoDbPool } from "@/lib/ingresso-db";
 import { getSiteUrl } from "@/lib/site-metadata";
 
@@ -43,7 +45,7 @@ function formatDate(value: string | null | undefined) {
   }).format(parsed);
 }
 
-function buildBuyerConfirmationEmailHtml(purchase: ConfirmedPurchaseEmailRow) {
+function buildBuyerConfirmationEmailHtml(purchase: ConfirmedPurchaseEmailRow, retained: boolean) {
   const vouchersUrl = new URL("/meus-ingressos", getSiteUrl()).toString();
 
   return `
@@ -69,7 +71,7 @@ function buildBuyerConfirmationEmailHtml(purchase: ConfirmedPurchaseEmailRow) {
                     <br /><br />
                     O pagamento do pedido <strong>${escapeHtml(String(purchase.idcompra))}</strong> foi confirmado com sucesso em ${escapeHtml(formatDate(purchase.dtpagamento))}.
                     <br /><br />
-                    Os vouchers ja estao disponiveis para emissao.
+                    ${retained ? "O pagamento foi contabilizado. Os ingressos estão retidos para análise do atendimento e ainda não podem ser utilizados." : "Os vouchers ja estao disponiveis para emissao."}
                   </td>
                 </tr>
                 <tr>
@@ -78,7 +80,7 @@ function buildBuyerConfirmationEmailHtml(purchase: ConfirmedPurchaseEmailRow) {
                       href="${escapeHtml(vouchersUrl)}"
                       style="background:#009933;display:inline-block;padding:12px 20px;color:#ffffff;text-decoration:none;font-size:15px;"
                     >
-                      Faca o download dos vouchers
+                      ${retained ? "Acompanhe seu pedido" : "Faca o download dos vouchers"}
                     </a>
                     <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#6b7280;">
                       Caso nao consiga clicar no botao acima, acesse:
@@ -218,7 +220,7 @@ export async function queuePurchaseConfirmationEmail(
       purchase.nmusuario ?? recipientEmail,
       "ingressos@rincao.local",
       "Rincao - Compra",
-      buildBuyerConfirmationEmailHtml(purchase),
+      buildBuyerConfirmationEmailHtml(purchase, Boolean(await getSchoolPaymentHold(getIngressoSistemaDbPool(), purchaseId).then(hold => hold && hold.status !== "released"))),
     ],
   );
   await markPurchaseEmailQueued(purchaseId);

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const isCieloEcommerceConfigured = vi.fn();
 
@@ -7,9 +7,11 @@ vi.mock("@/lib/cielo-ecommerce", () => ({
 }));
 
 describe("checkout-mode", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.NODE_ENV = "test";
+    vi.stubEnv("NODE_ENV", "test");
   });
 
   it("enables the widget when Cielo ecommerce is configured", async () => {
@@ -29,7 +31,7 @@ describe("checkout-mode", () => {
   });
 
   it("keeps checkout unavailable in production when Cielo ecommerce is not configured", async () => {
-    process.env.NODE_ENV = "production";
+    vi.stubEnv("NODE_ENV", "production");
     isCieloEcommerceConfigured.mockReturnValue(false);
 
     const { resolveCheckoutMode } = await import("@/lib/checkout-mode");

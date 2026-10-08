@@ -1,0 +1,70 @@
+{
+  "baseline_sha": "86f5bb88e6b2018cd15b309dd9bc18fb66e61f03",
+  "exit_code": 1,
+  "tests": 697,
+  "passed": 685,
+  "failed": 12,
+  "failures": [
+    {
+      "file": "codindica-cashback.test.ts",
+      "test": "codindica-cashback queues representative email when cashback history and email queue exist"
+    },
+    {
+      "file": "customer-password-reset.test.ts",
+      "test": "customer-password-reset requests a public password reset by cpf and queues the legacy email"
+    },
+    {
+      "file": "customer-password-reset.test.ts",
+      "test": "customer-password-reset blocks public password reset when the throttle window is still active"
+    },
+    {
+      "file": "customer-password-reset.test.ts",
+      "test": "customer-password-reset reports whether the public reset ticket is valid"
+    },
+    {
+      "file": "customer-password-reset.test.ts",
+      "test": "customer-password-reset resets the public password and marks the ticket as used"
+    },
+    {
+      "file": "legacy-email.test.ts",
+      "test": "legacy-email queue sends queued email synchronously when PASSWORD_RESET_SEND_SYNC is true"
+    },
+    {
+      "file": "legacy-email.test.ts",
+      "test": "legacy-email queue normalizes mojibake in the sender name"
+    },
+    {
+      "file": "ops-admin-master-data.test.ts",
+      "test": "ops-admin-master-data exposes the administrative resources with metadata for keys and actions"
+    },
+    {
+      "file": "painel-password-reset.test.ts",
+      "test": "painel-password-reset requests a panel password reset by email and queues the legacy email"
+    },
+    {
+      "file": "painel-password-reset.test.ts",
+      "test": "painel-password-reset reports whether the panel reset ticket is valid"
+    },
+    {
+      "file": "painel-password-reset.test.ts",
+      "test": "painel-password-reset resets the panel password and marks the ticket as used"
+    },
+    {
+      "file": "painel-usuario-site.test.ts",
+      "test": "listPainelUsuariosSite lista usuarios do site com filtro padrao ativo"
+    }
+  ],
+  "final": {
+    "tests": 699,
+    "passed": 687,
+    "failed": 12,
+    "same_failure_set": true
+  },
+  "duplication": {
+    "baseline_percent": 7.05,
+    "final_percent": 7.2,
+    "configured_budget_percent": 11.5,
+    "configured_check": "PASS",
+    "strict_5_percent": "FAIL on baseline and final; existing legacy duplication remains, moved operations expose extra cross-file clones"
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "schema_version": "ai_task_contract_v1",
+  "task_id": "SCHOOL-SITE-WRITERS-20261008",
+  "title": "Revisão escolar única entre site e Lumi com retenção operacional",
+  "owner": "Codex single-agent; owner fez pedido explícito faça",
+  "created_at": "2026-10-08",
+  "base_branch": "origin/develop",
+  "base_sha": "86f5bb88e6b2018cd15b309dd9bc18fb66e61f03",
+  "production_reference": {
+    "branch": "main",
+    "sha": "22f24ec69071870b9c1d2acaba33e88d33c97c63"
+  },
+  "target_branch": "develop",
+  "paths_owned": [
+    ".ai/tasks/SCHOOL-SITE-WRITERS-20261008.json",
+    "ops/hml-ecommerce-spec-review-20261006/BACKLOG-SCHOOL-SITE-WRITERS-20261008.md",
+    "ops/hml-ecommerce-spec-review-20261006/evidence/2026-10-08-school-site-validation-baseline.json",
+    "ops/hml-ecommerce-spec-review-20261006/evidence/2026-10-08-school-site-validation-manifest.json",
+    "src/app/api/me/vouchers/[voucherId]/export/route.ts",
+    "src/app/api/me/vouchers/[voucherId]/whatsapp/route.ts",
+    "src/app/api/me/vouchers/export-route.test.ts",
+    "src/app/api/me/vouchers/whatsapp-route.test.ts",
+    "src/app/api/painel/compras/[purchaseId]/school-review/route.ts",
+    "src/components/painel-compra-detail-page.tsx",
+    "src/components/school-payment-review.tsx",
+    "src/lib/checkout-mode.test.ts",
+    "src/lib/checkout-notification-proxy.test.ts",
+    "src/lib/checkout-status.test.ts",
+    "src/lib/customer-school-admission.ts",
+    "src/lib/ops-voucher-validation-audit.ts",
+    "src/lib/ops-voucher-validation-contract.ts",
+    "src/lib/ops-voucher-validation-invalidate-purchase-vouchers.ts",
+    "src/lib/ops-voucher-validation-invalidate-selected-vouchers.ts",
+    "src/lib/ops-voucher-validation-queries.ts",
+    "src/lib/ops-voucher-validation-shared.ts",
+    "src/lib/ops-voucher-validation-unvalidate-purchase-vouchers.ts",
+    "src/lib/ops-voucher-validation-unvalidate-selected-vouchers.ts",
+    "src/lib/ops-voucher-validation-validate-purchase-vouchers.ts",
+    "src/lib/ops-voucher-validation-validate-school-trip-vouchers.ts",
+    "src/lib/ops-voucher-validation-validate-selected-vouchers.ts",
+    "src/lib/ops-voucher-validation-validate-voucher-by-number.ts",
+    "src/lib/ops-voucher-validation.ts",
+    "src/lib/painel-bilheteria-print-contract.ts",
+    "src/lib/painel-bilheteria-print.ts",
+    "src/lib/painel-bilheteria.ts",
+    "src/lib/payment-reconciliation-contract.ts",
+    "src/lib/payment-reconciliation-payload.ts",
+    "src/lib/payment-reconciliation-writer.ts",
+    "src/lib/payment-reconciliation.test.ts",
+    "src/lib/payment-reconciliation.ts",
+    "src/lib/purchase-confirmation-email.test.ts",
+    "src/lib/purchase-confirmation-email.ts",
+    "src/lib/school-commerce-admission.ts",
+    "src/lib/school-commerce-contract.ts",
+    "src/lib/school-commerce-payment.ts",
+    "src/lib/school-payment-eligibility.ts",
+    "src/lib/school-payment-operations.ts",
+    "src/lib/school-purchase-input.ts",
+    "src/lib/school-purchase-repository.ts",
+    "src/lib/school-purchase-values.ts",
+    "src/lib/school-purchase-voucher.ts",
+    "src/lib/ticket-purchase-eligibility.ts",
+    "src/lib/ticket-service-config.ts",
+    "src/lib/ticket-service-contract.ts",
+    "src/lib/ticket-service-fulfillment.ts",
+    "src/lib/ticket-service-payload.ts",
+    "src/lib/ticket-service-queries.ts",
+    "src/lib/ticket-service-recovery.ts",
+    "src/lib/ticket-service-transport.ts",
+    "src/lib/ticket-service-validation.ts",
+    "src/lib/ticket-service-whatsapp.ts",
+    "src/lib/ticket-service.ts"
+  ],
+  "shared_paths": [
+    "src/lib/payment-reconciliation.ts",
+    "src/lib/ticket-service.ts",
+    "src/lib/ops-voucher-validation.ts",
+    "src/lib/painel-bilheteria.ts"
+  ],
+  "forbidden_paths": [
+    "**/*.env*"
+  ],
+  "capabilities_to_preserve": [
+    "Lumi school one-use review, accounting and durable delivery",
+    "Site pending vouchers and original provider financial payload; site origin",
+    "Exact equality only; LLM authority and canonical Human Gate; no automatic refunds"
+  ],
+  "planned_replacements": [
+    "Preservar exports públicos; extrair parsing, persistência, entrega, portaria e impressão antes de acrescentar retenção. Recuperar o pagamento do site por snapshot imutável e dados financeiros, preservando o XML original.",
+    "Incremento indivisível para impedir emissão/uso por todos os writers. Ticket-service1051 e portaria1596 linhas viraram fachadas; reconciliação separa parsing e IO; compra escolar<=400. Impressão e contratos extraídos do painel-bilheteria em módulo<=250; o restante da bilheteria1358 linhas permanece incidente legado, sem nova responsabilidade, com próxima extração planejada neste backlog. Extração preserva exports e testes."
+  ],
+  "planned_removals": [],
+  "depends_on_prs": [
+    "https://github.com/juansouza09/rincao-dados/pull/21"
+  ],
+  "overlap_acknowledgements": [],
+  "required_tests": [
+    "Focused tenant tests/build; site typecheck and related tests",
+    "Two isolated PostgreSQL and actual HTTP/HMAC quote/review; independent site and tenant payment writers race",
+    "Accounting stays durable, holds prevent use/send, decision releases once, replay/conflicts and operator permissions/audit"
+  ],
+  "schema_or_migration_impact": "DDL aditivo no startup do tenant: snapshot do site, source/revision/payload no hold, metadata de evento e tabela durável de claims. Backfill idempotente das referências atualmente vinculadas a compra para preservar uso único depois de reabertura. Nenhuma migration já mesclada foi editada. Ativação HML somente após tenant atualizado e site compatível; nenhuma operação em PROD.",
+  "destructive_change": false,
+  "status": "READY_FOR_REVIEW",
+  "target_reconciliation": {
+    "checked_at": "2026-10-08",
+    "target_sha": "86f5bb88e6b2018cd15b309dd9bc18fb66e61f03",
+    "evidence": "Fetch final preservou target/base. Build e typecheck passam; tenant115/115; site69/69 focados, ampla687/699 com mesmas12 falhas da base. PostgreSQL/HTTP reais:50 checks no navegador e50 checks finais, incluindo labels oficiais. Matriz comercial continua0/10; gateway502 observado21:15UTC."
+  },
+  "hotfix_reconciliation": {
+    "required": false,
+    "hotfix_id": null,
+    "production_sha": null,
+    "status": null,
+    "develop_classification": null,
+    "rationale": null,
+    "evidence": null,
+    "develop_pr": null,
+    "regression_tests": []
+  }
+}

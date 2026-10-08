@@ -17,6 +17,15 @@ vi.mock("@/lib/cielo-ecommerce", () => ({
   isCieloEcommerceConfigured: vi.fn(() => false),
 }));
 
+function gatewayStatusFixture(sale: unknown, code: string, status: number): Awaited<ReturnType<typeof getNativeCieloCheckoutStatus>> {
+  return { status: "00", sale, dados: { code, reference: "456", status, cancellationSource: "",
+    date: new Date().toISOString(), lastEventDate: new Date().toISOString(), paymentMethod: { type: 1, code: 101 },
+    grossAmount: "120.00", discountAmount: "0.00", feeAmount: "0.00", netAmount: "120.00", extraAmount: "0.00",
+    installmentCount: 1, sender: { email: "", name: "Pessoa Exemplo", phone: { areaCode: "", number: "" } },
+    shipping: { type: 0, cost: "0.00", address: { street: "", number: "", complement: [""], district: "", city: "", state: "", country: "BRA", postalCode: "" } },
+    xml: "{}" } };
+}
+
 function notification(body: unknown) {
   return new Request("https://example.com/api/checkout/notification", {
     method: "POST",
@@ -47,10 +56,7 @@ describe("checkout-notification-proxy", () => {
       Payment: { PaymentId: "pid-456", Status: 2, Amount: 12000 },
     };
     vi.mocked(getCieloSaleByPaymentId).mockResolvedValue(sale);
-    const orderStatus = {
-      status: "00",
-      dados: { code: "pid-456", reference: "456", status: 3 },
-    };
+    const orderStatus = gatewayStatusFixture(sale, "pid-456", 3);
     vi.mocked(getNativeCieloCheckoutStatus).mockResolvedValue(orderStatus);
 
     const result = await proxyCheckoutNotification(
@@ -78,10 +84,7 @@ describe("checkout-notification-proxy", () => {
       Payment: { PaymentId: "pid-456", Status: 12, Amount: 12000 },
     };
     vi.mocked(getCieloSaleByPaymentId).mockResolvedValue(sale);
-    const orderStatus = {
-      status: "00",
-      dados: { code: "other-paid-attempt", reference: "456", status: 3 },
-    };
+    const orderStatus = gatewayStatusFixture(sale, "other-paid-attempt", 3);
     vi.mocked(getNativeCieloCheckoutStatus).mockResolvedValue(orderStatus);
 
     const result = await proxyCheckoutNotification(

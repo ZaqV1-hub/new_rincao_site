@@ -8,6 +8,10 @@ const generateVoucherQrcodes = vi.fn();
 const downloadImageAsDataUrl = vi.fn();
 const renderVoucherPdfBuffer = vi.fn();
 
+const schoolMocks = vi.hoisted(() => ({ getSchoolPaymentHold: vi.fn(async () => null as { status: string; source: string } | null) }));
+vi.mock("@/lib/school-payment-eligibility", () => ({ getSchoolPaymentHold: schoolMocks.getSchoolPaymentHold }));
+vi.mock("@/lib/ingresso-db", () => ({ getIngressoSistemaDbPool: () => ({ query: vi.fn() }) }));
+
 vi.mock("@/lib/auth-session", () => ({
   clearAuthCookie,
   getAuthSession,
@@ -43,6 +47,7 @@ vi.mock("@/lib/voucher-pdf", () => ({
 describe("me/vouchers export BFF route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    schoolMocks.getSchoolPaymentHold.mockResolvedValue(null);
   });
 
   it("exports a native pdf for selected vouchers", async () => {
@@ -233,4 +238,17 @@ describe("me/vouchers export BFF route", () => {
       },
     });
   });
+  it("refuses a retained school purchase before producing or sending a voucher", async () => {
+    getAuthSession.mockResolvedValue({ sub: "52998224725" });
+    getActivePublicUserByCpf.mockResolvedValue({ cpf: "52998224725", name: "Pessoa Exemplo" });
+    getUserVoucherExportData.mockResolvedValue({ purchase: { id: 101, canGenerateVoucher: true }, vouchers: [{ id: 11 }], isSchool: true });
+    schoolMocks.getSchoolPaymentHold.mockResolvedValue({ status: "review_required", source: "site" });
+    const { GET } = await import("@/app/api/me/vouchers/[voucherId]/export/route");
+    const request = new Request("https://example.test/api/me/vouchers/101/export", { method: "GET" });
+    const response = await GET(request, { params: Promise.resolve({ voucherId: "101" }) });
+    expect(response.status).toBe(409);
+    expect((await response.json()).error.code).toBe("school_payment_held");
+    expect(renderVoucherPdfBuffer).not.toHaveBeenCalled();
+  });
+
 });

@@ -1,3 +1,4 @@
+import { refuseHeldSchoolVoucher } from "@/lib/customer-school-admission";
 import { NextResponse } from "next/server";
 import {
   customerApiErrorResponse,
@@ -68,6 +69,9 @@ export async function GET(
         404,
       );
     }
+
+    const held = await refuseHeldSchoolVoucher(purchaseId);
+    if (held) return held;
 
     if (!exportData.purchase.canGenerateVoucher) {
       return customerApiErrorResponse(

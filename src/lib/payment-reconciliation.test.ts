@@ -272,15 +272,14 @@ describe("payment-reconciliation", () => {
       purchaseStatus: "conc",
       ledgerAction: "unchanged",
     });
-    expect(client.query).toHaveBeenCalledTimes(2);
+    expect(client.query.mock.calls.some(([sql]) => /^(UPDATE|INSERT)\b/i.test(sql.trim()))).toBe(false);
   });
 
   it("rejects a confirmed charge with a different purchase amount", async () => {
     const client = {
-      query: vi.fn(async () => ({
-        rowCount: 1,
-        rows: [{ idcompra: 123, vltotcompra: "120.00" }],
-      })),
+      query: vi.fn(async (sql: string) => sql.includes("to_regclass")
+        ? { rowCount: 1, rows: [{ regclass: null }] }
+        : { rowCount: 1, rows: [{ idcompra: 123, vltotcompra: "120.00" }] }),
     };
 
     await expect(
@@ -289,6 +288,6 @@ describe("payment-reconciliation", () => {
         baseRecord({ grossAmount: "90.00" }),
       ),
     ).rejects.toThrow("payment_amount_mismatch");
-    expect(client.query).toHaveBeenCalledTimes(1);
+    expect(client.query.mock.calls.some(([sql]) => /^(UPDATE|INSERT)\b/i.test(sql.trim()))).toBe(false);
   });
 });
