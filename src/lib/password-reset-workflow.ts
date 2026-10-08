@@ -115,14 +115,15 @@ async function checkPasswordResetThrottle(email: string) {
       SELECT (dtemail::timestamp + hremail) AS sent_at
       FROM email
       WHERE para = $1
-        AND assunto ILIKE $2
+        AND assunto = $2
+        AND stemail = 'env'
         AND (dtemail::timestamp + hremail) >= $3::timestamp
       ORDER BY dtemail DESC, hremail DESC
       LIMIT $4
     `,
     [
       email.trim(),
-      "Clube Rinc%Senha%",
+      buildResetSubject(),
       windowStart,
       Math.max(10, config.maxAttempts + 5),
     ],
