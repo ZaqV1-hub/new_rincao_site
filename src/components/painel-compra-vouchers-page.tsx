@@ -82,6 +82,13 @@ function hasActiveFilters(filters: PainelPurchaseVoucherListFilters) {
   return Object.values(filters).some((value) => value != null && value !== "");
 }
 
+function dateInputValue(value: string | null) {
+  if (!value) return "";
+
+  const parts = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  return parts ? `${parts[3]}-${parts[2]}-${parts[1]}` : value;
+}
+
 export function PainelCompraVouchersPage({
   result,
 }: PainelCompraVouchersPageProps) {
@@ -136,27 +143,27 @@ export function PainelCompraVouchersPage({
             </label>
             <label className="grid gap-2 text-sm font-medium text-[#173f61]">
               <span>Data da compra de</span>
-              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.purchaseDateFrom ?? ""} name="dtcompra[de]" type="date" />
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={dateInputValue(result.filters.purchaseDateFrom)} name="dtcompra[de]" type="date" />
             </label>
             <label className="grid gap-2 text-sm font-medium text-[#173f61]">
               <span>Data da compra até</span>
-              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.purchaseDateTo ?? ""} name="dtcompra[ate]" type="date" />
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={dateInputValue(result.filters.purchaseDateTo)} name="dtcompra[ate]" type="date" />
             </label>
             <label className="grid gap-2 text-sm font-medium text-[#173f61]">
               <span>Data de uso de</span>
-              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.usedDateFrom ?? ""} name="dtuso[de]" type="date" />
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={dateInputValue(result.filters.usedDateFrom)} name="dtuso[de]" type="date" />
             </label>
             <label className="grid gap-2 text-sm font-medium text-[#173f61]">
               <span>Data de uso até</span>
-              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.usedDateTo ?? ""} name="dtuso[ate]" type="date" />
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={dateInputValue(result.filters.usedDateTo)} name="dtuso[ate]" type="date" />
             </label>
             <label className="grid gap-2 text-sm font-medium text-[#173f61]">
               <span>Data de visita de</span>
-              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.visitDateFrom ?? ""} name="dtagenda[de]" type="date" />
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={dateInputValue(result.filters.visitDateFrom)} name="dtagenda[de]" type="date" />
             </label>
             <label className="grid gap-2 text-sm font-medium text-[#173f61]">
               <span>Data de visita até</span>
-              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={result.filters.visitDateTo ?? ""} name="dtagenda[ate]" type="date" />
+              <input className="min-h-11 rounded-[8px] border border-[#c8d8e8] px-3 py-2 text-sm" defaultValue={dateInputValue(result.filters.visitDateTo)} name="dtagenda[ate]" type="date" />
             </label>
             <label className="grid gap-2 text-sm font-medium text-[#173f61]">
               <span>Ingresso</span>
