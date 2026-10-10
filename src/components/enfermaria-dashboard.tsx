@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { EnfermariaRecord } from "@/lib/enfermaria";
 import styles from "./enfermaria-visual.module.css";
@@ -148,6 +149,7 @@ function SourceAndTimeChart({ records, timeCounts }: { records: EnfermariaRecord
 }
 
 export function EnfermariaDashboard({ canManage = false }: { canManage?: boolean }) {
+  const router = useRouter();
   const [period, setPeriod] = useState("mes");
   const initialRange = periodRange("mes");
   const [from, setFrom] = useState(initialRange.from);
@@ -253,7 +255,7 @@ export function EnfermariaDashboard({ canManage = false }: { canManage?: boolean
             <tbody>
               {recent.map((record) => {
                 const form = record.form as { identification?: { name?: string }; context?: { buyerName?: string }; complaint?: { demandTypes?: string[] } };
-                return <tr key={record.id}>
+                return <tr key={record.id} className={styles.clickableRow} tabIndex={0} role="link" aria-label={`Abrir atendimento ${record.numberLabel}`} onClick={() => router.push(`/painel/enfermaria/${record.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push(`/painel/enfermaria/${record.id}`); } }}>
                   <td><Link className={styles.textLink} href={`/painel/enfermaria/${record.id}`}>{record.numberLabel}</Link></td>
                   <td>{new Date(record.occurredAt.replace(" ", "T")).toLocaleString("pt-BR")}</td>
                   <td>{form.identification?.name ?? form.context?.buyerName ?? "—"}</td>
@@ -276,7 +278,7 @@ export function EnfermariaDashboard({ canManage = false }: { canManage?: boolean
         <h2 id="enfermaria-export-title" className={styles.modalTitle}>Exportar atendimentos</h2>
         <p className={styles.pageSub}>As exportações respeitam o período selecionado.</p>
         <div className={styles.exportList}>
-          <a className={styles.exportItem} href={recordsUrl}><span className={styles.exportIcon}>XLS</span><span><b className={styles.exportLabel}>Lista de casos em Excel</b><small className={styles.exportHint}>CSV compatível com Excel para o período.</small></span></a>
+          <a className={styles.exportItem} href={recordsUrl}><span className={styles.exportIcon}>XLS</span><span><b className={styles.exportLabel}>Lista de casos em Excel</b><small className={styles.exportHint}>Planilha Excel para o período.</small></span></a>
           <Link className={styles.exportItem} href={reportUrl}><span className={styles.exportIcon}>PDF</span><span><b className={styles.exportLabel}>Relatório executivo em PDF</b><small className={styles.exportHint}>Resumo e gráficos, com opção anonimizada.</small></span></Link>
           <Link className={styles.exportItem} href={packageUrl}><span className={styles.exportIcon}>PDF</span><span><b className={styles.exportLabel}>Pacote com as últimas fichas</b><small className={styles.exportHint}>Reúne as fichas do período para imprimir.</small></span></Link>
           <Link className={styles.exportItem} href="/painel/enfermaria/historico"><span className={styles.exportIcon}>PDF</span><span><b className={styles.exportLabel}>Ficha individual</b><small className={styles.exportHint}>Abra um atendimento no histórico e escolha imprimir.</small></span></Link>
