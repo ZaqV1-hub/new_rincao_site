@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./enfermaria-visual.module.css";
 
 type Client = { id: number; name: string; address: string; hasTripToday: boolean };
@@ -34,20 +34,37 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
   const [manualPhone, setManualPhone] = useState("");
   const [manualReason, setManualReason] = useState("");
   const [searched, setSearched] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function searchClients(value = query) {
-    setError(""); setSearched(true); setSelectedClient(null); setTrips([]); setTripId("");
-    try { setClients(await api<Client[]>(`/api/painel/enfermaria?action=clients&q=${encodeURIComponent(value)}`)); }
-    catch (e) { setError(e instanceof Error ? e.message : "Falha na busca."); }
-  }
-
-  async function searchPurchases() {
-    setError(""); setSearched(true); setSelectedPurchase(null);
-    try { setPurchases(await api<Purchase[]>(`/api/painel/enfermaria?action=day-use&cpf=${encodeURIComponent(cpf)}`)); }
-    catch (e) { setError(e instanceof Error ? e.message : "Falha na busca."); }
-  }
+  useEffect(() => {
+    if (registerNoAccount) return;
+    const value = kind === "cliente" ? query.trim() : cpf.replace(/\D/g, "");
+    const ready = kind === "cliente" ? value.length >= 2 : value.length === 11;
+    if (!ready) return;
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setSearching(true);
+      setSearched(false);
+      setError("");
+      try {
+        if (kind === "cliente") {
+          const found = await api<Client[]>(`/api/painel/enfermaria?action=clients&q=${encodeURIComponent(value)}`);
+          if (active) setClients(found);
+        } else {
+          const found = await api<Purchase[]>(`/api/painel/enfermaria?action=day-use&cpf=${encodeURIComponent(value)}`);
+          if (active) setPurchases(found);
+        }
+        if (active) setSearched(true);
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : "Falha na busca.");
+      } finally {
+        if (active) setSearching(false);
+      }
+    }, 300);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [kind, query, cpf, registerNoAccount]);
 
   async function chooseClient(client: Client) {
     setSelectedClient(client); setTripId(""); setError("");
@@ -86,28 +103,29 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
           <h2 className="text-xl font-semibold text-slate-800">A quem fica vinculado?</h2>
           <p className="mt-2 text-sm text-slate-600">Procure o cadastro primeiro. Se não encontrar, você pode registrar sem cadastro.</p>
           <div className={styles.choices}>
-            <button onClick={() => { setKind("cliente"); setSearched(false); setClients([]); setSelectedClient(null); }} className={`${styles.choice} ${kind === "cliente" ? styles.choiceActive : ""}`} aria-pressed={kind === "cliente"}>
+            <button onClick={() => { setKind("cliente"); setSearched(false); setClients([]); setSelectedClient(null); setSearching(false); }} className={`${styles.choice} ${kind === "cliente" ? styles.choiceActive : ""}`} aria-pressed={kind === "cliente"}>
               <span className={styles.choiceTitle}>Cliente</span><span className={styles.choiceDescription}>Escola, grupo ou empresa com cadastro no painel.</span>
             </button>
-            <button onClick={() => { setKind("day_use"); setSearched(false); setPurchases([]); setSelectedPurchase(null); }} className={`${styles.choice} ${kind === "day_use" ? styles.choiceActive : ""}`} aria-pressed={kind === "day_use"}>
+            <button onClick={() => { setKind("day_use"); setSearched(false); setPurchases([]); setSelectedPurchase(null); setSearching(false); }} className={`${styles.choice} ${kind === "day_use" ? styles.choiceActive : ""}`} aria-pressed={kind === "day_use"}>
               <span className={styles.choiceTitle}>Day use</span><span className={styles.choiceDescription}>Localize a compra pelo CPF de quem comprou os ingressos.</span>
             </button>
           </div>
           {kind === "cliente" ? <>
             <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="client-search">Buscar cliente</label>
-            <div className="mt-2 flex gap-2"><input id="client-search" className={fieldClass} value={query} onChange={(event) => { setQuery(event.target.value); setSearched(false); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void searchClients(); } }} placeholder="Nome da escola, grupo ou empresa" /><button className={buttonClass} onClick={() => void searchClients()} disabled={query.trim().length < 2}>Buscar</button></div>
-            {searched && clients.length === 0 && <div className="mt-4 rounded-lg bg-amber-50 p-4 text-sm text-amber-900">Nenhum cliente encontrado. Você pode registrar este atendimento sem cadastro.</div>}
-            {clients.length > 0 && <div className="mt-3 overflow-hidden rounded-lg border border-slate-200">{clients.map((client) => <button key={client.id} onClick={() => void chooseClient(client)} className={`block w-full border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-slate-50 ${selectedClient?.id === client.id ? "bg-sky-50" : ""}`}><span className="block font-medium text-slate-800">{client.name}</span><span className="mt-1 block text-xs text-slate-500">{client.address || "Endereço não informado"} · {client.hasTripToday ? "Passeio hoje" : "Sem passeio hoje"}</span></button>)}</div>}
+            <input id="client-search" className={`${fieldClass} mt-2`} value={query} onChange={(event) => { setQuery(event.target.value); setSearched(false); setClients([]); setSelectedClient(null); setTrips([]); setTripId(""); }} placeholder="Digite o nome da escola, grupo ou empresa" autoComplete="off" role="combobox" aria-expanded={clients.length > 0 && !selectedClient} aria-controls="client-suggestions" />
+            {searching && <p className="mt-2 text-sm text-slate-500">Buscando clientes...</p>}
+            {searched && !searching && clients.length === 0 && <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-6 text-center"><p className="font-semibold text-[#183e63]">Nenhum cliente encontrado</p><p className="mt-2 text-sm text-slate-600">Grupos mistos e outros visitantes sem cadastro não aparecem aqui.<br />Nesse caso, registre o atendimento sem cadastro.</p><button onClick={startNoAccount} className="mt-4 rounded-lg bg-[#183e63] px-5 py-3 text-sm font-semibold text-white">Registrar sem cadastro</button></div>}
+            {clients.length > 0 && !selectedClient && <div id="client-suggestions" role="listbox" className="mt-2 max-h-80 overflow-y-auto rounded-lg border border-slate-200 shadow-sm">{clients.map((client) => <button key={client.id} role="option" aria-selected={false} onClick={() => void chooseClient(client)} className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-sky-50"><span className="block font-medium text-slate-800">{client.name}</span><span className="mt-1 block text-xs text-slate-500">{client.address || "Endereço não informado"} · {client.hasTripToday ? "Passeio hoje" : "Sem passeio hoje"}</span></button>)}</div>}
             {selectedClient && <div className="mt-5 rounded-xl bg-sky-50 p-4"><label className="block text-sm font-semibold text-slate-800" htmlFor="trip-select">Passeio deste atendimento</label><select id="trip-select" className={`${fieldClass} mt-2`} value={tripId} onChange={(event) => setTripId(event.target.value)}><option value="">Selecione o passeio</option>{trips.map((trip) => <option key={trip.id} value={trip.id}>{new Date(`${trip.date}T12:00:00`).toLocaleDateString("pt-BR")} · {trip.status === "ati" ? "Aberto" : trip.status}</option>)}</select><button className={`${buttonClass} mt-3`} disabled={!tripId || busy} onClick={() => void create({ source: "cliente", clientId: selectedClient.id, clientName: selectedClient.name, tripId: Number(tripId) })}>Abrir ficha</button></div>}
           </> : <>
             <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="buyer-cpf">CPF de quem comprou os ingressos</label>
-            <div className="mt-2 flex gap-2"><input id="buyer-cpf" className={fieldClass} value={cpf} onChange={(event) => { setCpf(event.target.value); setSearched(false); }} placeholder="000.000.000-00" /><button className={buttonClass} onClick={() => void searchPurchases()} disabled={cpf.replace(/\D/g, "").length !== 11}>Buscar</button></div>
+            <input id="buyer-cpf" className={`${fieldClass} mt-2`} value={cpf} onChange={(event) => { setCpf(event.target.value); setSearched(false); setPurchases([]); setSelectedPurchase(null); }} placeholder="000.000.000-00" inputMode="numeric" />
             <p className="mt-2 text-xs text-slate-500">A pessoa atendida pode ser outra; ela será identificada na ficha.</p>
-            {searched && purchases.length === 0 && <div className="mt-4 rounded-lg bg-amber-50 p-4 text-sm text-amber-900">Nenhuma compra de day use encontrada para este CPF. Compras da bilheteria presencial podem ser registradas sem cadastro.</div>}
+            {searching && <p className="mt-2 text-sm text-slate-500">Buscando compras...</p>}
+            {searched && !searching && purchases.length === 0 && <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-6 text-center"><p className="font-semibold text-[#183e63]">Nenhuma compra encontrada para este CPF</p><p className="mt-2 text-sm text-slate-600">Visitantes da bilheteria presencial também podem ser atendidos sem cadastro.</p><button onClick={startNoAccount} className="mt-4 rounded-lg bg-[#183e63] px-5 py-3 text-sm font-semibold text-white">Registrar sem cadastro</button></div>}
             {purchases.length > 0 && <div className="mt-3 grid gap-2">{purchases.map((purchase) => <button key={purchase.id} onClick={() => setSelectedPurchase(purchase)} className={`rounded-xl border p-4 text-left ${selectedPurchase?.id === purchase.id ? "border-sky-500 bg-sky-50" : "border-slate-200 hover:bg-slate-50"}`}><span className="block font-semibold text-slate-800">{purchase.buyerName} · Compra #{purchase.id}</span><span className="mt-1 block text-sm text-slate-600">Visita {new Date(`${purchase.visitDate}T12:00:00`).toLocaleDateString("pt-BR")} · {purchase.ticketCount} ingresso(s)</span><span className="mt-1 block text-xs text-slate-500">{purchase.tickets} · {purchase.status}</span></button>)}</div>}
             {selectedPurchase && <button className={`${buttonClass} mt-4`} disabled={busy} onClick={() => void create({ source: "day_use", purchaseId: selectedPurchase.id, buyerCpf: selectedPurchase.cpf, buyerName: selectedPurchase.buyerName, visitDate: selectedPurchase.visitDate, ticketCount: selectedPurchase.ticketCount, ticketSummary: selectedPurchase.tickets })}>Abrir ficha vinculada à compra #{selectedPurchase.id}</button>}
           </>}
-          {searched && (kind === "cliente" ? clients.length === 0 : purchases.length === 0) && <button onClick={startNoAccount} className="mt-4 rounded-lg border border-[#176b96] px-4 py-3 text-sm font-semibold text-[#176b96]">Registrar sem cadastro</button>}
         </> : <>
           <h2 className="text-xl font-semibold text-slate-800">Atendimento sem cadastro</h2>
           <p className="mt-2 text-sm text-slate-600">O atendimento terá número, ficha completa, histórico e encerramento. Nos relatórios, aparecerá como Sem cadastro.</p>

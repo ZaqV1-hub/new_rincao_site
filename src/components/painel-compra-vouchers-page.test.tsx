@@ -30,6 +30,7 @@ describe("PainelCompraVouchersPage", () => {
             },
           ],
           total: 1,
+          totalSoldValue: "40,00",
           page: 1,
           perPage: 100,
           totalPages: 1,
