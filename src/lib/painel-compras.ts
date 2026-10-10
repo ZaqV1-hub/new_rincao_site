@@ -170,6 +170,7 @@ export type PainelPurchaseVoucherIndicators = {
 export type PainelPurchaseVoucherListResult = {
   items: PainelPurchaseVoucherListItem[];
   total: number;
+  totalSoldValue: string;
   page: number;
   perPage: number;
   totalPages: number;
@@ -1196,9 +1197,11 @@ export async function listPainelPurchaseVouchers(input: {
         ${paginationClause}
       `,
     ),
-    pool.query<{ total: string }>(
+    pool.query<{ total: string; total_vendido: string }>(
       `
-        SELECT COUNT(voucher.idvoucher)::text AS total
+        SELECT
+          COUNT(voucher.idvoucher)::text AS total,
+          COALESCE(SUM(CASE WHEN c.stcompra = 'conc' THEN voucher.vlunicompra ELSE 0 END), 0)::text AS total_vendido
         FROM voucher
         JOIN compra c ON c.idcompra = voucher.idcompra
         JOIN agenda a ON a.idagenda = voucher.idagenda
@@ -1240,6 +1243,7 @@ export async function listPainelPurchaseVouchers(input: {
   return {
     items: rowsResult.rows.map(mapPainelPurchaseVoucherListItem),
     total,
+    totalSoldValue: formatMoneyLabel(countResult.rows[0]?.total_vendido),
     page,
     perPage: effectivePerPage,
     totalPages: Math.max(1, Math.ceil(total / effectivePerPage)),
