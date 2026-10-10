@@ -365,6 +365,7 @@ describe("mapPainelPurchaseVoucherListExportRows", () => {
         },
       ],
       total: 1,
+      totalSoldValue: "40,00",
       page: 1,
       perPage: 100,
       totalPages: 1,
@@ -825,7 +826,7 @@ describe("listPainelPurchaseVouchers", () => {
   it("carrega lista e indicadores legados de vouchers", async () => {
     mocks.query.mockImplementation(async (sql: string) => {
       if (sql.includes("COUNT(voucher.idvoucher)::text AS total")) {
-        return { rows: [{ total: "1" }] };
+        return { rows: [{ total: "1", total_vendido: "40.00" }] };
       }
 
       if (sql.includes("SUM(CASE WHEN (voucher.tpvoucher = 'norma'")) {
@@ -907,6 +908,7 @@ describe("listPainelPurchaseVouchers", () => {
         },
       ],
       total: 1,
+      totalSoldValue: "40,00",
       page: 1,
       perPage: 100,
       totalPages: 1,
