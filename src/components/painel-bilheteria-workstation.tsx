@@ -203,6 +203,8 @@ export function PainelBilheteriaWorkstation({
   const [message, setMessage] = useState<WorkstationMessage | null>(null);
   const [customerLookup, setCustomerLookup] =
     useState<PainelBilheteriaCustomerLookupResult | null>(null);
+  const [observationsOpen, setObservationsOpen] = useState(false);
+  const observationsCloseRef = useRef<HTMLButtonElement | null>(null);
   const [selectedCustomerVouchers, setSelectedCustomerVouchers] = useState<
     Record<number, number[]>
   >({});
@@ -215,6 +217,23 @@ export function PainelBilheteriaWorkstation({
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
   const hasServerDrivenTicketLookup = Boolean(initialTicketLookupState?.isOpen);
   const messageRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!observationsOpen) return;
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    observationsCloseRef.current?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setObservationsOpen(false);
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [observationsOpen]);
 
   useEffect(() => {
     if (!message || typeof window === "undefined") {
@@ -308,6 +327,7 @@ export function PainelBilheteriaWorkstation({
       preserveMessage?: boolean;
     },
   ) {
+    setObservationsOpen(false);
     const response = await fetch("/api/painel/bilheteria/customer-lookup", {
       method: "POST",
       headers: {
@@ -541,6 +561,7 @@ export function PainelBilheteriaWorkstation({
 
   async function executeVoucherSubmit(confirm = false) {
     setSubmittingVoucher(true);
+    setObservationsOpen(false);
     setCustomerLookup(null);
 
     try {
@@ -1042,25 +1063,15 @@ export function PainelBilheteriaWorkstation({
                   Mais detalhes do cliente
                 </Link>
               ) : null}
+              <button
+                className="rounded-full border border-[#b9d0e6] bg-white px-4 py-2 font-semibold text-[#173f68]"
+                onClick={() => setObservationsOpen(true)}
+                type="button"
+              >
+                Observações ({customerLookup.observations.length})
+              </button>
             </div>
           </div>
-
-          {customerLookup.observations.length ? (
-            <div className="mt-5 rounded-[18px] border border-[#c8d8e6] bg-[#f5f9fd] p-4">
-              <h3 className="text-lg font-semibold text-[#173f68]">Observações do cliente</h3>
-              <div className="mt-3 grid gap-3">
-                {customerLookup.observations.map((observation) => (
-                  <article className="rounded-[12px] border border-[#d7e3ee] bg-white p-4" key={observation.id}>
-                    <p className="whitespace-pre-wrap break-words text-sm text-[#173f68]">{observation.text}</p>
-                    <p className="mt-2 text-xs text-[#65798c]">
-                      {observation.createdAt.slice(0, 16).replace("T", " ")}
-                      {observation.createdBy ? ` · ${observation.createdBy}` : ""}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           {customerLookup.purchases.length === 0 ? (
             <p className="mt-5 text-sm text-[#5d7282]">
@@ -1318,6 +1329,44 @@ export function PainelBilheteriaWorkstation({
             </div>
           )}
         </section>
+      ) : null}
+
+      {observationsOpen && customerLookup ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(11,34,53,0.48)] px-4 py-6" onClick={() => setObservationsOpen(false)}>
+          <section
+            aria-labelledby="painel-bilheteria-observations-title"
+            aria-modal="true"
+            className="flex max-h-[85vh] w-full max-w-[680px] flex-col overflow-hidden rounded-[24px] border border-[#d6e1eb] bg-white shadow-[0_24px_64px_rgba(20,59,99,0.18)]"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="flex items-center justify-between gap-4 border-b border-[#d6e1eb] px-5 py-4">
+              <h2 className="text-lg font-black text-[#123b63]" id="painel-bilheteria-observations-title">
+                Observações do cliente ({customerLookup.observations.length})
+              </h2>
+              <button
+                aria-label="Fechar observações"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#d6e1eb] text-[#5d7282]"
+                onClick={() => setObservationsOpen(false)}
+                ref={observationsCloseRef}
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+            <div className="grid gap-3 overflow-y-auto bg-[#f5f9fd] p-5">
+              {customerLookup.observations.length ? customerLookup.observations.map((observation) => (
+                <article className="rounded-[12px] border border-[#d7e3ee] bg-white p-4" key={observation.id}>
+                  <p className="whitespace-pre-wrap break-words text-sm text-[#173f68]">{observation.text}</p>
+                  <p className="mt-2 text-xs text-[#65798c]">
+                    {observation.createdAt.slice(0, 16).replace("T", " ")}
+                    {observation.createdBy ? ` · ${observation.createdBy}` : ""}
+                  </p>
+                </article>
+              )) : <p className="text-sm text-[#5d7282]">Nenhuma observação cadastrada para este cliente.</p>}
+            </div>
+          </section>
+        </div>
       ) : null}
 
       <section
