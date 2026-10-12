@@ -8,7 +8,7 @@ import styles from "./enfermaria-visual.module.css";
 
 type Client = { id: number; name: string; address: string; hasTripToday: boolean };
 type Trip = { id: number; date: string; status: string; type: string };
-type Purchase = { id: number; status: string; cpf: string; buyerName: string; visitDate: string; ticketCount: number; tickets: string };
+type DayUseClient = { cpf: string; name: string };
 
 function tripTypeLabel(value: string) {
   return ({ escol: "Escola", confr: "Confraternização", padra: "Passeio", promo: "Passeio promocional" } as Record<string, string>)[value] ?? (value || "Passeio");
@@ -27,12 +27,11 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
   const [query, setQuery] = useState("");
   const [cpf, setCpf] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [dayUseClient, setDayUseClient] = useState<DayUseClient | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [tripId, setTripId] = useState("");
-  const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [registerNoAccount, setRegisterNoAccount] = useState(false);
   const [manualName, setManualName] = useState("");
   const [manualSource, setManualSource] = useState("");
@@ -61,8 +60,8 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
           const found = await api<Client[]>(`/api/painel/enfermaria?action=clients&q=${encodeURIComponent(value)}`);
           if (active) setClients(found);
         } else {
-          const found = await api<Purchase[]>(`/api/painel/enfermaria?action=day-use&cpf=${encodeURIComponent(value)}`);
-          if (active) setPurchases(found);
+          const found = await api<DayUseClient | null>(`/api/painel/enfermaria?action=day-use-client&cpf=${encodeURIComponent(value)}`);
+          if (active) setDayUseClient(found);
         }
         if (active) setSearched(true);
       } catch (e) {
@@ -101,7 +100,7 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
 
   function startNoAccount() {
     setRegisterNoAccount(true);
-    setManualName(kind === "cliente" ? query : `Day use ${cpf}`);
+    setManualName(kind === "cliente" ? query : dayUseClient?.name ?? "");
     setManualCpf(kind === "day_use" ? formatEnfermariaCpf(cpf) : "");
     setManualSource(kind === "day_use" ? "Bilheteria presencial" : "");
     setManualPhone(""); setManualReason("");
@@ -124,8 +123,8 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
             <button onClick={() => { setKind("cliente"); setSearched(false); setClients([]); setSelectedClient(null); setSearching(false); }} className={`${styles.choice} ${kind === "cliente" ? styles.choiceActive : ""}`} aria-pressed={kind === "cliente"}>
               <span className={styles.choiceTitle}>Cliente</span><span className={styles.choiceDescription}>Escola, grupo ou empresa com cadastro no painel.</span>
             </button>
-            <button onClick={() => { setKind("day_use"); setSearched(false); setPurchases([]); setSelectedPurchase(null); setSearching(false); setError(""); }} className={`${styles.choice} ${kind === "day_use" ? styles.choiceActive : ""}`} aria-pressed={kind === "day_use"}>
-              <span className={styles.choiceTitle}>Day use</span><span className={styles.choiceDescription}>Localize a compra pelo CPF de quem comprou os ingressos.</span>
+            <button onClick={() => { setKind("day_use"); setSearched(false); setDayUseClient(null); setSearching(false); setError(""); }} className={`${styles.choice} ${kind === "day_use" ? styles.choiceActive : ""}`} aria-pressed={kind === "day_use"}>
+              <span className={styles.choiceTitle}>Day use</span><span className={styles.choiceDescription}>Localize o cadastro do cliente pelo CPF.</span>
             </button>
           </div>
           {kind === "cliente" ? <>
@@ -136,17 +135,16 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
             {clients.length > 0 && !selectedClient && <div id="client-suggestions" role="listbox" className="mt-2 max-h-80 overflow-y-auto rounded-lg border border-slate-200 shadow-sm">{clients.map((client) => <button key={client.id} role="option" aria-selected={false} onClick={() => void chooseClient(client)} className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-sky-50"><span className="block font-medium text-slate-800">{client.name}</span><span className="mt-1 block text-xs text-slate-500">{client.address || "Endereço não informado"} · {client.hasTripToday ? "Passeio hoje" : "Sem passeio hoje"}</span></button>)}</div>}
             {selectedClient && <div className="mt-5 rounded-xl bg-sky-50 p-4"><label className="block text-sm font-semibold text-slate-800" htmlFor="trip-select">Passeio deste atendimento</label><p className="mt-1 text-xs text-slate-600">{loadingTrips ? "Carregando histórico de passeios..." : `Histórico completo de passeios de ${selectedClient.name}: ${trips.length} encontrado(s).`}</p><select id="trip-select" className={`${fieldClass} mt-2`} value={tripId} disabled={loadingTrips} onChange={(event) => setTripId(event.target.value)}><option value="">Selecione o passeio</option>{trips.map((trip) => <option key={trip.id} value={trip.id}>{/^\d{4}-\d{2}-\d{2}$/.test(trip.date) ? new Date(`${trip.date}T12:00:00`).toLocaleDateString("pt-BR") : "Data não informada"} · #{trip.id} · {tripTypeLabel(trip.type)} · {trip.status === "ati" || trip.status === "abe" ? "Aberto" : trip.status}</option>)}</select>{!loadingTrips && trips.length === 0 && <p className="mt-2 text-sm text-slate-600">Este cliente ainda não tem passeios vinculados no histórico.</p>}<button className={`${buttonClass} mt-3`} disabled={!tripId || busy || loadingTrips} onClick={() => void create({ source: "cliente", clientId: selectedClient.id, clientName: selectedClient.name, tripId: Number(tripId) })}>Abrir ficha</button></div>}
           </> : <>
-            <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="buyer-cpf">CPF de quem comprou os ingressos</label>
+            <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="buyer-cpf">CPF do cliente</label>
             <form className="mt-2 flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); submitCpfSearch(); }}>
-              <input id="buyer-cpf" className={`${fieldClass} min-w-[220px] flex-1`} value={cpf} onChange={(event) => { setCpf(formatEnfermariaCpf(event.target.value)); setCpfSubmittedInvalid(false); setSearched(false); setSearching(false); setPurchases([]); setSelectedPurchase(null); setError(""); }} placeholder="000.000.000-00" inputMode="numeric" aria-invalid={cpf.replace(/\D/g, "").length > 11 || cpfSubmittedInvalid} aria-describedby="buyer-cpf-help" />
+              <input id="buyer-cpf" className={`${fieldClass} min-w-[220px] flex-1`} value={cpf} onChange={(event) => { setCpf(formatEnfermariaCpf(event.target.value)); setCpfSubmittedInvalid(false); setSearched(false); setSearching(false); setDayUseClient(null); setError(""); }} placeholder="000.000.000-00" inputMode="numeric" aria-invalid={cpf.replace(/\D/g, "").length > 11 || cpfSubmittedInvalid} aria-describedby="buyer-cpf-help" />
               <button type="submit" className={buttonClass} disabled={searching}>Buscar CPF</button>
             </form>
             {(cpf.replace(/\D/g, "").length > 11 || cpfSubmittedInvalid) && <p role="alert" className="mt-2 text-sm font-medium text-red-700">O CPF deve ter 11 dígitos. Você digitou {cpf.replace(/\D/g, "").length}.</p>}
             <p id="buyer-cpf-help" className="mt-2 text-xs text-slate-500">A pessoa atendida pode ser outra; ela será identificada na ficha. A busca começa ao digitar os 11 dígitos ou clicar em Buscar CPF.</p>
-            {searching && <p className="mt-2 text-sm text-slate-500">Buscando compras...</p>}
-            {searched && !searching && purchases.length === 0 && <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-6 text-center"><p className="font-semibold text-[#183e63]">Nenhuma compra encontrada para este CPF</p><p className="mt-2 text-sm text-slate-600">Visitantes da bilheteria presencial também podem ser atendidos sem cadastro.</p><button onClick={startNoAccount} className="mt-4 rounded-lg bg-[#183e63] px-5 py-3 text-sm font-semibold text-white">Registrar sem cadastro</button></div>}
-            {purchases.length > 0 && <div className="mt-3 grid gap-2">{purchases.map((purchase) => <button key={purchase.id} onClick={() => setSelectedPurchase(purchase)} className={`rounded-xl border p-4 text-left ${selectedPurchase?.id === purchase.id ? "border-sky-500 bg-sky-50" : "border-slate-200 hover:bg-slate-50"}`}><span className="block font-semibold text-slate-800">{purchase.buyerName} · Compra #{purchase.id}</span><span className="mt-1 block text-sm text-slate-600">Visita {new Date(`${purchase.visitDate}T12:00:00`).toLocaleDateString("pt-BR")} · {purchase.ticketCount} ingresso(s)</span><span className="mt-1 block text-xs text-slate-500">{purchase.tickets} · {purchase.status}</span></button>)}</div>}
-            {selectedPurchase && <button className={`${buttonClass} mt-4`} disabled={busy} onClick={() => void create({ source: "day_use", purchaseId: selectedPurchase.id, buyerCpf: selectedPurchase.cpf, buyerName: selectedPurchase.buyerName, visitDate: selectedPurchase.visitDate, ticketCount: selectedPurchase.ticketCount, ticketSummary: selectedPurchase.tickets })}>Abrir ficha vinculada à compra #{selectedPurchase.id}</button>}
+            {searching && <p className="mt-2 text-sm text-slate-500">Buscando cliente...</p>}
+            {searched && !searching && !dayUseClient && <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-6 text-center"><p className="font-semibold text-[#183e63]">Nenhum cliente encontrado para este CPF</p><p className="mt-2 text-sm text-slate-600">Se a pessoa não tem cadastro, registre o atendimento sem cadastro.</p><button onClick={startNoAccount} className="mt-4 rounded-lg bg-[#183e63] px-5 py-3 text-sm font-semibold text-white">Registrar sem cadastro</button></div>}
+            {dayUseClient && <div className="mt-3 rounded-xl border border-sky-300 bg-sky-50 p-4"><p className="font-semibold text-[#183e63]">{dayUseClient.name}</p><p className="mt-1 text-sm text-slate-600">CPF {formatEnfermariaCpf(dayUseClient.cpf)}</p><p className="mt-1 text-xs text-slate-500">A ficha ficará vinculada ao CPF deste cliente.</p><button className={`${buttonClass} mt-4`} disabled={busy} onClick={() => void create({ source: "day_use", buyerCpf: dayUseClient.cpf })}>Abrir ficha</button></div>}
           </>}
         </> : <>
           <h2 className="text-xl font-semibold text-slate-800">Atendimento sem cadastro</h2>

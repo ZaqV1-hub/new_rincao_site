@@ -5,9 +5,11 @@ import {
   listEnfermariaDashboard,
   listEnfermariaLocais,
   listEnfermariaRecords,
+  listEnfermariaRecordsPage,
   listEnfermariaClientTrips,
   saveEnfermariaLocal,
   searchEnfermariaClients,
+  searchEnfermariaDayUseClient,
   searchEnfermariaDayUse,
   type EnfermariaSource,
 } from "@/lib/enfermaria";
@@ -42,12 +44,19 @@ export async function GET(request: Request) {
     if (action === "day-use") {
       return privateJson({ ok: true, data: await searchEnfermariaDayUse(url.searchParams.get("cpf") ?? "") });
     }
+    if (action === "day-use-client") {
+      return privateJson({ ok: true, data: await searchEnfermariaDayUseClient(url.searchParams.get("cpf") ?? "") });
+    }
     if (action === "locals") {
       return privateJson({ ok: true, data: await listEnfermariaLocais(true) });
     }
     if (action === "records") {
       const filters = Object.fromEntries(url.searchParams.entries());
       return privateJson({ ok: true, data: await listEnfermariaRecords(filters) });
+    }
+    if (action === "records-page") {
+      const filters = Object.fromEntries(url.searchParams.entries());
+      return privateJson({ ok: true, data: await listEnfermariaRecordsPage(filters, Number(url.searchParams.get("page") ?? 1)) });
     }
     if (action === "dashboard") {
       const from = url.searchParams.get("from") ?? localToday();

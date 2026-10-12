@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { EnfermariaLocal } from "@/lib/enfermaria";
+import { EnfermariaPagination } from "./enfermaria-pagination";
 import styles from "./enfermaria-visual.module.css";
 
 type PlaceDialog =
@@ -11,6 +12,7 @@ type PlaceDialog =
 
 export function EnfermariaPlaces({ canManage }: { canManage: boolean }) {
   const [places, setPlaces] = useState<EnfermariaLocal[]>([]);
+  const [page, setPage] = useState(1);
   const [name, setName] = useState("");
   const [dialog, setDialog] = useState<PlaceDialog | null>(null);
   const [error, setError] = useState("");
@@ -22,6 +24,7 @@ export function EnfermariaPlaces({ canManage }: { canManage: boolean }) {
     const result = await response.json();
     if (!response.ok || !result.ok) throw new Error(result.error?.message ?? "Falha ao carregar os locais.");
     setPlaces(result.data);
+    setPage((current) => Math.min(current, Math.max(1, Math.ceil(result.data.length / 10))));
   }
 
   useEffect(() => {
@@ -122,7 +125,7 @@ export function EnfermariaPlaces({ canManage }: { canManage: boolean }) {
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <table className="w-full text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Local</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Ações</th></tr></thead>
-        <tbody>{places.map((place) => <tr className="border-t border-slate-100" key={place.id}>
+        <tbody>{places.slice((page - 1) * 10, page * 10).map((place) => <tr className="border-t border-slate-100" key={place.id}>
           <td className="px-4 py-3">{place.name}</td>
           <td className="px-4 py-3">{place.active ? "Ativo" : "Desativado"}</td>
           <td className="px-4 py-3">
@@ -131,6 +134,7 @@ export function EnfermariaPlaces({ canManage }: { canManage: boolean }) {
           </td>
         </tr>)}{places.length === 0 && <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={3}>Nenhum local cadastrado.</td></tr>}</tbody>
       </table>
+      <EnfermariaPagination page={page} total={places.length} onChange={setPage} />
     </section>
     <Link href="/painel/enfermaria" className="text-sm font-semibold text-[#176b96]">← Voltar ao painel</Link>
 

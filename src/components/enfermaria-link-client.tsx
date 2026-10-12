@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { EnfermariaPagination } from "./enfermaria-pagination";
 
 type Client = { id: number; name: string; address: string; hasTripToday: boolean };
 export function EnfermariaLinkClient({ recordId }: { recordId: number }) {
@@ -45,14 +46,15 @@ export function EnfermariaLinkClient({ recordId }: { recordId: number }) {
 
 export function EnfermariaClientRecords({ clientId }: { clientId: number }) {
   const [records, setRecords] = useState<Array<{ id: number; numberLabel: string; occurredAt: string; status: string; localName: string | null; form: Record<string, unknown> }>>([]);
+  const [page, setPage] = useState(1);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
     void fetch(`/api/painel/enfermaria?action=records&clientId=${clientId}`).then(async (response) => {
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error?.message ?? "Não foi possível carregar atendimentos.");
-      setRecords(payload.data); setLoaded(true);
+      setRecords(payload.data); setPage(1); setLoaded(true);
     }).catch((e: unknown) => { setError(e instanceof Error ? e.message : "Falha ao carregar atendimentos."); setLoaded(true); });
   }, [clientId]);
-  return <section className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="text-xl font-semibold text-[#194d6b]">Atendimentos de enfermaria</h2><p className="mt-1 text-xs text-slate-500">Visível apenas para Gerente e Enfermeiro(a).</p>{error ? <p className="mt-3 text-sm text-red-700">{error}</p> : !loaded ? <p className="mt-3 text-sm text-slate-500">Carregando atendimentos…</p> : records.length ? <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="text-xs text-slate-500"><th className="py-2">Nº</th><th className="py-2">Data</th><th className="py-2">Atendido</th><th className="py-2">Local</th><th className="py-2">Status</th></tr></thead><tbody>{records.map((record) => <tr className="border-t" key={record.id}><td className="py-2"><a className="text-[#176b96] underline" href={`/painel/enfermaria/${record.id}`}>{record.numberLabel}</a></td><td className="py-2">{new Date(record.occurredAt.replace(" ", "T")).toLocaleDateString("pt-BR")}</td><td className="py-2">{String((record.form.identification as Record<string, unknown> | undefined)?.name ?? "—")}</td><td className="py-2">{record.localName ?? "—"}</td><td className="py-2">{record.status === "aberto" ? "Em aberto" : "Encerrado"}</td></tr>)}</tbody></table></div> : <p className="mt-3 text-sm text-slate-500">Nenhum atendimento de enfermaria vinculado.</p>}</section>;
+  return <section className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="text-xl font-semibold text-[#194d6b]">Atendimentos de enfermaria</h2><p className="mt-1 text-xs text-slate-500">Visível apenas para Gerente e Enfermeiro(a).</p>{error ? <p className="mt-3 text-sm text-red-700">{error}</p> : !loaded ? <p className="mt-3 text-sm text-slate-500">Carregando atendimentos…</p> : records.length ? <><div className="mt-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="text-xs text-slate-500"><th className="py-2">Nº</th><th className="py-2">Data</th><th className="py-2">Atendido</th><th className="py-2">Local</th><th className="py-2">Status</th></tr></thead><tbody>{records.slice((page - 1) * 10, page * 10).map((record) => <tr className="border-t" key={record.id}><td className="py-2"><a className="text-[#176b96] underline" href={`/painel/enfermaria/${record.id}`}>{record.numberLabel}</a></td><td className="py-2">{new Date(record.occurredAt.replace(" ", "T")).toLocaleDateString("pt-BR")}</td><td className="py-2">{String((record.form.identification as Record<string, unknown> | undefined)?.name ?? "—")}</td><td className="py-2">{record.localName ?? "—"}</td><td className="py-2">{record.status === "aberto" ? "Em aberto" : "Encerrado"}</td></tr>)}</tbody></table></div><EnfermariaPagination page={page} total={records.length} onChange={setPage} /></> : <p className="mt-3 text-sm text-slate-500">Nenhum atendimento de enfermaria vinculado.</p>}</section>;
 }

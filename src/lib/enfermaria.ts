@@ -353,6 +353,21 @@ export async function searchEnfermariaDayUse(cpfValue: string) {
   }));
 }
 
+export async function searchEnfermariaDayUseClient(cpfValue: string) {
+  const cpf = sanitizeCpf(cpfValue);
+  if (cpf.length !== 11) return null;
+  await ensureTables();
+  const result = await getIngressoSistemaDbPool().query<{ cpf: string; nmusuario: string }>(
+    `SELECT cpf, nmusuario FROM usuario_site_conta WHERE cpf = $1
+     UNION ALL
+     SELECT cpf, nmusuario FROM usuario WHERE cpf = $1 AND idpapel IS NULL
+     LIMIT 1`,
+    [cpf],
+  );
+  const row = result.rows[0];
+  return row ? { cpf, name: String(row.nmusuario ?? "Cliente") } : null;
+}
+
 export async function createEnfermariaRecord(input: {
   source: EnfermariaSource; clientId?: number | null; tripId?: number | null; purchaseId?: number | null;
   buyerCpf?: string | null; initialName?: string; clientName?: string; buyerName?: string; visitDate?: string; ticketCount?: number; ticketSummary?: string; professional: string; actor: string; occurredAt: string;
@@ -382,13 +397,17 @@ export async function createEnfermariaRecord(input: {
     tripDate = selectedTrip?.date ?? "";
     tripType = selectedTrip?.type ?? "";
   } else if (input.source === "day_use") {
-    if (!input.purchaseId || !input.buyerCpf) throw new Error("Localize uma compra de day use válida pelo CPF do comprador.");
-    const purchase = (await searchEnfermariaDayUse(input.buyerCpf)).find((item) => item.id === input.purchaseId);
-    if (!purchase) throw new Error("A compra não corresponde ao CPF ou não é de day use.");
-    buyerName = purchase.buyerName;
-    visitDate = purchase.visitDate;
-    ticketCount = purchase.ticketCount;
-    ticketSummary = purchase.tickets;
+    if (!input.buyerCpf) throw new Error("Informe o CPF do cliente.");
+    const client = await searchEnfermariaDayUseClient(input.buyerCpf);
+    if (!client) throw new Error("Cliente não encontrado para este CPF.");
+    buyerName = client.name;
+    if (input.purchaseId) {
+      const purchase = (await searchEnfermariaDayUse(input.buyerCpf)).find((item) => item.id === input.purchaseId);
+      if (!purchase) throw new Error("A compra não corresponde ao CPF informado.");
+      visitDate = purchase.visitDate;
+      ticketCount = purchase.ticketCount;
+      ticketSummary = purchase.tickets;
+    }
   }
   const intakeSources = ["", "Grupo misto", "Igreja", "Excursão", "Empresa", "Bilheteria presencial", "Cortesia", "Convidado ou fornecedor", "Outro"];
   if (input.source === "sem_cadastro") {
@@ -435,9 +454,7 @@ export async function getEnfermariaRecord(id: number): Promise<EnfermariaRecord 
   return result.rows[0] ? mapRecord(result.rows[0]) : null;
 }
 
-export async function listEnfermariaRecords(filters: Record<string, string | null> = {}, limit: number | null = 500) {
-  await ensureTables();
-  const pool = getIngressoSistemaDbPool();
+function enfermariaRecordWhere(filters: Record<string, string | null>) {
   const conditions: string[] = [];
   const values: unknown[] = [];
   const add = (sql: string, value: unknown) => { values.push(value); conditions.push(sql.replace("?", `$${values.length}`)); };
@@ -460,8 +477,27 @@ export async function listEnfermariaRecords(filters: Record<string, string | nul
   if (filters.from) add("occurred_at >= ?", dialect() === "mysql" ? `${filters.from} 00:00:00` : `${filters.from}T00:00:00-03:00`);
   if (filters.to) add("occurred_at <= ?", dialect() === "mysql" ? `${filters.to} 23:59:59` : `${filters.to}T23:59:59-03:00`);
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  return { where, values };
+}
+
+export async function listEnfermariaRecords(filters: Record<string, string | null> = {}, limit: number | null = 500) {
+  await ensureTables();
+  const pool = getIngressoSistemaDbPool();
+  const { where, values } = enfermariaRecordWhere(filters);
   const result = await pool.query<RawRecord>(`SELECT * FROM enfermaria_atendimentos ${where} ORDER BY occurred_at DESC, id DESC${limit === null ? "" : ` LIMIT ${limit}`}`, values);
   return result.rows.map(mapRecord);
+}
+
+export async function listEnfermariaRecordsPage(filters: Record<string, string | null>, requestedPage: number) {
+  await ensureTables();
+  const pool = getIngressoSistemaDbPool();
+  const { where, values } = enfermariaRecordWhere(filters);
+  const count = await pool.query<{ total: number | string }>(`SELECT COUNT(*) AS total FROM enfermaria_atendimentos ${where}`, values);
+  const total = Number(count.rows[0]?.total ?? 0);
+  const pages = Math.max(1, Math.ceil(total / 10));
+  const page = Math.min(Math.max(1, Math.trunc(requestedPage) || 1), pages);
+  const result = await pool.query<RawRecord>(`SELECT * FROM enfermaria_atendimentos ${where} ORDER BY occurred_at DESC, id DESC LIMIT 10 OFFSET ${(page - 1) * 10}`, values);
+  return { records: result.rows.map(mapRecord), total, page };
 }
 
 export async function updateEnfermariaRecord(id: number, input: {

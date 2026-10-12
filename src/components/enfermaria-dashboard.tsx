@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { EnfermariaRecord } from "@/lib/enfermaria";
+import { EnfermariaPagination } from "./enfermaria-pagination";
 import styles from "./enfermaria-visual.module.css";
 
 type DashboardData = {
@@ -157,14 +158,15 @@ export function EnfermariaDashboard({ canManage = false }: { canManage?: boolean
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
+  const [recentPage, setRecentPage] = useState(1);
 
   useEffect(() => {
     void load(from, to)
-      .then((result) => { setData(result); setError(""); })
+      .then((result) => { setData(result); setRecentPage(1); setError(""); })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : "Falha ao carregar o painel."));
   }, [from, to]);
 
-  const recent = useMemo(() => data?.records.slice(0, 8) ?? [], [data]);
+  const recent = useMemo(() => data?.records.slice((recentPage - 1) * 10, recentPage * 10) ?? [], [data, recentPage]);
   const monthLabel = useMemo(() => {
     if (from === to) return from === dateString(new Date()) ? "hoje" : formatDate(from);
     const fromDate = new Date(`${from}T12:00:00`);
@@ -268,6 +270,7 @@ export function EnfermariaDashboard({ canManage = false }: { canManage?: boolean
             </tbody>
           </table>
         </div>
+        <EnfermariaPagination page={recentPage} total={data.records.length} onChange={setRecentPage} />
       </section>
     </>}
 

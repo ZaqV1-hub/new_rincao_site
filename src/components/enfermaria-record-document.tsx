@@ -46,7 +46,7 @@ export function EnfermariaRecordDocument({ record, form, occurredAt, localName, 
     : -1;
   const source = record.source === "day_use" ? "Day use" : record.source === "cliente" ? "Cliente / passeio" : "Sem cadastro";
   const link = record.source === "day_use"
-    ? `Comprador ${shown(context.buyerName)} · CPF ${record.buyerCpf ? formatEnfermariaCpf(record.buyerCpf) : "—"} · Compra #${record.purchaseId}`
+    ? `Cliente ${shown(context.buyerName)} · CPF ${record.buyerCpf ? formatEnfermariaCpf(record.buyerCpf) : "—"}${record.purchaseId ? ` · Compra #${record.purchaseId}` : ""}`
     : record.source === "cliente"
       ? `${shown(context.clientName)} · Cliente #${record.clientId} · Passeio #${record.tripId}${context.tripDate ? ` em ${String(context.tripDate).slice(0, 10).split("-").reverse().join("/")}` : ""}`
       : shown(unregistered.intakeSource);
