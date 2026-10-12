@@ -34,6 +34,8 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
   const [manualPhone, setManualPhone] = useState("");
   const [manualReason, setManualReason] = useState("");
   const [searched, setSearched] = useState(false);
+  const [searchTrigger, setSearchTrigger] = useState(0);
+  const [cpfSubmittedInvalid, setCpfSubmittedInvalid] = useState(false);
   const [searching, setSearching] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -64,7 +66,16 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
       }
     }, 300);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [kind, query, cpf, registerNoAccount]);
+  }, [kind, query, cpf, registerNoAccount, searchTrigger]);
+
+  function submitCpfSearch() {
+    if (cpf.replace(/\D/g, "").length !== 11) {
+      setCpfSubmittedInvalid(true);
+      return;
+    }
+    setCpfSubmittedInvalid(false);
+    setSearchTrigger((current) => current + 1);
+  }
 
   async function chooseClient(client: Client) {
     setSelectedClient(client); setTripId(""); setError("");
@@ -106,7 +117,7 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
             <button onClick={() => { setKind("cliente"); setSearched(false); setClients([]); setSelectedClient(null); setSearching(false); }} className={`${styles.choice} ${kind === "cliente" ? styles.choiceActive : ""}`} aria-pressed={kind === "cliente"}>
               <span className={styles.choiceTitle}>Cliente</span><span className={styles.choiceDescription}>Escola, grupo ou empresa com cadastro no painel.</span>
             </button>
-            <button onClick={() => { setKind("day_use"); setSearched(false); setPurchases([]); setSelectedPurchase(null); setSearching(false); }} className={`${styles.choice} ${kind === "day_use" ? styles.choiceActive : ""}`} aria-pressed={kind === "day_use"}>
+            <button onClick={() => { setKind("day_use"); setSearched(false); setPurchases([]); setSelectedPurchase(null); setSearching(false); setError(""); }} className={`${styles.choice} ${kind === "day_use" ? styles.choiceActive : ""}`} aria-pressed={kind === "day_use"}>
               <span className={styles.choiceTitle}>Day use</span><span className={styles.choiceDescription}>Localize a compra pelo CPF de quem comprou os ingressos.</span>
             </button>
           </div>
@@ -119,8 +130,12 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
             {selectedClient && <div className="mt-5 rounded-xl bg-sky-50 p-4"><label className="block text-sm font-semibold text-slate-800" htmlFor="trip-select">Passeio deste atendimento</label><select id="trip-select" className={`${fieldClass} mt-2`} value={tripId} onChange={(event) => setTripId(event.target.value)}><option value="">Selecione o passeio</option>{trips.map((trip) => <option key={trip.id} value={trip.id}>{new Date(`${trip.date}T12:00:00`).toLocaleDateString("pt-BR")} · {trip.status === "ati" ? "Aberto" : trip.status}</option>)}</select><button className={`${buttonClass} mt-3`} disabled={!tripId || busy} onClick={() => void create({ source: "cliente", clientId: selectedClient.id, clientName: selectedClient.name, tripId: Number(tripId) })}>Abrir ficha</button></div>}
           </> : <>
             <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="buyer-cpf">CPF de quem comprou os ingressos</label>
-            <input id="buyer-cpf" className={`${fieldClass} mt-2`} value={cpf} onChange={(event) => { setCpf(event.target.value); setSearched(false); setSearching(false); setPurchases([]); setSelectedPurchase(null); }} placeholder="000.000.000-00" inputMode="numeric" />
-            <p className="mt-2 text-xs text-slate-500">A pessoa atendida pode ser outra; ela será identificada na ficha.</p>
+            <form className="mt-2 flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); submitCpfSearch(); }}>
+              <input id="buyer-cpf" className={`${fieldClass} min-w-[220px] flex-1`} value={cpf} onChange={(event) => { setCpf(event.target.value); setCpfSubmittedInvalid(false); setSearched(false); setSearching(false); setPurchases([]); setSelectedPurchase(null); setError(""); }} placeholder="000.000.000-00" inputMode="numeric" aria-invalid={cpf.replace(/\D/g, "").length > 11 || cpfSubmittedInvalid} aria-describedby="buyer-cpf-help" />
+              <button type="submit" className={buttonClass} disabled={searching}>Buscar CPF</button>
+            </form>
+            {(cpf.replace(/\D/g, "").length > 11 || cpfSubmittedInvalid) && <p role="alert" className="mt-2 text-sm font-medium text-red-700">O CPF deve ter 11 dígitos. Você digitou {cpf.replace(/\D/g, "").length}.</p>}
+            <p id="buyer-cpf-help" className="mt-2 text-xs text-slate-500">A pessoa atendida pode ser outra; ela será identificada na ficha. A busca começa ao digitar os 11 dígitos ou clicar em Buscar CPF.</p>
             {searching && <p className="mt-2 text-sm text-slate-500">Buscando compras...</p>}
             {searched && !searching && purchases.length === 0 && <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-6 text-center"><p className="font-semibold text-[#183e63]">Nenhuma compra encontrada para este CPF</p><p className="mt-2 text-sm text-slate-600">Visitantes da bilheteria presencial também podem ser atendidos sem cadastro.</p><button onClick={startNoAccount} className="mt-4 rounded-lg bg-[#183e63] px-5 py-3 text-sm font-semibold text-white">Registrar sem cadastro</button></div>}
             {purchases.length > 0 && <div className="mt-3 grid gap-2">{purchases.map((purchase) => <button key={purchase.id} onClick={() => setSelectedPurchase(purchase)} className={`rounded-xl border p-4 text-left ${selectedPurchase?.id === purchase.id ? "border-sky-500 bg-sky-50" : "border-slate-200 hover:bg-slate-50"}`}><span className="block font-semibold text-slate-800">{purchase.buyerName} · Compra #{purchase.id}</span><span className="mt-1 block text-sm text-slate-600">Visita {new Date(`${purchase.visitDate}T12:00:00`).toLocaleDateString("pt-BR")} · {purchase.ticketCount} ingresso(s)</span><span className="mt-1 block text-xs text-slate-500">{purchase.tickets} · {purchase.status}</span></button>)}</div>}
