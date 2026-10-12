@@ -63,86 +63,99 @@ function formatDate(date: string) {
   return new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR");
 }
 
-function makeDonutGradient(rows: Array<[string, number]>, total: number) {
-  if (total <= 0) return "conic-gradient(#EAF2FB 0deg 360deg)";
-  let offset = 0;
-  const parts = rows.map(([, value], index) => {
-    const start = (offset / total) * 360;
-    offset += value;
-    return `${chartColors[index % chartColors.length]} ${start}deg ${(offset / total) * 360}deg`;
-  });
-  return `conic-gradient(${parts.join(", ")})`;
-}
-
 function BarRows({ values, color = "#133A62" }: { values: Record<string, number>; color?: string }) {
+  const [active, setActive] = useState<string | null>(null);
   const rows = Object.entries(values).sort((a, b) => b[1] - a[1]);
   const max = Math.max(1, ...rows.map(([, value]) => value));
+  const total = rows.reduce((sum, [, value]) => sum + value, 0);
+  const selected = rows.find(([label]) => label === active);
   if (!rows.length) return <p className={styles.empty}>Sem registros no período.</p>;
 
-  return <div className={styles.hbars}>
-    {rows.map(([label, value]) => <div key={label} className={styles.hbar}>
+  return <div className={styles.chartInteractive}>
+    <div className={styles.hbars}>{rows.map(([label, value]) => <button type="button" key={label} className={`${styles.hbar} ${active === label ? styles.hbarActive : ""}`} aria-label={`${label}: ${value} atendimento(s), ${Math.round(value / total * 100)}% do total`} onMouseEnter={() => setActive(label)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(label)} onBlur={() => setActive(null)} onClick={() => setActive(active === label ? null : label)}>
       <span>{label}</span>
       <div className={styles.barTrack}><div className={styles.barFill} style={{ width: `${(value / max) * 100}%`, background: color }} /></div>
       <span className={styles.barCount}>{value}</span>
-    </div>)}
+    </button>)}</div>
+    <p className={styles.chartDetail} aria-live="polite">{selected ? <><strong>{selected[0]}</strong> · {selected[1]} atendimento(s) · {Math.round(selected[1] / total * 100)}% do total</> : "Passe o mouse, toque ou use o teclado para ver os detalhes."}</p>
   </div>;
 }
 
 function DemandChart({ values, recordCount }: { values: Record<string, number>; recordCount: number }) {
+  const [active, setActive] = useState<string | null>(null);
   const rows = Object.entries(values).sort((a, b) => b[1] - a[1]);
   const total = rows.reduce((sum, [, count]) => sum + count, 0);
+  const selected = rows.find(([label]) => label === active);
+  const circumference = 2 * Math.PI * 54;
+  let offset = 0;
   return <section className={styles.chartCard}>
     <h2 className={styles.chartTitle}>Por tipo de demanda</h2>
     <p className={styles.chartCaption}>Conforme o checklist da ficha.</p>
     {rows.length ? <div className={styles.donutRow}>
-      <div className={styles.donut} style={{ background: makeDonutGradient(rows, total) }} aria-label={`${total} atendimentos por tipo de demanda`}>
-        <span className={styles.donutLabel}><strong>{recordCount}</strong>atendimentos</span>
+      <div className={styles.donut} onMouseLeave={() => setActive(null)}>
+        <svg className={styles.donutSvg} viewBox="0 0 150 150" aria-label="Atendimentos por tipo de demanda">
+          <circle cx="75" cy="75" r="54" fill="none" stroke="#eaf2fb" strokeWidth="20" />
+          {rows.map(([label, count], index) => {
+            const length = count / total * circumference;
+            const start = offset;
+            offset += length;
+            return <circle key={label} cx="75" cy="75" r="54" fill="none" stroke={chartColors[index % chartColors.length]} strokeWidth={active === label ? "27" : "20"} strokeDasharray={`${length} ${circumference - length}`} strokeDashoffset={-start} transform="rotate(-90 75 75)" className={`${styles.donutSegment} ${active && active !== label ? styles.chartDimmed : ""}`} tabIndex={0} role="button" aria-label={`${label}: ${count} atendimento(s), ${Math.round(count / total * 100)}% das demandas`} onMouseEnter={() => setActive(label)} onFocus={() => setActive(label)} onBlur={() => setActive(null)} onClick={() => setActive(active === label ? null : label)} />;
+          })}
+        </svg>
+        <span className={styles.donutLabel}><strong>{selected ? selected[1] : recordCount}</strong>{selected ? selected[0] : "atendimentos"}</span>
       </div>
       <div className={styles.legend}>
-        {rows.map(([label, count], index) => <div key={label} className={styles.legendItem}>
+        {rows.map(([label, count], index) => <button type="button" key={label} className={`${styles.legendItem} ${active === label ? styles.legendItemActive : ""}`} onMouseEnter={() => setActive(label)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(label)} onBlur={() => setActive(null)} onClick={() => setActive(active === label ? null : label)}>
           <i className={styles.legendSwatch} style={{ background: chartColors[index % chartColors.length] }} />
           <span>{label}</span><b className={styles.legendValue}>{count}</b>
-        </div>)}
+        </button>)}
       </div>
     </div> : <p className={styles.empty}>Sem registros no período.</p>}
+    {rows.length > 0 && <p className={styles.chartDetail} aria-live="polite">{selected ? <><strong>{selected[0]}</strong> · {selected[1]} ocorrência(s) · {Math.round(selected[1] / total * 100)}% das demandas</> : "Passe o mouse, toque ou use o teclado para ver os detalhes."}</p>}
   </section>;
 }
 
 function TimelineChart({ from, to, counts }: { from: string; to: string; counts: Record<string, number> }) {
+  const [active, setActive] = useState<string | null>(null);
   const days = getTimelineDays(from, to, counts);
   const max = Math.max(1, ...days.map((item) => item.count));
+  const selected = days.find((day) => day.date === active);
   return <section className={styles.chartCard}>
     <h2 className={styles.chartTitle}>Linha do tempo</h2>
     <p className={styles.chartCaption}>Atendimentos por dia no período selecionado.</p>
     {days.length ? <div className={styles.timeline} aria-label="Gráfico de atendimentos por dia">
-      {days.map((day) => <div key={day.date} className={styles.timelineDay} title={`${formatDate(day.date)}: ${day.count} atendimento(s)`}>
+      {days.map((day) => <button type="button" key={day.date} className={`${styles.timelineDay} ${active === day.date ? styles.timelineDayActive : ""} ${active && active !== day.date ? styles.chartDimmed : ""}`} aria-label={`${formatDate(day.date)}: ${day.count} atendimento(s)`} onMouseEnter={() => setActive(day.date)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(day.date)} onBlur={() => setActive(null)} onClick={() => setActive(active === day.date ? null : day.date)}>
         <span className={styles.timelineCount}>{day.count || ""}</span>
         <div className={`${styles.timelineBar} ${day.weekend ? styles.timelineWeekend : ""}`} style={{ height: `${Math.max(day.count ? 8 : 3, (day.count / max) * 104)}px` }} />
         <span className={styles.timelineDate}>{day.label ? String(Number(day.date.slice(8))) : ""}</span>
-      </div>)}
+      </button>)}
     </div> : <p className={styles.empty}>Escolha um período válido para ver a linha do tempo.</p>}
+    {days.length > 0 && <p className={styles.chartDetail} aria-live="polite">{selected ? <><strong>{formatDate(selected.date)}</strong> · {selected.count} atendimento(s){selected.weekend ? " · fim de semana" : ""}</> : "Passe o mouse, toque ou use o teclado para ver os detalhes de cada dia."}</p>}
   </section>;
 }
 
 function SourceAndTimeChart({ records, timeCounts }: { records: EnfermariaRecord[]; timeCounts: Record<string, number> }) {
+  const [active, setActive] = useState<string | null>(null);
   const groups = [
     { label: "Passeio", count: records.filter((record) => record.source === "cliente").length, color: "#133A62", textColor: "#fff" },
     { label: "Day use", count: records.filter((record) => record.source === "day_use").length, color: "#5FA8D3", textColor: "#0F2D52" },
     { label: "Sem cadastro", count: records.filter((record) => record.source === "sem_cadastro").length, color: "#E0A43A", textColor: "#3A2606" },
   ];
   const total = groups.reduce((sum, item) => sum + item.count, 0);
+  const selected = groups.find((item) => item.label === active);
 
   return <section className={styles.chartCard}>
     <h2 className={styles.chartTitle}>Cliente/passeio vs day use</h2>
     <p className={styles.chartCaption}>Quem foi atendido.</p>
     {total ? <>
       <div className={styles.splitBar} aria-label={`${total} atendimentos por origem`}>
-        {groups.filter((item) => item.count > 0).map((item) => <div key={item.label} className={styles.splitPart} style={{ width: `${(item.count / total) * 100}%`, background: item.color, color: item.textColor }} title={`${item.label}: ${item.count}`}>
+        {groups.filter((item) => item.count > 0).map((item) => <button type="button" key={item.label} className={`${styles.splitPart} ${active === item.label ? styles.splitPartActive : ""} ${active && active !== item.label ? styles.chartDimmed : ""}`} style={{ width: `${(item.count / total) * 100}%`, background: item.color, color: item.textColor }} aria-label={`${item.label}: ${item.count} atendimento(s), ${Math.round(item.count / total * 100)}% do total`} onMouseEnter={() => setActive(item.label)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(item.label)} onBlur={() => setActive(null)} onClick={() => setActive(active === item.label ? null : item.label)}>
           {item.count / total >= 0.18 ? `${item.label} · ${item.count}` : item.count}
-        </div>)}
+        </button>)}
       </div>
-      <div className={styles.splitLegend}>{groups.map((item) => <span key={item.label}>{item.label} · {item.count}</span>)}</div>
+      <div className={styles.splitLegend}>{groups.map((item) => <button type="button" key={item.label} className={active === item.label ? styles.splitLegendActive : ""} onMouseEnter={() => setActive(item.label)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(item.label)} onBlur={() => setActive(null)} onClick={() => setActive(active === item.label ? null : item.label)}>{item.label} · {item.count}</button>)}</div>
     </> : <p className={styles.empty}>Sem registros no período.</p>}
+    {total > 0 && <p className={styles.chartDetail} aria-live="polite">{selected ? <><strong>{selected.label}</strong> · {selected.count} atendimento(s) · {Math.round(selected.count / total * 100)}% do total</> : "Passe o mouse, toque ou use o teclado para ver os detalhes."}</p>}
     <h3 className={styles.subChartTitle}>Por faixa de horário</h3>
     <p className={styles.chartCaption}>Quando os atendimentos acontecem.</p>
     <BarRows values={timeCounts} color="#2F6FB2" />
