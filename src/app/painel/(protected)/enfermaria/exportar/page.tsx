@@ -15,11 +15,11 @@ export default async function EnfermariaPrintPack({ searchParams }: { searchPara
     to: typeof query.to === "string" ? query.to : null,
   })).slice(0, 10);
 
-  return <main className={`${styles.page} mx-auto max-w-4xl bg-white p-8 print:max-w-none print:p-0`}>
-    <nav className="mb-6 flex justify-between print:hidden"><Link href="/painel/enfermaria" className="text-sm text-[#176b96]">← Voltar</Link><EnfermariaPrintButton label="Imprimir pacote / Salvar PDF" /></nav>
-    <h1 className="text-3xl font-semibold text-[#194d6b] print:hidden">Pacote de fichas · Enfermaria</h1>
-    <p className="mt-2 text-sm text-slate-500 print:hidden">Até 10 atendimentos mais recentes no período selecionado.</p>
-    {records.map((record) => <div key={record.id} className="mt-8 print:m-0 print:break-after-page">
+  return <main className={`${styles.page} ${styles.printPackPage} mx-auto max-w-4xl bg-white p-8`}>
+    <nav className={`${styles.printHide} mb-6 flex justify-between`}><Link href="/painel/enfermaria" className="text-sm text-[#176b96]">← Voltar</Link><EnfermariaPrintButton label="Imprimir pacote / Salvar PDF" /></nav>
+    <h1 className={`${styles.printHide} text-3xl font-semibold text-[#194d6b]`}>Pacote de fichas · Enfermaria</h1>
+    <p className={`${styles.printHide} mt-2 text-sm text-slate-500`}>Até 10 atendimentos mais recentes no período selecionado.</p>
+    {records.map((record, index) => <div key={record.id} className={`${styles.printPackItem} ${index < records.length - 1 ? styles.printPackItemNext : ""} mt-8`}>
       <EnfermariaRecordDocument
         record={record}
         form={record.form}

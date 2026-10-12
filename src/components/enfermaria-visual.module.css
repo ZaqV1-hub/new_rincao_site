@@ -863,6 +863,7 @@
 .choiceGroup button:focus-visible { outline: 3px solid #7db6e5; outline-offset: -3px; }
 
 .recordDocument { border: 1px solid var(--enf-line); border-radius: 6px; background: #fff; padding: 34px 38px; color: var(--enf-ink); }
+.recordPrintOnlyWhenEditing { display: none; }
 .documentHead { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 18px; border-bottom: 2px solid var(--enf-ink); padding-bottom: 16px; }
 .documentHead h2 { margin: 3px 0 0; color: var(--enf-ink); font-size: 22px; font-weight: 700; }
 .documentEyebrow { margin: 0; color: #4e6e92; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
@@ -903,10 +904,20 @@
   .documentSignatures { grid-template-columns: 1fr; gap: 30px; }
 }
 
+@page { size: A4 portrait; margin: 22mm 16mm 18mm; }
+
 @media print {
-  .recordDocument { border: 0; padding: 0; }
-  .documentSection { break-inside: avoid; }
-  .documentSignatures { break-inside: avoid; }
+  .recordPrintPage { display: block !important; width: 100% !important; max-width: none !important; padding: 0 !important; margin: 0 !important; }
+  .recordPrintPage > :not(.recordPrintOnly) { display: none !important; }
+  .recordPrintPage > .recordPrintOnly { display: block !important; }
+  .printPackPage { width: 100% !important; max-width: none !important; padding: 0 !important; margin: 0 !important; }
+  .printHide { display: none !important; }
+  .printPackItem { margin: 0 !important; }
+  .printPackItemNext { break-after: page; page-break-after: always; }
+  .recordDocument { border: 0; border-radius: 0; padding: 0; box-shadow: none; }
+  .documentHead, .documentSection, .documentSignatures { break-inside: avoid-page; page-break-inside: avoid; }
+  .documentSection h3 { break-after: avoid-page; page-break-after: avoid; }
+  .documentGrid div { break-inside: avoid-page; page-break-inside: avoid; }
 }
 
 @media (max-width: 1180px) {
