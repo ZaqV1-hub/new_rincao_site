@@ -279,7 +279,7 @@ export function EnfermariaDashboard({ canManage = false }: { canManage?: boolean
         <p className={styles.pageSub}>As exportações respeitam o período selecionado.</p>
         <div className={styles.exportList}>
           <a className={styles.exportItem} href={recordsUrl}><span className={styles.exportIcon}>XLS</span><span><b className={styles.exportLabel}>Lista de casos em Excel</b><small className={styles.exportHint}>Planilha Excel para o período.</small></span></a>
-          <Link className={styles.exportItem} href={reportUrl}><span className={styles.exportIcon}>PDF</span><span><b className={styles.exportLabel}>Relatório executivo em PDF</b><small className={styles.exportHint}>Resumo e gráficos, com opção anonimizada.</small></span></Link>
+          <Link className={styles.exportItem} href={reportUrl}><span className={styles.exportIcon}>PDF</span><span><b className={styles.exportLabel}>Relatório executivo em PDF</b><small className={styles.exportHint}>Indicadores e gráficos consolidados do período.</small></span></Link>
           <Link className={styles.exportItem} href={packageUrl}><span className={styles.exportIcon}>PDF</span><span><b className={styles.exportLabel}>Pacote com as últimas fichas</b><small className={styles.exportHint}>Reúne as fichas do período para imprimir.</small></span></Link>
           <Link className={styles.exportItem} href="/painel/enfermaria/historico"><span className={styles.exportIcon}>PDF</span><span><b className={styles.exportLabel}>Ficha individual</b><small className={styles.exportHint}>Abra um atendimento no histórico e escolha imprimir.</small></span></Link>
         </div>

@@ -414,7 +414,7 @@ export async function getEnfermariaRecord(id: number): Promise<EnfermariaRecord 
   return result.rows[0] ? mapRecord(result.rows[0]) : null;
 }
 
-export async function listEnfermariaRecords(filters: Record<string, string | null> = {}) {
+export async function listEnfermariaRecords(filters: Record<string, string | null> = {}, limit: number | null = 500) {
   await ensureTables();
   const pool = getIngressoSistemaDbPool();
   const conditions: string[] = [];
@@ -439,7 +439,7 @@ export async function listEnfermariaRecords(filters: Record<string, string | nul
   if (filters.from) add("occurred_at >= ?", dialect() === "mysql" ? `${filters.from} 00:00:00` : `${filters.from}T00:00:00-03:00`);
   if (filters.to) add("occurred_at <= ?", dialect() === "mysql" ? `${filters.to} 23:59:59` : `${filters.to}T23:59:59-03:00`);
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-  const result = await pool.query<RawRecord>(`SELECT * FROM enfermaria_atendimentos ${where} ORDER BY occurred_at DESC, id DESC LIMIT 500`, values);
+  const result = await pool.query<RawRecord>(`SELECT * FROM enfermaria_atendimentos ${where} ORDER BY occurred_at DESC, id DESC${limit === null ? "" : ` LIMIT ${limit}`}`, values);
   return result.rows.map(mapRecord);
 }
 
@@ -514,8 +514,8 @@ export async function listEnfermariaHistory(id: number) {
   }));
 }
 
-export async function listEnfermariaDashboard(from: string, to: string) {
-  const records = await listEnfermariaRecords({ from, to });
+export async function listEnfermariaDashboard(from: string, to: string, allRecords = false) {
+  const records = await listEnfermariaRecords({ from, to }, allRecords ? null : 500);
   const demandCounts = new Map<string, number>();
   const localCounts = new Map<string, number>();
   const timeCounts = new Map<string, number>();
@@ -531,7 +531,7 @@ export async function listEnfermariaDashboard(from: string, to: string) {
     const place = record.localName ?? "Sem local";
     localCounts.set(place, (localCounts.get(place) ?? 0) + 1);
     const hour = Number(record.occurredAt.slice(11, 13));
-    const slot = hour < 12 ? "9h às 12h" : hour < 15 ? "12h às 15h" : "15h às 18h";
+    const slot = hour < 12 ? "Antes de 12h" : hour < 15 ? "12h às 15h" : "Após 15h";
     timeCounts.set(slot, (timeCounts.get(slot) ?? 0) + 1);
     const day = record.occurredAt.slice(0, 10);
     timeline.set(day, (timeline.get(day) ?? 0) + 1);

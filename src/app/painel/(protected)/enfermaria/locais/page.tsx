@@ -1,4 +1,4 @@
-import { EnfermariaPlaces } from "@/components/enfermaria-history";
+import { EnfermariaPlaces } from "@/components/enfermaria-places";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const dynamic = "force-dynamic";

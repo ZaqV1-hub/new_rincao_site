@@ -2,35 +2,117 @@ import Link from "next/link";
 import { EnfermariaPrintButton } from "@/components/enfermaria-print-button";
 import { requirePainelAccess } from "@/lib/painel-session";
 import { listEnfermariaDashboard } from "@/lib/enfermaria";
+import styles from "./report.module.css";
 
 export const dynamic = "force-dynamic";
 
-function ChartBars({ title, values }: { title: string; values: Array<[string, number]> }) {
+type CountRow = [string, number];
+
+function formatDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : value;
+}
+
+function topLocations(values: Record<string, number>): CountRow[] {
+  const rows = Object.entries(values).sort((a, b) => b[1] - a[1]);
+  if (rows.length <= 6) return rows;
+  return [...rows.slice(0, 5), ["Outros locais", rows.slice(5).reduce((sum, [, count]) => sum + count, 0)]];
+}
+
+function BarChart({ title, hint, values, total, color }: {
+  title: string;
+  hint: string;
+  values: CountRow[];
+  total: number;
+  color: string;
+}) {
   const max = Math.max(1, ...values.map(([, count]) => count));
-  return <section><h2 className="font-semibold">{title}</h2><div className="mt-3 grid gap-3">{values.length ? values.map(([name, count]) => <div key={name}><div className="mb-1 flex justify-between gap-3 text-sm"><span>{name}</span><b>{count}</b></div><div className="h-2 rounded bg-slate-100"><div className="h-full rounded bg-[#2877a8]" style={{ width: `${count / max * 100}%` }} /></div></div>) : <p className="text-sm text-slate-500">Sem ocorrências neste período.</p>}</div></section>;
+  return <section className={styles.chartCard}>
+    <div className={styles.chartHeading}><h2>{title}</h2><p>{hint}</p></div>
+    {values.length ? <div className={styles.barList}>{values.map(([label, count]) => <div className={styles.barRow} key={label}>
+      <div className={styles.barLabel}><span>{label}</span><strong>{count} <small>({total ? Math.round(count / total * 100) : 0}%)</small></strong></div>
+      <div className={styles.barTrack}><div className={styles.barFill} style={{ width: `${count / max * 100}%`, backgroundColor: color }} /></div>
+    </div>)}</div> : <p className={styles.empty}>Sem registros no período.</p>}
+  </section>;
+}
+
+function OriginChart({ values }: { values: CountRow[] }) {
+  const colors = ["#153f68", "#4e97c3", "#d9a048"];
+  const total = values.reduce((sum, [, count]) => sum + count, 0);
+  let offset = 0;
+  const stops = values.map(([, count], index) => {
+    const start = total ? offset / total * 360 : 0;
+    offset += count;
+    return `${colors[index]} ${start}deg ${total ? offset / total * 360 : 0}deg`;
+  });
+  return <section className={styles.chartCard}>
+    <div className={styles.chartHeading}><h2>Origem do atendimento</h2><p>Como a pessoa chegou ao parque.</p></div>
+    {total ? <div className={styles.originBody}>
+      <div className={styles.donut} style={{ background: `conic-gradient(${stops.join(", ")})` }} role="img" aria-label={values.map(([label, count]) => `${label}: ${count}`).join(", ")}>
+        <div><strong>{total}</strong><span>atendimentos</span></div>
+      </div>
+      <div className={styles.legend}>{values.map(([label, count], index) => <div key={label}>
+        <i style={{ backgroundColor: colors[index] }} /><span>{label}</span><strong>{count}</strong>
+      </div>)}</div>
+    </div> : <p className={styles.empty}>Sem registros no período.</p>}
+  </section>;
+}
+
+function TimeChart({ values, total }: { values: CountRow[]; total: number }) {
+  const max = Math.max(1, ...values.map(([, count]) => count));
+  return <section className={styles.chartCard}>
+    <div className={styles.chartHeading}><h2>Faixa de horário</h2><p>Distribuição dos atendimentos ao longo do dia.</p></div>
+    {total ? <div className={styles.timeChart}>{values.map(([label, count]) => <div className={styles.timeColumn} key={label}>
+      <div className={styles.timePlot}><strong>{count}</strong><div style={{ height: `${Math.max(4, count / max * 100)}%` }} /></div>
+      <span>{label}</span>
+      <small>{Math.round(count / total * 100)}%</small>
+    </div>)}</div> : <p className={styles.empty}>Sem registros no período.</p>}
+  </section>;
 }
 
 export default async function EnfermariaExecutiveReport({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requirePainelAccess("vis_enfermaria", "/painel/enfermaria/relatorio");
   const query = await searchParams;
-  const today = new Date().toISOString().slice(0, 10);
-  const from = typeof query.from === "string" ? query.from : today;
-  const to = typeof query.to === "string" ? query.to : today;
-  const anonymous = query.anonymous === "1";
-  const data = await listEnfermariaDashboard(from, to);
-  const rows = Object.entries(data.demandCounts).sort((a, b) => b[1] - a[1]);
-  const sourceCounts = [
-    ["Cliente/passeio", data.records.filter((record) => record.source === "cliente").length],
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const from = typeof query.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(query.from) ? query.from : today;
+  const to = typeof query.to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(query.to) ? query.to : today;
+  const data = await listEnfermariaDashboard(from, to, true);
+  const count = data.totals.count;
+  const demand = Object.entries(data.demandCounts).sort((a, b) => b[1] - a[1]);
+  const origin: CountRow[] = [
+    ["Cliente / passeio", data.records.filter((record) => record.source === "cliente").length],
     ["Day use", data.records.filter((record) => record.source === "day_use").length],
     ["Sem cadastro", data.records.filter((record) => record.source === "sem_cadastro").length],
-  ] as Array<[string, number]>;
-  return <main className="mx-auto max-w-5xl space-y-6 bg-white p-8 print:max-w-none print:p-0">
-    <nav className="flex flex-wrap justify-between gap-3 print:hidden"><Link href={`/painel/enfermaria?from=${from}&to=${to}`} className="text-sm text-[#176b96]">← Voltar à Enfermaria</Link><div className="flex gap-2"><Link href={`/painel/enfermaria/relatorio?from=${from}&to=${to}&anonymous=${anonymous ? "0" : "1"}`} className="rounded-lg border px-4 py-2 text-sm">{anonymous ? "Incluir nome e CPF" : "Sem nome e CPF"}</Link><EnfermariaPrintButton /></div></nav>
-    <header className="flex min-h-[70vh] flex-col justify-center border-b-2 border-[#176b96] pb-8 print:break-after-page"><p className="text-sm uppercase tracking-[0.2em] text-[#176b96]">Clube e Park Rincão</p><h1 className="mt-3 text-4xl font-semibold text-slate-900">Relatório executivo<br />Enfermaria</h1><p className="mt-4 text-lg text-slate-600">Período de {new Date(`${from}T12:00:00`).toLocaleDateString("pt-BR")} a {new Date(`${to}T12:00:00`).toLocaleDateString("pt-BR")}</p><p className="mt-3 text-sm font-medium text-slate-500">{anonymous ? "Relatório anonimizado: nome e CPF removidos." : "Acesso restrito a Gerente e Enfermeiro(a)."}</p><div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Atendimentos", data.totals.count], ["Em aberto", data.totals.open], ["Encaminhados à UPA", data.totals.upa], ["Sinais de alerta", data.totals.urgent]].map(([label, value]) => <div key={String(label)} className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-semibold text-[#194d6b]">{value}</p></div>)}</div></header>
-    <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Atendimentos", data.totals.count], ["Em aberto", data.totals.open], ["Encaminhados à UPA", data.totals.upa], ["Sinais de alerta", data.totals.urgent]].map(([label, value]) => <div key={String(label)} className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-semibold text-[#194d6b]">{value}</p></div>)}</section>
-    <section className="grid gap-6 sm:grid-cols-2"><ChartBars title="Ocorrências por local" values={Object.entries(data.localCounts).sort((a, b) => b[1] - a[1])} /><ChartBars title="Tipo de demanda" values={rows} /><ChartBars title="Por faixa de horário" values={Object.entries(data.timeCounts)} /><ChartBars title="Cliente/passeio, day use e sem cadastro" values={sourceCounts} /></section>
-    <ChartBars title="Linha do tempo por dia" values={Object.entries(data.timeline).sort(([a], [b]) => a.localeCompare(b)).map(([date, count]) => [new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR"), count])} />
-    <section><h2 className="font-semibold">Atendimentos do período</h2><table className="mt-3 w-full border-collapse text-xs"><thead><tr>{["Nº", "Data", "Tipo", ...(anonymous ? [] : ["Atendido", "CPF"]), "Local", "Demanda", "Status"].map((title) => <th key={title} className="border border-slate-300 bg-slate-50 px-2 py-2 text-left">{title}</th>)}</tr></thead><tbody>{data.records.map((record) => { const identification = (record.form.identification ?? {}) as Record<string, unknown>; const complaint = (record.form.complaint ?? {}) as Record<string, unknown>; return <tr key={record.id}><td className="border border-slate-300 px-2 py-2">{record.numberLabel}</td><td className="border border-slate-300 px-2 py-2">{record.occurredAt}</td><td className="border border-slate-300 px-2 py-2">{record.source}</td>{!anonymous && <><td className="border border-slate-300 px-2 py-2">{String(identification.name ?? "")}</td><td className="border border-slate-300 px-2 py-2">{String(identification.cpf ?? record.buyerCpf ?? "")}</td></>}<td className="border border-slate-300 px-2 py-2">{record.localName ?? ""}</td><td className="border border-slate-300 px-2 py-2">{Array.isArray(complaint.demandTypes) ? complaint.demandTypes.join(", ") : ""}</td><td className="border border-slate-300 px-2 py-2">{record.status}</td></tr>; })}</tbody></table></section>
-    <footer className="border-t pt-4 text-xs text-slate-500">Documento interno para acompanhamento de segurança do Rincão · Gerado em {new Date().toLocaleString("pt-BR")}</footer>
+  ];
+  const times: CountRow[] = ["Antes de 12h", "12h às 15h", "Após 15h"].map((label) => [label, data.timeCounts[label] ?? 0]);
+  const generated = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }).format(new Date());
+  const metrics = [
+    { label: "Atendimentos", value: count, detail: "no período selecionado" },
+    { label: "Encerrados", value: count - data.totals.open, detail: count ? `${Math.round((count - data.totals.open) / count * 100)}% do total` : "0% do total" },
+    { label: "Encaminhados à UPA", value: data.totals.upa, detail: count ? `${Math.round(data.totals.upa / count * 100)}% do total` : "0% do total" },
+    { label: "Sinais de urgência", value: data.totals.urgent, detail: count ? `${Math.round(data.totals.urgent / count * 100)}% do total` : "0% do total" },
+  ];
+
+  return <main className={styles.report}>
+    <nav className={styles.toolbar}><Link href={`/painel/enfermaria?from=${from}&to=${to}`}>← Voltar à Enfermaria</Link><EnfermariaPrintButton label="Imprimir / Salvar PDF" /></nav>
+    <div className={styles.sheet}>
+      <header className={styles.reportHeader}>
+        <div><p className={styles.brand}>Clube e Park Rincão</p><h1>Enfermaria <span>Relatório executivo</span></h1><p className={styles.reportSubtitle}>Visão consolidada dos atendimentos, sem dados pessoais.</p></div>
+        <div className={styles.period}><span>Período analisado</span><strong>{formatDate(from)} a {formatDate(to)}</strong><small>Gerado em {generated}</small></div>
+      </header>
+
+      <section className={styles.metrics} aria-label="Indicadores do período">
+        {metrics.map((metric) => <div className={styles.metric} key={metric.label}><span>{metric.label}</span><strong>{metric.value.toLocaleString("pt-BR")}</strong><small>{metric.detail}</small></div>)}
+      </section>
+
+      <div className={styles.chartGrid}>
+        <BarChart title="Ocorrências por local" hint="Locais com mais registros; os demais são agrupados." values={topLocations(data.localCounts)} total={count} color="#153f68" />
+        <BarChart title="Tipos de demanda" hint="Uma ficha pode conter mais de um tipo." values={demand} total={count} color="#4e97c3" />
+        <OriginChart values={origin} />
+        <TimeChart values={times} total={count} />
+      </div>
+
+      <footer className={styles.footer}><span>Documento interno para acompanhamento da Enfermaria do Rincão.</span><span>Dados agregados · {count.toLocaleString("pt-BR")} atendimento(s)</span></footer>
+    </div>
   </main>;
 }
