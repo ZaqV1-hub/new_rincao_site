@@ -69,7 +69,12 @@ export async function POST(request: Request, context: Context) {
   const actor = access.session.actorName ?? access.session.actorCpf ?? "Enfermaria";
   try {
     if (body.action === "close") {
-      return privateJson({ ok: true, data: await closeEnfermariaRecord(id, actor) });
+      if (!body.form || typeof body.form !== "object" || Array.isArray(body.form)) return errorResponse("Preencha a ficha antes de encerrar.");
+      return privateJson({ ok: true, data: await closeEnfermariaRecord(id, actor, {
+        form: body.form as Record<string, unknown>,
+        occurredAt: String(body.occurredAt ?? ""),
+        localId: body.localId ? Number(body.localId) : null,
+      }) });
     }
     if (body.action === "unlock") {
       if (access.session.legacyRoleId !== 1) return errorResponse("Somente gerente pode liberar a edição.", 403);

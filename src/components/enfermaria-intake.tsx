@@ -3,11 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { formatEnfermariaCpf, formatEnfermariaPhone } from "@/lib/enfermaria-input-format";
 import styles from "./enfermaria-visual.module.css";
 
 type Client = { id: number; name: string; address: string; hasTripToday: boolean };
-type Trip = { id: number; date: string; status: string };
+type Trip = { id: number; date: string; status: string; type: string };
 type Purchase = { id: number; status: string; cpf: string; buyerName: string; visitDate: string; ticketCount: number; tickets: string };
+
+function tripTypeLabel(value: string) {
+  return ({ escol: "Escola", confr: "Confraternização", padra: "Passeio", promo: "Passeio promocional" } as Record<string, string>)[value] ?? (value || "Passeio");
+}
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...init?.headers } });
@@ -25,6 +30,7 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [loadingTrips, setLoadingTrips] = useState(false);
   const [tripId, setTripId] = useState("");
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [registerNoAccount, setRegisterNoAccount] = useState(false);
@@ -78,9 +84,10 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
   }
 
   async function chooseClient(client: Client) {
-    setSelectedClient(client); setTripId(""); setError("");
+    setSelectedClient(client); setTripId(""); setTrips([]); setLoadingTrips(true); setError("");
     try { setTrips(await api<Trip[]>(`/api/painel/enfermaria?action=trips&clientId=${client.id}`)); }
     catch (e) { setError(e instanceof Error ? e.message : "Não foi possível carregar passeios."); }
+    finally { setLoadingTrips(false); }
   }
 
   async function create(body: Record<string, unknown>) {
@@ -95,7 +102,7 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
   function startNoAccount() {
     setRegisterNoAccount(true);
     setManualName(kind === "cliente" ? query : `Day use ${cpf}`);
-    setManualCpf(kind === "day_use" ? cpf : "");
+    setManualCpf(kind === "day_use" ? formatEnfermariaCpf(cpf) : "");
     setManualSource(kind === "day_use" ? "Bilheteria presencial" : "");
     setManualPhone(""); setManualReason("");
   }
@@ -127,11 +134,11 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
             {searching && <p className="mt-2 text-sm text-slate-500">Buscando clientes...</p>}
             {searched && !searching && clients.length === 0 && <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-6 text-center"><p className="font-semibold text-[#183e63]">Nenhum cliente encontrado</p><p className="mt-2 text-sm text-slate-600">Grupos mistos e outros visitantes sem cadastro não aparecem aqui.<br />Nesse caso, registre o atendimento sem cadastro.</p><button onClick={startNoAccount} className="mt-4 rounded-lg bg-[#183e63] px-5 py-3 text-sm font-semibold text-white">Registrar sem cadastro</button></div>}
             {clients.length > 0 && !selectedClient && <div id="client-suggestions" role="listbox" className="mt-2 max-h-80 overflow-y-auto rounded-lg border border-slate-200 shadow-sm">{clients.map((client) => <button key={client.id} role="option" aria-selected={false} onClick={() => void chooseClient(client)} className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-sky-50"><span className="block font-medium text-slate-800">{client.name}</span><span className="mt-1 block text-xs text-slate-500">{client.address || "Endereço não informado"} · {client.hasTripToday ? "Passeio hoje" : "Sem passeio hoje"}</span></button>)}</div>}
-            {selectedClient && <div className="mt-5 rounded-xl bg-sky-50 p-4"><label className="block text-sm font-semibold text-slate-800" htmlFor="trip-select">Passeio deste atendimento</label><select id="trip-select" className={`${fieldClass} mt-2`} value={tripId} onChange={(event) => setTripId(event.target.value)}><option value="">Selecione o passeio</option>{trips.map((trip) => <option key={trip.id} value={trip.id}>{new Date(`${trip.date}T12:00:00`).toLocaleDateString("pt-BR")} · {trip.status === "ati" ? "Aberto" : trip.status}</option>)}</select><button className={`${buttonClass} mt-3`} disabled={!tripId || busy} onClick={() => void create({ source: "cliente", clientId: selectedClient.id, clientName: selectedClient.name, tripId: Number(tripId) })}>Abrir ficha</button></div>}
+            {selectedClient && <div className="mt-5 rounded-xl bg-sky-50 p-4"><label className="block text-sm font-semibold text-slate-800" htmlFor="trip-select">Passeio deste atendimento</label><p className="mt-1 text-xs text-slate-600">{loadingTrips ? "Carregando histórico de passeios..." : `Histórico completo de passeios de ${selectedClient.name}: ${trips.length} encontrado(s).`}</p><select id="trip-select" className={`${fieldClass} mt-2`} value={tripId} disabled={loadingTrips} onChange={(event) => setTripId(event.target.value)}><option value="">Selecione o passeio</option>{trips.map((trip) => <option key={trip.id} value={trip.id}>{/^\d{4}-\d{2}-\d{2}$/.test(trip.date) ? new Date(`${trip.date}T12:00:00`).toLocaleDateString("pt-BR") : "Data não informada"} · #{trip.id} · {tripTypeLabel(trip.type)} · {trip.status === "ati" || trip.status === "abe" ? "Aberto" : trip.status}</option>)}</select>{!loadingTrips && trips.length === 0 && <p className="mt-2 text-sm text-slate-600">Este cliente ainda não tem passeios vinculados no histórico.</p>}<button className={`${buttonClass} mt-3`} disabled={!tripId || busy || loadingTrips} onClick={() => void create({ source: "cliente", clientId: selectedClient.id, clientName: selectedClient.name, tripId: Number(tripId) })}>Abrir ficha</button></div>}
           </> : <>
             <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="buyer-cpf">CPF de quem comprou os ingressos</label>
             <form className="mt-2 flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); submitCpfSearch(); }}>
-              <input id="buyer-cpf" className={`${fieldClass} min-w-[220px] flex-1`} value={cpf} onChange={(event) => { setCpf(event.target.value); setCpfSubmittedInvalid(false); setSearched(false); setSearching(false); setPurchases([]); setSelectedPurchase(null); setError(""); }} placeholder="000.000.000-00" inputMode="numeric" aria-invalid={cpf.replace(/\D/g, "").length > 11 || cpfSubmittedInvalid} aria-describedby="buyer-cpf-help" />
+              <input id="buyer-cpf" className={`${fieldClass} min-w-[220px] flex-1`} value={cpf} onChange={(event) => { setCpf(formatEnfermariaCpf(event.target.value)); setCpfSubmittedInvalid(false); setSearched(false); setSearching(false); setPurchases([]); setSelectedPurchase(null); setError(""); }} placeholder="000.000.000-00" inputMode="numeric" aria-invalid={cpf.replace(/\D/g, "").length > 11 || cpfSubmittedInvalid} aria-describedby="buyer-cpf-help" />
               <button type="submit" className={buttonClass} disabled={searching}>Buscar CPF</button>
             </form>
             {(cpf.replace(/\D/g, "").length > 11 || cpfSubmittedInvalid) && <p role="alert" className="mt-2 text-sm font-medium text-red-700">O CPF deve ter 11 dígitos. Você digitou {cpf.replace(/\D/g, "").length}.</p>}
@@ -147,8 +154,8 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="sm:col-span-2 text-sm font-medium text-slate-700">Quem é a pessoa ou o grupo <span className="text-red-600">*</span><input className={`${fieldClass} mt-2`} value={manualName} onChange={(event) => setManualName(event.target.value)} required /></label>
             <label className="text-sm font-medium text-slate-700">Como entrou no parque<select className={`${fieldClass} mt-2`} value={manualSource} onChange={(event) => setManualSource(event.target.value)}><option value="">Selecione (opcional)</option>{["Grupo misto", "Igreja", "Excursão", "Empresa", "Bilheteria presencial", "Cortesia", "Convidado ou fornecedor", "Outro"].map((v) => <option key={v}>{v}</option>)}</select></label>
-            <label className="text-sm font-medium text-slate-700">CPF do responsável<input className={`${fieldClass} mt-2`} value={manualCpf} onChange={(event) => setManualCpf(event.target.value)} /></label>
-            <label className="text-sm font-medium text-slate-700">Telefone de contato<input className={`${fieldClass} mt-2`} value={manualPhone} onChange={(event) => setManualPhone(event.target.value)} /></label>
+            <label className="text-sm font-medium text-slate-700">CPF do responsável<input className={`${fieldClass} mt-2`} inputMode="numeric" placeholder="000.000.000-00" value={manualCpf} onChange={(event) => setManualCpf(formatEnfermariaCpf(event.target.value))} /></label>
+            <label className="text-sm font-medium text-slate-700">Telefone de contato<input className={`${fieldClass} mt-2`} inputMode="tel" placeholder="(11) 99999-9999" value={manualPhone} onChange={(event) => setManualPhone(formatEnfermariaPhone(event.target.value))} /></label>
             <label className="text-sm font-medium text-slate-700">Por que não há cadastro<input className={`${fieldClass} mt-2`} value={manualReason} onChange={(event) => setManualReason(event.target.value)} /></label>
           </div>
           <div className="mt-5 flex gap-3"><button className="rounded-lg border border-slate-300 px-4 py-3 text-sm" onClick={() => setRegisterNoAccount(false)}>Voltar à busca</button><button className={buttonClass} disabled={!manualName.trim() || busy} onClick={() => void create({ source: "sem_cadastro", initialName: manualName, intakeSource: manualSource, guardianCpf: manualCpf, guardianPhone: manualPhone, noAccountReason: manualReason })}>Abrir ficha</button></div>

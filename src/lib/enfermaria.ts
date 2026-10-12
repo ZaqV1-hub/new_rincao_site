@@ -304,13 +304,27 @@ export async function searchEnfermariaClients(query: string) {
 export async function listEnfermariaClientTrips(clientId: number) {
   await ensureTables();
   const pool = getIngressoSistemaDbPool();
-  const result = await pool.query<Record<string, unknown>>(
-    `SELECT ed.idagenda, a.dtagenda, ed.status, e.nmescola
-     FROM clientes c JOIN escola e ON lower(btrim(e.nmescola)) = lower(btrim(c.nome))
-     JOIN escoladata ed ON ed.idescola = e.idescola JOIN agenda a ON a.idagenda = ed.idagenda
-     WHERE c.idcliente = $1 ORDER BY a.dtagenda DESC LIMIT 100`, [clientId],
-  );
-  return result.rows.map((row) => ({ id: Number(row.idagenda), date: String(row.dtagenda).slice(0, 10), status: String(row.status ?? "ati") }));
+  const [linked, school] = await Promise.all([
+    pool.query<Record<string, unknown>>(
+      `SELECT a.idagenda, a.dtagenda, COALESCE(ae.stagenda_cli, a.stagenda, 'abe') AS status, a.tpagenda
+       FROM agenda_extras ae JOIN agenda a ON a.idagenda = ae.idagenda
+       WHERE ae.idcliente = $1 ORDER BY a.dtagenda DESC, a.idagenda DESC`, [clientId],
+    ),
+    pool.query<Record<string, unknown>>(
+      `SELECT ed.idagenda, a.dtagenda, ed.status, a.tpagenda
+       FROM clientes c JOIN escola e ON lower(btrim(e.nmescola)) = lower(btrim(c.nome))
+       JOIN escoladata ed ON ed.idescola = e.idescola JOIN agenda a ON a.idagenda = ed.idagenda
+       WHERE c.idcliente = $1 ORDER BY a.dtagenda DESC, a.idagenda DESC`, [clientId],
+    ),
+  ]);
+  const trips = new Map<number, { id: number; date: string; status: string; type: string }>();
+  for (const row of [...linked.rows, ...school.rows]) {
+    const id = Number(row.idagenda);
+    if (!Number.isInteger(id) || trips.has(id)) continue;
+    const date = row.dtagenda instanceof Date ? row.dtagenda.toISOString().slice(0, 10) : String(row.dtagenda ?? "").slice(0, 10);
+    trips.set(id, { id, date, status: String(row.status ?? "abe"), type: String(row.tpagenda ?? "") });
+  }
+  return [...trips.values()].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
 }
 
 export async function searchEnfermariaDayUse(cpfValue: string) {
@@ -334,7 +348,7 @@ export async function searchEnfermariaDayUse(cpfValue: string) {
   );
   return result.rows.map((row) => ({
     id: Number(row.idcompra), status: String(row.stcompra ?? ""), cpf: sanitizeCpf(String(row.cpf)),
-    buyerName: String(row.nmusuario ?? "Comprador"), visitDate: String(row.dtagenda ?? "").slice(0, 10),
+    buyerName: String(row.nmusuario ?? "Comprador"), visitDate: row.dtagenda instanceof Date ? row.dtagenda.toISOString().slice(0, 10) : String(row.dtagenda ?? "").slice(0, 10),
     ticketCount: Number(row.quantidade ?? 0), tickets: String(row.ingressos ?? "Ingressos"),
   }));
 }
@@ -347,6 +361,8 @@ export async function createEnfermariaRecord(input: {
   await ensureTables();
   const pool = getIngressoSistemaDbPool();
   let clientName = "";
+  let tripDate = "";
+  let tripType = "";
   let buyerName = "";
   let visitDate = "";
   let ticketCount = 0;
@@ -354,12 +370,17 @@ export async function createEnfermariaRecord(input: {
   if (input.source === "cliente") {
     if (!input.clientId || !input.tripId) throw new Error("Selecione um cliente e o passeio correspondente.");
     const link = await pool.query<{ nome: string }>(
-      `SELECT c.nome FROM clientes c JOIN escola e ON lower(btrim(e.nmescola)) = lower(btrim(c.nome))
-       JOIN escoladata ed ON ed.idescola = e.idescola
-       WHERE c.idcliente = $1 AND ed.idagenda = $2 LIMIT 1`, [input.clientId, input.tripId],
+      `SELECT c.nome FROM clientes c WHERE c.idcliente = $1 AND (
+         EXISTS (SELECT 1 FROM agenda_extras ae WHERE ae.idcliente = c.idcliente AND ae.idagenda = $2)
+         OR EXISTS (SELECT 1 FROM escola e JOIN escoladata ed ON ed.idescola = e.idescola
+           WHERE lower(btrim(e.nmescola)) = lower(btrim(c.nome)) AND ed.idagenda = $2)
+       ) LIMIT 1`, [input.clientId, input.tripId],
     );
     if (!link.rows[0]) throw new Error("O passeio selecionado não pertence a este cliente.");
     clientName = link.rows[0].nome;
+    const selectedTrip = (await listEnfermariaClientTrips(input.clientId)).find((trip) => trip.id === input.tripId);
+    tripDate = selectedTrip?.date ?? "";
+    tripType = selectedTrip?.type ?? "";
   } else if (input.source === "day_use") {
     if (!input.purchaseId || !input.buyerCpf) throw new Error("Localize uma compra de day use válida pelo CPF do comprador.");
     const purchase = (await searchEnfermariaDayUse(input.buyerCpf)).find((item) => item.id === input.purchaseId);
@@ -389,7 +410,7 @@ export async function createEnfermariaRecord(input: {
       guardianPhone: input.guardianPhone ?? "",
       noAccountReason: input.noAccountReason ?? "",
     },
-  } : { context: { clientName, buyerName, visitDate, ticketCount, ticketSummary } };
+  } : { context: { clientName, tripDate, tripType, buyerName, visitDate, ticketCount, ticketSummary } };
   const id = await withEnfermariaTransaction(async (client) => {
     const result = await client.query<{ id: number | string }>(
       `INSERT INTO enfermaria_atendimentos
@@ -470,12 +491,30 @@ export async function updateEnfermariaRecord(id: number, input: {
   return getEnfermariaRecord(id);
 }
 
-export async function closeEnfermariaRecord(id: number, actor: string) {
+export async function closeEnfermariaRecord(id: number, actor: string, input: {
+  form: Record<string, unknown>; occurredAt: string; localId: number | null;
+}) {
   const existing = await getEnfermariaRecord(id);
   if (!existing) throw new Error("Atendimento não encontrado.");
   if (existing.status === "encerrado" && !existing.editUnlocked) return existing;
+  const occurred = new Date(input.occurredAt);
+  if (Number.isNaN(occurred.getTime())) throw new Error("Informe uma data e horário válidos para o atendimento.");
+  let localName: string | null = null;
+  if (input.localId) {
+    const localResult = await getIngressoSistemaDbPool().query<{ nome: string; ativo: boolean | number | string }>(
+      "SELECT nome, ativo FROM enfermaria_locais WHERE id = $1 LIMIT 1", [input.localId],
+    );
+    const local = localResult.rows[0];
+    if (!local) throw new Error("O local selecionado não existe.");
+    const isActive = local.ativo === true || local.ativo === 1 || local.ativo === "1" || local.ativo === "t";
+    if (!isActive && existing.localId !== input.localId) throw new Error("Selecione um local ativo.");
+    localName = local.nome;
+  }
   await withEnfermariaTransaction(async (client) => {
-    await client.query("UPDATE enfermaria_atendimentos SET status = 'encerrado', closed_by = $2, closed_at = CURRENT_TIMESTAMP, edit_unlocked = FALSE, updated_by = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1", [id, actor]);
+    await client.query(
+      "UPDATE enfermaria_atendimentos SET form_json = $2, occurred_at = $3, local_id = $4, local_name = $5, status = 'encerrado', closed_by = $6, closed_at = CURRENT_TIMESTAMP, edit_unlocked = FALSE, updated_by = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+      [id, JSON.stringify(input.form), dialect() === "mysql" ? localDateTime(occurred) : input.occurredAt, input.localId, localName, actor],
+    );
     await recordHistory(id, "encerramento", actor, undefined, client);
   });
   return getEnfermariaRecord(id);

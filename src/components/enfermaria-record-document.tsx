@@ -1,4 +1,5 @@
 import type { EnfermariaRecord } from "@/lib/enfermaria";
+import { formatEnfermariaCpf, formatEnfermariaPhone } from "@/lib/enfermaria-input-format";
 import styles from "./enfermaria-visual.module.css";
 
 type Section = Record<string, unknown>;
@@ -45,9 +46,9 @@ export function EnfermariaRecordDocument({ record, form, occurredAt, localName, 
     : -1;
   const source = record.source === "day_use" ? "Day use" : record.source === "cliente" ? "Cliente / passeio" : "Sem cadastro";
   const link = record.source === "day_use"
-    ? `Comprador ${shown(context.buyerName)} · CPF ${shown(record.buyerCpf)} · Compra #${record.purchaseId}`
+    ? `Comprador ${shown(context.buyerName)} · CPF ${record.buyerCpf ? formatEnfermariaCpf(record.buyerCpf) : "—"} · Compra #${record.purchaseId}`
     : record.source === "cliente"
-      ? `${shown(context.clientName)} · Cliente #${record.clientId} · Passeio #${record.tripId}`
+      ? `${shown(context.clientName)} · Cliente #${record.clientId} · Passeio #${record.tripId}${context.tripDate ? ` em ${String(context.tripDate).slice(0, 10).split("-").reverse().join("/")}` : ""}`
       : shown(unregistered.intakeSource);
   return <article className={styles.recordDocument} aria-label="Ficha de atendimento de enfermagem">
     <div className={styles.documentHead}>
@@ -59,8 +60,8 @@ export function EnfermariaRecordDocument({ record, form, occurredAt, localName, 
       <Detail label="Profissional" value={professional} /><Detail label="Status" value={record.status === "aberto" ? "Em aberto" : "Encerrado"} />
     </dl></section>
     <section className={styles.documentSection}><h3>1. Identificação</h3><dl className={styles.documentGrid}>
-      <Detail label="Nome" value={identification.name} wide /><Detail label="CPF" value={identification.cpf ?? record.buyerCpf} /><Detail label="Idade" value={age || (calculatedAge >= 0 ? `${calculatedAge} anos` : "")} />
-      <Detail label="Nascimento" value={identification.birthDate} /><Detail label="Sexo" value={identification.sex} /><Detail label="Telefone" value={identification.phone} />
+      <Detail label="Nome" value={identification.name} wide /><Detail label="CPF" value={formatEnfermariaCpf(String(identification.cpf ?? record.buyerCpf ?? ""))} /><Detail label="Idade" value={age || (calculatedAge >= 0 ? `${calculatedAge} anos` : "")} />
+      <Detail label="Nascimento" value={identification.birthDate} /><Detail label="Sexo" value={identification.sex} /><Detail label="Telefone" value={formatEnfermariaPhone(String(identification.phone ?? ""))} />
       <Detail label="Acompanhante" value={identification.companion} /><Detail label="Parentesco" value={identification.relationship} />
     </dl></section>
     <section className={styles.documentSection}><h3>2. Queixa principal e demanda</h3><dl className={styles.documentGrid}>

@@ -11,15 +11,24 @@ export function EnfermariaLinkClient({ recordId }: { recordId: number }) {
   const [selected, setSelected] = useState<Client | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  async function search() {
-    setError("");
-    try {
-      const response = await fetch(`/api/painel/enfermaria?action=clients&q=${encodeURIComponent(query)}`);
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error?.message ?? "Falha na busca.");
-      setClients(payload.data); setSelected(null);
-    } catch (e) { setError(e instanceof Error ? e.message : "Falha na busca."); }
-  }
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  useEffect(() => {
+    const value = query.trim();
+    if (value.length < 2 || selected) return;
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setSearching(true); setError("");
+      try {
+        const response = await fetch(`/api/painel/enfermaria?action=clients&q=${encodeURIComponent(value)}`);
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error?.message ?? "Falha na busca.");
+        if (active) { setClients(payload.data); setSearched(true); }
+      } catch (e) { if (active) setError(e instanceof Error ? e.message : "Falha na busca."); }
+      finally { if (active) setSearching(false); }
+    }, 300);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [query, selected]);
   async function link() {
     if (!selected) return;
     setBusy(true); setError("");
@@ -31,7 +40,7 @@ export function EnfermariaLinkClient({ recordId }: { recordId: number }) {
     } catch (e) { setError(e instanceof Error ? e.message : "Falha ao vincular."); }
     finally { setBusy(false); }
   }
-  return <section className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#194d6b]">Vincular a um cliente</h1><p className="mt-2 text-sm text-slate-600">Este atendimento foi registrado sem cadastro. O vínculo ficará registrado no histórico da ficha.</p><div className="mt-5 flex gap-2"><input className="flex-1 rounded-lg border border-slate-300 px-4 py-3 text-sm" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void search(); } }} placeholder="Buscar cliente" /><button className="rounded-lg border px-4 py-2 text-sm" onClick={() => void search()}>Buscar</button></div><div className="mt-3 divide-y rounded-lg border">{clients.map((client) => <button key={client.id} onClick={() => setSelected(client)} className={`block w-full px-4 py-3 text-left ${selected?.id === client.id ? "bg-sky-50" : "hover:bg-slate-50"}`}><span className="block font-medium">{client.name}</span><span className="text-xs text-slate-500">{client.address || "Endereço não informado"}</span></button>)}</div>{error && <p className="mt-4 text-sm text-red-700">{error}</p>}<div className="mt-5 flex justify-end gap-2"><button className="rounded-lg border px-4 py-2 text-sm" onClick={() => history.back()}>Cancelar</button><button disabled={!selected || busy} className="rounded-lg bg-[#176b96] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={() => void link()}>Vincular</button></div></section>;
+  return <section className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#194d6b]">Vincular a um cliente</h1><p className="mt-2 text-sm text-slate-600">Este atendimento foi registrado sem cadastro. O vínculo ficará registrado no histórico da ficha.</p><label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="enf-link-client-search">Cliente</label><input id="enf-link-client-search" className="mt-2 w-full rounded-lg border border-slate-300 px-4 py-3 text-sm" value={query} onChange={(e) => { setQuery(e.target.value); setSelected(null); setClients([]); setSearched(false); setError(""); }} placeholder="Digite o nome para escolher no menu" autoComplete="off" role="combobox" aria-autocomplete="list" aria-expanded={clients.length > 0 && !selected} aria-controls="enf-link-client-options" />{searching && <p className="mt-2 text-sm text-slate-500">Buscando clientes...</p>}{clients.length > 0 && !selected && <div id="enf-link-client-options" role="listbox" className="mt-2 max-h-72 divide-y overflow-y-auto rounded-lg border border-slate-200 shadow-sm">{clients.map((client) => <button type="button" key={client.id} role="option" aria-selected={false} onClick={() => { setSelected(client); setQuery(client.name); setClients([]); }} className="block w-full px-4 py-3 text-left hover:bg-sky-50"><span className="block font-medium">{client.name}</span><span className="text-xs text-slate-500">{client.address || "Endereço não informado"}</span></button>)}</div>}{searched && !searching && clients.length === 0 && !selected && <p className="mt-2 text-sm text-slate-500">Nenhum cliente encontrado.</p>}{selected && <p className="mt-2 text-sm font-medium text-[#176b96]">Selecionado: {selected.name}</p>}{error && <p role="alert" className="mt-4 text-sm text-red-700">{error}</p>}<div className="mt-5 flex justify-end gap-2"><button className="rounded-lg border px-4 py-2 text-sm" onClick={() => history.back()}>Cancelar</button><button disabled={!selected || busy} className="rounded-lg bg-[#176b96] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" onClick={() => void link()}>Vincular</button></div></section>;
 }
 
 export function EnfermariaClientRecords({ clientId }: { clientId: number }) {
