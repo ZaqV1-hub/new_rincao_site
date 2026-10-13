@@ -1,5 +1,5 @@
 import { getIngressoSistemaDbDialect, getIngressoSistemaDbPool } from "@/lib/ingresso-db";
-import { sanitizeCpf } from "@/lib/cpf";
+import { isValidCpf, sanitizeCpf } from "@/lib/cpf";
 import type { QueryResultRow } from "pg";
 
 export type EnfermariaSource = "cliente" | "day_use" | "sem_cadastro";
@@ -416,13 +416,13 @@ export async function createEnfermariaRecord(input: {
     if (!name || name.length > 200 || !intakeSources.includes(input.intakeSource ?? "")) {
       throw new Error("Informe quem é a pessoa ou o grupo (até 200 caracteres) e uma origem válida.");
     }
-    if (guardianCpf && guardianCpf.length !== 11) throw new Error("Confira o CPF do responsável.");
+    if (guardianCpf && !isValidCpf(guardianCpf)) throw new Error("Informe um CPF válido para o responsável.");
     if ((input.guardianPhone ?? "").length > 40 || (input.noAccountReason ?? "").length > 2000) {
       throw new Error("Confira o telefone e o motivo do registro sem cadastro.");
     }
   }
   const form = input.source === "sem_cadastro" ? {
-    identification: { name: input.initialName ?? "" },
+    identification: { name: input.initialName ?? "", cpf: input.guardianCpf ?? "", phone: input.guardianPhone ?? "" },
     unregisteredDetails: {
       intakeSource: input.intakeSource ?? "",
       guardianCpf: input.guardianCpf ?? "",
@@ -500,6 +500,13 @@ export async function listEnfermariaRecordsPage(filters: Record<string, string |
   return { records: result.rows.map(mapRecord), total, page };
 }
 
+function validateEnfermariaFormCpf(form: Record<string, unknown>) {
+  const identification = form.identification;
+  if (!identification || typeof identification !== "object" || Array.isArray(identification)) return;
+  const cpf = String((identification as Record<string, unknown>).cpf ?? "").trim();
+  if (cpf && !isValidCpf(cpf)) throw new Error("Informe um CPF válido para a pessoa atendida.");
+}
+
 export async function updateEnfermariaRecord(id: number, input: {
   form: Record<string, unknown>; occurredAt: string; localId: number | null; actor: string;
 }) {
@@ -507,6 +514,7 @@ export async function updateEnfermariaRecord(id: number, input: {
   const existing = await getEnfermariaRecord(id);
   if (!existing) throw new Error("Atendimento não encontrado.");
   if (existing.status === "encerrado" && !existing.editUnlocked) throw new Error("A ficha encerrada está bloqueada. Um gerente precisa liberar a edição.");
+  validateEnfermariaFormCpf(input.form);
   const pool = getIngressoSistemaDbPool();
   let localName: string | null = null;
   if (input.localId) {
@@ -533,6 +541,7 @@ export async function closeEnfermariaRecord(id: number, actor: string, input: {
   const existing = await getEnfermariaRecord(id);
   if (!existing) throw new Error("Atendimento não encontrado.");
   if (existing.status === "encerrado" && !existing.editUnlocked) return existing;
+  validateEnfermariaFormCpf(input.form);
   const occurred = new Date(input.occurredAt);
   if (Number.isNaN(occurred.getTime())) throw new Error("Informe uma data e horário válidos para o atendimento.");
   let localName: string | null = null;

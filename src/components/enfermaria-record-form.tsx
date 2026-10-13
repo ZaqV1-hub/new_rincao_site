@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { EnfermariaLocal, EnfermariaRecord } from "@/lib/enfermaria";
 import { formatEnfermariaCpf, formatEnfermariaPhone } from "@/lib/enfermaria-input-format";
+import { isValidCpf } from "@/lib/cpf";
+import { EnfermariaLinkClient } from "@/components/enfermaria-link-client";
 import { EnfermariaRecordDocument } from "@/components/enfermaria-record-document";
 import styles from "./enfermaria-visual.module.css";
 
@@ -29,6 +31,17 @@ function isoLocalNow() {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
+function withIntakeContact(record: EnfermariaRecord): Form {
+  const form = record.form ?? {};
+  if (record.source !== "sem_cadastro") return form;
+  const intake = form.unregisteredDetails as FormSection | undefined;
+  const identification = form.identification as FormSection | undefined;
+  const cpf = String(identification?.cpf ?? "").trim() || String(intake?.guardianCpf ?? "").trim();
+  const phone = String(identification?.phone ?? "").trim() || String(intake?.guardianPhone ?? "").trim();
+  if (cpf === String(identification?.cpf ?? "") && phone === String(identification?.phone ?? "")) return form;
+  return { ...form, identification: { ...identification, cpf, phone } };
+}
+
 export function EnfermariaRecordForm({ id, professional, canManage }: { id: number; professional: string; canManage: boolean }) {
   const [record, setRecord] = useState<EnfermariaRecord | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -43,10 +56,14 @@ export function EnfermariaRecordForm({ id, professional, canManage }: { id: numb
   const [closeOpen, setCloseOpen] = useState(false);
   const [unlockOpen, setUnlockOpen] = useState(false);
   const [adminPassword, setAdminPassword] = useState("");
+  const [unlockFeedback, setUnlockFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+  const [linkClientOpen, setLinkClientOpen] = useState(false);
+  const [draftFeedback, setDraftFeedback] = useState("");
   const [observationOpen, setObservationOpen] = useState(false);
   const [observation, setObservation] = useState("");
   const [editing, setEditing] = useState(false);
 
+  const openUnlock = () => { setUnlockFeedback(null); setAdminPassword(""); setUnlockOpen(true); };
   const endpoint = `/api/painel/enfermaria/${id}`;
   const isLocked = record?.status === "encerrado" && !record.editUnlocked;
 
@@ -56,8 +73,9 @@ export function EnfermariaRecordForm({ id, professional, canManage }: { id: numb
       api<EnfermariaLocal[]>("/api/painel/enfermaria?action=locals"),
     ]);
     setRecord(data.record); setHistory(data.history); setLocals(placeList);
-    setForm(data.record.form ?? {});
-    setDirty(false);
+    const nextForm = withIntakeContact(data.record);
+    setForm(nextForm);
+    setDirty(nextForm !== data.record.form && (data.record.status === "aberto" || data.record.editUnlocked));
     setOccurredAt(data.record.occurredAt.replace(" ", "T"));
     setLocalId(data.record.localId ? String(data.record.localId) : "");
     setProfessionalName(data.record.professional || professional);
@@ -72,6 +90,7 @@ export function EnfermariaRecordForm({ id, professional, canManage }: { id: numb
   };
   const update = (section: string, key: string, value: unknown) => {
     setDirty(true);
+    setDraftFeedback("");
     setForm((current: Form) => section
       ? ({ ...current, [section]: { ...((current[section] as FormSection | undefined) ?? {}), [key]: value } })
       : ({ ...current, [key]: value }));
@@ -89,7 +108,43 @@ export function EnfermariaRecordForm({ id, professional, canManage }: { id: numb
     finally { setBusy(false); }
   }
 
+  function validateCpf() {
+    const cpf = String(getSection("identification").cpf ?? "").trim();
+    if (cpf && !isValidCpf(cpf)) {
+      setError("Informe um CPF válido para a pessoa atendida.");
+      return false;
+    }
+    return true;
+  }
+
+  async function saveDraft() {
+    if (!validateCpf()) return false;
+    setBusy(true); setError("");
+    try {
+      await api(endpoint, { method: "PATCH", body: JSON.stringify({ form, occurredAt: new Date(occurredAt).toISOString(), localId: localId ? Number(localId) : null }) });
+      await reload();
+      setEditing(true);
+      setDraftFeedback(`Rascunho salvo às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`);
+      return true;
+    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível salvar o rascunho."); return false; }
+    finally { setBusy(false); }
+  }
+
+  async function unlockRecord() {
+    setBusy(true); setUnlockFeedback(null); setError("");
+    try {
+      await api(endpoint, { method: "POST", body: JSON.stringify({ action: "unlock", password: adminPassword }) });
+      await reload();
+      setEditing(true);
+      setAdminPassword("");
+      setUnlockFeedback({ tone: "success", message: "Senha confirmada. A ficha está liberada para edição." });
+    } catch (e) {
+      setUnlockFeedback({ tone: "error", message: e instanceof Error ? e.message : "Não foi possível conferir a senha." });
+    } finally { setBusy(false); }
+  }
+
   async function closeOrRefreeze() {
+    if (!validateCpf()) return;
     setBusy(true); setError("");
     try {
       await api(endpoint, { method: "POST", body: JSON.stringify({ action: "close", form, occurredAt: new Date(occurredAt).toISOString(), localId: localId ? Number(localId) : null }) });
@@ -109,8 +164,8 @@ export function EnfermariaRecordForm({ id, professional, canManage }: { id: numb
   const card = "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm";
   const input = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#176b96]";
   const disabled = Boolean(isLocked || busy);
-  const editStatus = record?.status === "encerrado" && !record.editUnlocked ? "Ficha encerrada" : dirty ? "Alterações pendentes; serão registradas ao encerrar" : record?.status === "encerrado" ? "Ficha liberada para correção" : "Atendimento em aberto";
-  const field = (label: string, section: string, key: string, type = "text", extra?: { placeholder?: string; min?: string; max?: string }) => { const raw = String(getSection(section)[key] ?? ""); return <label className="block text-sm font-medium text-slate-700">{label}<input className={input} type={type} inputMode={key === "cpf" ? "numeric" : key === "phone" ? "tel" : undefined} value={key === "cpf" ? formatEnfermariaCpf(raw) : key === "phone" ? formatEnfermariaPhone(raw) : raw} min={extra?.min} max={extra?.max} placeholder={key === "cpf" ? "000.000.000-00" : key === "phone" ? "(11) 99999-9999" : extra?.placeholder} disabled={disabled} onChange={(e) => update(section, key, key === "cpf" ? formatEnfermariaCpf(e.target.value) : key === "phone" ? formatEnfermariaPhone(e.target.value) : e.target.value)} /></label>; };
+  const editStatus = record?.status === "encerrado" && !record.editUnlocked ? "Ficha encerrada" : dirty ? "Alterações pendentes; salve o rascunho ou encerre o atendimento" : draftFeedback || (record?.status === "encerrado" ? "Ficha liberada para correção" : "Atendimento em aberto");
+  const field = (label: string, section: string, key: string, type = "text", extra?: { placeholder?: string; min?: string; max?: string }) => { const raw = String(getSection(section)[key] ?? ""); const invalidCpf = key === "cpf" && raw.replace(/\D/g, "").length >= 11 && !isValidCpf(raw); return <label className="block text-sm font-medium text-slate-700">{label}<input className={input} type={type} inputMode={key === "cpf" ? "numeric" : key === "phone" ? "tel" : undefined} value={key === "cpf" ? formatEnfermariaCpf(raw) : key === "phone" ? formatEnfermariaPhone(raw) : raw} min={extra?.min} max={extra?.max} placeholder={key === "cpf" ? "000.000.000-00" : key === "phone" ? "(11) 99999-9999" : extra?.placeholder} aria-invalid={invalidCpf || undefined} disabled={disabled} onChange={(e) => update(section, key, key === "cpf" ? formatEnfermariaCpf(e.target.value) : key === "phone" ? formatEnfermariaPhone(e.target.value) : e.target.value)} />{invalidCpf && <span className="mt-1 block text-xs text-red-700">CPF inválido. Confira os dígitos.</span>}</label>; };
   const painSlider = (label: string, section: string, key: string) => { const stored = getSection(section)[key]; const value = Number(stored ?? 0); return <label className="block text-sm font-medium text-slate-700"><span className="flex justify-between gap-3"><span>{label}</span><strong className="text-[#153f68]">{stored === undefined || stored === "" ? "Não informado" : `${value}/10`}</strong></span><input className="mt-3 w-full accent-[#176b96]" type="range" min="0" max="10" step="1" value={Number.isFinite(value) ? value : 0} disabled={disabled} onChange={(e) => update(section, key, e.target.value)} /><span className="flex justify-between text-xs text-slate-500"><span>Sem dor · 0</span><span>Dor intensa · 10</span></span></label>; };
   const textarea = (label: string, section: string, key: string) => <label className="block text-sm font-medium text-slate-700">{label}<textarea className={`${input} min-h-24 resize-y`} value={String(getSection(section)[key] ?? "")} disabled={disabled} onChange={(e) => update(section, key, e.target.value)} /></label>;
   const checks = (section: string, key: string, options: string[]) => <div className="mt-3 grid gap-2 sm:grid-cols-2">{options.map((value) => { const checked = Array.isArray(getSection(section)[key]) && (getSection(section)[key] as string[]).includes(value); return <label key={value} className={`${styles.checkOption} ${checked ? styles.checkOptionSelected : ""}`}><input type="checkbox" checked={checked} disabled={disabled} onChange={() => toggle(section, key, value)} /><span className={styles.checkMark} aria-hidden="true">{checked ? "✓" : ""}</span>{value}</label>; })}</div>;
@@ -127,8 +182,8 @@ export function EnfermariaRecordForm({ id, professional, canManage }: { id: numb
       : `Sem cadastro · ${String(identification.name ?? "Pessoa não informada")}`;
 
   return <div className={`${styles.page} ${styles.workflowPage} ${styles.recordPrintPage} grid gap-5 pb-7 print:max-w-none`}>
-    <header className="rounded-lg border border-slate-200 bg-white p-5 print:hidden"><p className="text-sm text-slate-500"><Link href="/painel/enfermaria" className="underline">Enfermaria</Link> › <Link href="/painel/enfermaria/historico" className="underline">Histórico</Link> › Atendimento nº {record.numberLabel}</p><div className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="mt-1 text-3xl font-semibold text-[#194d6b]">Atendimento nº {record.numberLabel}</h1><p className="mt-2 text-sm text-slate-600">{recordSummary}</p></div><div className="flex flex-wrap items-center gap-2"><button className="rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => window.print()}>Imprimir ficha</button>{record.source === "sem_cadastro" && !record.clientId && canManage && <Link className="rounded-lg border border-slate-300 px-4 py-2 text-sm" href={`/painel/enfermaria/vincular/${record.id}`}>Vincular a um cliente</Link>}{record.status === "encerrado" && record.clientId && canManage && <button className="rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => { setObservation(`Passou pela enfermaria em ${new Date().toLocaleDateString("pt-BR")}.`); setObservationOpen(true); }}>Adicionar observação ao cliente</button>}<button className="rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => isLocked ? canManage && setUnlockOpen(true) : setEditing((current) => !current)} disabled={isLocked && !canManage}>{editing && !isLocked ? "Ver ficha" : "Editar"}</button></div></div></header>
-    {isLocked && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-[#183e63] print:hidden"><strong>Ficha encerrada e bloqueada.</strong> {canManage ? <button className="ml-2 underline" onClick={() => setUnlockOpen(true)}>Liberar edição</button> : "Um gerente precisa liberar a edição para corrigir dados."}</div>}
+    <header className="rounded-lg border border-slate-200 bg-white p-5 print:hidden"><p className="text-sm text-slate-500"><Link href="/painel/enfermaria" className="underline">Enfermaria</Link> › <Link href="/painel/enfermaria/historico" className="underline">Histórico</Link> › Atendimento nº {record.numberLabel}</p><div className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="mt-1 text-3xl font-semibold text-[#194d6b]">Atendimento nº {record.numberLabel}</h1><p className="mt-2 text-sm text-slate-600">{recordSummary}</p></div><div className="flex flex-wrap items-center gap-2"><button className="rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => window.print()}>Imprimir ficha</button>{record.source === "sem_cadastro" && !record.clientId && canManage && <button className="rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => setLinkClientOpen(true)}>Vincular a um cliente</button>}{record.status === "encerrado" && record.clientId && canManage && <button className="rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => { setObservation(`Passou pela enfermaria em ${new Date().toLocaleDateString("pt-BR")}.`); setObservationOpen(true); }}>Adicionar observação ao cliente</button>}<button className="rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => isLocked ? canManage && openUnlock() : setEditing((current) => !current)} disabled={isLocked && !canManage}>{editing && !isLocked ? "Ver ficha" : "Editar"}</button></div></div></header>
+    {isLocked && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-[#183e63] print:hidden"><strong>Ficha encerrada e bloqueada.</strong> {canManage ? <button className="ml-2 underline" onClick={openUnlock}>Liberar edição</button> : "Um gerente precisa liberar a edição para corrigir dados."}</div>}
     {!isLocked && <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-[#183e63] print:hidden">{editStatus}</div>}
     <div className={`${styles.recordPrintOnly} ${editing ? styles.recordPrintOnlyWhenEditing : ""}`}><EnfermariaRecordDocument record={record} form={form} occurredAt={occurredAt} localName={locals.find((place) => String(place.id) === localId)?.name ?? record.localName ?? ""} age={age} professional={professionalName} /></div>
     <div className={editing ? `${styles.recordEditorLayout} print:hidden` : "hidden"}>
@@ -139,7 +194,7 @@ export function EnfermariaRecordForm({ id, professional, canManage }: { id: numb
     <section id="enf-sec-1" className={card}><h2 className="text-lg font-semibold text-slate-800"><span className={styles.sectionNumber}>1</span>Identificação da pessoa atendida</h2><div className="mt-4 grid gap-4 sm:grid-cols-2">{field("Nome", "identification", "name")}{field("CPF", "identification", "cpf")}{field("Data de nascimento", "identification", "birthDate", "date")}<div><label className="block text-sm font-medium text-slate-700">Idade calculada<input className={`${input} bg-slate-50`} readOnly value={age} /></label></div><label className="text-sm font-medium text-slate-700">Sexo<select className={input} value={String(getSection("identification").sex ?? "")} disabled={disabled} onChange={(e) => update("identification", "sex", e.target.value)}><option value="">Selecione</option><option>Feminino</option><option>Masculino</option><option>Outro</option><option>Não informado</option></select></label>{field("Telefone (opcional)", "identification", "phone")}{field("Acompanhante (opcional)", "identification", "companion")}{field("Parentesco (opcional)", "identification", "relationship")}</div></section>
     <section id="enf-sec-2" className={card}><h2 className="text-lg font-semibold text-slate-800"><span className={styles.sectionNumber}>2</span>Queixa principal e demanda</h2><div className="mt-4 grid gap-4">{textarea("Queixa principal", "complaint", "text")}<fieldset><legend className="text-sm font-medium text-slate-700">Tipo de demanda</legend>{checks("complaint", "demandTypes", demandTypes)}</fieldset></div></section>
     <section id="enf-sec-3" className={card}><h2 className="text-lg font-semibold text-slate-800"><span className={styles.sectionNumber}>3</span>Sinais e sintomas</h2><fieldset className="mt-3"><legend className="text-sm font-medium text-slate-700">Marque os sinais e sintomas</legend>{checks("symptoms", "items", symptoms)}</fieldset><div className="mt-4 grid gap-4 sm:grid-cols-2">{field("Localização da dor", "symptoms", "painLocation")}{painSlider("Intensidade da dor", "symptoms", "painIntensity")}</div></section>
-    <section id="enf-sec-4" className={card}><h2 className="text-lg font-semibold text-slate-800"><span className={styles.sectionNumber}>4</span>Sinais vitais</h2><div className="mt-4 grid gap-4 sm:grid-cols-3">{field("PA (mmHg)", "vitals", "bloodPressure")}{field("FC (bpm)", "vitals", "heartRate", "number")}{field("FR (irpm)", "vitals", "respiratoryRate", "number")}{field("SpO₂ (%)", "vitals", "oxygenSaturation", "number")}{field("Temperatura (°C)", "vitals", "temperature", "number")}{field("Glicemia (mg/dL)", "vitals", "glucose", "number")}{painSlider("Dor", "vitals", "pain")}{field("Horário da aferição", "vitals", "measuredAt", "time")}</div></section>
+    <section id="enf-sec-4" className={card}><h2 className="text-lg font-semibold text-slate-800"><span className={styles.sectionNumber}>4</span>Sinais vitais</h2><div className="mt-4 grid gap-4 sm:grid-cols-3">{field("PA (mmHg)", "vitals", "bloodPressure")}{field("FC (bpm)", "vitals", "heartRate", "number")}{field("FR (irpm)", "vitals", "respiratoryRate", "number")}{field("SpO₂ (%)", "vitals", "oxygenSaturation", "number")}{field("Temperatura (°C)", "vitals", "temperature", "number")}{field("Glicemia (mg/dL)", "vitals", "glucose", "number")}{field("Horário da aferição", "vitals", "measuredAt", "time")}</div></section>
     <section id="enf-sec-5" className={card}><h2 className="text-lg font-semibold text-slate-800"><span className={styles.sectionNumber}>5</span>Urgência e emergência</h2><div className="mt-4 max-w-sm">{yesNo("Houve urgência ou emergência?", "", "urgent")}</div>{form.urgent === true && <><fieldset className="mt-4"><legend className="text-sm font-medium text-slate-700">Sinais de alerta</legend>{checks("urgency", "items", urgencies)}</fieldset><div className="mt-4">{textarea("Conduta adotada", "urgency", "conduct")}</div></>}</section>
     <section id="enf-sec-6" className={card}><h2 className="text-lg font-semibold text-slate-800"><span className={styles.sectionNumber}>6</span>Estratificação de risco</h2>{checks("risk", "items", risks)}</section>
     <section id="enf-sec-7" className={card}><h2 className="text-lg font-semibold text-slate-800"><span className={styles.sectionNumber}>7</span>Encaminhamento para UPA</h2><div className="mt-4 max-w-sm">{yesNo("A pessoa foi encaminhada?", "", "referralToUpa")}</div>{form.referralToUpa === true && <div className="mt-4 grid gap-4 sm:grid-cols-2">{field("Motivo", "referral", "reason")}<label className="text-sm font-medium text-slate-700">Forma<select className={input} value={String(getSection("referral").method ?? "")} disabled={disabled} onChange={(e) => update("referral", "method", e.target.value)}><option value="">Selecione</option>{["SAMU", "Ambulância", "Veículo próprio", "Veículo do Rincão"].map((option) => <option key={option}>{option}</option>)}</select></label>{field("Horário", "referral", "time", "time")}{field("Unidade de destino", "referral", "destination")}</div>}</section>
@@ -148,18 +203,19 @@ export function EnfermariaRecordForm({ id, professional, canManage }: { id: numb
     <section id="enf-sec-10" className={card}><h2 className="text-lg font-semibold text-slate-800"><span className={styles.sectionNumber}>10</span>Observações complementares</h2>{textarea("Observações", "reports", "additional")}</section>
     <section id="enf-sec-11" className={`${card} print:break-inside-avoid`}><h2 className="text-lg font-semibold text-slate-800">Responsável pelo atendimento</h2><div className="mt-4 grid gap-4 sm:grid-cols-2">{field("Nome", "responsible", "name")}{field("COREN", "responsible", "coren")}</div><p className="mt-3 text-xs text-slate-500">A assinatura e o carimbo são preenchidos na ficha impressa.</p></section>
     </div>
-    <aside className={styles.recordEditorAside}><p className={styles.eyebrow}>Atendimento nº {record.numberLabel}</p><p className="text-sm text-slate-500">{editStatus}</p><nav aria-label="Seções da ficha">{["Atendimento", "Identificação", "Queixa e demanda", "Sinais e sintomas", "Sinais vitais", "Urgência", "Risco", "Encaminhamento UPA", "Relatório do enfermeiro", "Relatório do técnico", "Observações", "Responsável"].map((label, index) => <a key={label} href={`#enf-sec-${index}`}>{index || "+"} · {label}</a>)}</nav><button className="mt-4 w-full rounded-lg bg-[#176b96] px-4 py-2 text-sm font-semibold text-white" disabled={busy} onClick={() => setCloseOpen(true)}>{record.status === "encerrado" ? "Concluir correção" : "Encerrar atendimento"}</button></aside>
+    <aside className={styles.recordEditorAside}><p className={styles.eyebrow}>Atendimento nº {record.numberLabel}</p><p className="text-sm text-slate-500">{editStatus}</p>{error && <p role="alert" className="mt-2 rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</p>}<nav aria-label="Seções da ficha">{["Atendimento", "Identificação", "Queixa e demanda", "Sinais e sintomas", "Sinais vitais", "Urgência", "Risco", "Encaminhamento UPA", "Relatório do enfermeiro", "Relatório do técnico", "Observações", "Responsável"].map((label, index) => <a key={label} href={`#enf-sec-${index}`}>{index || "+"} · {label}</a>)}</nav><button className="mt-4 w-full rounded-lg border border-[#176b96] px-4 py-2 text-sm font-semibold text-[#176b96]" disabled={busy} onClick={() => void saveDraft()}>Salvar rascunho</button><button className="mt-2 w-full rounded-lg bg-[#176b96] px-4 py-2 text-sm font-semibold text-white" disabled={busy} onClick={() => setCloseOpen(true)}>{record.status === "encerrado" ? "Concluir correção" : "Encerrar atendimento"}</button></aside>
     </div>
     <section className={`${card} print:hidden`}><h2 className="text-lg font-semibold text-slate-800">Vínculo</h2><p className="mt-2 text-sm text-slate-600">{record.clientId ? `Cliente #${record.clientId}` : record.source === "day_use" ? `Day use · CPF ${record.buyerCpf ? formatEnfermariaCpf(record.buyerCpf) : "—"}${record.purchaseId ? ` · Compra #${record.purchaseId}` : ""}` : "Sem cadastro"}</p>{record.clientId && <Link className="mt-3 inline-block text-sm font-semibold text-[#176b96]" href={`/painel/enfermaria/clientes/${record.clientId}`}>Atendimentos deste cliente</Link>}
       {record.status === "encerrado" && record.clientId && canManage && <button className="mt-4 rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => { setObservation(`Passou pela enfermaria em ${new Date().toLocaleDateString("pt-BR")}.`); setObservationOpen(true); }}>Adicionar observação neutra ao cliente</button>}
       {record.status === "encerrado" && <button disabled className="ml-2 mt-4 cursor-not-allowed rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-400" title="Canal de mensagem ainda não definido">Enviar mensagem ao cliente (canal a definir)</button>}
-      {record.source === "sem_cadastro" && !record.clientId && canManage && <Link className="ml-2 mt-4 inline-block rounded-lg border border-slate-300 px-4 py-2 text-sm" href={`/painel/enfermaria/vincular/${record.id}`}>Vincular a um cliente</Link>}
+      {record.source === "sem_cadastro" && !record.clientId && canManage && <button className="ml-2 mt-4 inline-block rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => setLinkClientOpen(true)}>Vincular a um cliente</button>}
       <details className="mt-4"><summary className="cursor-pointer text-sm font-semibold text-slate-700">Histórico da ficha</summary><ul className="mt-3 grid gap-2">{history.map((item, index) => <li key={`${item.at}-${index}`} className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">{item.action.replaceAll("_", " ")} · {item.user} · {new Date(item.at).toLocaleString("pt-BR")}</li>)}</ul></details>
     </section>
-    {!isLocked && editing && <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur print:hidden"><span className="text-sm text-slate-500">{editStatus}</span>{(record.status === "aberto" || record.editUnlocked) && <button className="rounded-lg bg-[#176b96] px-4 py-2 text-sm font-semibold text-white" disabled={busy} onClick={() => setCloseOpen(true)}>{record.status === "encerrado" ? "Concluir correção e bloquear ficha" : "Encerrar atendimento"}</button>}</div>}
+    {!isLocked && editing && <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur print:hidden"><span className="text-sm text-slate-500">{editStatus}</span><div className="flex gap-2"><button className="rounded-lg border border-[#176b96] px-4 py-2 text-sm font-semibold text-[#176b96]" disabled={busy} onClick={() => void saveDraft()}>Salvar rascunho</button>{(record.status === "aberto" || record.editUnlocked) && <button className="rounded-lg bg-[#176b96] px-4 py-2 text-sm font-semibold text-white" disabled={busy} onClick={() => setCloseOpen(true)}>{record.status === "encerrado" ? "Concluir correção e bloquear ficha" : "Encerrar atendimento"}</button>}</div></div>}
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800 print:hidden">{error}</p>}
     {closeOpen && <div className={styles.modalBackdrop} role="presentation"><div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="enf-close-title"><h2 id="enf-close-title" className={styles.modalTitle}>{record.status === "encerrado" ? "Concluir correção da ficha" : "Encerrar atendimento"}</h2><p className="mt-3 text-sm text-slate-600">{record.status === "encerrado" ? "As correções serão registradas e a ficha ficará bloqueada novamente." : "Os dados preenchidos serão registrados agora. Depois de encerrar, a ficha ficará bloqueada para edição."}</p>{error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}<div className="mt-6 flex justify-end gap-2"><button type="button" className="rounded-lg border border-slate-300 px-4 py-2 text-sm" disabled={busy} onClick={() => setCloseOpen(false)}>Cancelar</button><button type="button" className="rounded-lg bg-[#176b96] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={busy} onClick={() => void closeOrRefreeze()}>{busy ? "Encerrando..." : record.status === "encerrado" ? "Concluir e bloquear" : "Confirmar encerramento"}</button></div></div></div>}
-    {unlockOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 print:hidden"><form className="w-full max-w-md rounded-2xl bg-white p-6" onSubmit={(e) => { e.preventDefault(); void action("unlock", { password: adminPassword }).then((ok) => { if (ok) { setUnlockOpen(false); setEditing(true); setAdminPassword(""); } }); }}><h2 className="text-lg font-semibold">Liberar edição da ficha</h2><p className="mt-2 text-sm text-slate-600">Informe a senha do gerente autenticado. A liberação será registrada no histórico.</p><label className="mt-4 block text-sm">Senha de gerente<input className={input} autoFocus type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} /></label><div className="mt-5 flex justify-end gap-2"><button type="button" className="rounded-lg border px-4 py-2 text-sm" onClick={() => setUnlockOpen(false)}>Cancelar</button><button className="rounded-lg bg-[#176b96] px-4 py-2 text-sm font-semibold text-white">Liberar edição</button></div></form></div>}
+    {linkClientOpen && <div className={styles.modalBackdrop} role="presentation"><div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto" role="dialog" aria-modal="true" aria-label="Vincular a um cliente"><EnfermariaLinkClient recordId={record.id} onCancel={() => setLinkClientOpen(false)} onBeforeLink={async () => !dirty || await saveDraft()} onLinked={async () => { setLinkClientOpen(false); try { await reload(); setEditing(editing); } catch { setError("Cliente vinculado. Atualize a página para ver o vínculo na ficha."); } }} /></div></div>}
+    {unlockOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 print:hidden"><form className="w-full max-w-md rounded-2xl bg-white p-6" onSubmit={(e) => { e.preventDefault(); if (unlockFeedback?.tone === "success") setUnlockOpen(false); else void unlockRecord(); }}><h2 className="text-lg font-semibold">Liberar edição da ficha</h2><p className="mt-2 text-sm text-slate-600">Informe a senha do gerente autenticado. A liberação será registrada no histórico.</p><label className="mt-4 block text-sm">Senha de gerente<input className={input} autoFocus type="password" value={adminPassword} onChange={(e) => { setAdminPassword(e.target.value); setUnlockFeedback(null); }} disabled={busy || unlockFeedback?.tone === "success"} /></label>{unlockFeedback && <p role="status" className={`mt-4 rounded-lg border px-3 py-2 text-sm ${unlockFeedback.tone === "success" ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-800"}`}>{unlockFeedback.message}</p>}<div className="mt-5 flex justify-end gap-2"><button type="button" className="rounded-lg border px-4 py-2 text-sm" onClick={() => setUnlockOpen(false)}>{unlockFeedback?.tone === "success" ? "Fechar" : "Cancelar"}</button><button className="rounded-lg bg-[#176b96] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={busy || (!adminPassword && unlockFeedback?.tone !== "success")}>{busy ? "Conferindo..." : unlockFeedback?.tone === "success" ? "Continuar edição" : "Liberar edição"}</button></div></form></div>}
     {observationOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 print:hidden"><form className="w-full max-w-md rounded-2xl bg-white p-6" onSubmit={(e) => { e.preventDefault(); void action("observation", { text: observation }).then(() => { setObservationOpen(false); setObservation(""); }); }}><h2 className="text-lg font-semibold">Adicionar observação ao cliente</h2><p className="mt-2 text-sm text-amber-800">Outros perfis veem esta observação. Use apenas um texto neutro e padrão.</p><textarea className={`${input} mt-4 min-h-24`} value={observation} onChange={(e) => setObservation(e.target.value)} placeholder="Passou pela enfermaria em 05/10/2026." /><div className="mt-5 flex justify-end gap-2"><button type="button" className="rounded-lg border px-4 py-2 text-sm" onClick={() => setObservationOpen(false)}>Cancelar</button><button className="rounded-lg bg-[#176b96] px-4 py-2 text-sm font-semibold text-white">Adicionar observação</button></div></form></div>}
   </div>;
 }

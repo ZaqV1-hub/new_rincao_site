@@ -60,8 +60,8 @@ export function EnfermariaRecordDocument({ record, form, occurredAt, localName, 
       <Detail label="Profissional" value={professional} /><Detail label="Status" value={record.status === "aberto" ? "Em aberto" : "Encerrado"} />
     </dl></section>
     <section className={styles.documentSection}><h3>1. Identificação</h3><dl className={styles.documentGrid}>
-      <Detail label="Nome" value={identification.name} wide /><Detail label="CPF" value={formatEnfermariaCpf(String(identification.cpf ?? record.buyerCpf ?? ""))} /><Detail label="Idade" value={age || (calculatedAge >= 0 ? `${calculatedAge} anos` : "")} />
-      <Detail label="Nascimento" value={identification.birthDate} /><Detail label="Sexo" value={identification.sex} /><Detail label="Telefone" value={formatEnfermariaPhone(String(identification.phone ?? ""))} />
+      <Detail label="Nome" value={identification.name} wide /><Detail label="CPF" value={formatEnfermariaCpf(String(identification.cpf || unregistered.guardianCpf || record.buyerCpf || ""))} /><Detail label="Idade" value={age || (calculatedAge >= 0 ? `${calculatedAge} anos` : "")} />
+      <Detail label="Nascimento" value={identification.birthDate} /><Detail label="Sexo" value={identification.sex} /><Detail label="Telefone" value={formatEnfermariaPhone(String(identification.phone || unregistered.guardianPhone || ""))} />
       <Detail label="Acompanhante" value={identification.companion} /><Detail label="Parentesco" value={identification.relationship} />
     </dl></section>
     <section className={styles.documentSection}><h3>2. Queixa principal e demanda</h3><dl className={styles.documentGrid}>
@@ -72,7 +72,7 @@ export function EnfermariaRecordDocument({ record, form, occurredAt, localName, 
     </dl></section>
     <section className={styles.documentSection}><h3>4. Sinais vitais</h3><dl className={styles.documentGrid}>
       <Detail label="PA" value={vitals.bloodPressure} /><Detail label="FC" value={vitals.heartRate} /><Detail label="FR" value={vitals.respiratoryRate} /><Detail label="SpO₂" value={vitals.oxygenSaturation} />
-      <Detail label="Temperatura" value={vitals.temperature} /><Detail label="Glicemia" value={vitals.glucose} /><Detail label="Dor" value={vitals.pain} /><Detail label="Aferição" value={vitals.measuredAt} />
+      <Detail label="Temperatura" value={vitals.temperature} /><Detail label="Glicemia" value={vitals.glucose} /><Detail label="Aferição" value={vitals.measuredAt} />
     </dl></section>
     <section className={styles.documentSection}><h3>5 a 7. Urgência, risco e encaminhamento</h3><dl className={styles.documentGrid}>
       <Detail label="Urgência" value={typeof form.urgent === "boolean" ? form.urgent ? "Sim" : "Não" : ""} /><Detail label="Sinais de alerta" value={urgency.items} /><Detail label="Risco" value={risk.items} wide />

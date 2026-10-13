@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { formatEnfermariaCpf, formatEnfermariaPhone } from "@/lib/enfermaria-input-format";
+import { isValidCpf } from "@/lib/cpf";
 import styles from "./enfermaria-visual.module.css";
 
 type Client = { id: number; name: string; address: string; hasTripToday: boolean };
@@ -152,11 +153,11 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="sm:col-span-2 text-sm font-medium text-slate-700">Quem é a pessoa ou o grupo <span className="text-red-600">*</span><input className={`${fieldClass} mt-2`} value={manualName} onChange={(event) => setManualName(event.target.value)} required /></label>
             <label className="text-sm font-medium text-slate-700">Como entrou no parque<select className={`${fieldClass} mt-2`} value={manualSource} onChange={(event) => setManualSource(event.target.value)}><option value="">Selecione (opcional)</option>{["Grupo misto", "Igreja", "Excursão", "Empresa", "Bilheteria presencial", "Cortesia", "Convidado ou fornecedor", "Outro"].map((v) => <option key={v}>{v}</option>)}</select></label>
-            <label className="text-sm font-medium text-slate-700">CPF do responsável<input className={`${fieldClass} mt-2`} inputMode="numeric" placeholder="000.000.000-00" value={manualCpf} onChange={(event) => setManualCpf(formatEnfermariaCpf(event.target.value))} /></label>
+            <label className="text-sm font-medium text-slate-700">CPF do responsável<input className={`${fieldClass} mt-2`} inputMode="numeric" placeholder="000.000.000-00" value={manualCpf} aria-invalid={Boolean(manualCpf && manualCpf.replace(/\D/g, "").length === 11 && !isValidCpf(manualCpf))} onChange={(event) => setManualCpf(formatEnfermariaCpf(event.target.value))} />{manualCpf.replace(/\D/g, "").length === 11 && !isValidCpf(manualCpf) && <span className="mt-1 block text-xs text-red-700">CPF inválido. Confira os dígitos.</span>}</label>
             <label className="text-sm font-medium text-slate-700">Telefone de contato<input className={`${fieldClass} mt-2`} inputMode="tel" placeholder="(11) 99999-9999" value={manualPhone} onChange={(event) => setManualPhone(formatEnfermariaPhone(event.target.value))} /></label>
             <label className="text-sm font-medium text-slate-700">Por que não há cadastro<input className={`${fieldClass} mt-2`} value={manualReason} onChange={(event) => setManualReason(event.target.value)} /></label>
           </div>
-          <div className="mt-5 flex gap-3"><button className="rounded-lg border border-slate-300 px-4 py-3 text-sm" onClick={() => setRegisterNoAccount(false)}>Voltar à busca</button><button className={buttonClass} disabled={!manualName.trim() || busy} onClick={() => void create({ source: "sem_cadastro", initialName: manualName, intakeSource: manualSource, guardianCpf: manualCpf, guardianPhone: manualPhone, noAccountReason: manualReason })}>Abrir ficha</button></div>
+          <div className="mt-5 flex gap-3"><button className="rounded-lg border border-slate-300 px-4 py-3 text-sm" onClick={() => setRegisterNoAccount(false)}>Voltar à busca</button><button className={buttonClass} disabled={!manualName.trim() || Boolean(manualCpf && !isValidCpf(manualCpf)) || busy} onClick={() => void create({ source: "sem_cadastro", initialName: manualName, intakeSource: manualSource, guardianCpf: manualCpf, guardianPhone: manualPhone, noAccountReason: manualReason })}>Abrir ficha</button></div>
         </>}
         {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       </section>
