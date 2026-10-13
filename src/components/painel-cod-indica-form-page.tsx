@@ -29,7 +29,7 @@ export function PainelCodIndicaFormPage({ mode, initialValues, codigo }: Props) 
       vlcashbacknormal: String(formData.get("vlcashbacknormal") ?? ""),
       vlcashbackinfant: String(formData.get("vlcashbackinfant") ?? ""),
       stcodindica: String(formData.get("stcodindica") ?? ""),
-      email: String(formData.get("email") ?? ""),
+      email: String(formData.get("email") ?? "").trim(),
       flpromocional: formData.get("flpromocional") ? "s" : "n",
       vldescnormal: String(formData.get("vldescnormal") ?? ""),
       vlcashbackpromonormal: String(formData.get("vlcashbackpromonormal") ?? ""),
@@ -162,7 +162,7 @@ export function PainelCodIndicaFormPage({ mode, initialValues, codigo }: Props) 
           </label>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid gap-5 lg:grid-cols-2">
           <label className="block text-sm font-semibold text-[#5a5a5a]">
             Cashback criança *
             <CurrencyInput
@@ -170,17 +170,6 @@ export function PainelCodIndicaFormPage({ mode, initialValues, codigo }: Props) 
               defaultValue={initialValues.vlcashbackinfant}
               name="vlcashbackinfant"
               required
-            />
-          </label>
-
-          <label className="block text-sm font-semibold text-[#5a5a5a]">
-            Email *
-            <input
-              className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
-              defaultValue={initialValues.email}
-              name="email"
-              required
-              type="email"
             />
           </label>
 
@@ -194,6 +183,22 @@ export function PainelCodIndicaFormPage({ mode, initialValues, codigo }: Props) 
             Permitir em data promocional
           </label>
         </div>
+
+        <fieldset className="rounded-md border border-[#bfd4e8] bg-[#f8fbfd] p-4">
+          <legend className="px-2 text-base font-semibold text-[#205a7f]">Envio dos avisos de cashback</legend>
+          <label className="block max-w-xl text-sm font-semibold text-[#5a5a5a]">
+            Email que recebe os avisos de cashback *
+            <input
+              className="mt-1 w-full border border-[#c8c8c8] bg-white px-3 py-2 text-sm text-[#444]"
+              defaultValue={initialValues.email}
+              name="email"
+              required
+              type="email"
+              autoComplete="email"
+            />
+          </label>
+          <p className="mt-2 text-sm text-[#5f7182]">As notificações de novas compras feitas com este código serão enviadas para este endereço. Você pode alterá-lo ao editar o código.</p>
+        </fieldset>
 
         <div className="grid gap-5 lg:grid-cols-3">
           <label className="block text-sm font-semibold text-[#5a5a5a]">

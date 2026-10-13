@@ -523,8 +523,9 @@ function normalizeFormPayload(values: PainelCodIndicaFormValues, mode: "create" 
     );
   }
 
-  if (!values.email.trim()) {
-    throw new PainelCodIndicaError("invalid_email", "Informe o email.", 400);
+  const email = normalizeText(values.email).toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 255) {
+    throw new PainelCodIndicaError("invalid_email", "Informe um email valido para os avisos de cashback.", 400);
   }
 
   const payload = {
@@ -549,7 +550,7 @@ function normalizeFormPayload(values: PainelCodIndicaFormValues, mode: "create" 
     vlcashbackpromonormal: promoCashbackAdultValue,
     vlcashbackpromoinfant: promoCashbackChildValue,
     stcodindica: normalizeStatus(values.stcodindica),
-    email: normalizeText(values.email),
+    email,
   };
 
   if (mode === "create") {
