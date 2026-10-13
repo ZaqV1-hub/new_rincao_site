@@ -355,22 +355,23 @@ export async function searchEnfermariaDayUse(cpfValue: string) {
 
 export async function searchEnfermariaDayUseClient(cpfValue: string) {
   const cpf = sanitizeCpf(cpfValue);
-  if (cpf.length !== 11) return null;
+  if (!isValidCpf(cpf)) return null;
   await ensureTables();
-  const result = await getIngressoSistemaDbPool().query<{ cpf: string; nmusuario: string }>(
-    `SELECT cpf, nmusuario FROM usuario_site_conta WHERE cpf = $1
+  const result = await getIngressoSistemaDbPool().query<{ cpf: string; nmusuario: string; phone: string | null }>(
+    `SELECT cpf, nmusuario, COALESCE(NULLIF(celular, ''), telefone) AS phone FROM usuario_site_conta WHERE cpf = $1
      UNION ALL
-     SELECT cpf, nmusuario FROM usuario WHERE cpf = $1 AND idpapel IS NULL
+     SELECT cpf, nmusuario, COALESCE(NULLIF(celular, ''), telefone) AS phone FROM usuario WHERE cpf = $1 AND idpapel IS NULL
      LIMIT 1`,
     [cpf],
   );
   const row = result.rows[0];
-  return row ? { cpf, name: String(row.nmusuario ?? "Cliente") } : null;
+  return row ? { cpf, name: String(row.nmusuario ?? "Cliente"), phone: String(row.phone ?? "") } : null;
 }
 
 export async function createEnfermariaRecord(input: {
   source: EnfermariaSource; clientId?: number | null; tripId?: number | null; purchaseId?: number | null;
   buyerCpf?: string | null; initialName?: string; clientName?: string; buyerName?: string; visitDate?: string; ticketCount?: number; ticketSummary?: string; professional: string; actor: string; occurredAt: string;
+  attendedPerson?: "titular" | "outra_pessoa"; attendeeCpf?: string;
   intakeSource?: string; guardianCpf?: string; guardianPhone?: string; noAccountReason?: string;
 }) {
   await ensureTables();
@@ -379,6 +380,8 @@ export async function createEnfermariaRecord(input: {
   let tripDate = "";
   let tripType = "";
   let buyerName = "";
+  let buyerPhone = "";
+  let attendeeCpf = "";
   let visitDate = "";
   let ticketCount = 0;
   let ticketSummary = "";
@@ -400,7 +403,13 @@ export async function createEnfermariaRecord(input: {
     if (!input.buyerCpf) throw new Error("Informe o CPF do cliente.");
     const client = await searchEnfermariaDayUseClient(input.buyerCpf);
     if (!client) throw new Error("Cliente não encontrado para este CPF.");
+    if (input.attendedPerson !== "titular" && input.attendedPerson !== "outra_pessoa") throw new Error("Informe se a pessoa atendida é o titular da conta.");
+    if (input.attendedPerson === "outra_pessoa") {
+      attendeeCpf = sanitizeCpf(input.attendeeCpf ?? "");
+      if (!isValidCpf(attendeeCpf)) throw new Error("Informe um CPF válido para a pessoa atendida.");
+    }
     buyerName = client.name;
+    buyerPhone = client.phone;
     if (input.purchaseId) {
       const purchase = (await searchEnfermariaDayUse(input.buyerCpf)).find((item) => item.id === input.purchaseId);
       if (!purchase) throw new Error("A compra não corresponde ao CPF informado.");
@@ -429,6 +438,11 @@ export async function createEnfermariaRecord(input: {
       guardianPhone: input.guardianPhone ?? "",
       noAccountReason: input.noAccountReason ?? "",
     },
+  } : input.source === "day_use" ? {
+    context: { clientName, tripDate, tripType, buyerName, buyerPhone, visitDate, ticketCount, ticketSummary, attendedPerson: input.attendedPerson },
+    identification: input.attendedPerson === "titular"
+      ? { name: buyerName, cpf: input.buyerCpf ?? "", phone: buyerPhone }
+      : { cpf: attendeeCpf },
   } : { context: { clientName, tripDate, tripType, buyerName, visitDate, ticketCount, ticketSummary } };
   const id = await withEnfermariaTransaction(async (client) => {
     const result = await client.query<{ id: number | string }>(

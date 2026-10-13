@@ -9,7 +9,7 @@ import styles from "./enfermaria-visual.module.css";
 
 type Client = { id: number; name: string; address: string; hasTripToday: boolean };
 type Trip = { id: number; date: string; status: string; type: string };
-type DayUseClient = { cpf: string; name: string };
+type DayUseClient = { cpf: string; name: string; phone: string };
 
 function tripTypeLabel(value: string) {
   return ({ escol: "Escola", confr: "Confraternização", padra: "Passeio", promo: "Passeio promocional" } as Record<string, string>)[value] ?? (value || "Passeio");
@@ -29,6 +29,8 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
   const [cpf, setCpf] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
   const [dayUseClient, setDayUseClient] = useState<DayUseClient | null>(null);
+  const [attendedPerson, setAttendedPerson] = useState<"titular" | "outra_pessoa" | "">("");
+  const [attendeeCpf, setAttendeeCpf] = useState("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
@@ -49,7 +51,7 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
   useEffect(() => {
     if (registerNoAccount) return;
     const value = kind === "cliente" ? query.trim() : cpf.replace(/\D/g, "");
-    const ready = kind === "cliente" ? value.length >= 2 : value.length === 11;
+    const ready = kind === "cliente" ? value.length >= 2 : isValidCpf(value);
     if (!ready) return;
     let active = true;
     const timer = window.setTimeout(async () => {
@@ -75,7 +77,7 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
   }, [kind, query, cpf, registerNoAccount, searchTrigger]);
 
   function submitCpfSearch() {
-    if (cpf.replace(/\D/g, "").length !== 11) {
+    if (!isValidCpf(cpf)) {
       setCpfSubmittedInvalid(true);
       return;
     }
@@ -124,7 +126,7 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
             <button onClick={() => { setKind("cliente"); setSearched(false); setClients([]); setSelectedClient(null); setSearching(false); }} className={`${styles.choice} ${kind === "cliente" ? styles.choiceActive : ""}`} aria-pressed={kind === "cliente"}>
               <span className={styles.choiceTitle}>Cliente</span><span className={styles.choiceDescription}>Escola, grupo ou empresa com cadastro no painel.</span>
             </button>
-            <button onClick={() => { setKind("day_use"); setSearched(false); setDayUseClient(null); setSearching(false); setError(""); }} className={`${styles.choice} ${kind === "day_use" ? styles.choiceActive : ""}`} aria-pressed={kind === "day_use"}>
+            <button onClick={() => { setKind("day_use"); setSearched(false); setDayUseClient(null); setAttendedPerson(""); setAttendeeCpf(""); setSearching(false); setError(""); }} className={`${styles.choice} ${kind === "day_use" ? styles.choiceActive : ""}`} aria-pressed={kind === "day_use"}>
               <span className={styles.choiceTitle}>Day use</span><span className={styles.choiceDescription}>Localize o cadastro do cliente pelo CPF.</span>
             </button>
           </div>
@@ -138,14 +140,14 @@ export function EnfermariaIntake({ professional }: { professional: string }) {
           </> : <>
             <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="buyer-cpf">CPF do cliente</label>
             <form className="mt-2 flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); submitCpfSearch(); }}>
-              <input id="buyer-cpf" className={`${fieldClass} min-w-[220px] flex-1`} value={cpf} onChange={(event) => { setCpf(formatEnfermariaCpf(event.target.value)); setCpfSubmittedInvalid(false); setSearched(false); setSearching(false); setDayUseClient(null); setError(""); }} placeholder="000.000.000-00" inputMode="numeric" aria-invalid={cpf.replace(/\D/g, "").length > 11 || cpfSubmittedInvalid} aria-describedby="buyer-cpf-help" />
+              <input id="buyer-cpf" className={`${fieldClass} min-w-[220px] flex-1`} value={cpf} onChange={(event) => { setCpf(formatEnfermariaCpf(event.target.value)); setCpfSubmittedInvalid(false); setSearched(false); setSearching(false); setDayUseClient(null); setAttendedPerson(""); setAttendeeCpf(""); setError(""); }} placeholder="000.000.000-00" inputMode="numeric" aria-invalid={cpfSubmittedInvalid || cpf.replace(/\D/g, "").length === 11 && !isValidCpf(cpf)} aria-describedby="buyer-cpf-help" />
               <button type="submit" className={buttonClass} disabled={searching}>Buscar CPF</button>
             </form>
-            {(cpf.replace(/\D/g, "").length > 11 || cpfSubmittedInvalid) && <p role="alert" className="mt-2 text-sm font-medium text-red-700">O CPF deve ter 11 dígitos. Você digitou {cpf.replace(/\D/g, "").length}.</p>}
-            <p id="buyer-cpf-help" className="mt-2 text-xs text-slate-500">A pessoa atendida pode ser outra; ela será identificada na ficha. A busca começa ao digitar os 11 dígitos ou clicar em Buscar CPF.</p>
+            {(cpfSubmittedInvalid || cpf.replace(/\D/g, "").length === 11 && !isValidCpf(cpf)) && <p role="alert" className="mt-2 text-sm font-medium text-red-700">{cpf.replace(/\D/g, "").length !== 11 ? "Informe os 11 dígitos do CPF." : "CPF inválido. Confira os dígitos."}</p>}
+            <p id="buyer-cpf-help" className="mt-2 text-xs text-slate-500">A busca começa quando o CPF estiver completo e válido. Depois você escolhe quem será atendido.</p>
             {searching && <p className="mt-2 text-sm text-slate-500">Buscando cliente...</p>}
             {searched && !searching && !dayUseClient && <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-6 text-center"><p className="font-semibold text-[#183e63]">Nenhum cliente encontrado para este CPF</p><p className="mt-2 text-sm text-slate-600">Se a pessoa não tem cadastro, registre o atendimento sem cadastro.</p><button onClick={startNoAccount} className="mt-4 rounded-lg bg-[#183e63] px-5 py-3 text-sm font-semibold text-white">Registrar sem cadastro</button></div>}
-            {dayUseClient && <div className="mt-3 rounded-xl border border-sky-300 bg-sky-50 p-4"><p className="font-semibold text-[#183e63]">{dayUseClient.name}</p><p className="mt-1 text-sm text-slate-600">CPF {formatEnfermariaCpf(dayUseClient.cpf)}</p><p className="mt-1 text-xs text-slate-500">A ficha ficará vinculada ao CPF deste cliente.</p><button className={`${buttonClass} mt-4`} disabled={busy} onClick={() => void create({ source: "day_use", buyerCpf: dayUseClient.cpf })}>Abrir ficha</button></div>}
+            {dayUseClient && <div className="mt-3 rounded-xl border border-sky-300 bg-sky-50 p-4"><p className="font-semibold text-[#183e63]">Conta encontrada: {dayUseClient.name}</p><p className="mt-1 text-sm text-slate-600">CPF {formatEnfermariaCpf(dayUseClient.cpf)}{dayUseClient.phone ? ` · Telefone ${formatEnfermariaPhone(dayUseClient.phone)}` : ""}</p><p className="mt-4 text-sm font-semibold text-[#183e63]">O atendimento é para quem?</p><div className="mt-2 grid gap-2 sm:grid-cols-2"><button type="button" className={`${styles.choice} ${attendedPerson === "titular" ? styles.choiceActive : ""}`} aria-pressed={attendedPerson === "titular"} onClick={() => { setAttendedPerson("titular"); setAttendeeCpf(""); }}><span className={styles.choiceTitle}>Para o titular</span><span className={styles.choiceDescription}>Nome, CPF e telefone do cadastro irão para a ficha.</span></button><button type="button" className={`${styles.choice} ${attendedPerson === "outra_pessoa" ? styles.choiceActive : ""}`} aria-pressed={attendedPerson === "outra_pessoa"} onClick={() => setAttendedPerson("outra_pessoa")}><span className={styles.choiceTitle}>Para outra pessoa</span><span className={styles.choiceDescription}>Informe o CPF de quem será atendido.</span></button></div>{attendedPerson === "outra_pessoa" && <label className="mt-4 block text-sm font-medium text-slate-700">CPF da pessoa atendida<input className={`${fieldClass} mt-2`} inputMode="numeric" placeholder="000.000.000-00" value={attendeeCpf} aria-invalid={attendeeCpf.replace(/\D/g, "").length === 11 && !isValidCpf(attendeeCpf)} onChange={(event) => setAttendeeCpf(formatEnfermariaCpf(event.target.value))} />{attendeeCpf.replace(/\D/g, "").length === 11 && !isValidCpf(attendeeCpf) && <span className="mt-1 block text-xs text-red-700">CPF inválido. Confira os dígitos.</span>}</label>}<p className="mt-3 text-xs text-slate-600">O vínculo com a conta permanece registrado no atendimento.</p><button className={`${buttonClass} mt-4`} disabled={busy || !attendedPerson || attendedPerson === "outra_pessoa" && !isValidCpf(attendeeCpf)} onClick={() => void create({ source: "day_use", buyerCpf: dayUseClient.cpf, attendedPerson, attendeeCpf: attendedPerson === "outra_pessoa" ? attendeeCpf : "" })}>Abrir ficha</button></div>}
           </>}
         </> : <>
           <h2 className="text-xl font-semibold text-slate-800">Atendimento sem cadastro</h2>

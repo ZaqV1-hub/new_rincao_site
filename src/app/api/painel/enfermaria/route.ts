@@ -91,6 +91,8 @@ export async function POST(request: Request) {
         tripId: body.tripId ? Number(body.tripId) : null,
         purchaseId: body.purchaseId ? Number(body.purchaseId) : null,
         buyerCpf: body.buyerCpf ? String(body.buyerCpf) : null,
+        attendedPerson: body.attendedPerson === "titular" || body.attendedPerson === "outra_pessoa" ? body.attendedPerson : undefined,
+        attendeeCpf: String(body.attendeeCpf ?? ""),
         initialName: String(body.initialName ?? ""),
         intakeSource: String(body.intakeSource ?? ""),
         guardianCpf: String(body.guardianCpf ?? ""),

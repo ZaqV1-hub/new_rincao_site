@@ -46,7 +46,7 @@ export function EnfermariaRecordDocument({ record, form, occurredAt, localName, 
     : -1;
   const source = record.source === "day_use" ? "Day use" : record.source === "cliente" ? "Cliente / passeio" : "Sem cadastro";
   const link = record.source === "day_use"
-    ? `Cliente ${shown(context.buyerName)} · CPF ${record.buyerCpf ? formatEnfermariaCpf(record.buyerCpf) : "—"}${record.purchaseId ? ` · Compra #${record.purchaseId}` : ""}`
+    ? `Titular da conta ${shown(context.buyerName)} · CPF ${record.buyerCpf ? formatEnfermariaCpf(record.buyerCpf) : "—"}${record.purchaseId ? ` · Compra #${record.purchaseId}` : ""}`
     : record.source === "cliente"
       ? `${shown(context.clientName)} · Cliente #${record.clientId} · Passeio #${record.tripId}${context.tripDate ? ` em ${String(context.tripDate).slice(0, 10).split("-").reverse().join("/")}` : ""}`
       : shown(unregistered.intakeSource);
@@ -60,7 +60,7 @@ export function EnfermariaRecordDocument({ record, form, occurredAt, localName, 
       <Detail label="Profissional" value={professional} /><Detail label="Status" value={record.status === "aberto" ? "Em aberto" : "Encerrado"} />
     </dl></section>
     <section className={styles.documentSection}><h3>1. Identificação</h3><dl className={styles.documentGrid}>
-      <Detail label="Nome" value={identification.name} wide /><Detail label="CPF" value={formatEnfermariaCpf(String(identification.cpf || unregistered.guardianCpf || record.buyerCpf || ""))} /><Detail label="Idade" value={age || (calculatedAge >= 0 ? `${calculatedAge} anos` : "")} />
+      <Detail label="Nome" value={identification.name} wide /><Detail label="CPF" value={formatEnfermariaCpf(String(identification.cpf || unregistered.guardianCpf || (context.attendedPerson === "titular" ? record.buyerCpf : "") || ""))} /><Detail label="Idade" value={age || (calculatedAge >= 0 ? `${calculatedAge} anos` : "")} />
       <Detail label="Nascimento" value={identification.birthDate} /><Detail label="Sexo" value={identification.sex} /><Detail label="Telefone" value={formatEnfermariaPhone(String(identification.phone || unregistered.guardianPhone || ""))} />
       <Detail label="Acompanhante" value={identification.companion} /><Detail label="Parentesco" value={identification.relationship} />
     </dl></section>
