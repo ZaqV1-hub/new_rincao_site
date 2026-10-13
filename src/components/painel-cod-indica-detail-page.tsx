@@ -173,14 +173,14 @@ export function PainelCodIndicaDetailPage({
                   Status
                 </th>
                 <th className="border border-[#6f8ea8] px-4 py-3 text-left font-normal">
-                  Email
+                  Email dos avisos de cashback
                 </th>
               </tr>
               <tr>
                 <td className="border border-[#d7d7d7] px-4 py-3">{detail.representante}</td>
                 <td className="border border-[#d7d7d7] px-4 py-3">{detail.validadeLabel}</td>
                 <td className="border border-[#d7d7d7] px-4 py-3">{detail.statusLabel}</td>
-                <td className="border border-[#d7d7d7] px-4 py-3">{detail.email}</td>
+                <td className="border border-[#d7d7d7] px-4 py-3">{detail.email} <Link className="ml-2 whitespace-nowrap text-sm text-[#1d68a2] underline" href={`/painel/cod-indica/${encodeURIComponent(detail.codigo)}/editar`}>Alterar</Link></td>
               </tr>
             </tbody>
           </table>
