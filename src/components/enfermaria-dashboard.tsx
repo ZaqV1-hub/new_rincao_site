@@ -119,18 +119,20 @@ function TimelineChart({ from, to, counts }: { from: string; to: string; counts:
   const [active, setActive] = useState<string | null>(null);
   const days = getTimelineDays(from, to, counts);
   const max = Math.max(1, ...days.map((item) => item.count));
+  const total = days.reduce((sum, day) => sum + day.count, 0);
   const selected = days.find((day) => day.date === active);
   return <section className={styles.chartCard}>
     <h2 className={styles.chartTitle}>Linha do tempo</h2>
-    <p className={styles.chartCaption}>Atendimentos por dia no período selecionado.</p>
+    <p className={styles.chartCaption}>Cada coluna representa um dia. O número acima mostra quantos atendimentos ocorreram; a data fica abaixo.</p>
+    {days.length > 0 && <p className={styles.timelineSummary}><strong>{total} {total === 1 ? "atendimento" : "atendimentos"}</strong> de {formatDate(days[0].date)} a {formatDate(days[days.length - 1].date)}</p>}
     {days.length ? <div className={styles.timeline} aria-label="Gráfico de atendimentos por dia">
-      {days.map((day) => <button type="button" key={day.date} className={`${styles.timelineDay} ${active === day.date ? styles.timelineDayActive : ""} ${active && active !== day.date ? styles.chartDimmed : ""}`} aria-label={`${formatDate(day.date)}: ${day.count} atendimento(s)`} onMouseEnter={() => setActive(day.date)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(day.date)} onBlur={() => setActive(null)} onClick={() => setActive(active === day.date ? null : day.date)}>
-        <span className={styles.timelineCount}>{day.count || ""}</span>
+      {days.map((day) => <button type="button" key={day.date} className={`${styles.timelineDay} ${active === day.date ? styles.timelineDayActive : ""} ${active && active !== day.date ? styles.chartDimmed : ""}`} aria-label={`${formatDate(day.date)}: ${day.count} ${day.count === 1 ? "atendimento" : "atendimentos"}`} onMouseEnter={() => setActive(day.date)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(day.date)} onBlur={() => setActive(null)} onClick={() => setActive(active === day.date ? null : day.date)}>
+        <span className={styles.timelineCount}>{day.count ? `${day.count} atend.` : ""}</span>
         <div className={`${styles.timelineBar} ${day.weekend ? styles.timelineWeekend : ""}`} style={{ height: `${Math.max(day.count ? 8 : 3, (day.count / max) * 104)}px` }} />
-        <span className={styles.timelineDate}>{day.label ? String(Number(day.date.slice(8))) : ""}</span>
+        <span className={styles.timelineDate}>{day.label ? `${day.date.slice(8)}/${day.date.slice(5, 7)}` : ""}</span>
       </button>)}
     </div> : <p className={styles.empty}>Escolha um período válido para ver a linha do tempo.</p>}
-    {days.length > 0 && <p className={styles.chartDetail} aria-live="polite">{selected ? <><strong>{formatDate(selected.date)}</strong> · {selected.count} atendimento(s){selected.weekend ? " · fim de semana" : ""}</> : "Passe o mouse, toque ou use o teclado para ver os detalhes de cada dia."}</p>}
+    {days.length > 0 && <p className={styles.chartDetail} aria-live="polite">{selected ? <><strong>{new Date(`${selected.date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</strong>: {selected.count} {selected.count === 1 ? "atendimento" : "atendimentos"}</> : "Selecione uma coluna para ver o dia completo. As colunas em azul escuro são sábados e domingos."}</p>}
   </section>;
 }
 
