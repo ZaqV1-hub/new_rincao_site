@@ -56,7 +56,7 @@ if (-not (Test-Path -LiteralPath $nodeExe)) {
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $sharedRoot ".data\group-registrations") | Out-Null
 
-Get-Content -LiteralPath $envFile | ForEach-Object {
+Get-Content -LiteralPath $envFile -Encoding UTF8 | ForEach-Object {
   $line = $_.Trim()
 
   if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) {
