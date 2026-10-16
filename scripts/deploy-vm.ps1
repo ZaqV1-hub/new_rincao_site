@@ -90,7 +90,7 @@ if (-not (Test-Path -LiteralPath $envFile)) {
   throw "Execute scripts\migrate-vm-storage.ps1 -Environment $Environment antes do primeiro deploy."
 }
 
-Get-Content -LiteralPath $envFile | ForEach-Object {
+Get-Content -LiteralPath $envFile -Encoding UTF8 | ForEach-Object {
   $line = $_.Trim()
 
   if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) {

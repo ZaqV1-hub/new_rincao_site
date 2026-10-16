@@ -12,17 +12,9 @@ type EmailQueueRow = {
 };
 
 function normalizeEmailHeaderText(value: string | undefined, fallback: string) {
-  const normalized = value?.trim() || fallback;
-
-  if (!/[ÃÂ]/.test(normalized)) {
-    return normalized;
-  }
-
-  try {
-    return Buffer.from(normalized, "latin1").toString("utf8");
-  } catch {
-    return normalized;
-  }
+  const normalized = value?.trim();
+  // A broken environment value must never become a sender header.
+  return normalized && !/[ÃÂÆ�]|â€/.test(normalized) ? normalized : fallback;
 }
 
 function readBooleanEnv(value: string | undefined, fallback: boolean) {
