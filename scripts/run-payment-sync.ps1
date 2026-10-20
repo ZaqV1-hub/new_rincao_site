@@ -71,15 +71,27 @@ if (-not $operationsToken) {
 }
 
 $headers = @{ Authorization = "Bearer $operationsToken" }
-$body = @{
-  recentDays = 7
-  cancelAfterDays = 30
-  cancelStale = $false
-  limit = 2000
-  perDayLimit = 250
-} | ConvertTo-Json -Compress
+$olderWindowIndex = (Get-Date).DayOfYear % 17
+$olderThanDays = 7 + (7 * $olderWindowIndex)
+$windows = @(
+  @{ Name = "recent"; Body = @{
+    recentDays = 7
+    cancelAfterDays = 30
+    cancelStale = $false
+    limit = 2000
+  } },
+  @{ Name = "older"; Body = @{
+    recentDays = $olderThanDays + 7
+    olderThanDays = $olderThanDays
+    cancelAfterDays = 30
+    cancelStale = $false
+    limit = 2000
+  } }
+)
 
 try {
+ foreach ($window in $windows) {
+  $body = $window.Body | ConvertTo-Json -Compress
   $response = Invoke-RestMethod `
     -Method Post `
     -Uri "http://127.0.0.1:$([int]$config.Port)/api/ops/jobs/payment-sync" `
@@ -138,9 +150,11 @@ try {
   $errorCategorySummary = ($errorCategoryCounts.GetEnumerator() |
     Sort-Object Name |
     ForEach-Object { "$($_.Name):$($_.Value)" }) -join ","
-  $summary = "result=completed candidates=$($data.candidates) processed=$($data.processed) reconciled=$($data.reconciled) cancelled=$($data.cancelled) missing=$($data.missing) failed=$($data.failed) purchase_status=[$purchaseStatusSummary] gateway_status=[$gatewayStatusSummary] error_category=[$errorCategorySummary]"
+  $limitReached = [int]$data.candidates -ge [int]$window.Body.limit
+  $summary = "result=completed window=$($window.Name) recent_days=$($window.Body.recentDays) older_than_days=$($window.Body.olderThanDays) candidates=$($data.candidates) limit_reached=$limitReached processed=$($data.processed) reconciled=$($data.reconciled) cancelled=$($data.cancelled) missing=$($data.missing) failed=$($data.failed) purchase_status=[$purchaseStatusSummary] gateway_status=[$gatewayStatusSummary] error_category=[$errorCategorySummary]"
   Write-PaymentSyncLog $summary
   Write-Output $summary
+ }
 } catch {
   if ($_.Exception.Message -notlike "A rotina de conciliacao nao concluiu*") {
     Write-PaymentSyncLog "result=failed reason=request_error type=$($_.Exception.GetType().Name)"

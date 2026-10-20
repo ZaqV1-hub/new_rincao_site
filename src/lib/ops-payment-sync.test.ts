@@ -67,7 +67,7 @@ describe("ops-payment-sync", () => {
 
     query.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql.includes("FROM compra") && sql.includes("LEFT JOIN LATERAL")) {
-        expect(values).toEqual([7, 50, null]);
+        expect(values).toEqual([7, 50, null, null]);
         expect(sql).toContain("ORDER BY compra.idcompra DESC");
 
         return {
@@ -169,7 +169,7 @@ describe("ops-payment-sync", () => {
     });
 
     expect(result.candidates).toBe(0);
-    expect(query).toHaveBeenCalledWith(expect.stringContaining("compra.idcompra = $3"), [7, 1, 189750]);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("compra.idcompra = $3"), [7, 1, 189750, null]);
     expect(query.mock.calls[0]?.[0]).not.toContain("compra.stcompra <> 'conc'");
     expect(release).toHaveBeenCalled();
   });
@@ -233,8 +233,25 @@ describe("ops-payment-sync", () => {
     });
 
     expect(query).toHaveBeenCalledWith(
-      expect.stringMatching(/PARTITION BY compra\.dtcompra::date[\s\S]*day_rank <= \$4[\s\S]*LIMIT \$2/),
-      [7, 700, null, 100],
+      expect.stringMatching(/PARTITION BY compra\.dtcompra::date[\s\S]*day_rank <= \$5[\s\S]*LIMIT \$2/),
+      [7, 700, null, null, 100],
+    );
+  });
+
+  it("limits a rotating historical window to the selected dates", async () => {
+    isCieloEcommerceConfigured.mockReturnValue(true);
+    query.mockResolvedValue({ rows: [] });
+
+    await syncOperationalPaymentStatuses({
+      recentDays: 105,
+      olderThanDays: 98,
+      limit: 2000,
+      cancelStale: false,
+    });
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("compra.dtcompra < CURRENT_DATE - $4::integer"),
+      [105, 2000, null, 98],
     );
   });
 
@@ -244,6 +261,6 @@ describe("ops-payment-sync", () => {
 
     await syncOperationalPaymentStatuses({ limit: 9000, perDayLimit: 300 });
 
-    expect(query).toHaveBeenCalledWith(expect.any(String), [7, 2000, null, 250]);
+    expect(query).toHaveBeenCalledWith(expect.any(String), [7, 2000, null, null, 250]);
   });
 });
