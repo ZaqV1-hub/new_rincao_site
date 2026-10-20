@@ -29,6 +29,7 @@ export type OperationalPaymentSyncItem = {
 
 export type SyncOperationalPaymentStatusesInput = {
   recentDays?: number;
+  olderThanDays?: number;
   cancelAfterDays?: number;
   cancelStale?: boolean;
   limit?: number;
@@ -107,6 +108,7 @@ async function listPaymentSyncCandidates(
   limit: number,
   purchaseId?: number,
   perDayLimit?: number,
+  olderThanDays?: number,
 ) {
   const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
@@ -134,7 +136,8 @@ async function listPaymentSyncCandidates(
           AND compra.formapag = 'pgseg'
           AND (
             ($3::integer IS NOT NULL AND compra.idcompra = $3)
-            OR ($3::integer IS NULL AND compra.dtcompra >= CURRENT_DATE - $1::integer)
+            OR ($3::integer IS NULL AND compra.dtcompra >= CURRENT_DATE - $1::integer
+              AND ($4::integer IS NULL OR compra.dtcompra < CURRENT_DATE - $4::integer))
           )
           AND (
             pagamento.idpagseguro IS NOT NULL
@@ -159,15 +162,15 @@ async function listPaymentSyncCandidates(
             ) AS day_rank
           ${candidateSource}
         ) ranked_candidates
-        WHERE day_rank <= $4
+        WHERE day_rank <= $5
         ORDER BY purchase_id DESC
         LIMIT $2
       `;
     const result = await client.query<PaymentSyncCandidateRow>(
       sql,
       perDayLimit === undefined ?
-        [recentDays, limit, purchaseId ?? null] :
-        [recentDays, limit, purchaseId ?? null, perDayLimit],
+        [recentDays, limit, purchaseId ?? null, olderThanDays ?? null] :
+        [recentDays, limit, purchaseId ?? null, olderThanDays ?? null, perDayLimit],
     );
 
     return result.rows;
@@ -198,7 +201,17 @@ async function cancelStalePendingPurchase(purchaseId: number) {
 export async function syncOperationalPaymentStatuses(
   input?: SyncOperationalPaymentStatusesInput,
 ): Promise<SyncOperationalPaymentStatusesSuccess> {
-  const recentDays = toValidInteger(input?.recentDays, 7, 1, 90);
+  const recentDays = toValidInteger(input?.recentDays, 7, 1, 180);
+  const olderThanDays = input?.olderThanDays === undefined ?
+    undefined :
+    toValidInteger(input.olderThanDays, 0, 0, 179);
+  if (olderThanDays !== undefined && olderThanDays >= recentDays) {
+    throw new OperationalPaymentSyncError(
+      "invalid_payment_sync_window",
+      "O inicio da janela deve ser anterior ao fim.",
+      400,
+    );
+  }
   const cancelAfterDays = toValidInteger(input?.cancelAfterDays, 5, 1, 30);
   const limit = toValidInteger(input?.limit, 50, 1, 2000);
   const perDayLimit = input?.perDayLimit === undefined ?
@@ -241,6 +254,7 @@ export async function syncOperationalPaymentStatuses(
     purchaseId ? 1 : limit,
     purchaseId,
     perDayLimit,
+    olderThanDays,
   );
   const items: OperationalPaymentSyncItem[] = [];
   let reconciled = 0;

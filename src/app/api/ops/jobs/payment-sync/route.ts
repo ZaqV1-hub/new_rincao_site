@@ -23,6 +23,7 @@ function errorResponse(code: string, message: string, status: number) {
 
 type PaymentSyncPayload = {
   recentDays?: unknown;
+  olderThanDays?: unknown;
   cancelAfterDays?: unknown;
   cancelStale?: unknown;
   limit?: unknown;
@@ -66,6 +67,8 @@ export async function POST(request: Request) {
     const data = await syncOperationalPaymentStatuses({
       recentDays:
         typeof payload?.recentDays === "number" ? payload.recentDays : undefined,
+      olderThanDays:
+        typeof payload?.olderThanDays === "number" ? payload.olderThanDays : undefined,
       cancelAfterDays:
         typeof payload?.cancelAfterDays === "number" ?
           payload.cancelAfterDays :

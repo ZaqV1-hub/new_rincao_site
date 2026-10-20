@@ -44,7 +44,8 @@ describe("ops/jobs/payment-sync BFF route", () => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          recentDays: 7,
+          recentDays: 14,
+          olderThanDays: 7,
           cancelAfterDays: 5,
           cancelStale: false,
           limit: 700,
@@ -60,7 +61,8 @@ describe("ops/jobs/payment-sync BFF route", () => {
       { requiredPermission: "ops.jobs" },
     );
     expect(syncOperationalPaymentStatuses).toHaveBeenCalledWith({
-      recentDays: 7,
+      recentDays: 14,
+      olderThanDays: 7,
       cancelAfterDays: 5,
       cancelStale: false,
       limit: 700,
