@@ -169,10 +169,8 @@ describe("ops-payment-sync", () => {
     });
 
     expect(result.candidates).toBe(0);
-    expect(query).toHaveBeenCalledWith(
-      expect.stringContaining("compra.idcompra = $3"),
-      [7, 1, 189750],
-    );
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("compra.idcompra = $3"), [7, 1, 189750]);
+    expect(query.mock.calls[0]?.[0]).not.toContain("compra.stcompra <> 'conc'");
     expect(release).toHaveBeenCalled();
   });
 
@@ -244,11 +242,8 @@ describe("ops-payment-sync", () => {
     isCieloEcommerceConfigured.mockReturnValue(true);
     query.mockResolvedValue({ rows: [] });
 
-    await syncOperationalPaymentStatuses({
-      limit: 900,
-      perDayLimit: 150,
-    });
+    await syncOperationalPaymentStatuses({ limit: 9000, perDayLimit: 300 });
 
-    expect(query).toHaveBeenCalledWith(expect.any(String), [7, 700, null, 100]);
+    expect(query).toHaveBeenCalledWith(expect.any(String), [7, 2000, null, 250]);
   });
 });

@@ -473,12 +473,25 @@ export async function applyPaymentReconciliationRecord(
   }
 
   const existingPayment = await client.query(
-    "SELECT idpagseguro, status FROM pagpagseguro WHERE idcompra = $1 LIMIT 1",
+    'SELECT idpagseguro, status, "cancellationSource" AS cancellation_source FROM pagpagseguro WHERE idcompra = $1 LIMIT 1',
     [record.purchaseId],
   );
   const currentPayment = existingPayment.rows[0] as
-    | { idpagseguro: string; status: number }
+    | { idpagseguro: string; status: number; cancellation_source: string | null }
     | undefined;
+
+  // A cancellation confirmed in Cielo's sales portal can remain paid in its
+  // E-commerce query API. Keep the local block until the gateway also reports
+  // cancellation; a stale paid response must never reactivate the vouchers.
+  if (currentPayment?.cancellation_source === "portal" && record.purchaseStatus !== "canc") {
+    return {
+      purchaseId: record.purchaseId,
+      gatewayPaymentId: currentPayment.idpagseguro,
+      gatewayStatus: currentPayment.status,
+      purchaseStatus: "canc",
+      ledgerAction: "unchanged",
+    };
+  }
 
   // A delayed callback for another attempt cannot overwrite a confirmed
   // charge. A refund of that same charge is still allowed to change status.
@@ -503,7 +516,7 @@ export async function applyPaymentReconciliationRecord(
     record.date,
     record.reference,
     record.status,
-    "",
+    currentPayment?.cancellation_source === "portal" ? "portal" : "",
     record.lastEventDate,
     record.paymentMethodType,
     record.paymentMethodCode,

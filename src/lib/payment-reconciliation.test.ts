@@ -275,6 +275,25 @@ describe("payment-reconciliation", () => {
     expect(client.query).toHaveBeenCalledTimes(2);
   });
 
+  it("does not reactivate a purchase cancelled in the Cielo portal while the API still says paid", async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("FROM compra")) {
+          return { rowCount: 1, rows: [{ idcompra: 123, vltotcompra: "120.00" }] };
+        }
+        return { rowCount: 1, rows: [{ idpagseguro: "pay-123", status: 3, cancellation_source: "portal" }] };
+      }),
+    };
+
+    const result = await applyPaymentReconciliationRecord(
+      client as unknown as Parameters<typeof applyPaymentReconciliationRecord>[0],
+      baseRecord({ gatewayPaymentId: "pay-123", status: 3, purchaseStatus: "conc" }),
+    );
+
+    expect(result).toMatchObject({ purchaseStatus: "canc", ledgerAction: "unchanged" });
+    expect(client.query).toHaveBeenCalledTimes(2);
+  });
+
   it("rejects a confirmed charge with a different purchase amount", async () => {
     const client = {
       query: vi.fn(async () => ({

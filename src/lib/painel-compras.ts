@@ -263,6 +263,7 @@ type PainelPurchaseDetailRow = {
   idpagseguro: string | number | null;
   paymentmethodtype: string | number | null;
   status: string | number | null;
+  cancellation_source?: string | null;
 };
 
 type PainelPurchaseDetailVoucherRow = {
@@ -597,6 +598,10 @@ function resolveDetailPaymentLabel(row: PainelPurchaseDetailRow) {
     return "Bilheteria";
   }
 
+  if (row.cancellation_source === "portal") {
+    return "Cancelada no portal Cielo; consulta da API divergente";
+  }
+
   const gatewayStatus = String(row.status ?? "").trim();
 
   if (gatewayStatus && String(row.stcompra ?? "").trim() === "conc") {
@@ -657,14 +662,16 @@ async function loadPainelPurchaseDetailRow(purchaseId: number) {
         usuario.nmusuario,
         pagpagseguro.idpagseguro,
         pagpagseguro.paymentmethodtype,
-        pagpagseguro.status
+        pagpagseguro.status,
+        pagpagseguro.cancellation_source
       FROM compra
       LEFT JOIN usuario ON usuario.cpf = compra.cpf
       LEFT JOIN LATERAL (
         SELECT
           pagamento.idpagseguro,
           pagamento.paymentmethodtype,
-          pagamento.status
+          pagamento.status,
+          pagamento."cancellationSource" AS cancellation_source
         FROM pagpagseguro AS pagamento
         WHERE pagamento.idcompra = compra.idcompra
         ORDER BY pagamento.idpagseguro DESC
