@@ -1,9 +1,8 @@
 "use client";
 
 import { RincaoLogo } from "@/components/rincao-logo";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { IngressoShell } from "@/components/ingresso-shell";
 import { formatCpf } from "@/lib/cpf";
 import type {
@@ -24,9 +23,8 @@ type CustomerLoginFeedback = {
   statusDescription: string;
 };
 
-type CustomerLoginRouter = {
+type CustomerLoginNavigator = {
   replace: (href: string) => void;
-  refresh?: () => void;
 };
 
 async function readResponseBody<T>(response: Response) {
@@ -66,25 +64,22 @@ export function getCustomerLoginFeedback(
 }
 
 export function navigateAfterCustomerLogin(
-  router: CustomerLoginRouter,
+  navigator: CustomerLoginNavigator,
   redirectTo: string,
 ) {
-  router.replace(redirectTo);
+  navigator.replace(redirectTo);
 }
 
 export function CustomerLoginPage({
   redirectTo,
   initialError = null,
 }: CustomerLoginPageProps) {
-  const router = useRouter();
-  const [isNavigating, startTransition] = useTransition();
   const [cpf, setCpf] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(initialError);
   const [phase, setPhase] = useState<CustomerLoginPhase>("idle");
-  const activePhase = isNavigating && phase === "idle" ? "redirecting" : phase;
-  const feedback = getCustomerLoginFeedback(activePhase);
-  const isBusy = activePhase !== "idle";
+  const feedback = getCustomerLoginFeedback(phase);
+  const isBusy = phase !== "idle";
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -120,9 +115,7 @@ export function CustomerLoginPage({
 
       keepBusy = true;
       setPhase("redirecting");
-      startTransition(() => {
-        navigateAfterCustomerLogin(router, redirectTo);
-      });
+      navigateAfterCustomerLogin(window.location, redirectTo);
     } catch (requestError) {
       console.error("customer-login-submit-failed", requestError);
       setError("Nao foi possivel entrar agora.");
@@ -158,6 +151,7 @@ export function CustomerLoginPage({
               </span>
               <input
                 type="text"
+                name="cpf"
                 inputMode="numeric"
                 autoComplete="username"
                 placeholder="000.000.000-00"
@@ -174,6 +168,7 @@ export function CustomerLoginPage({
               </span>
               <input
                 type="password"
+                name="senha"
                 autoComplete="current-password"
                 placeholder="Sua senha"
                 value={password}
