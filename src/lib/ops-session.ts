@@ -14,7 +14,8 @@ import type {
 
 export const OPERATIONS_COOKIE_NAME = "rincao_ops_session";
 
-const SESSION_VERSION = 1;
+// Increment this value to revoke all currently issued administrative sessions.
+const SESSION_VERSION = 2;
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
 
 type OperationsSessionPayload = {
