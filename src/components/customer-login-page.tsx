@@ -83,6 +83,9 @@ export function CustomerLoginPage({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const submittedCpf = String(formData.get("cpf") ?? "");
+    const submittedPassword = String(formData.get("senha") ?? "");
     let keepBusy = false;
 
     setPhase("submitting");
@@ -95,8 +98,8 @@ export function CustomerLoginPage({
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          login: cpf,
-          senha: password,
+          login: submittedCpf,
+          senha: submittedPassword,
         }),
       });
 
