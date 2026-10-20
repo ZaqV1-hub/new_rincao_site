@@ -75,8 +75,8 @@ $body = @{
   recentDays = 7
   cancelAfterDays = 30
   cancelStale = $false
-  limit = 700
-  perDayLimit = 100
+  limit = 2000
+  perDayLimit = 250
 } | ConvertTo-Json -Compress
 
 try {

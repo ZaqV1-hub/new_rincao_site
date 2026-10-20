@@ -31,12 +31,24 @@ export async function applyPaymentReconciliationRecord(
   }
 
   const existingPayment = await client.query(
-    `SELECT idpagseguro, status, "grossAmount" AS gross_amount FROM pagpagseguro WHERE idcompra = $1 LIMIT 1`,
+    `SELECT idpagseguro, status, "grossAmount" AS gross_amount, "cancellationSource" AS cancellation_source FROM pagpagseguro WHERE idcompra = $1 LIMIT 1`,
     [record.purchaseId],
   );
   const currentPayment = existingPayment.rows[0] as
-    | { idpagseguro: string; status: number; gross_amount?: string }
+    | { idpagseguro: string; status: number; gross_amount?: string; cancellation_source?: string | null }
     | undefined;
+
+  // The Cielo sales portal may report a cancellation before its query API does.
+  // Keep the purchase blocked until the gateway also reports cancellation.
+  if (currentPayment?.cancellation_source === "portal" && record.purchaseStatus !== "canc") {
+    return {
+      purchaseId: record.purchaseId,
+      gatewayPaymentId: currentPayment.idpagseguro,
+      gatewayStatus: currentPayment.status,
+      purchaseStatus: "canc",
+      ledgerAction: "unchanged",
+    };
+  }
 
   // A delayed callback for another attempt cannot overwrite a confirmed
   // charge. A refund of that same charge is still allowed to change status.
@@ -66,7 +78,7 @@ export async function applyPaymentReconciliationRecord(
     record.date,
     record.reference,
     record.status,
-    "",
+    currentPayment?.cancellation_source === "portal" ? "portal" : "",
     record.lastEventDate,
     record.paymentMethodType,
     record.paymentMethodCode,

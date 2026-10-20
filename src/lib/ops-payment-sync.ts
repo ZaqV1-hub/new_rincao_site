@@ -140,10 +140,6 @@ async function listPaymentSyncCandidates(
             pagamento.idpagseguro IS NOT NULL
             OR compra.stcompra = 'pend'
           )
-          AND (
-            compra.stcompra <> 'conc'
-            OR pagamento.status IS DISTINCT FROM 3
-          )
     `;
     const sql = perDayLimit === undefined ?
       `
@@ -204,10 +200,10 @@ export async function syncOperationalPaymentStatuses(
 ): Promise<SyncOperationalPaymentStatusesSuccess> {
   const recentDays = toValidInteger(input?.recentDays, 7, 1, 90);
   const cancelAfterDays = toValidInteger(input?.cancelAfterDays, 5, 1, 30);
-  const limit = toValidInteger(input?.limit, 50, 1, 700);
+  const limit = toValidInteger(input?.limit, 50, 1, 2000);
   const perDayLimit = input?.perDayLimit === undefined ?
     undefined :
-    toValidInteger(input.perDayLimit, 100, 1, 100);
+    toValidInteger(input.perDayLimit, 100, 1, 250);
   const purchaseId = input?.purchaseId;
 
   if (
