@@ -153,6 +153,8 @@ export function SchoolPurchasePage({
     preset?.schoolName ?? initialDraft?.schoolName ?? "",
   );
   const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
+  const [searchedSchoolTerm, setSearchedSchoolTerm] = useState<string | null>(null);
+  const [schoolSearchError, setSchoolSearchError] = useState(false);
   const [context, setContext] = useState<SchoolPurchaseContext | null>(null);
   const [loadingSchools, setLoadingSchools] = useState(false);
   const [loadingContext, setLoadingContext] = useState(
@@ -161,6 +163,9 @@ export function SchoolPurchasePage({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [restoredDraft] = useState(Boolean(initialDraft));
+  const schoolReady = Boolean(
+    payload.schoolId && context?.schoolId === payload.schoolId && !loadingContext,
+  );
 
   const selectedEducationType = useMemo(
     () =>
@@ -245,11 +250,12 @@ export function SchoolPurchasePage({
     if (
       hasPreset ||
       schoolSearchTerm.trim().length < 2 ||
-      payload.schoolName === schoolSearchTerm
+      (payload.schoolId && payload.schoolName === schoolSearchTerm)
     ) {
       return;
     }
 
+    let cancelled = false;
     searchTimeoutRef.current = setTimeout(() => {
       setLoadingSchools(true);
 
@@ -267,18 +273,28 @@ export function SchoolPurchasePage({
             );
           }
 
-          setSchoolOptions(responseBody.data.schools);
+          if (!cancelled) {
+            setSchoolOptions(responseBody.data.schools);
+            setSearchedSchoolTerm(schoolSearchTerm.trim());
+            setSchoolSearchError(false);
+          }
         })
         .catch((searchError) => {
           console.error("school-purchase-school-search-failed", searchError);
-          setSchoolOptions([]);
+          if (!cancelled) {
+            setSchoolOptions([]);
+            setSchoolSearchError(true);
+          }
         })
         .finally(() => {
-          setLoadingSchools(false);
+          if (!cancelled) {
+            setLoadingSchools(false);
+          }
         });
     }, 250);
 
     return () => {
+      cancelled = true;
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
@@ -320,10 +336,18 @@ export function SchoolPurchasePage({
       ...current,
       schoolId: null,
       schoolName: "",
+      studentName: "",
+      educationType: "",
+      educationYear: "",
+      classLetter: "",
+      educatorName: "",
+      educatorRole: "",
       agendaId: null,
+      value: "",
     }));
     setContext(null);
     setSchoolOptions([]);
+    setSearchedSchoolTerm(null);
   }
 
   function selectSchool(option: SchoolOption) {
@@ -334,6 +358,7 @@ export function SchoolPurchasePage({
     setError(null);
     setLoadingContext(true);
     setSchoolOptions([]);
+    setSearchedSchoolTerm(null);
     setPayload((current) => ({
       ...current,
       schoolId: option.id,
@@ -535,6 +560,9 @@ export function SchoolPurchasePage({
                     }
 
                     setSchoolSearchTerm(event.target.value);
+                    setSearchedSchoolTerm(null);
+                    setSchoolSearchError(false);
+                    setSchoolOptions([]);
 
                     if (payload.schoolId && nextValue !== payload.schoolName) {
                       resetSchoolSelection();
@@ -566,6 +594,16 @@ export function SchoolPurchasePage({
                     ))}
                   </div>
                 ) : null}
+                {!payload.schoolId && !loadingSchools && schoolSearchTerm.trim().length >= 2 && searchedSchoolTerm === schoolSearchTerm.trim() && schoolOptions.length === 0 ? (
+                  <p role="status" className="mt-2 text-[13px] font-semibold text-[#9f3f36]">
+                    Não há escola com esse nome.
+                  </p>
+                ) : null}
+                {schoolSearchError ? (
+                  <p role="alert" className="mt-2 text-[13px] text-[#9f3f36]">
+                    Não foi possível buscar escolas agora. Tente novamente.
+                  </p>
+                ) : null}
               </div>
 
               <div>
@@ -582,7 +620,8 @@ export function SchoolPurchasePage({
                     )
                   }
                   maxLength={80}
-                  className="mt-2 w-full rounded-[18px] border border-[#cad9e4] px-4 py-3 text-[15px] text-[#1f4f6c] outline-none focus:border-[#3498db]"
+                  disabled={!schoolReady}
+                  className="mt-2 w-full rounded-[18px] border border-[#cad9e4] px-4 py-3 text-[15px] text-[#1f4f6c] outline-none focus:border-[#3498db] disabled:bg-[#eef3f7]"
                 />
               </div>
 
@@ -749,8 +788,10 @@ export function SchoolPurchasePage({
                     R$
                   </span>
                   <CurrencyInput
-                    className="w-full rounded-[18px] border border-[#cad9e4] py-3 pl-12 pr-4 text-[15px] text-[#1f4f6c] outline-none placeholder:text-[#90a4b6] focus:border-[#3498db]"
+                    key={payload.schoolId ?? "no-school"}
+                    className="w-full rounded-[18px] border border-[#cad9e4] py-3 pl-12 pr-4 text-[15px] text-[#1f4f6c] outline-none placeholder:text-[#90a4b6] focus:border-[#3498db] disabled:bg-[#eef3f7]"
                     defaultValue={payload.value || "0,00"}
+                    disabled={!schoolReady}
                     name="value"
                     onValueChange={(value) => updatePayload("value", value)}
                     placeholder="0,00"
@@ -777,7 +818,7 @@ export function SchoolPurchasePage({
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !schoolReady}
                 className="legacy-rounded inline-flex min-h-[50px] w-full items-center justify-center rounded-full bg-[#3394d6] px-5 py-3 text-[16px] text-white shadow-[2px_2px_4px_rgba(0,0,0,0.2)] transition hover:bg-[#246b99] disabled:cursor-not-allowed disabled:bg-[#8abfe7]"
               >
                 {submitting ? "Preparando..." : "Pagar Online"}

@@ -263,8 +263,8 @@ export function CustomerCheckoutPage({
       continueShoppingUrl: "/meus-ingressos",
       logoUrl: "/brand/rincao-logo-dark.png",
       paymentMethods: ["CreditCard", "DebitCard", "Pix"],
-      maxInstallments: 12,
-      minInstallmentValue: 1,
+      maxInstallments: 3,
+      minInstallmentValue: 100,
     };
 
     if (widgetThreeDsEnabled) {

@@ -393,7 +393,7 @@ describe("cielo-ecommerce", () => {
         Payment: {
           PaymentId: "pid-456",
           Status: 1,
-          Amount: 12990,
+          Amount: 22990,
           PaymentType: "CreditCard",
           CreditCard: {
             Brand: "Visa",
@@ -405,7 +405,7 @@ describe("cielo-ecommerce", () => {
 
     const result = await createNativeCieloCheckout({
       purchaseId: 456,
-      amount: "129.90",
+      amount: "229.90",
       customer: {
         name: "Cliente Teste",
         email: "cliente@example.com",
@@ -456,7 +456,7 @@ describe("cielo-ecommerce", () => {
       },
       Payment: {
         Type: "CreditCard",
-        Amount: 12990,
+        Amount: 22990,
         Installments: 2,
         Capture: true,
         CreditCard: {

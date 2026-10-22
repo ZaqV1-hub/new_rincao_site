@@ -394,18 +394,13 @@ function buildCustomer(customer: NativeCheckoutCustomer) {
 }
 
 function normalizeInstallments(value: unknown, amountCents: number) {
-  const maxInstallments = Math.min(
-    Math.max(Number(process.env.INGRESSO_CIELO_MAX_INSTALLMENTS ?? 12), 1),
-    12,
-  );
-  const minInstallmentValue = Math.max(
-    Number(process.env.INGRESSO_CIELO_MIN_INSTALLMENT_VALUE_CENTS ?? 100),
-    1,
-  );
-  const requested = Math.max(Number(value ?? 1), 1);
-  const byValue = Math.max(Math.floor(amountCents / minInstallmentValue), 1);
+  const parsedRequested = Number(value ?? 1);
+  const requested = Number.isInteger(parsedRequested) && parsedRequested > 0
+    ? parsedRequested
+    : 1;
+  const byValue = Math.max(Math.floor(amountCents / 10000), 1);
 
-  return Math.min(requested, maxInstallments, byValue);
+  return Math.min(requested, 3, byValue);
 }
 
 function buildPayment(
