@@ -422,6 +422,7 @@ function buildPayment(
       getRaw(paymentData, ["installments", "Installments"]),
       amountCents,
     );
+    payment.Interest = "ByMerchant";
     payment.Capture = normalizeBoolean(getRaw(paymentData, ["capture", "Capture"]), true);
     payment.Authenticate = normalizeBoolean(
       getRaw(paymentData, ["authenticate", "Authenticate"]),

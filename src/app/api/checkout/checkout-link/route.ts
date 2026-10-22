@@ -17,6 +17,8 @@ import {
 import { getSiteUrl } from "@/lib/site-metadata";
 import { getActivePublicUserByCpf } from "@/lib/user-repository";
 import { getUserVoucherPurchaseById } from "@/lib/voucher-repository";
+import { quoteCieloInstallments } from "@/lib/cielo-installment-pricing";
+import { saveCheckoutInstallmentQuote } from "@/lib/checkout-installment-quotes";
 
 export const runtime = "nodejs";
 
@@ -103,6 +105,10 @@ async function createNativeCheckoutResponse(
       ? (payload.payment as Record<string, unknown>)
       : payload;
   const type = getPaymentType(payload);
+  if (!["creditcard", "credit_card", "credit", "debitcard", "debit_card", "debit", "pix", "boleto", "bankslip"].includes(type)) {
+    throw new Error("invalid_payment_type");
+  }
+  const isCredit = ["creditcard", "credit_card", "credit"].includes(type);
   const client = await getIngressoSistemaDbPool().connect();
   let locked = false;
 
@@ -199,9 +205,22 @@ async function createNativeCheckoutResponse(
       }
     }
 
+    const cardPayload = payment.creditCard ?? payment.CreditCard;
+    const card = cardPayload && typeof cardPayload === "object"
+      ? cardPayload as Record<string, unknown>
+      : payment;
+    const quote = quoteCieloInstallments(
+      purchase.totalValue ?? "0.00",
+      isCredit ? Number(payment.installments ?? payment.Installments ?? 1) : 1,
+      isCredit ? String(card.brand ?? card.Brand ?? "") : "",
+    );
+    if (isCredit) {
+      await saveCheckoutInstallmentQuote(client, { purchaseId: purchase.id, ...quote });
+    }
+
     const checkout = await createNativeCieloCheckout({
       purchaseId: purchase.id,
-      amount: purchase.totalValue ?? "0.00",
+      amount: (quote.chargedCents / 100).toFixed(2),
       customer: {
         name: String(payload.nome ?? payload.name ?? ""),
         email: String(payload.email ?? ""),
@@ -300,6 +319,10 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("checkout-link-native-failed", error);
+
+    if (error instanceof Error && ["invalid_installments", "unsupported_installment_brand", "invalid_payment_type"].includes(error.message)) {
+      return errorResponse("invalid_installments", "Parcelamento indisponível para este valor ou bandeira.", 400);
+    }
 
     return errorResponse(
       "checkout_unavailable",

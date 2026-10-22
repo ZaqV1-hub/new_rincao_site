@@ -665,6 +665,20 @@ CREATE UNIQUE INDEX compra_checkout_session_id_uq
 COMMENT ON COLUMN public.compra.origem_checkout IS 'Origem persistida do checkout: site ou lumi; NULL preserva origem historica desconhecida.';
 COMMENT ON COLUMN public.compra.checkout_session_id IS 'Identificador idempotente da sessao de checkout externa, quando aplicavel.';
 
+CREATE TABLE public.checkout_installment_quotes (
+    id bigserial PRIMARY KEY,
+    idcompra integer NOT NULL,
+    base_amount numeric(15,2) NOT NULL,
+    charged_amount numeric(15,2) NOT NULL,
+    fee_amount numeric(15,2) NOT NULL,
+    installments integer NOT NULL,
+    card_brand character varying(32) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE INDEX checkout_installment_quotes_purchase_idx
+    ON public.checkout_installment_quotes USING btree (idcompra, charged_amount, installments);
+
 
 --
 -- Name: COLUMN compra.tpcompra; Type: COMMENT; Schema: public; Owner: -
