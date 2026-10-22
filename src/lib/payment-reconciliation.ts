@@ -7,6 +7,7 @@ import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { queuePurchaseConfirmationEmail } from "@/lib/purchase-confirmation-email";
 import { registerTicketDeliveryAudit } from "@/lib/ticket-delivery-audit";
 import { processConfirmedPurchaseTickets } from "@/lib/ticket-service";
+import { checkoutAmountMatches } from "@/lib/checkout-installment-quotes";
 
 export type GatewayPurchaseStatus = "conc" | "pend" | "canc" | "unknown";
 
@@ -462,12 +463,10 @@ export async function applyPaymentReconciliationRecord(
     const expectedAmount = Number(purchase.rows[0]?.vltotcompra);
     const paidAmount = Number(record.grossAmount);
 
-    if (
-      Number.isFinite(expectedAmount) &&
-      expectedAmount > 0 &&
-      (!Number.isFinite(paidAmount) ||
-        Math.abs(Math.round(expectedAmount * 100) - Math.round(paidAmount * 100)) > 1)
-    ) {
+    if (!Number.isFinite(expectedAmount) || expectedAmount <= 0 ||
+        !Number.isFinite(paidAmount) ||
+        !await checkoutAmountMatches(client, record.purchaseId, expectedAmount,
+          paidAmount, record.installmentCount)) {
       throw new Error("payment_amount_mismatch");
     }
   }

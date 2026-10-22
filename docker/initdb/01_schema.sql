@@ -648,6 +648,20 @@ CREATE TABLE public.compra (
     vlcashback numeric(10,2) DEFAULT 0
 );
 
+CREATE TABLE public.checkout_installment_quotes (
+    id bigserial PRIMARY KEY,
+    idcompra integer NOT NULL,
+    base_amount numeric(15,2) NOT NULL,
+    charged_amount numeric(15,2) NOT NULL,
+    fee_amount numeric(15,2) NOT NULL,
+    installments integer NOT NULL,
+    card_brand character varying(32) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE INDEX checkout_installment_quotes_purchase_idx
+    ON public.checkout_installment_quotes USING btree (idcompra, charged_amount, installments);
+
 
 --
 -- Name: COLUMN compra.tpcompra; Type: COMMENT; Schema: public; Owner: -
