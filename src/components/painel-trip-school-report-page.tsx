@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PainelClientesNav } from "@/components/painel-clientes-nav";
+import { EnfermariaTripRecords } from "@/components/enfermaria-link-client";
 import type {
   OpsTripSchoolReportFilters,
   OpsTripSchoolReportIndicators,
@@ -116,6 +117,7 @@ export function PainelTripSchoolReportPage({
   resetHref,
   navCurrent,
   hiddenFields = [],
+  enfermariaTripId,
 }: {
   report: TripReportViewModel;
   heading: string;
@@ -127,6 +129,7 @@ export function PainelTripSchoolReportPage({
   resetHref: string;
   navCurrent: "trips" | "schoolTrips";
   hiddenFields?: HiddenField[];
+  enfermariaTripId?: number;
 }) {
   return (
     <div className="grid gap-5">
@@ -230,6 +233,8 @@ export function PainelTripSchoolReportPage({
           thirdColumnLabel="Função"
         thirdColumnValue={(participant) => participant.role}
       />
+
+      {enfermariaTripId ? <EnfermariaTripRecords tripId={enfermariaTripId} /> : null}
     </div>
   );
 }

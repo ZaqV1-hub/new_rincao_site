@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PainelClienteDetailPage } from "@/components/painel-cliente-detail-page";
+import { hasLegacyPanelResource } from "@/lib/painel-access";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
@@ -27,5 +28,5 @@ export default async function PainelClientesDetalhePage({
     redirect("/painel/clientes");
   }
 
-  return <PainelClienteDetailPage canDeleteObservations={session.legacyRoleId === 1} clientId={clientId} />;
+  return <PainelClienteDetailPage canDeleteObservations={session.legacyRoleId === 1} canViewEnfermaria={hasLegacyPanelResource(session.legacyResources, "vis_enfermaria")} clientId={clientId} />;
 }

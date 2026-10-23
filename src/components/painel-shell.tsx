@@ -85,6 +85,13 @@ const navItems: PainelNavItem[] = [
     resources: ["vis_usu"],
   },
   {
+    href: "/painel/enfermaria",
+    label: "Enfermaria",
+    icon: "health",
+    roles: [1, 5],
+    resources: ["vis_enfermaria"],
+  },
+  {
     href: "/painel/usuario-site",
     label: "Usuários",
     icon: "users",
@@ -200,6 +207,12 @@ function PanelIcon({ name }: { name: string }) {
         <path d="M9 12l2 2 4-5" />
       </>
     ),
+    health: (
+      <>
+        <path d="M12 3v18M3 12h18" />
+        <path d="M5 5h14v14H5z" />
+      </>
+    ),
   };
 
   return (
@@ -288,7 +301,7 @@ export function PainelShell({
         }`}
       >
         <aside
-          className={`flex flex-col border-r border-[rgba(16,58,99,0.18)] bg-[#123b63] text-white transition-all duration-200 ${
+          className={`flex print:hidden flex-col border-r border-[rgba(16,58,99,0.18)] bg-[#123b63] text-white transition-all duration-200 ${
             menuOpen ? "block" : "hidden lg:flex"
           }`}
         >
@@ -412,7 +425,7 @@ export function PainelShell({
         </aside>
 
         <main className="min-w-0">
-          <div className="border-b border-[rgba(16,58,99,0.08)] bg-white/95 px-4 py-2.5 shadow-[0_10px_30px_rgba(19,61,99,0.06)] backdrop-blur-md md:px-5 lg:px-6">
+          <div className="print:hidden border-b border-[rgba(16,58,99,0.08)] bg-white/95 px-4 py-2.5 shadow-[0_10px_30px_rgba(19,61,99,0.06)] backdrop-blur-md md:px-5 lg:px-6">
             <div className="mx-auto flex max-w-[1380px] items-center gap-3">
               <button
                 type="button"

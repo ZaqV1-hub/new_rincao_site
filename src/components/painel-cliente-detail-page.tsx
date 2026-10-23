@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PainelClientObservations } from "@/components/painel-client-observations";
+import { EnfermariaClientRecords } from "@/components/enfermaria-link-client";
 import type { PainelClienteDetailResult } from "@/lib/painel-clientes";
 
 type PainelClienteDetailPageProps = {
   clientId?: number;
   data?: PainelClienteDetailResult | null;
   canDeleteObservations?: boolean;
+  canViewEnfermaria?: boolean;
 };
 
 function formatDate(value: string | null, withTime = false) {
@@ -46,9 +48,11 @@ function formatDate(value: string | null, withTime = false) {
 function PainelClienteDetailContent({
   data,
   canDeleteObservations,
+  canViewEnfermaria,
 }: {
   data: PainelClienteDetailResult;
   canDeleteObservations: boolean;
+  canViewEnfermaria: boolean;
 }) {
   return (
     <div className="grid gap-5">
@@ -126,6 +130,8 @@ function PainelClienteDetailContent({
         initialObservations={data.observations}
         key={data.client.id}
       />
+
+      {canViewEnfermaria ? <EnfermariaClientRecords clientId={data.client.id} /> : null}
 
       <section className="rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
         <h2 className="text-[28px] text-[#123b63]">Histórico de Datas de Passeio</h2>
@@ -205,6 +211,7 @@ export function PainelClienteDetailPage({
   clientId,
   data: initialData = null,
   canDeleteObservations = false,
+  canViewEnfermaria = false,
 }: PainelClienteDetailPageProps) {
   const [data, setData] = useState<PainelClienteDetailResult | null>(initialData);
   const [loading, setLoading] = useState(!initialData && Boolean(clientId));
@@ -291,5 +298,5 @@ export function PainelClienteDetailPage({
     );
   }
 
-  return <PainelClienteDetailContent canDeleteObservations={canDeleteObservations} data={data} />;
+  return <PainelClienteDetailContent canDeleteObservations={canDeleteObservations} canViewEnfermaria={canViewEnfermaria} data={data} />;
 }

@@ -4,13 +4,14 @@ import {
   type OperationsRole,
 } from "@/lib/ops-permissions";
 
-export type LegacyPanelRoleId = 1 | 2 | 3 | 4;
+export type LegacyPanelRoleId = 1 | 2 | 3 | 4 | 5;
 
 export type LegacyPanelRoleName =
   | "Gerente"
   | "Funcionario"
   | "Bilheteria"
-  | "Representante";
+  | "Representante"
+  | "Enfermeiro(a)";
 
 export type LegacyPanelResource =
   | "vis_usu"
@@ -30,7 +31,8 @@ export type LegacyPanelResource =
   | "vis_ingesp"
   | "vis_clientes"
   | "vis_bilhet"
-  | "vis_contra";
+  | "vis_contra"
+  | "vis_enfermaria";
 
 const allLegacyPanelResources: LegacyPanelResource[] = [
   "vis_usu",
@@ -51,6 +53,7 @@ const allLegacyPanelResources: LegacyPanelResource[] = [
   "vis_clientes",
   "vis_bilhet",
   "vis_contra",
+  "vis_enfermaria",
 ];
 
 const legacyPanelResources: Record<LegacyPanelRoleId, LegacyPanelResource[]> = {
@@ -73,6 +76,7 @@ const legacyPanelResources: Record<LegacyPanelRoleId, LegacyPanelResource[]> = {
     "vis_clientes",
     "vis_bilhet",
     "vis_contra",
+    "vis_enfermaria",
   ],
   2: [
     "vis_agenda",
@@ -85,10 +89,11 @@ const legacyPanelResources: Record<LegacyPanelRoleId, LegacyPanelResource[]> = {
   ],
   3: ["vis_bilhet"],
   4: ["vis_contra"],
+  5: ["vis_enfermaria"],
 };
 
 export function isLegacyPanelRoleId(value: number | null | undefined): value is LegacyPanelRoleId {
-  return value === 1 || value === 2 || value === 3 || value === 4;
+  return value === 1 || value === 2 || value === 3 || value === 4 || value === 5;
 }
 
 export function getLegacyPanelRoleName(roleId: LegacyPanelRoleId): LegacyPanelRoleName {
@@ -104,7 +109,11 @@ export function getLegacyPanelRoleName(roleId: LegacyPanelRoleId): LegacyPanelRo
     return "Bilheteria";
   }
 
-  return "Representante";
+  if (roleId === 4) {
+    return "Representante";
+  }
+
+  return "Enfermeiro(a)";
 }
 
 export function getLegacyPanelResources(roleId: LegacyPanelRoleId): LegacyPanelResource[] {
@@ -136,6 +145,10 @@ export function getOperationsPermissionsForLegacyPanelRole(
 export function getDefaultPainelPath(roleId: LegacyPanelRoleId | null | undefined) {
   if (roleId === 3) {
     return "/painel/bilheteria";
+  }
+
+  if (roleId === 5) {
+    return "/painel/enfermaria";
   }
 
   return "/painel";

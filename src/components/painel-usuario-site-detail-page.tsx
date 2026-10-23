@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { PainelAdminBreadcrumb } from "@/components/painel-admin-breadcrumb";
 import { PainelAdminSidebar } from "@/components/painel-admin-sidebar";
 import { PainelClientObservations } from "@/components/painel-client-observations";
+import { EnfermariaCpfRecords } from "@/components/enfermaria-link-client";
 import type { PainelUsuarioSiteDetail } from "@/lib/painel-usuario-site";
 
 type PainelUsuarioSiteDetailPageProps = {
@@ -14,6 +15,7 @@ type PainelUsuarioSiteDetailPageProps = {
   canDeleteObservations: boolean;
   canManage: boolean;
   canViewPurchases: boolean;
+  canViewEnfermaria: boolean;
 };
 
 export function PainelUsuarioSiteDetailPage({
@@ -22,6 +24,7 @@ export function PainelUsuarioSiteDetailPage({
   canDeleteObservations,
   canManage,
   canViewPurchases,
+  canViewEnfermaria,
 }: PainelUsuarioSiteDetailPageProps) {
   const router = useRouter();
   const [email, setEmail] = useState(data.email === "-" ? "" : data.email);
@@ -288,6 +291,8 @@ export function PainelUsuarioSiteDetailPage({
                 ) : null}
               </div>
             ) : null}
+
+            {canViewEnfermaria ? <div className="mt-8"><EnfermariaCpfRecords cpf={data.cpf} /></div> : null}
 
             {canManage && data.profileExists ? <>
             <h2 className="mt-8 text-[30px] leading-none text-[#205a7f]">Alterar E-mail</h2>

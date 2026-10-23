@@ -38,6 +38,7 @@ export default async function PainelUsuarioSiteDetailPageRoute({
     <PainelUsuarioSiteDetailPage
       canDeleteObservations={data.profileExists && session.legacyRoleId === 1}
       canManage={data.profileExists && hasLegacyPanelResource(session.legacyResources, "vis_situsu")}
+      canViewEnfermaria={hasLegacyPanelResource(session.legacyResources, "vis_enfermaria")}
       canViewPurchases={hasLegacyPanelResource(session.legacyResources, "vis_compra")}
       data={data}
       legacyResources={session.legacyResources}

@@ -1,0 +1,169 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { formatEnfermariaCpf, formatEnfermariaPhone } from "@/lib/enfermaria-input-format";
+import { isValidCpf } from "@/lib/cpf";
+import styles from "./enfermaria-visual.module.css";
+
+type Client = { id: number; name: string; address: string; hasTripToday: boolean };
+type Trip = { id: number; date: string; status: string; type: string };
+type DayUseClient = { cpf: string; name: string; phone: string };
+
+function tripTypeLabel(value: string) {
+  return ({ escol: "Escola", confr: "Confraternização", padra: "Passeio", promo: "Passeio promocional" } as Record<string, string>)[value] ?? (value || "Passeio");
+}
+
+async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...init?.headers } });
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) throw new Error(payload.error?.message ?? "Não foi possível concluir a ação.");
+  return payload.data as T;
+}
+
+export function EnfermariaIntake({ professional }: { professional: string }) {
+  const router = useRouter();
+  const [kind, setKind] = useState<"cliente" | "day_use">("cliente");
+  const [query, setQuery] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [clients, setClients] = useState<Client[]>([]);
+  const [dayUseClient, setDayUseClient] = useState<DayUseClient | null>(null);
+  const [attendedPerson, setAttendedPerson] = useState<"titular" | "outra_pessoa" | "">("");
+  const [attendeeCpf, setAttendeeCpf] = useState("");
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [loadingTrips, setLoadingTrips] = useState(false);
+  const [tripId, setTripId] = useState("");
+  const [registerNoAccount, setRegisterNoAccount] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [manualSource, setManualSource] = useState("");
+  const [manualCpf, setManualCpf] = useState("");
+  const [manualPhone, setManualPhone] = useState("");
+  const [manualReason, setManualReason] = useState("");
+  const [searched, setSearched] = useState(false);
+  const [searchTrigger, setSearchTrigger] = useState(0);
+  const [cpfSubmittedInvalid, setCpfSubmittedInvalid] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (registerNoAccount) return;
+    const value = kind === "cliente" ? query.trim() : cpf.replace(/\D/g, "");
+    const ready = kind === "cliente" ? value.length >= 2 : isValidCpf(value);
+    if (!ready) return;
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setSearching(true);
+      setSearched(false);
+      setError("");
+      try {
+        if (kind === "cliente") {
+          const found = await api<Client[]>(`/api/painel/enfermaria?action=clients&q=${encodeURIComponent(value)}`);
+          if (active) setClients(found);
+        } else {
+          const found = await api<DayUseClient | null>(`/api/painel/enfermaria?action=day-use-client&cpf=${encodeURIComponent(value)}`);
+          if (active) setDayUseClient(found);
+        }
+        if (active) setSearched(true);
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : "Falha na busca.");
+      } finally {
+        if (active) setSearching(false);
+      }
+    }, 300);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [kind, query, cpf, registerNoAccount, searchTrigger]);
+
+  function submitCpfSearch() {
+    if (!isValidCpf(cpf)) {
+      setCpfSubmittedInvalid(true);
+      return;
+    }
+    setCpfSubmittedInvalid(false);
+    setSearchTrigger((current) => current + 1);
+  }
+
+  async function chooseClient(client: Client) {
+    setSelectedClient(client); setTripId(""); setTrips([]); setLoadingTrips(true); setError("");
+    try { setTrips(await api<Trip[]>(`/api/painel/enfermaria?action=trips&clientId=${client.id}`)); }
+    catch (e) { setError(e instanceof Error ? e.message : "Não foi possível carregar passeios."); }
+    finally { setLoadingTrips(false); }
+  }
+
+  async function create(body: Record<string, unknown>) {
+    setBusy(true); setError("");
+    try {
+      const result = await api<{ id: number }>("/api/painel/enfermaria", { method: "POST", body: JSON.stringify({ action: "create", occurredAt: new Date().toISOString(), ...body }) });
+      router.push(`/painel/enfermaria/${result.id}`);
+    } catch (e) { setError(e instanceof Error ? e.message : "Não foi possível abrir o atendimento."); }
+    finally { setBusy(false); }
+  }
+
+  function startNoAccount() {
+    setRegisterNoAccount(true);
+    setManualName(kind === "cliente" ? query : dayUseClient?.name ?? "");
+    setManualCpf(kind === "day_use" ? formatEnfermariaCpf(cpf) : "");
+    setManualSource(kind === "day_use" ? "Bilheteria presencial" : "");
+    setManualPhone(""); setManualReason("");
+  }
+
+  const fieldClass = "w-full rounded-lg border border-[#d6e1ea] bg-white px-4 py-3 text-sm outline-none focus:border-[#2877a8]";
+  const buttonClass = "rounded-lg bg-[#176b96] px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50";
+
+  return (
+    <div className={`${styles.page} ${styles.workflowPage} grid w-full gap-6 pb-7`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><p className="text-sm text-slate-500">Enfermaria / Novo atendimento</p><h1 className="mt-1 text-3xl font-semibold text-[#194d6b]">Novo atendimento</h1></div>
+        <Link className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700" href="/painel/enfermaria">Voltar ao painel</Link>
+      </div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        {!registerNoAccount ? <>
+          <h2 className="text-xl font-semibold text-slate-800">A quem fica vinculado?</h2>
+          <p className="mt-2 text-sm text-slate-600">Procure o cadastro primeiro. Se não encontrar, você pode registrar sem cadastro.</p>
+          <div className={styles.choices}>
+            <button onClick={() => { setKind("cliente"); setSearched(false); setClients([]); setSelectedClient(null); setSearching(false); }} className={`${styles.choice} ${kind === "cliente" ? styles.choiceActive : ""}`} aria-pressed={kind === "cliente"}>
+              <span className={styles.choiceTitle}>Cliente</span><span className={styles.choiceDescription}>Escola, grupo ou empresa com cadastro no painel.</span>
+            </button>
+            <button onClick={() => { setKind("day_use"); setSearched(false); setDayUseClient(null); setAttendedPerson(""); setAttendeeCpf(""); setSearching(false); setError(""); }} className={`${styles.choice} ${kind === "day_use" ? styles.choiceActive : ""}`} aria-pressed={kind === "day_use"}>
+              <span className={styles.choiceTitle}>Day use</span><span className={styles.choiceDescription}>Localize o cadastro do cliente pelo CPF.</span>
+            </button>
+          </div>
+          {kind === "cliente" ? <>
+            <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="client-search">Buscar cliente</label>
+            <input id="client-search" className={`${fieldClass} mt-2`} value={query} onChange={(event) => { setQuery(event.target.value); setSearched(false); setSearching(false); setClients([]); setSelectedClient(null); setTrips([]); setTripId(""); }} placeholder="Digite o nome da escola, grupo ou empresa" autoComplete="off" role="combobox" aria-expanded={clients.length > 0 && !selectedClient} aria-controls="client-suggestions" />
+            {searching && <p className="mt-2 text-sm text-slate-500">Buscando clientes...</p>}
+            {searched && !searching && clients.length === 0 && <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-6 text-center"><p className="font-semibold text-[#183e63]">Nenhum cliente encontrado</p><p className="mt-2 text-sm text-slate-600">Grupos mistos e outros visitantes sem cadastro não aparecem aqui.<br />Nesse caso, registre o atendimento sem cadastro.</p><button onClick={startNoAccount} className="mt-4 rounded-lg bg-[#183e63] px-5 py-3 text-sm font-semibold text-white">Registrar sem cadastro</button></div>}
+            {clients.length > 0 && !selectedClient && <div id="client-suggestions" role="listbox" className="mt-2 max-h-80 overflow-y-auto rounded-lg border border-slate-200 shadow-sm">{clients.map((client) => <button key={client.id} role="option" aria-selected={false} onClick={() => void chooseClient(client)} className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-sky-50"><span className="block font-medium text-slate-800">{client.name}</span><span className="mt-1 block text-xs text-slate-500">{client.address || "Endereço não informado"} · {client.hasTripToday ? "Passeio hoje" : "Sem passeio hoje"}</span></button>)}</div>}
+            {selectedClient && <div className="mt-5 rounded-xl bg-sky-50 p-4"><label className="block text-sm font-semibold text-slate-800" htmlFor="trip-select">Passeio deste atendimento</label><p className="mt-1 text-xs text-slate-600">{loadingTrips ? "Carregando histórico de passeios..." : `Histórico completo de passeios de ${selectedClient.name}: ${trips.length} encontrado(s).`}</p><select id="trip-select" className={`${fieldClass} mt-2`} value={tripId} disabled={loadingTrips} onChange={(event) => setTripId(event.target.value)}><option value="">Selecione o passeio</option>{trips.map((trip) => <option key={trip.id} value={trip.id}>{/^\d{4}-\d{2}-\d{2}$/.test(trip.date) ? new Date(`${trip.date}T12:00:00`).toLocaleDateString("pt-BR") : "Data não informada"} · #{trip.id} · {tripTypeLabel(trip.type)} · {trip.status === "ati" || trip.status === "abe" ? "Aberto" : trip.status}</option>)}</select>{!loadingTrips && trips.length === 0 && <p className="mt-2 text-sm text-slate-600">Este cliente ainda não tem passeios vinculados no histórico.</p>}<button className={`${buttonClass} mt-3`} disabled={!tripId || busy || loadingTrips} onClick={() => void create({ source: "cliente", clientId: selectedClient.id, clientName: selectedClient.name, tripId: Number(tripId) })}>Abrir ficha</button></div>}
+          </> : <>
+            <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="buyer-cpf">CPF do cliente</label>
+            <form className="mt-2 flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); submitCpfSearch(); }}>
+              <input id="buyer-cpf" className={`${fieldClass} min-w-[220px] flex-1`} value={cpf} onChange={(event) => { setCpf(formatEnfermariaCpf(event.target.value)); setCpfSubmittedInvalid(false); setSearched(false); setSearching(false); setDayUseClient(null); setAttendedPerson(""); setAttendeeCpf(""); setError(""); }} placeholder="000.000.000-00" inputMode="numeric" aria-invalid={cpfSubmittedInvalid || cpf.replace(/\D/g, "").length === 11 && !isValidCpf(cpf)} aria-describedby="buyer-cpf-help" />
+              <button type="submit" className={buttonClass} disabled={searching}>Buscar CPF</button>
+            </form>
+            {(cpfSubmittedInvalid || cpf.replace(/\D/g, "").length === 11 && !isValidCpf(cpf)) && <p role="alert" className="mt-2 text-sm font-medium text-red-700">{cpf.replace(/\D/g, "").length !== 11 ? "Informe os 11 dígitos do CPF." : "CPF inválido. Confira os dígitos."}</p>}
+            <p id="buyer-cpf-help" className="mt-2 text-xs text-slate-500">A busca começa quando o CPF estiver completo e válido. Depois você escolhe quem será atendido.</p>
+            {searching && <p className="mt-2 text-sm text-slate-500">Buscando cliente...</p>}
+            {searched && !searching && !dayUseClient && <div className="mt-3 rounded-lg border border-dashed border-slate-300 p-6 text-center"><p className="font-semibold text-[#183e63]">Nenhum cliente encontrado para este CPF</p><p className="mt-2 text-sm text-slate-600">Se a pessoa não tem cadastro, registre o atendimento sem cadastro.</p><button onClick={startNoAccount} className="mt-4 rounded-lg bg-[#183e63] px-5 py-3 text-sm font-semibold text-white">Registrar sem cadastro</button></div>}
+            {dayUseClient && <div className="mt-3 rounded-xl border border-sky-300 bg-sky-50 p-4"><p className="font-semibold text-[#183e63]">Conta encontrada: {dayUseClient.name}</p><p className="mt-1 text-sm text-slate-600">CPF {formatEnfermariaCpf(dayUseClient.cpf)}{dayUseClient.phone ? ` · Telefone ${formatEnfermariaPhone(dayUseClient.phone)}` : ""}</p><p className="mt-4 text-sm font-semibold text-[#183e63]">O atendimento é para quem?</p><div className="mt-2 grid gap-2 sm:grid-cols-2"><button type="button" className={`${styles.choice} ${attendedPerson === "titular" ? styles.choiceActive : ""}`} aria-pressed={attendedPerson === "titular"} onClick={() => { setAttendedPerson("titular"); setAttendeeCpf(""); }}><span className={styles.choiceTitle}>Para o titular</span><span className={styles.choiceDescription}>Nome, CPF e telefone do cadastro irão para a ficha.</span></button><button type="button" className={`${styles.choice} ${attendedPerson === "outra_pessoa" ? styles.choiceActive : ""}`} aria-pressed={attendedPerson === "outra_pessoa"} onClick={() => setAttendedPerson("outra_pessoa")}><span className={styles.choiceTitle}>Para outra pessoa</span><span className={styles.choiceDescription}>Informe o CPF de quem será atendido.</span></button></div>{attendedPerson === "outra_pessoa" && <label className="mt-4 block text-sm font-medium text-slate-700">CPF da pessoa atendida<input className={`${fieldClass} mt-2`} inputMode="numeric" placeholder="000.000.000-00" value={attendeeCpf} aria-invalid={attendeeCpf.replace(/\D/g, "").length === 11 && !isValidCpf(attendeeCpf)} onChange={(event) => setAttendeeCpf(formatEnfermariaCpf(event.target.value))} />{attendeeCpf.replace(/\D/g, "").length === 11 && !isValidCpf(attendeeCpf) && <span className="mt-1 block text-xs text-red-700">CPF inválido. Confira os dígitos.</span>}</label>}<p className="mt-3 text-xs text-slate-600">O vínculo com a conta permanece registrado no atendimento.</p><button className={`${buttonClass} mt-4`} disabled={busy || !attendedPerson || attendedPerson === "outra_pessoa" && !isValidCpf(attendeeCpf)} onClick={() => void create({ source: "day_use", buyerCpf: dayUseClient.cpf, attendedPerson, attendeeCpf: attendedPerson === "outra_pessoa" ? attendeeCpf : "" })}>Abrir ficha</button></div>}
+          </>}
+        </> : <>
+          <h2 className="text-xl font-semibold text-slate-800">Atendimento sem cadastro</h2>
+          <p className="mt-2 text-sm text-slate-600">O atendimento terá número, ficha completa, histórico e encerramento. Nos relatórios, aparecerá como Sem cadastro.</p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <label className="sm:col-span-2 text-sm font-medium text-slate-700">Quem é a pessoa ou o grupo <span className="text-red-600">*</span><input className={`${fieldClass} mt-2`} value={manualName} onChange={(event) => setManualName(event.target.value)} required /></label>
+            <label className="text-sm font-medium text-slate-700">Como entrou no parque<select className={`${fieldClass} mt-2`} value={manualSource} onChange={(event) => setManualSource(event.target.value)}><option value="">Selecione (opcional)</option>{["Grupo misto", "Igreja", "Excursão", "Empresa", "Bilheteria presencial", "Cortesia", "Convidado ou fornecedor", "Outro"].map((v) => <option key={v}>{v}</option>)}</select></label>
+            <label className="text-sm font-medium text-slate-700">CPF do responsável<input className={`${fieldClass} mt-2`} inputMode="numeric" placeholder="000.000.000-00" value={manualCpf} aria-invalid={Boolean(manualCpf && manualCpf.replace(/\D/g, "").length === 11 && !isValidCpf(manualCpf))} onChange={(event) => setManualCpf(formatEnfermariaCpf(event.target.value))} />{manualCpf.replace(/\D/g, "").length === 11 && !isValidCpf(manualCpf) && <span className="mt-1 block text-xs text-red-700">CPF inválido. Confira os dígitos.</span>}</label>
+            <label className="text-sm font-medium text-slate-700">Telefone de contato<input className={`${fieldClass} mt-2`} inputMode="tel" placeholder="(11) 99999-9999" value={manualPhone} onChange={(event) => setManualPhone(formatEnfermariaPhone(event.target.value))} /></label>
+            <label className="text-sm font-medium text-slate-700">Por que não há cadastro<input className={`${fieldClass} mt-2`} value={manualReason} onChange={(event) => setManualReason(event.target.value)} /></label>
+          </div>
+          <div className="mt-5 flex gap-3"><button className="rounded-lg border border-slate-300 px-4 py-3 text-sm" onClick={() => setRegisterNoAccount(false)}>Voltar à busca</button><button className={buttonClass} disabled={!manualName.trim() || Boolean(manualCpf && !isValidCpf(manualCpf)) || busy} onClick={() => void create({ source: "sem_cadastro", initialName: manualName, intakeSource: manualSource, guardianCpf: manualCpf, guardianPhone: manualPhone, noAccountReason: manualReason })}>Abrir ficha</button></div>
+        </>}
+        {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      </section>
+      <p className="text-xs text-slate-500">Profissional autenticado: {professional || "Usuário do painel"}</p>
+    </div>
+  );
+}
