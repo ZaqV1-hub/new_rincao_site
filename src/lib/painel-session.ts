@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { listLegacyPanelResourcesForRole } from "@/lib/painel-acl";
+import { restrictEnfermariaResources } from "@/lib/enfermaria-access";
 import {
   getDefaultPainelPath,
   hasLegacyPanelResource,
@@ -24,7 +25,7 @@ export async function getPainelSessionContext() {
   if (!session.legacyRoleId) {
     return {
       ...session,
-      legacyResources: session.legacyResources ?? [],
+      legacyResources: restrictEnfermariaResources(session.legacyResources ?? [], session.actorCpf),
     };
   }
 
@@ -32,10 +33,10 @@ export async function getPainelSessionContext() {
 
   return {
     ...session,
-    legacyResources:
+    legacyResources: restrictEnfermariaResources(
       dynamicResources.length > 0
         ? dynamicResources
-        : (session.legacyResources ?? []),
+        : (session.legacyResources ?? []), session.actorCpf),
   };
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOpsAdminMasterDataResources } from "@/lib/ops-admin-master-data";
 import { listLegacyPanelResourcesForRole } from "@/lib/painel-acl";
+import { restrictEnfermariaResources } from "@/lib/enfermaria-access";
 import {
   hasLegacyPanelResource,
   type LegacyPanelResource,
@@ -53,10 +54,10 @@ export async function authorizePainelApiAccess(
   }
 
   const dynamicResources = await listLegacyPanelResourcesForRole(session.legacyRoleId);
-  const legacyResources =
+  const legacyResources = restrictEnfermariaResources(
     dynamicResources.length > 0
       ? dynamicResources
-      : ((session.legacyResources ?? []) as LegacyPanelResource[]);
+      : ((session.legacyResources ?? []) as LegacyPanelResource[]), session.actorCpf);
 
   if (!hasLegacyPanelResource(legacyResources, required)) {
     return {
