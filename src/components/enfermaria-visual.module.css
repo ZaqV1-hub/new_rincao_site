@@ -255,7 +255,7 @@
 
 .kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 14px;
 }
 
@@ -265,6 +265,23 @@
   border-radius: 6px;
   background: #fff;
   padding: 16px 18px;
+}
+
+.kpiButton {
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 120ms ease, background-color 120ms ease, transform 120ms ease;
+}
+
+.kpiButton:hover,
+.kpiButton:focus-visible {
+  border-color: #8eabc9;
+  background: var(--enf-head);
+  outline: 2px solid #8eabc9;
+  outline-offset: 2px;
+  transform: translateY(-1px);
 }
 
 .kpiHighlight {
@@ -717,6 +734,10 @@
   background: #fff;
   padding: 26px 28px;
   box-shadow: 0 20px 50px rgb(11 31 54 / 30%);
+}
+
+.modalWide {
+  width: min(100%, 940px);
 }
 
 .modalTitle {

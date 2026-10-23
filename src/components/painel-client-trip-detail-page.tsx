@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { EnfermariaTripRecords } from "@/components/enfermaria-link-client";
 import type { PainelClientTripDetailData } from "@/lib/painel-client-trip-detail";
 
 type EditableParticipant = PainelClientTripDetailData["students"][number];
@@ -65,11 +66,13 @@ function groupStudents(
 export function PainelClientTripDetailPage({
   data,
   isManager = false,
+  canViewEnfermaria = false,
   csvHref,
   pdfHref,
 }: {
   data: PainelClientTripDetailData;
   isManager?: boolean;
+  canViewEnfermaria?: boolean;
   csvHref?: string;
   pdfHref?: string;
 }) {
@@ -476,6 +479,8 @@ export function PainelClientTripDetailPage({
           />
         )}
       </div>
+
+      {canViewEnfermaria ? <EnfermariaTripRecords tripId={data.trip.agendaId} /> : null}
 
       {editTarget ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">

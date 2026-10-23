@@ -6,6 +6,7 @@ import {
   getOpsSchoolTripReport,
 } from "@/lib/ops-school-trip-report";
 import { requirePainelAccess } from "@/lib/painel-session";
+import { hasLegacyPanelResource } from "@/lib/painel-access";
 
 export const metadata: Metadata = {
   title: "Painel - Detalhe do Passeio Escolar | Rincao",
@@ -26,7 +27,7 @@ export default async function PainelClientesEscolasPasseiosDetalhePage({
   params: Promise<{ schoolId: string; agendaId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requirePainelAccess(
+  const session = await requirePainelAccess(
     ["vis_escola"],
     "/painel/clientes/escolas/passeios",
   );
@@ -61,6 +62,7 @@ export default async function PainelClientesEscolasPasseiosDetalhePage({
   return (
     <PainelTripSchoolReportPage
       report={report}
+      enfermariaTripId={hasLegacyPanelResource(session.legacyResources, "vis_enfermaria") ? Number(report.trip.agendaId) : undefined}
       heading="Detalhe do passeio"
       ownerName={report.trip.schoolName}
       csvHref={csvHref}

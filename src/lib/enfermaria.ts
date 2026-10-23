@@ -1,5 +1,6 @@
 import { getIngressoSistemaDbDialect, getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { isValidCpf, sanitizeCpf } from "@/lib/cpf";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { QueryResultRow } from "pg";
 
 export type EnfermariaSource = "cliente" | "day_use" | "sem_cadastro";
@@ -475,6 +476,7 @@ function enfermariaRecordWhere(filters: Record<string, string | null>) {
   if (filters.status && filters.status !== "todos") add("status = ?", filters.status);
   if (filters.source && filters.source !== "todos") add("source = ?", filters.source);
   if (filters.clientId) add("client_id = ?", Number(filters.clientId));
+  if (filters.tripId) add("trip_id = ?", Number(filters.tripId));
   if (filters.cpf) {
     values.push(sanitizeCpf(filters.cpf));
     const cpfPlaceholder = `$${values.length}`;
@@ -642,9 +644,11 @@ export async function verifyEnfermariaManagerPassword(cpf: string, password: str
   const normalizedCpf = sanitizeCpf(cpf);
   const result = await pool.query<{ idpapel: number; stusuario: string }>("SELECT idpapel, stusuario FROM usuario WHERE cpf = $1 LIMIT 1", [normalizedCpf]);
   if (Number(result.rows[0]?.idpapel) !== 1 || result.rows[0]?.stusuario === "ina") return false;
-  const { authenticatePanelUser } = await import("@/lib/user-repository");
-  const user = await authenticatePanelUser(normalizedCpf, password);
-  return user?.roleId === 1;
+  const configuredPassword = process.env.ENFERMARIA_MANAGER_EDIT_PASSWORD ?? "";
+  if (!configuredPassword || !password) return false;
+  const configuredHash = createHash("sha256").update(configuredPassword).digest();
+  const informedHash = createHash("sha256").update(password).digest();
+  return timingSafeEqual(configuredHash, informedHash);
 }
 
 export async function addEnfermariaClientObservation(clientId: number, observation: string, actor: string) {

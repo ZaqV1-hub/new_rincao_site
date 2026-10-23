@@ -6,6 +6,7 @@ import {
   getPainelClientTripDetail,
 } from "@/lib/painel-client-trip-detail";
 import { requirePainelAccess } from "@/lib/painel-session";
+import { hasLegacyPanelResource } from "@/lib/painel-access";
 
 export const metadata: Metadata = {
   title: "Painel - Alunos do Passeio | Rincao",
@@ -68,6 +69,7 @@ export default async function PainelClientesPasseiosAlunosPage({
   return (
     <PainelClientTripDetailPage
       csvHref={report.isSchool ? csvHref : undefined}
+      canViewEnfermaria={hasLegacyPanelResource(session.legacyResources, "vis_enfermaria")}
       data={report}
       isManager={session.legacyRoleId === 1}
       pdfHref={report.isSchool ? pdfHref : undefined}

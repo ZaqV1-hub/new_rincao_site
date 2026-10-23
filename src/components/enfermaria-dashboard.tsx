@@ -174,6 +174,8 @@ export function EnfermariaDashboard({ canManage = false }: { canManage?: boolean
   const [error, setError] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
   const [recentPage, setRecentPage] = useState(1);
+  const [statusModal, setStatusModal] = useState<"aberto" | "encerrado" | null>(null);
+  const [statusPage, setStatusPage] = useState(1);
 
   useEffect(() => {
     void load(from, to)
@@ -182,6 +184,8 @@ export function EnfermariaDashboard({ canManage = false }: { canManage?: boolean
   }, [from, to]);
 
   const recent = useMemo(() => data?.records.slice((recentPage - 1) * 10, recentPage * 10) ?? [], [data, recentPage]);
+  const statusRecords = useMemo(() => data?.records.filter((record) => record.status === statusModal) ?? [], [data, statusModal]);
+  const visibleStatusRecords = useMemo(() => statusRecords.slice((statusPage - 1) * 10, statusPage * 10), [statusRecords, statusPage]);
   const monthLabel = useMemo(() => {
     if (from === to) return from === dateString(new Date()) ? "hoje" : formatDate(from);
     const fromDate = new Date(`${from}T12:00:00`);
@@ -199,6 +203,11 @@ export function EnfermariaDashboard({ canManage = false }: { canManage?: boolean
       setFrom(range.from);
       setTo(range.to);
     }
+  }
+
+  function openStatusModal(status: "aberto" | "encerrado") {
+    setStatusPage(1);
+    setStatusModal(status);
   }
 
   const sources = new URLSearchParams({ from, to });
@@ -238,14 +247,16 @@ export function EnfermariaDashboard({ canManage = false }: { canManage?: boolean
       {!data ? <p className={styles.empty}>Carregando atendimentos…</p> : <div className={styles.kpis}>
         {[
           { label: "Atendimentos", value: data.totals.count, hint: monthLabel, highlight: true },
-          { label: "Em aberto", value: data.totals.open, hint: "ficha ainda não encerrada" },
+          { label: "Em aberto", value: data.totals.open, hint: "clique para ver e encerrar", status: "aberto" as const },
+          { label: "Encerrados", value: data.totals.count - data.totals.open, hint: "clique para consultar", status: "encerrado" as const },
           { label: "Encaminhados à UPA", value: data.totals.upa, hint: `${data.totals.count ? Math.round((data.totals.upa / data.totals.count) * 100) : 0}% dos atendimentos`, alert: true },
           { label: "Sinais de alerta", value: data.totals.urgent, hint: "urgência marcada na ficha", alert: true },
-        ].map((item) => <article key={item.label} className={`${styles.kpi} ${item.highlight ? styles.kpiHighlight : ""}`}>
-          <p className={styles.kpiLabel}>{item.label}</p>
-          <p className={`${styles.kpiValue} ${item.alert ? styles.kpiAlert : ""}`}>{item.value}</p>
-          <p className={styles.kpiHint}>{item.hint}</p>
-        </article>)}
+        ].map((item) => {
+          const content = <><p className={styles.kpiLabel}>{item.label}</p><p className={`${styles.kpiValue} ${item.alert ? styles.kpiAlert : ""}`}>{item.value}</p><p className={styles.kpiHint}>{item.hint}</p></>;
+          return item.status ? <button type="button" key={item.label} className={`${styles.kpi} ${styles.kpiButton}`} onClick={() => openStatusModal(item.status)}>{content}</button> : <article key={item.label} className={`${styles.kpi} ${item.highlight ? styles.kpiHighlight : ""}`}>
+            {content}
+          </article>;
+        })}
       </div>}
     </section>
 
@@ -290,6 +301,33 @@ export function EnfermariaDashboard({ canManage = false }: { canManage?: boolean
     </>}
 
     {data && <div className="flex justify-end"><Link className={styles.textLink} href={packageUrl}>Imprimir pacote de fichas do período →</Link></div>}
+
+    {statusModal && <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) setStatusModal(null); }}>
+      <section className={`${styles.modal} ${styles.modalWide}`} role="dialog" aria-modal="true" aria-labelledby="enfermaria-status-title">
+        <h2 id="enfermaria-status-title" className={styles.modalTitle}>Atendimentos {statusModal === "aberto" ? "em aberto" : "encerrados"}</h2>
+        <p className={styles.pageSub}>{statusRecords.length} atendimento(s) {monthLabel}.</p>
+        <div className={styles.tableScroll}>
+          <table className="w-full min-w-[680px] text-left">
+            <thead><tr>{["Nº", "Data", "Atendido", "Local", "Status"].map((label) => <th key={label}>{label}</th>)}</tr></thead>
+            <tbody>
+              {visibleStatusRecords.map((record) => {
+                const form = record.form as { identification?: { name?: string }; context?: { buyerName?: string } };
+                return <tr key={record.id} className={styles.clickableRow} tabIndex={0} role="link" aria-label={`Abrir atendimento ${record.numberLabel}`} onClick={() => router.push(`/painel/enfermaria/${record.id}`)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); router.push(`/painel/enfermaria/${record.id}`); } }}>
+                  <td><span className={styles.textLink}>{record.numberLabel}</span></td>
+                  <td>{new Date(record.occurredAt.replace(" ", "T")).toLocaleString("pt-BR")}</td>
+                  <td>{form.identification?.name ?? form.context?.buyerName ?? "—"}</td>
+                  <td>{record.localName ?? "—"}</td>
+                  <td><span className={record.status === "aberto" ? styles.statusOpen : styles.statusClosed}>{record.status === "aberto" ? "Em aberto" : "Encerrado"}</span></td>
+                </tr>;
+              })}
+              {!visibleStatusRecords.length && <tr><td colSpan={5} className="py-8 text-center text-slate-500">Nenhum atendimento com este status no período.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <EnfermariaPagination page={statusPage} total={statusRecords.length} onChange={setStatusPage} />
+        <div className={styles.modalActions}><button type="button" className={styles.button} onClick={() => setStatusModal(null)}>Fechar</button></div>
+      </section>
+    </div>}
 
     {exportOpen && <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) setExportOpen(false); }}>
       <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="enfermaria-export-title">
