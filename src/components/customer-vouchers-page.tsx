@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { IngressoShell } from "@/components/ingresso-shell";
 import type { AuthErrorResponse, AuthUser } from "@/lib/auth-contracts";
 import type {
   UserVoucher,
   UserVoucherPurchase,
 } from "@/lib/voucher-contracts";
+import { canContinuePayment } from "@/lib/checkout-expiration";
 
 type CustomerVouchersPageProps = {
   initialPurchases: UserVoucherPurchase[];
@@ -85,10 +86,6 @@ function purchaseStatusLabel(purchase: UserVoucherPurchase) {
   }
 
   return purchase.payment.statusLabel;
-}
-
-function canResumeCheckout(purchase: UserVoucherPurchase) {
-  return purchase.type === "ponli" && purchase.status !== "conc" && purchase.status !== "canc";
 }
 
 function statusBadgeClass(purchase: UserVoucherPurchase) {
@@ -283,6 +280,14 @@ function PurchaseTicket({
   const [cancelPending, setCancelPending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [checkoutClock, setCheckoutClock] = useState(() => Date.now());
+
+  useEffect(() => {
+    const expiresAt = Date.parse(purchase.checkoutExpiresAt ?? "");
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return;
+    const timer = window.setTimeout(() => setCheckoutClock(Date.now()), expiresAt - Date.now());
+    return () => window.clearTimeout(timer);
+  }, [purchase.checkoutExpiresAt]);
 
   const selectableCount = exportableVoucherIds.length;
   const allSelected =
@@ -377,7 +382,7 @@ function PurchaseTicket({
             >
               {expanded ? "Recolher" : "Ver detalhes"}
             </button>
-          {canResumeCheckout(purchase) ? (
+          {canContinuePayment(purchase, checkoutClock) ? (
               <a
                 href={`/checkout/${purchase.id}`}
                 className="inline-flex min-h-[46px] items-center justify-center rounded-full bg-[#5464ff] px-5 text-sm font-black text-white shadow-[0_14px_28px_rgba(84,100,255,0.22)] transition hover:bg-[#4150df]"

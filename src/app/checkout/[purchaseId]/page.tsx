@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CustomerCheckoutPage } from "@/components/customer-checkout-page";
 import { resolveCheckoutMode } from "@/lib/checkout-mode";
 import { buildCheckoutReturnUrl } from "@/lib/checkout-status";
@@ -8,6 +8,7 @@ import { getActivePublicUserProfileByCpf } from "@/lib/user-repository";
 import { requireAuthenticatedCustomer } from "@/lib/customer-area";
 import { getSiteUrl } from "@/lib/site-metadata";
 import { getUserVoucherPurchaseById } from "@/lib/voucher-repository";
+import { canContinuePayment } from "@/lib/checkout-expiration";
 
 export const metadata: Metadata = {
   title: "Checkout | Rincao",
@@ -37,6 +38,10 @@ export default async function CheckoutRoutePage({
 
   if (!purchase || purchase.type !== "ponli" || purchase.status === "canc") {
     notFound();
+  }
+
+  if (purchase.status === "pend" && !canContinuePayment(purchase)) {
+    redirect("/meus-ingressos");
   }
 
   const profile = await getActivePublicUserProfileByCpf(customer.cpf);

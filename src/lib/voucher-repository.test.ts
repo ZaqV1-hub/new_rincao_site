@@ -148,7 +148,7 @@ describe("voucher-repository", () => {
           {
             idcompra: 77,
             tpcompra: "ponli",
-            dtcompra: "2026-04-20",
+            dtcompra: "2025-10-06",
             vltotcompra: "45.00",
             stcompra: "conc",
             status: 3,
@@ -171,7 +171,7 @@ describe("voucher-repository", () => {
             flreagendado: "n",
             dtuso: null,
             voucherenviado: "n",
-            dtvalidade: "2026-05-20",
+            dtvalidade: "2026-11-20",
             dtagenda: "2026-05-01",
             tpagenda: "escol",
             idescola: 12,

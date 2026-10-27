@@ -8,6 +8,7 @@ import {
   getNativeCieloCheckoutStatus,
 } from "@/lib/cielo-ecommerce";
 import { isNativeCheckoutConfigured } from "@/lib/checkout-mode";
+import { canContinuePayment } from "@/lib/checkout-expiration";
 import { buildCheckoutReturnUrl } from "@/lib/checkout-status";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
@@ -292,16 +293,19 @@ export async function POST(request: Request) {
 
     const purchase = await getUserVoucherPurchaseById(user.cpf, purchaseId);
 
-    if (
-      !purchase ||
-      purchase.type !== "ponli" ||
-      purchase.status === "canc" ||
-      purchase.status === "conc"
-    ) {
+    if (!purchase || purchase.type !== "ponli" || purchase.status !== "pend") {
       return errorResponse(
         "checkout_unavailable",
         "Esta compra nao esta disponivel para checkout.",
         404,
+      );
+    }
+
+    if (!canContinuePayment(purchase)) {
+      return errorResponse(
+        "checkout_unavailable",
+        "O prazo de 12 horas para continuar o pagamento terminou.",
+        410,
       );
     }
 

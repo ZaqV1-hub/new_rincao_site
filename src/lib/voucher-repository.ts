@@ -16,6 +16,7 @@ type PurchaseRow = {
   idcompra: number;
   tpcompra: PurchaseType;
   dtcompra: string | null;
+  checkout_expires_epoch: string | null;
   vltotcompra: string | null;
   stcompra: string | null;
   status: number | null;
@@ -160,14 +161,12 @@ function daysBetweenDates(startDate: Date, endDate: string | null) {
   return Math.floor((end.getTime() - start.getTime()) / 86400000);
 }
 
-function isAfterTicketValidity(purchaseDate: string | null, today: Date) {
-  const validUntil = addMonthsToDateString(purchaseDate, 6);
-
-  if (!validUntil) {
-    return true;
-  }
-
-  return toUtcDateOnly(today).toISOString().slice(0, 10) > validUntil;
+function voucherValidUntil(purchaseDate: string | null, voucherDate: string | null) {
+  const purchaseLimit = addMonthsToDateString(purchaseDate, 6);
+  const explicitLimit = normalizeDate(voucherDate);
+  if (!purchaseLimit) return explicitLimit;
+  if (!explicitLimit) return purchaseLimit;
+  return explicitLimit > purchaseLimit ? explicitLimit : purchaseLimit;
 }
 
 let voucherLifecycleSchemaPromise: Promise<void> | null = null;
@@ -209,7 +208,10 @@ export async function expireUnusedVouchers() {
         WHERE voucher.stusado = 'n'
           AND COALESCE(voucher.stvoucher, 'ativo') <> 'vencido'
           AND compra.dtcompra IS NOT NULL
-          AND CURRENT_DATE > DATE_ADD(DATE(compra.dtcompra), INTERVAL 6 MONTH)
+          AND CURRENT_DATE > GREATEST(
+            DATE_ADD(DATE(compra.dtcompra), INTERVAL 6 MONTH),
+            COALESCE(voucher.dtvalidade, DATE_ADD(DATE(compra.dtcompra), INTERVAL 6 MONTH))
+          )
       `
       : `
         UPDATE voucher
@@ -219,7 +221,10 @@ export async function expireUnusedVouchers() {
           AND voucher.stusado = 'n'
           AND COALESCE(voucher.stvoucher, 'ativo') <> 'vencido'
           AND compra.dtcompra IS NOT NULL
-          AND CURRENT_DATE > (compra.dtcompra::date + INTERVAL '6 months')::date
+          AND CURRENT_DATE > GREATEST(
+            (compra.dtcompra::date + INTERVAL '6 months')::date,
+            COALESCE(voucher.dtvalidade::date, (compra.dtcompra::date + INTERVAL '6 months')::date)
+          )
         RETURNING voucher.idvoucher
       `,
   );
@@ -233,9 +238,11 @@ export async function expireUnusedVouchers() {
 function mapVoucher(row: VoucherRow, purchase: PurchaseRow, today: Date): UserVoucher {
   const visitDiffDays = daysBetweenDates(today, row.dtagenda);
   const used = row.stusado === "s";
+  const validUntil = voucherValidUntil(purchase.dtcompra, row.dtvalidade);
   const expiredForGeneration =
     String(row.stvoucher ?? "").trim() === "vencido" ||
-    isAfterTicketValidity(purchase.dtcompra, today);
+    !validUntil ||
+    daysBetweenDates(today, validUntil) < 0;
   const alreadyRescheduled = String(row.flreagendado ?? "").trim() === "s";
   const canSelectForVoucher = purchase.stcompra === "conc" && !used && !expiredForGeneration;
 
@@ -256,7 +263,7 @@ function mapVoucher(row: VoucherRow, purchase: PurchaseRow, today: Date): UserVo
     schoolName: row.nmescola,
     participantName: row.nomealuno || row.nomeeducador || null,
     sent: row.voucherenviado?.trim() === "s",
-    validUntil: addMonthsToDateString(purchase.dtcompra, 6) ?? normalizeDate(row.dtvalidade),
+    validUntil,
     canSelectForVoucher,
     canReschedule:
       purchase.stcompra === "conc" &&
@@ -298,7 +305,6 @@ function mapVoucherExport(row: VoucherRow): VoucherExportVoucher {
 function mapPurchase(
   row: PurchaseRow,
   vouchers: UserVoucher[],
-  today: Date,
 ): UserVoucherPurchase {
   const unusedVoucherCount = Number(row.unused_voucher_count);
   const paymentStatus = row.status;
@@ -309,6 +315,9 @@ function mapPurchase(
     type: row.tpcompra,
     typeLabel: labelFromMap(purchaseTypeLabels, row.tpcompra),
     purchaseDate: normalizeDate(row.dtcompra),
+    checkoutExpiresAt: row.checkout_expires_epoch
+      ? new Date(Number(row.checkout_expires_epoch) * 1000).toISOString()
+      : null,
     totalValue: row.vltotcompra,
     status: row.stcompra,
     statusLabel: labelFromMap(purchaseStatusLabels, row.stcompra),
@@ -329,7 +338,7 @@ function mapPurchase(
       row.tpcompra === "ponli" &&
       row.stcompra === "conc" &&
       unusedVoucherCount > 0 &&
-      !isAfterTicketValidity(row.dtcompra, today),
+      vouchers.some((voucher) => voucher.canSelectForVoucher),
     canCancelReservation:
       row.tpcompra === "reser" &&
       row.stcompra !== "canc" &&
@@ -390,6 +399,10 @@ async function getPurchasePageRows(
         compra.idcompra,
         compra.tpcompra,
         to_char(compra.dtcompra, 'YYYY-MM-DD') AS dtcompra,
+        EXTRACT(EPOCH FROM (
+          (compra.dtcompra + compra.hrcompra) AT TIME ZONE 'America/Sao_Paulo'
+          + INTERVAL '12 hours'
+        ))::bigint::text AS checkout_expires_epoch,
         compra.vltotcompra::text AS vltotcompra,
         compra.stcompra,
         pagpagseguro.status,
@@ -413,6 +426,7 @@ async function getPurchasePageRows(
         compra.idcompra,
         compra.tpcompra,
         compra.dtcompra,
+        compra.hrcompra,
         compra.vltotcompra,
         compra.stcompra,
         pagpagseguro.status,
@@ -492,7 +506,6 @@ function mapPurchaseRows(
       (vouchersByPurchaseId.get(purchase.idcompra) ?? []).map((voucher) =>
         mapVoucher(voucher, purchase, today),
       ),
-      today,
     ),
   );
 }
@@ -710,6 +723,7 @@ export async function getUserVoucherRescheduleData(
     idcompra: row.idcompra,
     tpcompra: row.tpcompra,
     dtcompra: row.dtcompra,
+    checkout_expires_epoch: null,
     vltotcompra: null,
     stcompra: row.stcompra,
     status: null,
