@@ -8,6 +8,7 @@ import { getPainelBilheteriaSelectionCapabilities } from "@/lib/painel-bilheteri
 import {
   type PainelBilheteriaCustomerLookupResult,
   type PainelBilheteriaTicketLookupResult,
+  type PainelBilheteriaTripLookupResult,
 } from "@/lib/painel-bilheteria-workstation";
 
 type WorkstationMessage = {
@@ -181,6 +182,9 @@ export function PainelBilheteriaWorkstation({
   initialTicketLookupState,
 }: PainelBilheteriaWorkstationProps) {
   const contract = legacyPanelContracts.bilheteriaIndex;
+  const [tripCode, setTripCode] = useState("");
+  const [trip, setTrip] = useState<PainelBilheteriaTripLookupResult | null>(null);
+  const [loadingTrip, setLoadingTrip] = useState(false);
   const [voucherNumber, setVoucherNumber] = useState("");
   const [customerDocument, setCustomerDocument] = useState("");
   const [ticketLookup, setTicketLookup] = useState(initialTicketLookupState?.lookup ?? "");
@@ -319,6 +323,26 @@ export function PainelBilheteriaWorkstation({
 
   function isActionRunning(actionKey: string) {
     return runningActionKey === actionKey;
+  }
+
+  async function handleTripSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setLoadingTrip(true);
+    setTrip(null);
+    try {
+      const response = await fetch("/api/painel/bilheteria/trip-lookup", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code: tripCode }),
+      });
+      const payload = await readJson<LookupResponse<PainelBilheteriaTripLookupResult>>(response);
+      if (!response.ok || !payload?.ok || !payload.data) {
+        setMessage({ tone: "error", text: payload?.error?.message || "Não foi possível consultar o passeio." });
+        return;
+      }
+      setTrip(payload.data);
+    } catch {
+      setMessage({ tone: "error", text: "Não foi possível consultar o passeio." });
+    } finally { setLoadingTrip(false); }
   }
 
   async function loadCustomerLookup(
@@ -782,6 +806,21 @@ export function PainelBilheteriaWorkstation({
               {agendaWarning}
             </section>
           ) : null}
+          <article className="panel-section px-7 py-8">
+            <h2 className="text-[22px] font-black text-[#123b63]">Validação via Passeio</h2>
+            <form onSubmit={(event) => void handleTripSubmit(event)} className="mt-4 flex gap-3">
+              <input aria-label="Código do passeio" value={tripCode} onChange={(event) => { setTripCode(event.target.value); setTrip(null); }} placeholder="Código do passeio" className="rincao-field flex-1" required />
+              <button disabled={loadingTrip} className="rincao-button">{loadingTrip ? "Consultando..." : "Consultar"}</button>
+            </form>
+            {trip ? <div className="mt-4">
+              <p>{trip.schoolName || "Passeio não encontrado"} — {formatPainelBilheteriaDate(trip.visitDate)}</p>
+              <p>{trip.items.length} ingresso(s), {trip.items.filter((item) => item.statusCode === "n").length} não usado(s).</p>
+              <button type="button" className="rincao-button mt-3" disabled={!trip.schoolId || !trip.agendaId || runningActionKey !== null || !trip.items.some((item) => item.statusCode === "n")} onClick={async () => {
+                const ok = await runVoucherMutation("validate-trip", "/api/painel/bilheteria/vouchers/validate", { schoolId: trip.schoolId, agendaId: trip.agendaId });
+                if (ok) setTrip(null);
+              }}>Validar ingressos deste passeio</button>
+            </div> : null}
+          </article>
           {contract.forms
             ?.filter((form) => form.id !== "trip-validation")
             .map((form) => {

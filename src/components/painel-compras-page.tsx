@@ -17,6 +17,7 @@ const typeOptions = [
 
 const purchaseStatusOptions = [
   { value: "pend", label: "Em processamento" },
+  { value: "expi", label: "Tempo expirado para compra" },
   { value: "conc", label: "Concluída" },
   { value: "canc", label: "Cancelada" },
 ];

@@ -69,6 +69,14 @@ describe("ops-voucher-validation", () => {
     vi.useRealTimers();
   });
 
+  it("blocks an invalidated paid voucher without writing usage or syncing tickets", async () => {
+    query.mockImplementation(async (sql: string) => ({ rows: sql.includes("WHERE voucher.numvoucher = $1")
+      ? [{ idvoucher: 603884, numvoucher: "TESTE", stusado: "inv", tpcompra: "ponli", stcompra: "conc", payment_status: 3 }] : [] }));
+    await expect(validateVoucherByNumber("TESTE")).rejects.toMatchObject({ code: "voucher_invalidated", status: 409 });
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("UPDATE voucher"))).toBe(false);
+    expect(syncTicketValidation).not.toHaveBeenCalled();
+  });
+
   it("validates a single online voucher by number", async () => {
     query.mockImplementation(async (sql: string) => {
       if (sql === "BEGIN" || sql === "COMMIT") {

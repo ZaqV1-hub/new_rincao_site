@@ -1,3 +1,4 @@
+import { purchaseDisplayStatusSql } from "@/lib/purchase-display-status";
 import { Buffer } from "node:buffer";
 import {
   getIngressoSistemaDbDialect,
@@ -98,6 +99,7 @@ const purchaseStatusLabels: Record<string, string> = {
   conc: "Pago",
   canc: "Cancelado",
   pend: "Em processamento",
+  expi: "Tempo expirado para compra",
 };
 
 const paymentStatusLabels: Record<number, string> = {
@@ -244,7 +246,7 @@ function mapVoucher(row: VoucherRow, purchase: PurchaseRow, today: Date): UserVo
     !validUntil ||
     daysBetweenDates(today, validUntil) < 0;
   const alreadyRescheduled = String(row.flreagendado ?? "").trim() === "s";
-  const canSelectForVoucher = purchase.stcompra === "conc" && !used && !expiredForGeneration;
+  const canSelectForVoucher = purchase.stcompra === "conc" && row.stusado === "n" && !expiredForGeneration;
 
   return {
     id: row.idvoucher,
@@ -268,7 +270,7 @@ function mapVoucher(row: VoucherRow, purchase: PurchaseRow, today: Date): UserVo
     canReschedule:
       purchase.stcompra === "conc" &&
       row.tpagenda === "padra" &&
-      !used &&
+      row.stusado === "n" &&
       !expiredForGeneration &&
       !alreadyRescheduled &&
       row.tpvoucher !== "escol" &&
@@ -404,7 +406,7 @@ async function getPurchasePageRows(
           + INTERVAL '12 hours'
         ))::bigint::text AS checkout_expires_epoch,
         compra.vltotcompra::text AS vltotcompra,
-        compra.stcompra,
+        ${purchaseDisplayStatusSql("compra")} AS stcompra,
         pagpagseguro.status,
         pagpagseguro.paymentmethodtype,
         COUNT(voucher.idvoucher)::text AS voucher_count,
@@ -428,7 +430,7 @@ async function getPurchasePageRows(
         compra.dtcompra,
         compra.hrcompra,
         compra.vltotcompra,
-        compra.stcompra,
+        compra.stcompra, compra.hrcompra,
         pagpagseguro.status,
         pagpagseguro.paymentmethodtype
       ORDER BY compra.idcompra DESC
@@ -679,7 +681,7 @@ export async function getUserVoucherRescheduleData(
         compra.cpf,
         compra.tpcompra,
         to_char(compra.dtcompra, 'YYYY-MM-DD') AS dtcompra,
-        compra.stcompra,
+        ${purchaseDisplayStatusSql("compra")} AS stcompra,
         voucher.idcompra,
         voucher.idvoucher,
         voucher.numvoucher,

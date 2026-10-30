@@ -242,7 +242,7 @@ function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
                     <View style={[styles.voucherTableCell, { width: "13%" }]}><Text style={valueStyle}>R$ {voucher.unitValue}</Text></View>
                     <View style={[styles.voucherTableCell, { width: "21%" }]}>
                       <Text style={[styles.voucherTableValue, used ? styles.voucherUsedText : styles.voucherAvailableText, { fontWeight: "bold" }]}>
-                        {used ? "USADO" : "NÃO USADO"}
+                        {voucher.used === "inv" ? "INVALIDADO" : used ? "USADO" : "NÃO USADO"}
                       </Text>
                       {used ? <Text style={[styles.voucherTableValue, styles.voucherUsedText]}>{voucher.usedDate || "-"} às {voucher.usedTime || "-"}</Text> : null}
                     </View>
@@ -263,7 +263,7 @@ function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
                     Voucher #{voucher.voucherId} · {voucher.voucherNumber || "Sem código"}
                   </Text>
                   <Text style={[styles.voucherValue, used ? styles.voucherUsedText : styles.voucherAvailableText]}>
-                    {used ? "USADO" : "NÃO USADO"}
+                    {voucher.used === "inv" ? "INVALIDADO" : used ? "USADO" : "NÃO USADO"}
                   </Text>
                 </View>
                 <View style={styles.voucherMeta}>

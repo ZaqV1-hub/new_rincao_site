@@ -642,6 +642,10 @@ export async function validateVoucherByNumber(
       );
     }
 
+    if (voucher.stusado === "inv") {
+      throw new VoucherOperationError("voucher_invalidated", "Ingresso invalidado. A entrada não está autorizada.", 409);
+    }
+
     if (voucher.stusado !== "n") {
       throw new VoucherOperationError(
         "voucher_already_used",

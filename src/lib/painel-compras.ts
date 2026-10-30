@@ -1,3 +1,4 @@
+import { purchaseDisplayStatusSql } from "@/lib/purchase-display-status";
 import { Buffer } from "node:buffer";
 import { formatCpf } from "@/lib/cpf";
 import {
@@ -335,6 +336,7 @@ const purchaseTypeLabels: Record<string, string> = {
 
 const purchaseStatusLabels: Record<string, string> = {
   pend: "Em processamento",
+  expi: "Tempo expirado para compra",
   conc: "Concluida",
   canc: "Cancelada",
 };
@@ -572,7 +574,8 @@ function formatVoucherTypeLabel(code: string | null | undefined) {
 }
 
 function formatVoucherUsedLabel(code: string | null | undefined) {
-  return String(code ?? "").trim().toLowerCase() === "s" ? "Sim" : "Nao";
+  const status = String(code ?? "").trim().toLowerCase();
+  return status === "inv" ? "Invalidado" : status === "s" ? "Sim" : status === "n" ? "Nao" : "Indisponível";
 }
 
 function formatPurchaseLocationLabel(code: string | null | undefined) {
@@ -652,7 +655,7 @@ async function loadPainelPurchaseDetailRow(purchaseId: number) {
         compra.idcompra,
         compra.dtcompra::text AS dtcompra,
         compra.tpcompra,
-        compra.stcompra,
+        ${purchaseDisplayStatusSql("compra")} AS stcompra,
         compra.formapag,
         compra.vltotcompra::text AS vltotcompra,
         compra.dtpagamento::text AS dtpagamento,
@@ -836,7 +839,7 @@ export function buildPainelPurchaseListWhere(
 
   if (normalizedFilters.purchaseStatus) {
     clauses.push(
-      `compra.stcompra = '${escapeSqlLiteral(normalizedFilters.purchaseStatus)}'`,
+      `${["pend", "expi"].includes(normalizedFilters.purchaseStatus) ? purchaseDisplayStatusSql("compra") : "compra.stcompra"} = '${escapeSqlLiteral(normalizedFilters.purchaseStatus)}'`,
     );
   }
 
@@ -962,7 +965,7 @@ export function buildPainelPurchaseVoucherListWhere(
   }
 
   if (filters.purchaseStatus) {
-    clauses.push(`c.stcompra = '${escapeSqlLiteral(filters.purchaseStatus)}'`);
+    clauses.push(`${["pend", "expi"].includes(filters.purchaseStatus) ? purchaseDisplayStatusSql("c") : "c.stcompra"} = '${escapeSqlLiteral(filters.purchaseStatus)}'`);
   }
 
   if (filters.usedStatus) {
@@ -1007,7 +1010,7 @@ export async function listPainelPurchases(input: {
         compra.idcompra,
         compra.dtcompra::text AS dtcompra,
         compra.tpcompra,
-        compra.stcompra,
+        ${purchaseDisplayStatusSql("compra")} AS stcompra,
         compra.formapag,
         compra.vltotcompra::text AS vltotcompra,
         compra.dtpagamento::text AS dtpagamento,

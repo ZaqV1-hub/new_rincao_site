@@ -209,7 +209,7 @@ export function PainelCompraDetailPage({
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.unitValue}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">
                       <span className={voucher.used === "s" ? "font-bold text-[#68727b]" : "text-[#24733c]"}>
-                        {voucher.used === "s" ? "USADO" : "NÃO USADO"}
+                        {voucher.used === "inv" ? "INVALIDADO" : voucher.used === "s" ? "USADO" : voucher.used === "n" ? "NÃO USADO" : "INDISPONÍVEL"}
                       </span>
                     </td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.usedDate ?? "-"}</td>
