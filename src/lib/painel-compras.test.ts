@@ -600,7 +600,7 @@ describe("getPainelPurchaseDetail", () => {
           usedLabel: "Nao",
           usedDate: null,
           usedTime: null,
-          schoolTripHref: "/painel/clientes/detalhe?id=2306",
+          schoolTripHref: "/painel/clientes/detalhe?id=77",
         },
       ],
     });

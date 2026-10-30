@@ -586,4 +586,3 @@ export function formatPainelBilheteriaLookupDate(
 ) {
   return formatPainelBilheteriaDate(value);
 }
-
