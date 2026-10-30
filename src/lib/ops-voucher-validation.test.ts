@@ -445,6 +445,8 @@ describe("ops-voucher-validation", () => {
       }
 
       if (sql.includes("WHERE voucher.idescola = $1")) {
+        // PostgreSQL cannot lock the nullable payment/agenda sides of LEFT JOINs.
+        expect(sql).toContain("FOR UPDATE OF voucher, compra");
         expect(values).toEqual([77, 88]);
 
         return {

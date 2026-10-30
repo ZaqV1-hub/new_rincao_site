@@ -597,7 +597,7 @@ async function getSchoolTripVouchers(
         AND ((compra.tpcompra = 'ponli' AND pagpagseguro.status IN (3,4))
           OR (compra.tpcompra = 'reser' AND COALESCE(UPPER(TRIM(compra.formapag)), '') NOT IN ('', 'N/A')))
       ORDER BY voucher.idvoucher ASC
-      FOR UPDATE
+      FOR UPDATE OF voucher, compra
     `,
     [schoolId, agendaId],
   );
