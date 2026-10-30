@@ -93,12 +93,7 @@ export default async function PainelBilheteriaPage({
         actorCpf={session.actorCpf}
         isManager={session.legacyRoleId === 1}
         initialTicketLookupState={initialTicketLookupState}
-        agendaOpen={hasOpenAgendaToday}
-        agendaWarning={
-          hasOpenAgendaToday
-            ? null
-            : "Não existe agenda aberta para hoje. Novas vendas ficam indisponíveis até abrir uma data; validacoes continuam liberadas."
-        }
+
       />
     </div>
   );

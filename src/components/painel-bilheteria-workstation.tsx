@@ -67,8 +67,6 @@ type PainelBilheteriaWorkstationProps = {
   actorName?: string | null;
   actorCpf?: string | null;
   isManager?: boolean;
-  agendaOpen?: boolean;
-  agendaWarning?: string | null;
   initialTicketLookupState?: {
     isOpen: boolean;
     lookup: string;
@@ -177,8 +175,6 @@ export function PainelBilheteriaWorkstation({
   actorName = null,
   actorCpf = null,
   isManager = false,
-  agendaOpen = true,
-  agendaWarning = null,
   initialTicketLookupState,
 }: PainelBilheteriaWorkstationProps) {
   const contract = legacyPanelContracts.bilheteriaIndex;
@@ -221,6 +217,7 @@ export function PainelBilheteriaWorkstation({
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
   const hasServerDrivenTicketLookup = Boolean(initialTicketLookupState?.isOpen);
   const messageRef = useRef<HTMLElement | null>(null);
+  const tripResultRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!observationsOpen) return;
@@ -257,6 +254,12 @@ export function PainelBilheteriaWorkstation({
       behavior: "smooth",
     });
   }, [message]);
+
+  useEffect(() => {
+    if (!trip || !tripResultRef.current) return;
+    const top = Math.max(0, window.scrollY + tripResultRef.current.getBoundingClientRect().top - 120);
+    window.scrollTo({ top, behavior: "smooth" });
+  }, [trip]);
 
   function normalizeVoucherIds(voucherIds: number[]) {
     return [...new Set(voucherIds.filter((voucherId) => voucherId > 0))];
@@ -801,11 +804,6 @@ export function PainelBilheteriaWorkstation({
     <div className="grid gap-6">
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid gap-5">
-          {!agendaOpen && agendaWarning ? (
-            <section className="rounded-[10px] border border-[#f0d3a8] bg-[#fff6e3] px-5 py-4 text-sm text-[#8a6100]">
-              {agendaWarning}
-            </section>
-          ) : null}
           {contract.forms
             ?.map((form) => {
             const field = form.fields[0];
@@ -854,7 +852,7 @@ export function PainelBilheteriaWorkstation({
                         : "Digite o RG ou CPF do cliente para consultar."}
                     </p>
                     {isTrip && trip ? (
-                      <section className="mt-5 rounded-[8px] border border-[#c8d9ea] bg-[#eef5fb] p-4" aria-label="Dados do passeio">
+                      <section ref={tripResultRef} className="mt-5 rounded-[8px] border border-[#c8d9ea] bg-[#eef5fb] p-4" aria-label="Dados do passeio">
                         {trip.schoolId && trip.agendaId ? <>
                           <h3 className="font-bold text-[#123b63]">{trip.schoolName}</h3>
                           <p>Código: {trip.lookup} · Data: {formatPainelBilheteriaDate(trip.visitDate)}</p>

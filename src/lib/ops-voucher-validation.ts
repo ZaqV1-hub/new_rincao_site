@@ -547,7 +547,7 @@ async function appendTicketWarnings(
   } catch {
     return [
       ...warnings,
-      "Aviso: sincronizacao com o servico de tickets nao concluida (ticket_sync_failed).",
+      "A operação foi registrada no site, mas não foi possível comunicar a alteração ao serviço externo de ingressos.",
     ];
   }
 
@@ -555,9 +555,10 @@ async function appendTicketWarnings(
     return warnings;
   }
 
+  console.warn("voucher-external-sync-skipped", { action, pairs, reason: result.skippedReason });
   return [
     ...warnings,
-    `Aviso: sincronizacao com o servico de tickets nao concluida (${result.skippedReason ?? "ticket_sync_failed"}).`,
+    "A operação foi registrada no site, mas não foi possível comunicar a alteração ao serviço externo de ingressos.",
   ];
 }
 
