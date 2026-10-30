@@ -806,31 +806,16 @@ export function PainelBilheteriaWorkstation({
               {agendaWarning}
             </section>
           ) : null}
-          <article className="panel-section px-7 py-8">
-            <h2 className="text-[22px] font-black text-[#123b63]">Validação via Passeio</h2>
-            <form onSubmit={(event) => void handleTripSubmit(event)} className="mt-4 flex gap-3">
-              <input aria-label="Código do passeio" value={tripCode} onChange={(event) => { setTripCode(event.target.value); setTrip(null); }} placeholder="Código do passeio" className="rincao-field flex-1" required />
-              <button disabled={loadingTrip} className="rincao-button">{loadingTrip ? "Consultando..." : "Consultar"}</button>
-            </form>
-            {trip ? <div className="mt-4">
-              <p>{trip.schoolName || "Passeio não encontrado"} — {formatPainelBilheteriaDate(trip.visitDate)}</p>
-              <p>{trip.items.length} ingresso(s), {trip.items.filter((item) => item.statusCode === "n").length} não usado(s).</p>
-              <button type="button" className="rincao-button mt-3" disabled={!trip.schoolId || !trip.agendaId || runningActionKey !== null || !trip.items.some((item) => item.statusCode === "n")} onClick={async () => {
-                const ok = await runVoucherMutation("validate-trip", "/api/painel/bilheteria/vouchers/validate", { schoolId: trip.schoolId, agendaId: trip.agendaId });
-                if (ok) setTrip(null);
-              }}>Validar ingressos deste passeio</button>
-            </div> : null}
-          </article>
           {contract.forms
-            ?.filter((form) => form.id !== "trip-validation")
-            .map((form) => {
+            ?.map((form) => {
             const field = form.fields[0];
+            const isTrip = form.id === "trip-validation";
             const isVoucher = form.id === "voucher-validation";
             const isCustomer = form.id === "customer-validation";
-            const value = isVoucher ? voucherNumber : customerDocument;
-            const setValue = isVoucher ? setVoucherNumber : setCustomerDocument;
-            const submitting = isVoucher ? submittingVoucher : submittingCustomer;
-            const onSubmit = isCustomer ? handleCustomerSubmit : handleVoucherSubmit;
+            const value = isTrip ? tripCode : isVoucher ? voucherNumber : customerDocument;
+            const setValue = isTrip ? (value: string) => { setTripCode(value); setTrip(null); } : isVoucher ? setVoucherNumber : setCustomerDocument;
+            const submitting = isTrip ? loadingTrip : isVoucher ? submittingVoucher : submittingCustomer;
+            const onSubmit = isTrip ? handleTripSubmit : isCustomer ? handleCustomerSubmit : handleVoucherSubmit;
 
             return (
               <article key={form.id} className="panel-section px-7 py-8">
@@ -864,10 +849,27 @@ export function PainelBilheteriaWorkstation({
                     </div>
 
                     <p className="mt-3 text-sm text-[#5d7282]">
-                      {form.id === "voucher-validation"
+                      {isTrip ? "Digite o código do passeio para consultar a escola e os ingressos." : form.id === "voucher-validation"
                         ? "Digite o código do voucher para validar."
                         : "Digite o RG ou CPF do cliente para consultar."}
                     </p>
+                    {isTrip && trip ? (
+                      <section className="mt-5 rounded-[8px] border border-[#c8d9ea] bg-[#eef5fb] p-4" aria-label="Dados do passeio">
+                        {trip.schoolId && trip.agendaId ? <>
+                          <h3 className="font-bold text-[#123b63]">{trip.schoolName}</h3>
+                          <p>Código: {trip.lookup} · Data: {formatPainelBilheteriaDate(trip.visitDate)}</p>
+                          <p>Status: {trip.statusLabel}</p>
+                          <p>{trip.items.length} ingresso(s), {trip.items.filter((item) => item.statusCode === "n").length} não usado(s).</p>
+                          {trip.items.some((item) => item.statusCode === "n") ? <>
+                            <p className="mt-3 font-semibold">Deseja validar os ingressos disponíveis deste passeio?</p>
+                            <button type="button" className="mt-3 inline-flex min-h-[56px] items-center justify-center rounded-[6px] border border-[#c8d9ea] bg-white px-5 text-base font-bold text-[#133d63] hover:bg-[#eef5fb] disabled:opacity-60" disabled={runningActionKey !== null} onClick={async () => {
+                              const ok = await runVoucherMutation("validate-trip", "/api/painel/bilheteria/vouchers/validate", { schoolId: trip.schoolId, agendaId: trip.agendaId });
+                              if (ok) setTrip(null);
+                            }}>Confirmar validação do passeio</button>
+                          </> : <p className="mt-3">Não há ingressos disponíveis para validar neste passeio.</p>}
+                        </> : <p>Passeio não encontrado. Confira o código informado.</p>}
+                      </section>
+                    ) : null}
                   </div>
                 </form>
               </article>

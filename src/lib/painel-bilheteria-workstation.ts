@@ -1,4 +1,4 @@
-import { getIngressoDbPool, getIngressoSistemaDbPool } from "@/lib/ingresso-db";
+import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { isPainelBilheteriaVoucherVisibleForValidation } from "@/lib/painel-bilheteria-validation";
 import { listSiteUserObservations } from "@/lib/site-user-observations";
 import { ensureSiteAccountOverridesTable } from "@/lib/site-account-overrides";
@@ -191,6 +191,7 @@ const voucherStatusLabels: Record<string, string> = {
 };
 
 const tripStatusLabels: Record<string, string> = {
+  abe: "Aberto",
   ati: "Ativo",
   can: "Cancelado",
   pen: "Pendente",
@@ -506,7 +507,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
 export async function lookupPainelBilheteriaTrip(
   rawCode: string,
 ): Promise<PainelBilheteriaTripLookupResult> {
-  const lookup = String(rawCode ?? "").trim();
+  const lookup = String(rawCode ?? "").trim().toUpperCase();
 
   if (!lookup) {
     throw new PainelBilheteriaWorkstationError(
@@ -515,33 +516,36 @@ export async function lookupPainelBilheteriaTrip(
     );
   }
 
-  const pool = getIngressoDbPool();
+  const pool = getIngressoSistemaDbPool();
   const result = await pool.query<TripVoucherRow>(
     `
-      SELECT
-        ed.codescoladata,
-        e.nmescola,
-        a.dtagenda::text AS dtagenda,
-        ed.status,
-        ed.idescola,
-        ed.idagenda,
-        v.idcompra,
-        v.idvoucher,
-        v.numvoucher,
-        v.tpvoucher,
-        v.descricao,
-        v.stusado,
-        v.nomealuno,
-        v.turma,
-        v.periodo,
-        c.tpcompra
-      FROM escoladata ed
-      JOIN escola e ON e.idescola = ed.idescola
-      JOIN agenda a ON a.idagenda = ed.idagenda
-      JOIN voucher v ON v.idagenda = ed.idagenda AND v.idescola = ed.idescola
+      WITH trips AS (
+        SELECT upper(substr(coalesce(ae.slug, md5(a.idagenda::text)), 1, 6)) AS codescoladata,
+          c.nome AS nmescola, a.dtagenda, coalesce(ae.stagenda_cli, 'abe') AS status,
+          c.idcliente AS idescola, a.idagenda
+        FROM agenda a
+        JOIN agenda_extras ae ON ae.idagenda = a.idagenda
+        JOIN clientes c ON c.idcliente = ae.idcliente
+        UNION
+        SELECT upper(ed.codescoladata), e.nmescola, a.dtagenda, ed.status, ed.idescola, ed.idagenda
+        FROM escoladata ed JOIN escola e ON e.idescola = ed.idescola
+        JOIN agenda a ON a.idagenda = ed.idagenda
+      )
+      SELECT ed.codescoladata, ed.nmescola, ed.dtagenda::text AS dtagenda,
+        ed.status, ed.idescola, ed.idagenda,
+        v.idcompra, v.idvoucher, v.numvoucher, v.tpvoucher, v.descricao,
+        v.stusado, v.nomealuno, v.turma, v.periodo, c.tpcompra
+      FROM trips ed
+      LEFT JOIN voucher v ON v.idagenda = ed.idagenda AND v.idescola = ed.idescola
+        AND COALESCE(v.tpparticipante, '') <> 'educador'
+        AND EXISTS (
+          SELECT 1 FROM compra paid WHERE paid.idcompra = v.idcompra AND paid.stcompra = 'conc'
+          AND ((paid.tpcompra = 'ponli' AND EXISTS (
+            SELECT 1 FROM pagpagseguro p WHERE p.idcompra = paid.idcompra AND p.status IN (3,4)
+          )) OR (paid.tpcompra = 'reser' AND COALESCE(UPPER(TRIM(paid.formapag)), '') NOT IN ('', 'N/A')))
+        )
       LEFT JOIN compra c ON c.idcompra = v.idcompra
       WHERE ed.codescoladata = $1
-        AND COALESCE(c.stcompra, '') <> 'canc'
       ORDER BY v.nomealuno ASC, v.idvoucher ASC
     `,
     [lookup],
@@ -549,6 +553,10 @@ export async function lookupPainelBilheteriaTrip(
 
   const first = result.rows[0] ?? null;
 
+  const identities = new Set(result.rows.map((row) => `${row.idescola}:${row.idagenda}`));
+  if (identities.size > 1) {
+    throw new PainelBilheteriaWorkstationError("ambiguous_trip_code", "Este código identifica mais de um passeio. Confira o cadastro antes de validar.", 409);
+  }
   return {
     lookup,
     schoolId: first?.idescola ?? null,
@@ -556,7 +564,7 @@ export async function lookupPainelBilheteriaTrip(
     schoolName: first?.nmescola ?? null,
     visitDate: first?.dtagenda ? first.dtagenda.slice(0, 10) : null,
     statusLabel: formatTripStatusLabel(first?.status),
-    items: result.rows.map((row) => ({
+    items: result.rows.filter((row) => row.idvoucher != null).map((row) => ({
       voucherId: row.idvoucher,
       purchaseId: row.idcompra ?? null,
       voucherNumber: row.numvoucher,
@@ -578,3 +586,4 @@ export function formatPainelBilheteriaLookupDate(
 ) {
   return formatPainelBilheteriaDate(value);
 }
+
