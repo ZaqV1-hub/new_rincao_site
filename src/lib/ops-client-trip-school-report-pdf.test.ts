@@ -1,4 +1,5 @@
 import type { OpsClientTripSchoolReport } from "@/lib/ops-client-trip-school-report";
+import { mapParticipantRow } from "@/lib/ops-trip-school-report-core";
 import { describe, expect, it } from "vitest";
 
 const report: OpsClientTripSchoolReport = {
@@ -77,6 +78,40 @@ describe("ops-client-trip-school-report-pdf", () => {
 
     // Resumo, três turmas antigas distintas e outra turma em um segmento cadastrado.
     expect(buffer.toString("latin1").match(/\/Type \/Page\b/g)).toHaveLength(5);
+  });
+
+  it.each([
+    { type: "fund1", classes: [["4", "4 A"], ["4", "4A"]], pageCount: 2 },
+    { type: "", classes: [["1", "a"], ["2", "A"]], pageCount: 3 },
+  ])("respeita a série cadastrada ao agrupar turmas com segmento '$type'", async ({ type, classes, pageCount }) => {
+    const { renderOpsClientTripSchoolReportPdfBuffer } = await import(
+      "@/lib/ops-client-trip-school-report-pdf"
+    );
+    const students = classes.map(([year, label], index) => mapParticipantRow({
+      idcompra: 901 + index,
+      idvoucher: 1001 + index,
+      numvoucher: `ESC-000${index}`,
+      tpparticipante: "aluno",
+      nomealuno: "Ana Souza",
+      nomeeducador: null,
+      funcaoeducador: null,
+      ensino_tipo: type,
+      ensino_ano: year,
+      turma_letra: label,
+      turma: null,
+      vlunicompra: "49.90",
+      dtcompra: null,
+      hrcompra: null,
+      dtpagamento: null,
+      hrpagamento: null,
+      stcompra: "conc",
+      dtuso: null,
+      hruso: null,
+      stusado: null,
+    }));
+    const buffer = await renderOpsClientTripSchoolReportPdfBuffer({ ...report, students }, "school");
+
+    expect(buffer.toString("latin1").match(/\/Type \/Page\b/g)).toHaveLength(pageCount);
   });
 
   it.each(["school", "internal"] as const)("mantém 23 alunos da turma em uma página no PDF %s", async (audience) => {

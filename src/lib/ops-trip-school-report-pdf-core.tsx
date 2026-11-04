@@ -8,7 +8,7 @@ import {
   type OpsTripSchoolReportParticipant,
 } from "@/lib/ops-trip-school-report-core";
 import { styles, palette } from "@/lib/ops-trip-school-report-pdf-styles";
-import { getSchoolEducationStructure, normalizeSchoolEducationType } from "@/lib/school-education";
+import { buildSchoolClassDisplay, getSchoolEducationStructure, normalizeSchoolEducationType } from "@/lib/school-education";
 
 export type TripReportAudience = "school" | "internal";
 
@@ -64,9 +64,15 @@ function groupClasses(students: OpsTripSchoolReportParticipant[]) {
     const typeId = normalizeSchoolEducationType(student.educationType);
     const type = educationTypes.find(({ id }) => id === typeId);
     const segment = educationLabel(type?.label ?? (student.educationType || "Sem segmento"));
-    const classLabel = educationLabel(student.classDisplay || student.classLetter || "Sem turma");
+    const compactLetter = /^\d+\s*([a-z])$/i.exec(student.classLetter)?.[1];
+    const structuredClass = compactLetter
+      ? buildSchoolClassDisplay(student.educationType, student.educationYear, compactLetter)
+      : "";
+    const classLabel = educationLabel(structuredClass || student.classDisplay || student.classLetter || "Sem turma");
     const prefix = `${segment} - `;
-    const label = classLabel.startsWith(prefix) ? classLabel.slice(prefix.length) : classLabel;
+    const label = classLabel.startsWith(prefix)
+      ? classLabel.slice(prefix.length)
+      : [educationLabel(student.educationYear), classLabel].filter(Boolean).join(" - ");
     const classKey = label.replace(/\s+/g, "").toLocaleUpperCase("pt-BR");
     const classes = segments.get(segment) ?? new Map<string, ClassGroup>();
     const group = classes.get(classKey) ?? {
