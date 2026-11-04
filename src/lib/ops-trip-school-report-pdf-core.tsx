@@ -70,9 +70,10 @@ function groupClasses(students: OpsTripSchoolReportParticipant[]) {
       : "";
     const classLabel = educationLabel(structuredClass || student.classDisplay || student.classLetter || "Sem turma");
     const prefix = `${segment} - `;
+    const legacyYear = educationLabel(student.educationYear).replace(/^(\d+)(?:\s*º?\s*ano)?$/i, "$1º ano");
     const label = classLabel.startsWith(prefix)
       ? classLabel.slice(prefix.length)
-      : [educationLabel(student.educationYear), classLabel].filter(Boolean).join(" - ");
+      : [legacyYear, classLabel].filter(Boolean).join(" - ");
     const classKey = label.replace(/\s+/g, "").toLocaleUpperCase("pt-BR");
     const classes = segments.get(segment) ?? new Map<string, ClassGroup>();
     const group = classes.get(classKey) ?? {

@@ -83,6 +83,7 @@ describe("ops-client-trip-school-report-pdf", () => {
   it.each([
     { type: "fund1", classes: [["4", "4 A"], ["4", "4A"]], pageCount: 2 },
     { type: "", classes: [["1", "a"], ["2", "A"]], pageCount: 3 },
+    { type: "", classes: [["4", "a"], ["4o ano", "A"]], pageCount: 2 },
   ])("respeita a série cadastrada ao agrupar turmas com segmento '$type'", async ({ type, classes, pageCount }) => {
     const { renderOpsClientTripSchoolReportPdfBuffer } = await import(
       "@/lib/ops-client-trip-school-report-pdf"
