@@ -58,7 +58,8 @@ function standardPrice(rows: OpsTripSchoolReportParticipant[]) {
 }
 
 function groupClasses(students: OpsTripSchoolReportParticipant[]) {
-  const segments = new Map<string, Map<string, OpsTripSchoolReportParticipant[]>>();
+  type ClassGroup = { label: string; rows: OpsTripSchoolReportParticipant[] };
+  const segments = new Map<string, Map<string, ClassGroup>>();
   for (const student of students) {
     const typeId = normalizeSchoolEducationType(student.educationType);
     const type = educationTypes.find(({ id }) => id === typeId);
@@ -66,10 +67,14 @@ function groupClasses(students: OpsTripSchoolReportParticipant[]) {
     const classLabel = educationLabel(student.classDisplay || student.classLetter || "Sem turma");
     const prefix = `${segment} - `;
     const label = classLabel.startsWith(prefix) ? classLabel.slice(prefix.length) : classLabel;
-    const classes = segments.get(segment) ?? new Map<string, OpsTripSchoolReportParticipant[]>();
-    const rows = classes.get(label) ?? [];
-    rows.push(student);
-    classes.set(label, rows);
+    const classKey = label.replace(/\s+/g, "").toLocaleUpperCase("pt-BR");
+    const classes = segments.get(segment) ?? new Map<string, ClassGroup>();
+    const group = classes.get(classKey) ?? {
+      label: /^\d+\p{L}$/u.test(classKey) ? classKey : label,
+      rows: [],
+    };
+    group.rows.push(student);
+    classes.set(classKey, group);
     segments.set(segment, classes);
   }
 
@@ -77,8 +82,8 @@ function groupClasses(students: OpsTripSchoolReportParticipant[]) {
   return [...segments].sort(([left], [right]) => order.indexOf(left) - order.indexOf(right))
     .map(([segment, classes]) => ({
       segment,
-      classes: [...classes].sort(([left], [right]) => classOrder.compare(left, right))
-        .map(([label, rows]) => ({ label, rows, counts: statusCounts(rows) })),
+      classes: [...classes.values()].sort((left, right) => classOrder.compare(left.label, right.label))
+        .map(({ label, rows }) => ({ label, rows, counts: statusCounts(rows) })),
     }));
 }
 

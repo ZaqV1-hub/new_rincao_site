@@ -60,6 +60,25 @@ const report: OpsClientTripSchoolReport = {
 };
 
 describe("ops-client-trip-school-report-pdf", () => {
+  it.each(["school", "internal"] as const)("agrupa variações da mesma turma antiga no PDF %s", async (audience) => {
+    const { renderOpsClientTripSchoolReportPdfBuffer } = await import(
+      "@/lib/ops-client-trip-school-report-pdf"
+    );
+
+    const students = ["1c", "1C", "4 A", "4A", "4 B", "4 A"].map((label, index) => ({
+      ...report.students[0],
+      voucherId: 1001 + index,
+      educationType: index === 5 ? "fund2" : "",
+      educationYear: "",
+      classLetter: label,
+      classDisplay: label,
+    }));
+    const buffer = await renderOpsClientTripSchoolReportPdfBuffer({ ...report, students }, audience);
+
+    // Resumo, três turmas antigas distintas e outra turma em um segmento cadastrado.
+    expect(buffer.toString("latin1").match(/\/Type \/Page\b/g)).toHaveLength(5);
+  });
+
   it.each(["school", "internal"] as const)("mantém 23 alunos da turma em uma página no PDF %s", async (audience) => {
     const { renderOpsClientTripSchoolReportPdfBuffer } = await import(
       "@/lib/ops-client-trip-school-report-pdf"
