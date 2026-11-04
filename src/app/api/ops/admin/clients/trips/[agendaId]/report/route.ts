@@ -29,13 +29,13 @@ export async function GET(
     () =>
       handleOpsTripSchoolReportRoute({
         request,
-        loadReport: async () => {
+        loadReport: async (purchaseStatus) => {
           const url = new URL(request.url);
 
           return getOpsClientTripSchoolReport({
             agendaId: await readAgendaId(context),
             clientId: url.searchParams.get("clientId"),
-            purchaseStatus: url.searchParams.get("purchaseStatus"),
+            purchaseStatus,
           });
         },
         formatCsv: formatOpsClientTripSchoolReportCsv,

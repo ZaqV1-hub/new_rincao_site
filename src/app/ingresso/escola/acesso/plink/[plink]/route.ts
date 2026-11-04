@@ -22,9 +22,9 @@ export async function GET(_request: Request, context: RouteContext) {
     let pdfBuffer: Awaited<ReturnType<typeof renderOpsSchoolTripReportPdfBuffer>>;
 
     if (result.kind === "client") {
-      pdfBuffer = await renderOpsClientTripSchoolReportPdfBuffer(result.report);
+      pdfBuffer = await renderOpsClientTripSchoolReportPdfBuffer(result.report, "school");
     } else {
-      pdfBuffer = await renderOpsSchoolTripReportPdfBuffer(result.report);
+      pdfBuffer = await renderOpsSchoolTripReportPdfBuffer(result.report, "school");
     }
 
     const filename = `passeio-escolar-${report.trip.code}-${report.trip.date}.pdf`;
@@ -32,6 +32,7 @@ export async function GET(_request: Request, context: RouteContext) {
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         "content-type": "application/pdf",
+        "cache-control": "private, no-store",
         "content-disposition": `inline; filename="${filename}"`,
       },
     });

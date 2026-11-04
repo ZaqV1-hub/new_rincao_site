@@ -28,14 +28,13 @@ export async function GET(
     () =>
       handleOpsTripSchoolReportRoute({
         request,
-        loadReport: async () => {
+        loadReport: async (purchaseStatus) => {
           const { schoolId, agendaId } = await readParams(context);
-          const url = new URL(request.url);
 
           return getOpsSchoolTripReport({
             agendaId,
             schoolId,
-            purchaseStatus: url.searchParams.get("purchaseStatus"),
+            purchaseStatus,
           });
         },
         formatCsv: formatOpsSchoolTripReportCsv,
