@@ -46,6 +46,10 @@ describe("ingresso/escola/acesso/plink/[plink] route", () => {
 
     expect(response.status).toBe(200);
     expect(getPublicSchoolTripReportByPermalink).toHaveBeenCalledWith("abc123slug");
+    expect(renderOpsSchoolTripReportPdfBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: { purchaseStatus: "conc" } }),
+      "school",
+    );
     expect(response.headers.get("content-type")).toBe("application/pdf");
     expect(body).toContain("%PDF");
   });

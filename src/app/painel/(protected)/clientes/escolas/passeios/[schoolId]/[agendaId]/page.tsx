@@ -57,7 +57,7 @@ export default async function PainelClientesEscolasPasseiosDetalhePage({
     ? `?purchaseStatus=${encodeURIComponent(report.filters.purchaseStatus)}`
     : "";
   const csvHref = `/api/ops/admin/schools/${report.trip.schoolId}/trips/${report.trip.agendaId}/report${querySuffix}${querySuffix ? "&" : "?"}format=csv`;
-  const pdfHref = `/api/ops/admin/schools/${report.trip.schoolId}/trips/${report.trip.agendaId}/report${querySuffix}${querySuffix ? "&" : "?"}format=pdf`;
+  const pdfHref = `/api/ops/admin/schools/${report.trip.schoolId}/trips/${report.trip.agendaId}/report?format=pdf`;
 
   return (
     <PainelTripSchoolReportPage

@@ -166,6 +166,8 @@ describe("PainelClientTripDetailPage", () => {
     expect(html).toContain("Alunos");
     expect(html).toContain("Educadores");
     expect(html).toContain("Editar");
+    expect(html).toMatch(/<a [^>]*href="\/painel\/compras\/901"[^>]*>901<\/a>/);
+    expect(html.match(/href="\/painel\/compras\/901"/g)).toHaveLength(1);
     expect(html).toContain("ABRAHAO DE MORAES PROF. E.E.");
     expect(html).toContain("ABC123");
   });

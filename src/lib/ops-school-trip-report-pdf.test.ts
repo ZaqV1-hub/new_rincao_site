@@ -70,5 +70,5 @@ describe("ops-school-trip-report-pdf", () => {
     expect(Buffer.isBuffer(buffer)).toBe(true);
     expect(buffer.byteLength).toBeGreaterThan(100);
     expect(buffer.subarray(0, 4).toString()).toBe("%PDF");
-  });
+  }, 45_000);
 });

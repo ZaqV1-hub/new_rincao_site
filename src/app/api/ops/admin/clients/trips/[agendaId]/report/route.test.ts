@@ -113,7 +113,7 @@ describe("ops/admin/clients/trips/[agendaId]/report route", () => {
     );
     const response = await GET(
       new Request(
-        "https://example.com/api/ops/admin/clients/trips/10/report?clientId=20&format=pdf",
+        "https://example.com/api/ops/admin/clients/trips/10/report?clientId=20&format=pdf&purchaseStatus=pend",
       ),
       {
         params: Promise.resolve({ agendaId: "10" }),
@@ -122,6 +122,11 @@ describe("ops/admin/clients/trips/[agendaId]/report route", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
+    expect(getOpsClientTripSchoolReport).toHaveBeenCalledWith({
+      agendaId: "10",
+      clientId: "20",
+      purchaseStatus: null,
+    });
     expect(renderOpsClientTripSchoolReportPdfBuffer).toHaveBeenCalled();
     expect(response.headers.get("content-type")).toBe("application/pdf");
     expect(body).toContain("%PDF");

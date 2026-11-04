@@ -60,11 +60,7 @@ export default async function PainelClientesPasseiosAlunosPage({
       ? `&purchaseStatus=${encodeURIComponent(report.filters.purchaseStatus)}`
       : ""
   }&format=csv`;
-  const pdfHref = `/api/painel/clientes/passeios/${report.trip.agendaId}/report?clientId=${report.trip.clientId}${
-    report.filters.purchaseStatus
-      ? `&purchaseStatus=${encodeURIComponent(report.filters.purchaseStatus)}`
-      : ""
-  }&format=pdf`;
+  const pdfHref = `/api/painel/clientes/passeios/${report.trip.agendaId}/report?clientId=${report.trip.clientId}&format=pdf`;
 
   return (
     <PainelClientTripDetailPage
