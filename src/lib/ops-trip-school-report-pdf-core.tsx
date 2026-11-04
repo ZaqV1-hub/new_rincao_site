@@ -97,33 +97,51 @@ type Metric = {
   color: string;
 };
 
-function Totals({ counts, date, internal, fixed = false }: {
+function Totals({ counts, date, internal, classCount, fixed = false }: {
   counts: ReturnType<typeof statusCounts>;
   date: string;
   internal: boolean;
+  classCount?: number;
   fixed?: boolean;
 }) {
-  const paid: Metric = {
-    label: "Valor pago", value: currency.format(Number(counts.paidValue)),
-    note: "Compras concluídas", color: palette.blue,
-  };
-  const metrics: Metric[] = internal ? [
-    { label: "Concluídas", value: counts.paidCount, note: "Alunos confirmados", color: palette.navy },
-    { label: "Pendentes", value: counts.pending, note: "Aguardando pagamento", color: palette.amber },
-    { label: "Canceladas", value: counts.cancelled, note: "Fora do valor pago", color: palette.coral },
-    paid,
-  ] : [
-    { label: "Alunos confirmados", value: counts.paidCount, note: "Compras concluídas", color: palette.navy },
-    paid,
-    { label: "Data do passeio", value: date, note: "Clube Rincão", color: palette.amber },
-  ];
+  const paidValue = currency.format(Number(counts.paidValue));
+  const percentage = (count: number) => `${counts.totalCount ? Math.round(100 * count / counts.totalCount) : 0}% do total`;
+  const metrics: Metric[] = [];
+
+  if (internal && classCount !== undefined) {
+    metrics.push(
+      { label: "Registros", value: counts.totalCount, note: "na exportação", color: palette.navy },
+      { label: "Concluídas", value: counts.paidCount, note: percentage(counts.paidCount), color: palette.blue },
+      { label: "Pendentes", value: counts.pending, note: percentage(counts.pending), color: palette.amber },
+      { label: "Canceladas", value: counts.cancelled, note: percentage(counts.cancelled), color: palette.coral },
+    );
+  } else if (internal) {
+    metrics.push(
+      { label: "Concluídas", value: counts.paidCount, note: "alunos confirmados", color: palette.navy },
+      { label: "Pendentes", value: counts.pending, note: "aguardando pagamento", color: palette.amber },
+      { label: "Canceladas", value: counts.cancelled, note: "não entram no total", color: palette.coral },
+      { label: "Valor pago", value: paidValue, note: "somente concluídas", color: palette.blue },
+    );
+  } else if (classCount !== undefined) {
+    metrics.push(
+      { label: "Alunos confirmados", value: counts.paidCount, note: "compras concluídas", color: palette.navy },
+      { label: "Turmas", value: classCount, note: "uma folha por turma", color: palette.blue },
+      { label: "Valor total", value: paidValue, note: "pago pelas famílias", color: palette.amber },
+    );
+  } else {
+    metrics.push(
+      { label: "Alunos confirmados", value: counts.paidCount, note: "nesta turma", color: palette.navy },
+      { label: "Valor", value: paidValue, note: "pago pelas famílias", color: palette.blue },
+      { label: "Data do passeio", value: date, note: "Clube e Park Rincão", color: palette.amber },
+    );
+  }
 
   return (
     <View style={styles.metrics} fixed={fixed} wrap={false}>
       {metrics.map(({ label, value, note, color }) => (
         <View key={label} style={[styles.metric, { borderTopColor: color }]}>
           <Text style={styles.metricLabel}>{label}</Text>
-          <Text style={color === palette.blue ? [styles.metricValue, styles.moneyMetric] : styles.metricValue}>{value}</Text>
+          <Text style={String(value).startsWith("R$") ? [styles.metricValue, styles.moneyMetric] : styles.metricValue}>{value}</Text>
           <Text style={styles.note}>{note}</Text>
         </View>
       ))}
@@ -131,11 +149,19 @@ function Totals({ counts, date, internal, fixed = false }: {
   );
 }
 
-function CardHeading({ title, note, fixed = false }: { title: string; note: string; fixed?: boolean }) {
+function CardHeading({ title, note, badge, fixed = false }: {
+  title: string;
+  note: string;
+  badge?: string;
+  fixed?: boolean;
+}) {
   return (
     <View style={styles.cardHeading} minPresenceAhead={24} fixed={fixed} wrap={false}>
-      <Text style={styles.cardTitle}>{title}</Text>
-      <Text style={[styles.note, styles.cardNote]}>{note}</Text>
+      <View style={styles.cardHeadingCopy}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={[styles.note, styles.cardNote]}>{note}</Text>
+      </View>
+      {badge ? <Text style={styles.classBadge}>{badge}</Text> : null}
     </View>
   );
 }
@@ -143,20 +169,20 @@ function CardHeading({ title, note, fixed = false }: { title: string; note: stri
 function SegmentSummary({ segment, classes, internal }: ReturnType<typeof groupClasses>[number] & { internal: boolean }) {
   return (
     <View style={[styles.card, styles.segment]}>
-      <CardHeading title={segment} note={`${classes.length} turma(s)`} fixed />
+      <CardHeading title={segment} note={`${classes.length} turma(s) · ${classes.reduce((total, group) => total + group.counts.paidCount, 0)} aluno(s) confirmado(s)`} fixed />
       <View style={[styles.row, styles.tableHead, styles.tableLabel]} fixed wrap={false}>
         <Text style={styles.summaryClass}>TURMA</Text>
         <Text style={styles.summaryCount}>{internal ? "CONCL." : "ALUNOS"}</Text>
         {internal ? <Text style={styles.summaryCount}>PEND.</Text> : null}
         {internal ? <Text style={styles.summaryCount}>CANC.</Text> : null}
-        <Text style={styles.summaryMoney}>VALOR PAGO</Text>
+        <Text style={styles.summaryMoney}>{internal ? "VALOR PAGO" : "VALOR"}</Text>
       </View>
       {classes.map(({ label, counts }) => (
         <View key={label} style={[styles.row, styles.bodyRow, styles.summaryRow]} wrap={false}>
           <Text style={styles.summaryClass}>{label}</Text>
           <Text style={[styles.summaryCount, styles.bold]}>{counts.paidCount}</Text>
-          {internal ? <Text style={styles.summaryCount}>{counts.pending}</Text> : null}
-          {internal ? <Text style={styles.summaryCount}>{counts.cancelled}</Text> : null}
+          {internal ? <Text style={[styles.summaryCount, counts.pending ? styles.pendingCount : styles.zeroCount]}>{counts.pending}</Text> : null}
+          {internal ? <Text style={[styles.summaryCount, counts.cancelled ? styles.cancelledCount : styles.zeroCount]}>{counts.cancelled}</Text> : null}
           <Text style={styles.summaryMoney}>{currency.format(Number(counts.paidValue))}</Text>
         </View>
       ))}
@@ -168,24 +194,26 @@ const pillStyles = new Map([
   ["conc", styles.paid], ["pend", styles.pending], ["canc", styles.cancelledPill],
 ]);
 
-function ParticipantTable({ rows, internal, regularPrice, educatorsOnly = false }: {
+function ParticipantTable({ rows, internal, regularPrice, badge, educatorsOnly = false }: {
   rows: OpsTripSchoolReportParticipant[];
   internal: boolean;
   regularPrice?: number;
+  badge?: string;
   educatorsOnly?: boolean;
 }) {
   return (
     <View style={styles.card}>
       <CardHeading
         title={educatorsOnly ? "Educadores" : "Alunos da turma"}
-        note={internal ? "Registros de compra e situação do pagamento." : "Marque a presença no dia do passeio."}
+        note={internal ? "Todos os registros, incluindo pendentes e canceladas." : "Lista de alunos com compra concluída. Marque a presença no dia."}
+        badge={badge}
         fixed
       />
       <View style={[styles.row, styles.tableHead, styles.tableLabel]} fixed wrap={false}>
         <Text style={styles.number}>#</Text>
         <Text style={styles.purchaseId}>ID DA COMPRA</Text>
         <Text style={styles.voucher}>VOUCHER</Text>
-        <Text style={styles.studentName}>{educatorsOnly ? "EDUCADOR" : "NOME DO ALUNO"}</Text>
+        <Text style={styles.studentName}>{educatorsOnly ? "EDUCADOR" : "ALUNO"}</Text>
         <Text style={styles.value}>VALOR</Text>
         <Text style={styles.statusLabel}>{internal ? "STATUS" : "PRESENÇA"}</Text>
       </View>
@@ -246,10 +274,23 @@ function ReportDocument({ report, ownerName, audience }: {
     columnWeights[column] += segment.classes.length + 3;
   }
 
+  const noteColumn = columnWeights[0] <= columnWeights[1] ? 0 : 1;
+  const summaryNote = (
+    <View style={styles.card} wrap={false}>
+      <Text style={[styles.cardTitle, styles.summaryNoteTitle]}>{internal ? "Sobre este relatório" : "Como usar"}</Text>
+      <Text style={[styles.note, styles.summaryNote]}>
+        {internal
+          ? "Inclui compras concluídas, pendentes e canceladas. A versão da escola mostra só as concluídas." +
+            (regularPrice === undefined ? "" : ` Valores fora do padrão de ${currency.format(regularPrice)} aparecem destacados.`)
+          : "Cada turma está em uma página separada. Imprima e entregue uma folha para cada professor responsável, que pode marcar a presença no dia do passeio."}
+      </Text>
+    </View>
+  );
+
   function sheet(title: string, subtitle: string, body: ReactNode, details: string, sign = false, fixed = false) {
     return (
       <Page key={`${title}/${subtitle}`} size="A4" style={sign ? [styles.page, styles.signedPage] : styles.page}>
-        <View style={styles.header} fixed={fixed} wrap={false}>
+        <View style={fixed ? styles.header : [styles.header, styles.coverHeader]} fixed={fixed} wrap={false}>
           <View style={styles.headerText}>
             <Text style={styles.brand}>CLUBE E PARK RINCÃO</Text>
             <Text style={styles.title}>Passeio escolar</Text>
@@ -272,7 +313,7 @@ function ReportDocument({ report, ownerName, audience }: {
             </View>
           ) : null}
           <View style={[styles.footer, styles.footerBorder]}>
-            <Text style={styles.note}>{internal ? "Documento interno · Clube e Park Rincão" : "Documento para uso da escola"}</Text>
+            <Text style={styles.note}>{internal ? "Documento interno · Exportação completa do Clube e Park Rincão." : "Documento para uso da escola · Apenas compras concluídas."}</Text>
             <Text style={[styles.note, styles.footerDetails]}>{code} · {details}</Text>
           </View>
         </View>
@@ -284,12 +325,13 @@ function ReportDocument({ report, ownerName, audience }: {
     <Document title={`Passeio escolar ${code}`} language="pt-BR">
       {sheet("Resumo por turma", `${ownerName} · ${classCount} turma(s) · ${counts.totalCount} aluno(s)`, (
         <>
-          <Totals counts={counts} date={date} internal={internal} />
+          <Totals counts={counts} date={date} internal={internal} classCount={classCount} />
           {classCount ? (
             <View style={styles.columns}>
-              {columns.filter((column) => column.length).map((column) => (
+              {columns.filter((column) => column.length).map((column, index) => (
                 <View key={column[0].segment} style={styles.column}>
                   {column.map((segment) => <SegmentSummary key={segment.segment} {...segment} internal={internal} />)}
+                  {index === noteColumn || !columns[1].length ? summaryNote : null}
                 </View>
               ))}
             </View>
@@ -300,9 +342,9 @@ function ReportDocument({ report, ownerName, audience }: {
         sheet(label, `${segment} · ${ownerName}`, (
           <>
             <Totals counts={counts} date={date} internal={internal} fixed />
-            <ParticipantTable rows={rows} internal={internal} regularPrice={regularPrice} />
+            <ParticipantTable rows={rows} internal={internal} regularPrice={regularPrice} badge={`${segment} · ${label}`} />
           </>
-        ), `${label} · ${rows.length} aluno(s)`, !internal, true),
+        ), `${label} · ${counts.paidCount} aluno(s)`, !internal, true),
       ))}
       {educators.length ? sheet("Educadores", ownerName,
         <ParticipantTable rows={educators} internal={internal} educatorsOnly />,
