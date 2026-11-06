@@ -109,7 +109,7 @@ type Metric = {
   color: string;
 };
 
-function Totals({ counts, accompanyingCount, soldValue, fixed = false }: {
+function Totals({ counts, accompanyingCount, soldValue, classCount, fixed = false }: {
   counts: ReturnType<typeof statusCounts>;
   accompanyingCount?: number;
   soldValue?: number;
@@ -119,9 +119,10 @@ function Totals({ counts, accompanyingCount, soldValue, fixed = false }: {
   fixed?: boolean;
 }) {
   const metrics: Metric[] = [
+    ...(classCount === undefined ? [] : [{ label: "Turmas", value: classCount, note: "com compras concluídas", color: palette.navy }]),
     { label: "Alunos", value: counts.paidCount, note: "compras concluídas", color: palette.navy },
     ...(accompanyingCount === undefined ? [] : [{ label: "Acompanhantes", value: accompanyingCount, note: "compras concluídas", color: palette.blue }]),
-    { label: "Valor total vendido", value: currency.format(soldValue ?? Number(counts.paidValue)), note: "somente compras concluídas", color: palette.amber },
+    { label: "Valor total vendido", value: currency.format(soldValue ?? Number(counts.paidValue)), note: "compras concluídas", color: palette.amber },
   ];
   return (
     <View style={styles.metrics} fixed={fixed} wrap={false}>
@@ -309,7 +310,7 @@ function ReportDocument({ report, ownerName, audience }: {
     <Document title={`Passeio escolar ${code}`} language="pt-BR">
       {sheet("Resumo por turma", `${ownerName} · ${classCount} turma(s) · ${counts.totalCount} aluno(s)`, (
         <>
-          <Totals counts={counts} accompanyingCount={educators.length} soldValue={totalSold} />
+          <Totals counts={counts} accompanyingCount={educators.length} soldValue={totalSold} classCount={classCount} />
           {classCount ? (
             <View style={styles.columns}>
               {columns.filter((column) => column.length).map((column, index) => (
