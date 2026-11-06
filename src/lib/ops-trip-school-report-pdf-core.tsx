@@ -109,45 +109,20 @@ type Metric = {
   color: string;
 };
 
-function Totals({ counts, date, internal, classCount, fixed = false }: {
+function Totals({ counts, accompanyingCount, soldValue, fixed = false }: {
   counts: ReturnType<typeof statusCounts>;
-  date: string;
-  internal: boolean;
+  accompanyingCount?: number;
+  soldValue?: number;
+  date?: string;
+  internal?: boolean;
   classCount?: number;
   fixed?: boolean;
 }) {
-  const paidValue = currency.format(Number(counts.paidValue));
-  const percentage = (count: number) => `${counts.totalCount ? Math.round(100 * count / counts.totalCount) : 0}% do total`;
-  const metrics: Metric[] = [];
-
-  if (internal && classCount !== undefined) {
-    metrics.push(
-      { label: "Registros", value: counts.totalCount, note: "na exportação", color: palette.navy },
-      { label: "Concluídas", value: counts.paidCount, note: percentage(counts.paidCount), color: palette.blue },
-      { label: "Pendentes", value: counts.pending, note: percentage(counts.pending), color: palette.amber },
-      { label: "Canceladas", value: counts.cancelled, note: percentage(counts.cancelled), color: palette.coral },
-    );
-  } else if (internal) {
-    metrics.push(
-      { label: "Concluídas", value: counts.paidCount, note: "alunos confirmados", color: palette.navy },
-      { label: "Pendentes", value: counts.pending, note: "aguardando pagamento", color: palette.amber },
-      { label: "Canceladas", value: counts.cancelled, note: "não entram no total", color: palette.coral },
-      { label: "Valor pago", value: paidValue, note: "somente concluídas", color: palette.blue },
-    );
-  } else if (classCount !== undefined) {
-    metrics.push(
-      { label: "Alunos confirmados", value: counts.paidCount, note: "compras concluídas", color: palette.navy },
-      { label: "Turmas", value: classCount, note: "uma folha por turma", color: palette.blue },
-      { label: "Valor total", value: paidValue, note: "pago pelas famílias", color: palette.amber },
-    );
-  } else {
-    metrics.push(
-      { label: "Alunos confirmados", value: counts.paidCount, note: "nesta turma", color: palette.navy },
-      { label: "Valor", value: paidValue, note: "pago pelas famílias", color: palette.blue },
-      { label: "Data do passeio", value: date, note: "Clube e Park Rincão", color: palette.amber },
-    );
-  }
-
+  const metrics: Metric[] = [
+    { label: "Alunos", value: counts.paidCount, note: "compras concluídas", color: palette.navy },
+    ...(accompanyingCount === undefined ? [] : [{ label: "Acompanhantes", value: accompanyingCount, note: "compras concluídas", color: palette.blue }]),
+    { label: "Valor total vendido", value: currency.format(soldValue ?? Number(counts.paidValue)), note: "somente compras concluídas", color: palette.amber },
+  ];
   return (
     <View style={styles.metrics} fixed={fixed} wrap={false}>
       {metrics.map(({ label, value, note, color }) => (
@@ -178,23 +153,19 @@ function CardHeading({ title, note, badge, fixed = false }: {
   );
 }
 
-function SegmentSummary({ segment, classes, internal }: ReturnType<typeof groupClasses>[number] & { internal: boolean }) {
+function SegmentSummary({ segment, classes }: ReturnType<typeof groupClasses>[number] & { internal: boolean }) {
   return (
     <View style={[styles.card, styles.segment]}>
       <CardHeading title={segment} note={`${classes.length} turma(s) · ${classes.reduce((total, group) => total + group.counts.paidCount, 0)} aluno(s) confirmado(s)`} fixed />
       <View style={[styles.row, styles.tableHead, styles.tableLabel]} fixed wrap={false}>
         <Text style={styles.summaryClass}>TURMA</Text>
-        <Text style={styles.summaryCount}>{internal ? "CONCL." : "ALUNOS"}</Text>
-        {internal ? <Text style={styles.summaryCount}>PEND.</Text> : null}
-        {internal ? <Text style={styles.summaryCount}>CANC.</Text> : null}
-        <Text style={styles.summaryMoney}>{internal ? "VALOR PAGO" : "VALOR"}</Text>
+        <Text style={styles.summaryCount}>ALUNOS</Text>
+        <Text style={styles.summaryMoney}>VALOR</Text>
       </View>
       {classes.map(({ label, counts }) => (
         <View key={label} style={[styles.row, styles.bodyRow, styles.summaryRow]} wrap={false}>
           <Text style={styles.summaryClass}>{label}</Text>
           <Text style={[styles.summaryCount, styles.bold]}>{counts.paidCount}</Text>
-          {internal ? <Text style={[styles.summaryCount, counts.pending ? styles.pendingCount : styles.zeroCount]}>{counts.pending}</Text> : null}
-          {internal ? <Text style={[styles.summaryCount, counts.cancelled ? styles.cancelledCount : styles.zeroCount]}>{counts.cancelled}</Text> : null}
           <Text style={styles.summaryMoney}>{currency.format(Number(counts.paidValue))}</Text>
         </View>
       ))}
@@ -216,8 +187,8 @@ function ParticipantTable({ rows, internal, regularPrice, badge, educatorsOnly =
   return (
     <View style={styles.card}>
       <CardHeading
-        title={educatorsOnly ? "Educadores" : "Alunos da turma"}
-        note={internal ? "Todos os registros, incluindo pendentes e canceladas." : "Lista de alunos com compra concluída. Marque a presença no dia."}
+        title={educatorsOnly ? "Educadores e acompanhantes" : "Alunos da turma"}
+        note="Somente participantes com compra concluída."
         badge={badge}
         fixed
       />
@@ -270,10 +241,11 @@ function ReportDocument({ report, ownerName, audience }: {
   audience: TripReportAudience;
 }) {
   const internal = audience === "internal";
-  const students = internal ? report.students : report.students.filter((row) => isPaidPurchase(row.purchaseStatus));
-  const educators = internal ? report.educators : report.educators.filter((row) => isPaidPurchase(row.purchaseStatus));
+  const students = report.students.filter((row) => isPaidPurchase(row.purchaseStatus));
+  const educators = report.educators.filter((row) => isPaidPurchase(row.purchaseStatus));
   const segments = groupClasses(students);
   const counts = statusCounts(students);
+  const totalSold = Number(counts.paidValue) + Number(statusCounts(educators).paidValue);
   const regularPrice = internal ? standardPrice(students) : undefined;
   const { code, dateLabel: date } = report.trip;
   const generated = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -292,7 +264,7 @@ function ReportDocument({ report, ownerName, audience }: {
       <Text style={[styles.cardTitle, styles.summaryNoteTitle]}>{internal ? "Sobre este relatório" : "Como usar"}</Text>
       <Text style={[styles.note, styles.summaryNote]}>
         {internal
-          ? "Inclui compras concluídas, pendentes e canceladas. A versão da escola mostra só as concluídas." +
+          ? "Este relatório contém somente compras concluídas. O valor total vendido inclui alunos e acompanhantes." +
             (regularPrice === undefined ? "" : ` Valores fora do padrão de ${currency.format(regularPrice)} aparecem destacados.`)
           : "Cada turma está em uma página separada. Imprima e entregue uma folha para cada professor responsável, que pode marcar a presença no dia do passeio."}
       </Text>
@@ -325,7 +297,7 @@ function ReportDocument({ report, ownerName, audience }: {
             </View>
           ) : null}
           <View style={[styles.footer, styles.footerBorder]}>
-            <Text style={styles.note}>{internal ? "Documento interno · Exportação completa do Clube e Park Rincão." : "Documento para uso da escola · Apenas compras concluídas."}</Text>
+            <Text style={styles.note}>{internal ? "Documento interno · Somente compras concluídas." : "Documento para uso da escola · Apenas compras concluídas."}</Text>
             <Text style={[styles.note, styles.footerDetails]}>{code} · {details}</Text>
           </View>
         </View>
@@ -337,7 +309,7 @@ function ReportDocument({ report, ownerName, audience }: {
     <Document title={`Passeio escolar ${code}`} language="pt-BR">
       {sheet("Resumo por turma", `${ownerName} · ${classCount} turma(s) · ${counts.totalCount} aluno(s)`, (
         <>
-          <Totals counts={counts} date={date} internal={internal} classCount={classCount} />
+          <Totals counts={counts} accompanyingCount={educators.length} soldValue={totalSold} />
           {classCount ? (
             <View style={styles.columns}>
               {columns.filter((column) => column.length).map((column, index) => (
@@ -358,7 +330,7 @@ function ReportDocument({ report, ownerName, audience }: {
           </>
         ), `${label} · ${counts.paidCount} aluno(s)`, !internal, true),
       ))}
-      {educators.length ? sheet("Educadores", ownerName,
+      {educators.length ? sheet("Educadores e acompanhantes", ownerName,
         <ParticipantTable rows={educators} internal={internal} educatorsOnly />,
         `${educators.length} educador(es)`, false, true,
       ) : null}

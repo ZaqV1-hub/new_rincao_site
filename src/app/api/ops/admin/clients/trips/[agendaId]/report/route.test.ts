@@ -125,7 +125,7 @@ describe("ops/admin/clients/trips/[agendaId]/report route", () => {
     expect(getOpsClientTripSchoolReport).toHaveBeenCalledWith({
       agendaId: "10",
       clientId: "20",
-      purchaseStatus: null,
+      purchaseStatus: "conc",
     });
     expect(renderOpsClientTripSchoolReportPdfBuffer).toHaveBeenCalled();
     expect(response.headers.get("content-type")).toBe("application/pdf");

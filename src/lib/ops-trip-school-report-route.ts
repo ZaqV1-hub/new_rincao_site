@@ -37,7 +37,7 @@ export async function handleOpsTripSchoolReportRoute<TReport extends TripReportL
 
   try {
     const format = url.searchParams.get("format");
-    const data = await loadReport(format === "pdf" ? null : url.searchParams.get("purchaseStatus"));
+    const data = await loadReport(format === "pdf" ? "conc" : url.searchParams.get("purchaseStatus"));
 
     if (format === "csv") {
       const filename = `passeio-escolar-${data.trip.code}-${data.trip.date}.csv`;
