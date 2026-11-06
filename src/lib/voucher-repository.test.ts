@@ -3,6 +3,7 @@ import {
   getUserVoucherExportData,
   getUserVouchersPage,
   getUserVoucherRescheduleData,
+  ensureVoucherLifecycleSchema,
   resetVoucherLifecycleSchemaForTests,
 } from "@/lib/voucher-repository";
 
@@ -27,6 +28,26 @@ describe("voucher-repository", () => {
     vi.clearAllMocks();
     getSchoolVoucherInformation.mockResolvedValue("");
     resetVoucherLifecycleSchemaForTests();
+  });
+
+  it("retries schema initialization after a transient database failure", async () => {
+    dbQuery.mockRejectedValueOnce(new Error("timeout exceeded when trying to connect"));
+    await expect(ensureVoucherLifecycleSchema()).rejects.toThrow("timeout exceeded");
+
+    dbQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+    await Promise.all([ensureVoucherLifecycleSchema(), ensureVoucherLifecycleSchema()]);
+    expect(dbQuery).toHaveBeenCalledTimes(3);
+    await ensureVoucherLifecycleSchema();
+    expect(dbQuery).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries when only the second schema change fails", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockRejectedValueOnce(new Error("connection interrupted"));
+    await expect(ensureVoucherLifecycleSchema()).rejects.toThrow("connection interrupted");
+    dbQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+    await ensureVoucherLifecycleSchema();
+    expect(dbQuery).toHaveBeenCalledTimes(4);
   });
 
   it("reads voucher description from the voucher table when listing purchases", async () => {

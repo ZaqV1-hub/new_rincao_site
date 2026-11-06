@@ -181,16 +181,21 @@ export async function ensureVoucherLifecycleSchema() {
   if (!voucherLifecycleSchemaPromise) {
     const pool = getIngressoSistemaDbPool();
 
-    voucherLifecycleSchemaPromise = Promise.all([
-      pool.query(`
+    voucherLifecycleSchemaPromise = (async () => {
+      // Run schema changes in order to avoid competing table locks at startup.
+      await pool.query(`
         ALTER TABLE voucher
         ADD COLUMN IF NOT EXISTS flreagendado char(1) NOT NULL DEFAULT 'n'
-      `),
-      pool.query(`
+      `);
+      await pool.query(`
         ALTER TABLE voucher
         ADD COLUMN IF NOT EXISTS stvoucher varchar(20) NOT NULL DEFAULT 'ativo'
-      `),
-    ]).then(() => undefined);
+      `);
+    })().catch((error) => {
+      // A temporary connection failure must not poison every later checkout.
+      voucherLifecycleSchemaPromise = null;
+      throw error;
+    });
   }
 
   await voucherLifecycleSchemaPromise;
