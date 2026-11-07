@@ -25,6 +25,42 @@ function notification(body: unknown) {
   });
 }
 
+const paidOrderData = {
+  code: "pid-456",
+  reference: "456",
+  status: 3,
+  cancellationSource: "",
+  date: "2026-05-06T12:00:00.000Z",
+  lastEventDate: "2026-05-06T12:00:00.000Z",
+  paymentMethod: { type: 1, code: 101 },
+  grossAmount: "120.00",
+  discountAmount: "0.00",
+  feeAmount: "0.00",
+  netAmount: "120.00",
+  extraAmount: "0.00",
+  installmentCount: 1,
+  sender: {
+    email: "customer@example.com",
+    name: "Cliente Teste",
+    phone: { areaCode: null, number: null },
+  },
+  shipping: {
+    type: 0,
+    cost: "0.00",
+    address: {
+      street: "",
+      number: "",
+      district: "",
+      city: "",
+      state: "",
+      country: "",
+      postalCode: "",
+      complement: [""],
+    },
+  },
+  xml: "",
+};
+
 describe("checkout-notification-proxy", () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -49,7 +85,8 @@ describe("checkout-notification-proxy", () => {
     vi.mocked(getCieloSaleByPaymentId).mockResolvedValue(sale);
     const orderStatus = {
       status: "00",
-      dados: { code: "pid-456", reference: "456", status: 3 },
+      dados: paidOrderData,
+      sale,
     };
     vi.mocked(getNativeCieloCheckoutStatus).mockResolvedValue(orderStatus);
 
@@ -80,7 +117,11 @@ describe("checkout-notification-proxy", () => {
     vi.mocked(getCieloSaleByPaymentId).mockResolvedValue(sale);
     const orderStatus = {
       status: "00",
-      dados: { code: "other-paid-attempt", reference: "456", status: 3 },
+      dados: { ...paidOrderData, code: "other-paid-attempt" },
+      sale: {
+        MerchantOrderId: "456",
+        Payment: { PaymentId: "other-paid-attempt", Status: 2, Amount: 12000 },
+      },
     };
     vi.mocked(getNativeCieloCheckoutStatus).mockResolvedValue(orderStatus);
 

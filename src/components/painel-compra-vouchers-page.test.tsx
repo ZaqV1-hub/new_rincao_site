@@ -28,6 +28,7 @@ describe("PainelCompraVouchersPage", () => {
             },
           ],
           total: 1,
+          totalSoldValue: "40,00",
           page: 1,
           perPage: 100,
           totalPages: 1,
@@ -75,7 +76,7 @@ describe("PainelCompraVouchersPage", () => {
     expect(html).toContain("Ingresso</th>");
     expect(html).toContain("ABC-123");
     expect(html).toContain("Adulto</option>");
-    expect(html).toContain("Remover Filtros");
+    expect(html).toContain("Limpar filtros");
     expect(html).toContain("Exportar (.xls)");
   });
 });

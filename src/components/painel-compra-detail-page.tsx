@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PainelCompraContestacoes } from "@/components/painel-compra-contestacoes";
 import { PainelCompraDetailActions } from "@/components/painel-compra-detail-actions";
 import {
   formatPainelBilheteriaCpf as formatCpf,
@@ -220,6 +221,9 @@ export function PainelCompraDetailPage({
             </table>
           </div>
         )}
+        <div className="mt-6">
+          <PainelCompraContestacoes key={detail.purchaseId} purchaseId={detail.purchaseId} />
+        </div>
       </div>
 
       <aside className="grid content-start gap-5">
@@ -237,6 +241,11 @@ export function PainelCompraDetailPage({
                 href={`/painel/compras/${detail.purchaseId}/consulta-pagamento`}
               >
                 Consultar pagamento (Cielo)
+              </Link>
+            </li>
+            <li>
+              <Link className="text-[#1d68a2] underline" href="#contestacoes">
+                Contestações Cielo
               </Link>
             </li>
           </ul>

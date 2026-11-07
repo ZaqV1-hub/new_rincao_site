@@ -79,30 +79,37 @@ async function cieloRequest(
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
-  const baseUrl = endpoint === "api" ? config.apiEndpoint : config.queryEndpoint;
-  const response = await fetch(`${baseUrl}${path}`, {
-    method,
-    headers: {
-      "content-type": "application/json",
-      MerchantId: config.merchantId,
-      MerchantKey: config.merchantKey,
-    },
-    body: payload === null ? undefined : JSON.stringify(payload),
-    cache: "no-store",
-    signal: controller.signal,
-  }).finally(() => clearTimeout(timeout));
-  const responsePayload = await response.json().catch(() => null);
+  try {
+    const baseUrl = endpoint === "api" ? config.apiEndpoint : config.queryEndpoint;
+    const response = await fetch(`${baseUrl}${path}`, {
+      method,
+      headers: {
+        "content-type": "application/json",
+        MerchantId: config.merchantId,
+        MerchantKey: config.merchantKey,
+      },
+      body: payload === null ? undefined : JSON.stringify(payload),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    const responsePayload = await response.json().catch((error: unknown) => {
+      if (controller.signal.aborted) throw error;
+      return null;
+    });
 
-  if (!response.ok) {
-    const message =
-      typeof responsePayload === "object" && responsePayload !== null
-        ? JSON.stringify(responsePayload)
-        : "Cielo API error";
+    if (!response.ok) {
+      const message =
+        typeof responsePayload === "object" && responsePayload !== null
+          ? JSON.stringify(responsePayload)
+          : "Cielo API error";
 
-    throw new Error(`cielo_ecommerce_error_${response.status}: ${message}`);
+      throw new Error(`cielo_ecommerce_error_${response.status}: ${message}`);
+    }
+
+    return responsePayload;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  return responsePayload;
 }
 
 export async function getCieloSaleByPaymentId(paymentId: string) {
