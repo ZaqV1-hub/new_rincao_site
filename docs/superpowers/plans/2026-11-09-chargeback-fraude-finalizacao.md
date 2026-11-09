@@ -94,8 +94,8 @@ it("reads root Payment.Eci without treating zero as missing", async () => {
 
 ## Consulta preparada para Expansão — não enviada
 
-**Para:** expansao.chargeback@cielo.com.br  
-**Cc:** dev@cluberincao.com.br  
+**Para:** expansao.chargeback@cielo.com.br
+**Cc:** dev@cluberincao.com.br
 **Assunto:** Critérios de defesa por fraude em ingressos — EC 2899426197
 
 Olá, equipe!
@@ -112,7 +112,7 @@ Poderiam informar:
 
 Mantemos os envios reais desligados. Pedimos que mantenham dev@cluberincao.com.br em cópia. Nenhum documento ou dado individual de comprador está anexado.
 
-Obrigado,  
+Obrigado,
 Juan — Desenvolvimento Clube Rincão
 
 ## Fora da conclusão desta preparação: operação real
