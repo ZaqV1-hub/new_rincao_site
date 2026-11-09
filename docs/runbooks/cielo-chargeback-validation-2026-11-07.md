@@ -190,3 +190,12 @@ PDFs finais de três páginas inspecionados visualmente, sem corte após ajuste 
 Artefatos reais permanecem na área protegida `fraud-validation-20261109` da VM; não foram enviados ou versionados. A existência de compras anteriores pelo mesmo CPF não foi tratada como prova de legitimidade nem de mesmo cartão.
 
 O responsável autorizou ativar após testes aprovados **e confirmação efetiva da liberação pela Cielo**, sem nova pergunta. Até lá flag false e agendador desabilitado. Davi informou a previsão de 11/11; a previsão não equivale à confirmação. O usuário determinou não enviar a consulta preparada para Expansão. Requisitos de fraude permanecem pendentes; não impedem tecnicamente ativar a política atual, mas impedem declarar cobertura automática desses motivos.
+
+
+### Publicação e conferência final dos dossiês
+
+Commit `46d953df3aba4fe5cc6ce7a738221196f221e0f2`, [Deploy VM 42687680352](https://github.com/ZaqV1-hub/new_rincao_site/actions/runs/42687680352), success em 09/11 às 19:58:14 UTC. VM confirmou a release e Next.js 16.4.5. Testes relevantes: 156 na suíte principal mais seis do runner; 49 afetados repetidos após paginação; seis testes finais de PDF incluindo compatibilidade adicional com pagamento legado, nomes longos e 20 ingressos. Lint/build/TypeScript passaram; mantém-se apenas o aviso preexistente de rastreamento amplo em `rincao-content-store.ts`. Revisão independente do delta e do complemento de paginação sem achados concretos.
+
+Conferência final passou: `/robots.txt` e `/painel/login` 200; callbacks externos 403 com IP forjado; job sem token 401; callbacks locais com header confiável 404. Flag false, tarefa Disabled/Enabled=false/nunca executada (267011), quatro tabelas vazias, ACL do ambiente protegida, Node exclusivamente loopback, guarda do IIS e sobrescrita do header presentes. Nenhuma defesa enviada. Primeira consulta pública a partir da VM teve timeout de 15 segundos; sondas externas independentes retornaram 200, e a segunda conferência completa na VM passou. Causa não determinada; não houve mudança de rede nem repetição de processamento.
+
+Preparação técnica concluída, mantendo operação desligada. A autorização condicionada e o roteiro de ativação estão no runbook; aguardar confirmação efetiva da Cielo. O contato à Expansão não foi enviado por determinação do responsável. Fraude permanece inelegível; não confundir essa limitação com o cadastro dos webhooks. Nenhum processo de deploy/teste desta entrega permanece ativo.

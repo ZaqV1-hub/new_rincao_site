@@ -87,10 +87,10 @@ it("reads root Payment.Eci without treating zero as missing", async () => {
 
 **Arquivos:** runbook operacional e relatório de validação existentes.
 
-- [ ] Rodar testes dos módulos modificados e callers de sync/submission, `node --test scripts/run-chargeback-sync.test.mjs`, lint dos arquivos alterados e build/TypeScript. Não repetir a suíte global com falhas preexistentes sem mudança que justifique.
-- [ ] Fazer revisão independente do delta de coleta/PDF e suas consequências na política de envio; registrar achados e correções.
-- [ ] Publicar código e documentos; acompanhar o deploy autorizado de preparação e conferir release, saúde, proxy, flag false, tarefa desabilitada e ausência de envios. Não modificar credenciais nem reenviar alerta só para repetir prova já existente.
-- [ ] Confirmar remoto atualizado e checkout limpo. Entregar resumo do que está implementado, testado, não comprovado e dependente de terceiros/autorização.
+- [x] Rodar testes dos módulos modificados e callers de sync/submission, `node --test scripts/run-chargeback-sync.test.mjs`, lint dos arquivos alterados e build/TypeScript. Não repetir a suíte global com falhas preexistentes sem mudança que justifique.
+- [x] Fazer revisão independente do delta de coleta/PDF e suas consequências na política de envio; registrar achados e correções.
+- [x] Publicar código e documentos; acompanhar o deploy autorizado de preparação e conferir release, saúde, proxy, flag false, tarefa desabilitada e ausência de envios. Não modificar credenciais nem reenviar alerta só para repetir prova já existente.
+- [x] Confirmar remoto atualizado e checkout limpo. Entregar resumo do que está implementado, testado, não comprovado e dependente de terceiros/autorização.
 
 ## Consulta preparada para Expansão — não enviada
 
@@ -121,7 +121,7 @@ Juan — Desenvolvimento Clube Rincão
 
 Para declarar a automação integralmente funcionando, ainda será necessário:
 
-1. Autorizar e enviar a nova consulta; receber orientação de produto e aprovar critérios objetivos antes de ampliar a política de fraude. Não substituir silêncio por aprovação.
+1. Antes de ampliar a política de fraude, obter critérios e evidências suficientes. A consulta à Expansão está suspensa por ordem do responsável; não enviá-la nem tratá-la como pré-requisito técnico para ativar a política atual. Não substituir silêncio por aprovação de fraude.
 2. Confirmar a liberação anunciada para 11/11; não esperar recebimento bem-sucedido com a flag false. Alinhar eventual recuperação de notificações ocorridas durante o período desligado, usando consulta de pendentes na ativação.
 3. **Autorização condicionada recebida em 09/11/2026:** após testes aprovados e confirmação efetiva da liberação pela Cielo, ligar o fluxo único e agendador sem perguntar novamente. Antes disso, não executar job autenticado em produção. A data prevista de 11/11, sozinha, não satisfaz a condição. A ativação executará consultas periódicas e poderá enviar defesas já elegíveis; fraude continua bloqueada até critérios suficientes aprovados.
 4. Observar primeiro callback real aceito, duas execuções periódicas, alertas e acompanhamento de um caso realmente elegível. Separar recibo técnico, recuperação do documento e resultado final. Ausência de caso não é prova de fluxo completo.
@@ -148,3 +148,11 @@ A sonda completa aplicou o coletor real aos 44 casos DONE da lista protegida ant
 Histórico por CPF: a presença de compras anteriores em 28 casos não demonstrou mesmo cartão nem legitimidade; nenhuma argumentação favorável foi adicionada com essa premissa. O contrato de coleta não foi expandido para buscar dados sem utilidade comprovada. Revisão independente não encontrou defeitos concretos em coleta, PDF, compatibilidade, callers e elegibilidade; executou 49 testes. Ajuste posterior de paginação foi validado novamente com PDFs reais.
 
 O usuário reiterou **não enviar** a consulta à Expansão. Essa comunicação permanece suspensa por instrução explícita. A implantação da preparação e a verificação posterior seguem autorizadas; ativação depende dos testes e da confirmação efetiva da liberação, sem nova pergunta.
+
+### Preparação publicada e verificada — 09/11/2026, 16:58–17:00
+
+Código `46d953df3aba4fe5cc6ce7a738221196f221e0f2` publicado em main e na branch de trabalho. [Deploy VM 42687680352](https://github.com/ZaqV1-hub/new_rincao_site/actions/runs/42687680352) terminou success às 19:58:14 UTC. Runtime da VM confirmou essa release. Testes: 156 testes de integração na execução principal e seis do runner; após ajuste de paginação, 49 testes afetados passaram novamente, e o teste adicional de compatibilidade levou a suíte PDF a seis aprovados. Lint, build e TypeScript passaram. Revisão independente do complemento confirmou seis testes de PDF e nenhum risco concreto. A suíte global com falhas preexistentes não foi repetida.
+
+Verificação pós-deploy: páginas públicas 200; callbacks externos 403 inclusive com headers forjados; job sem token 401; callbacks por loopback com origem confiável 404, comprovando runtime desligado. Flag false, tarefa Disabled/Enabled=false/nunca executada, quatro tabelas vazias, ACL protegida, Node loopback e proteção do proxy presentes; recursos descartáveis ausentes. A primeira consulta HTTPS da VM excedeu 15 segundos; checagens externas independentes retornaram 200 e nova verificação completa passou. Causa do timeout não foi estabelecida.
+
+As quatro tarefas de preparação estão concluídas. O objetivo atualizado integral continua pendente da confirmação efetiva da Cielo e da ativação/verificação autorizadas; não declarar operação real concluída. Fraude permanece fora da elegibilidade. Nenhum e-mail à Expansão enviado. Nenhum processo de teste/deploy desta tarefa permanece ativo. Próxima ação: diante da confirmação real de liberação, conferir condições e executar ativação conforme runbook, sem nova pergunta. O cartão do objetivo do aplicativo permanece pausado por limitação da ferramenta; este arquivo contém o escopo e a autorização vigentes.
