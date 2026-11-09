@@ -27,7 +27,7 @@ export async function handleOpsTripSchoolReportRoute<TReport extends TripReportL
   logKey,
 }: {
   request: Request;
-  loadReport: () => Promise<TReport>;
+  loadReport: (purchaseStatus: string | null) => Promise<TReport>;
   formatCsv: (report: TReport) => string;
   renderPdf: (report: TReport) => Promise<Buffer>;
   asError: (error: unknown) => OperationError;
@@ -36,8 +36,8 @@ export async function handleOpsTripSchoolReportRoute<TReport extends TripReportL
   const url = new URL(request.url);
 
   try {
-    const data = await loadReport();
     const format = url.searchParams.get("format");
+    const data = await loadReport(format === "pdf" ? null : url.searchParams.get("purchaseStatus"));
 
     if (format === "csv") {
       const filename = `passeio-escolar-${data.trip.code}-${data.trip.date}.csv`;
@@ -48,7 +48,9 @@ export async function handleOpsTripSchoolReportRoute<TReport extends TripReportL
       const filename = `passeio-escolar-${data.trip.code}-${data.trip.date}.pdf`;
       const pdfBuffer = await renderPdf(data);
 
-      return createInlinePdfResponse(filename, pdfBuffer);
+      const response = createInlinePdfResponse(filename, pdfBuffer);
+      response.headers.set("cache-control", "private, no-store");
+      return response;
     }
 
     return opsOkResponse(data);

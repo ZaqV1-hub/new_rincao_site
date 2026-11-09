@@ -23,6 +23,7 @@ describe("cielo-ecommerce", () => {
   afterEach(() => {
     process.env = originalEnv;
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("detects missing credentials", () => {
@@ -60,6 +61,30 @@ describe("cielo-ecommerce", () => {
         }),
       }),
     );
+  });
+
+  it("aborts a payment query whose response body stalls after the headers", async () => {
+    vi.useFakeTimers();
+    process.env.INGRESSO_CIELO_TIMEOUT_MS = "50";
+    let requestSignal: AbortSignal | undefined;
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      const signal = init.signal!;
+      requestSignal = signal;
+      return new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("{"));
+          signal.addEventListener("abort", () => controller.error(signal.reason), { once: true });
+        },
+      }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = getCieloSaleByPaymentId("pid-123");
+    void result.catch(() => {});
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(requestSignal?.aborted).toBe(true);
+    await expect(result).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("normalizes native Cielo query results for checkout status", async () => {

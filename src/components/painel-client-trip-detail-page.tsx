@@ -754,7 +754,17 @@ function ParticipantTable({
           ) : (
             rows.map((row) => (
               <tr key={row.voucherId} className="odd:bg-white even:bg-[#fcfcfd]">
-                <td className="border border-[#d8dfe5] px-3 py-3">{row.purchaseId}</td>
+                <td className="border border-[#d8dfe5] px-3 py-3">
+                  {kind === "student" && row.purchaseId > 0 ? (
+                    <Link
+                      href={`/painel/compras/${row.purchaseId}`}
+                      prefetch={false}
+                      className="cursor-pointer text-[#153f68] hover:underline focus-visible:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#153f68]"
+                    >
+                      {row.purchaseId}
+                    </Link>
+                  ) : row.purchaseId}
+                </td>
                 <td className="border border-[#d8dfe5] px-3 py-3">
                   <span className="inline-block rounded border border-[#dbe3ea] bg-[#f4f7fa] px-2 py-1 font-mono text-[#3f5362]">
                     {row.voucherNumber}
