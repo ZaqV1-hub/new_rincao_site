@@ -28,6 +28,16 @@ type Payment = {
   brand: string;
   lastFour: string;
   eci: string;
+  eciSources?: { payment: string; externalAuthentication: string; conflict: boolean };
+  holderName?: string;
+  buyerDocumentMasked?: string;
+  authentication?: {
+    version: string;
+    referencePresent: boolean;
+    cavvPresent: boolean;
+    requested: boolean | null;
+    dataOnly: boolean | null;
+  };
   buyerName: string;
   buyerEmail: string;
   merchantOrderId: string;
@@ -129,6 +139,25 @@ function lastFour(value: unknown) {
   return text(value).match(/(\d{4})$/)?.[1] ?? "";
 }
 
+function eciValue(value: unknown) {
+  const candidate = text(value);
+  return /^\d{1,2}$/.test(candidate) ? candidate : "";
+}
+
+function declaredHolder(value: unknown) {
+  const candidate = text(value).replace(/\s+/g, " ");
+  return /^[\p{L}\p{M} .’'\-]{1,120}$/u.test(candidate) ? candidate : "";
+}
+
+function maskedDocument(value: unknown) {
+  const candidate = text(value);
+  if (!/^[\d.\-/ ]+$/.test(candidate)) return "";
+  const digits = candidate.replace(/\D/g, "");
+  if (digits.length === 11) return `***.***.***-${digits.slice(-2)}`;
+  if (digits.length === 14) return `**.***.***/****-${digits.slice(-2)}`;
+  return "";
+}
+
 function readPayment(row: PaymentRow): Payment {
   const envelope = object(row.payload);
   const dados = Array.isArray(envelope.dados) ? object(envelope.dados[0]) : object(envelope.dados);
@@ -143,6 +172,12 @@ function readPayment(row: PaymentRow): Payment {
   const customer = object(sale.Customer ?? sale.customer);
   const card = object(payment.CreditCard ?? payment.DebitCard ?? payment.creditCard ?? payment.debitCard);
   const authentication = object(payment.ExternalAuthentication ?? payment.externalAuthentication);
+  const rootEci = eciValue(payment.Eci ?? payment.eci);
+  const externalEci = eciValue(authentication.Eci ?? authentication.eci);
+  const eciConflict = Boolean(rootEci && externalEci && Number(rootEci) !== Number(externalEci));
+  const version = text(authentication.Version ?? authentication.version);
+  const requested = payment.Authenticate ?? payment.authenticate;
+  const dataOnly = authentication.DataOnly ?? authentication.dataOnly;
   const reversedCents = cents(payment.VoidedAmount ?? payment.voidedAmount ?? payment.RefundedAmount ?? payment.refundedAmount);
   const status = text(payment.Status ?? payment.status);
   const reversals = payment.Voids ?? payment.voids ?? payment.Refunds ?? payment.refunds;
@@ -164,7 +199,17 @@ function readPayment(row: PaymentRow): Payment {
     installments: cents(payment.Installments ?? payment.installments),
     brand: text(card.Brand ?? card.brand),
     lastFour: lastFour(card.CardNumber ?? card.cardNumber),
-    eci: /^\d{1,2}$/.test(text(authentication.Eci ?? authentication.eci)) ? text(authentication.Eci ?? authentication.eci) : "",
+    eci: eciConflict ? "" : externalEci || rootEci,
+    eciSources: { payment: rootEci, externalAuthentication: externalEci, conflict: eciConflict },
+    holderName: declaredHolder(card.Holder ?? card.holder),
+    buyerDocumentMasked: maskedDocument(customer.Identity ?? customer.identity),
+    authentication: {
+      version: /^\d\.\d(?:\.\d)?$/.test(version) ? version : "",
+      referencePresent: Boolean(text(authentication.ReferenceId ?? authentication.referenceId)),
+      cavvPresent: Boolean(text(authentication.Cavv ?? authentication.cavv)),
+      requested: typeof requested === "boolean" ? requested : null,
+      dataOnly: typeof dataOnly === "boolean" ? dataOnly : null,
+    },
     buyerName: text(customer.Name ?? customer.name ?? object(dados.sender).name),
     buyerEmail: text(customer.Email ?? customer.email ?? object(dados.sender).email),
     merchantOrderId: text(sale.MerchantOrderId ?? sale.merchantOrderId ?? sale.OrderNumber ?? sale.orderNumber),

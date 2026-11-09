@@ -127,6 +127,63 @@ describe("chargeback evidence", () => {
     expect(describeChargebackIssue("toString")).toBe("A verificação encontrou uma inconsistência sem descrição cadastrada.");
   });
 
+  it.each([
+    [0, undefined, "0", false],
+    ["7", undefined, "7", false],
+    [undefined, "05", "05", false],
+    [5, "05", "05", false],
+    ["7", "05", "", true],
+    ["invalid", "bad", "", false],
+    [undefined, undefined, "", false],
+  ])("preserves ECI sources (root %s, nested %s)", async (root, nested, expected, conflict) => {
+    candidates = [payment({ Eci: root, ExternalAuthentication: { Eci: nested } })];
+    attempts = candidates;
+    const evidence = await collectChargebackEvidence(chargeback);
+    expect(evidence.paymentAttempts[0]).toMatchObject({
+      eci: expected,
+      eciSources: { conflict },
+    });
+    if (root === 0) expect(evidence.paymentAttempts[0]).toMatchObject({ eciSources: { payment: "0" } });
+    if (conflict) expect(evidence.paymentAttempts[0]).toMatchObject({ eciSources: { payment: "7", externalAuthentication: "05" } });
+  });
+
+  it("keeps transaction declarations separate from current registration and masks identity", async () => {
+    const row = payment({ CreditCard: { Holder: "Titular Declarado", Brand: "Visa", CardNumber: "4444224444441234", SecurityCode: "555" } });
+    const payload = JSON.parse(row.payload);
+    payload.sale.Customer.Identity = "123.456.789-01";
+    row.payload = JSON.stringify(payload);
+    candidates = [row];
+    attempts = candidates;
+    const evidence = await collectChargebackEvidence(chargeback);
+    expect(evidence.paymentAttempts[0]).toMatchObject({
+      holderName: "Titular Declarado",
+      buyerName: "Compradora",
+      buyerDocumentMasked: "***.***.***-01",
+      authentication: { cavvPresent: true, referencePresent: false, version: "", requested: null, dataOnly: null },
+    });
+    expect(evidence.purchase?.buyerName).toBe("Cadastro atual");
+    expect(JSON.stringify(evidence)).not.toMatch(/123\.456\.789-01|12345678901|4444224444441234|SecurityCode|segredo-autenticacao/);
+  });
+
+  it("handles absent and malformed declarations without copying arbitrary content", async () => {
+    const row = payment({ CreditCard: { Holder: "4444224444441234" }, ExternalAuthentication: { Version: "secret-not-version", ReferenceId: "private-reference", Cavv: "private-cavv", DataOnly: true }, Authenticate: false });
+    const payload = JSON.parse(row.payload);
+    payload.sale.Customer.Identity = "foreign-document-secret";
+    row.payload = JSON.stringify(payload);
+    candidates = [row]; attempts = candidates;
+    const evidence = await collectChargebackEvidence(chargeback);
+    expect(evidence.paymentAttempts[0]).toMatchObject({ holderName: "", buyerDocumentMasked: "", authentication: { version: "", cavvPresent: true, referencePresent: true, requested: false, dataOnly: true } });
+    expect(JSON.stringify(evidence)).not.toMatch(/4444224444441234|foreign-document-secret|private-reference|private-cavv|secret-not-version/);
+  });
+
+  it.each([["Visa", "104"], ["Mastercard", "4837"], ["Elo", "83"]])("keeps fraud blocked for %s %s with declarations and used tickets", async (brand, reasonCode) => {
+    candidates = [payment({ EstablishmentNumber: "4234", Eci: "05", Authenticate: true, CreditCard: { Holder: "Titular Declarado", Brand: brand } })];
+    attempts = candidates;
+    const evidence = await collectChargebackEvidence({ ...chargeback, transactionDetails: { ...chargeback.transactionDetails, cardAssociationName: brand }, chargebackDetails: { reasonCode, reasonDescription: "Fraude" } });
+    expect(evidence.paymentAttempts[0]).toMatchObject({ holderName: "Titular Declarado" });
+    expect(evaluateChargebackEvidence(evidence)).toMatchObject({ eligible: false, issues: expect.arrayContaining(["unsupported_reason"]) });
+  });
+
   it("uses the exact TID, includes failed attempts and delivery, and excludes raw card/authentication secrets", async () => {
     attempts.push(payment({ Tid: "OTHER", Status: 3 }, "DENIED"));
     const evidence = await collectChargebackEvidence(chargeback);

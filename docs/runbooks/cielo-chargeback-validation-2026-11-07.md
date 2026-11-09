@@ -171,3 +171,22 @@ Davi informou que em 11/11 a liberação no firewall estará concluída e a Ciel
 A sonda somente leitura de presença encontrou ECI raiz em 43 pagamentos históricos de fraude, enquanto o coletor só lê ECI aninhado. Portanto, a indicação anterior de ECI ausente no dossiê não comprova ausência no payload. Esses campos tampouco comprovam autenticação ou elegibilidade.
 
 O usuário solicitou criar um novo objetivo. O [plano de finalização da preparação](../superpowers/plans/2026-11-09-chargeback-fraude-finalizacao.md) reúne enriquecimento factual, correção de ECI, testes históricos, publicação e critérios de ativação, além de uma consulta concreta preparada para Expansão. Implementação desta revisão ainda pendente; não confundir a conclusão da preparação com operação real integralmente validada.
+
+
+## Dossiês de fraude e autorização condicionada — 09/11/2026
+
+Implementação passou a preservar ECI raiz/aninhado, valor zero e conflitos; nome declarado do titular e documento mascarado do comprador; somente presença de referência/CAVV e metadados de autenticação sem reproduzir segredos. Campos opcionais preservam evidências antigas. PDF distingue transação, cadastro atual e consulta recente, explicita lacunas de vínculo/autenticação e divergência de data de uso. Nenhuma mudança de elegibilidade: Visa 104, Mastercard 4837 e Elo 83 continuam bloqueados.
+
+Sonda isolada com `default_transaction_read_only=on`, SQL limitado a leitura e transporte limitado a GET de pagamento: 44 casos DONE previamente consultados para setembro–novembro; 43 compras/pagamentos encontrados e consultados na API E-commerce, 435 consultas SQL, 43 GETs, zero elegíveis. Um caso retornou `transaction_not_found` mesmo com o coletor completo; nenhuma associação foi forçada. ECI raiz recuperado nos 43, além de titular declarado e documento mascarado. Nenhuma defesa, alteração de banco ou chamada de worker.
+
+PDFs finais de três páginas inspecionados visualmente, sem corte após ajuste de paginação:
+
+| Motivo | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Visa 104 | 12291 | `365c9f889d885285b551897f3f1154b17299fedd29dfaefe4416cedf0a4283ec` |
+| Mastercard 4837 | 12602 | `d297fbfd43462325bbdda1d5f5f2de0ed910cefd4dd056be79f22db710cf4b06` |
+| Elo 83 | 12256 | `c0a1cd891def9bcdb153cf53ffa73d0d5ee1c43d3d472529b92b7dc99dfc9baf` |
+
+Artefatos reais permanecem na área protegida `fraud-validation-20261109` da VM; não foram enviados ou versionados. A existência de compras anteriores pelo mesmo CPF não foi tratada como prova de legitimidade nem de mesmo cartão.
+
+O responsável autorizou ativar após testes aprovados **e confirmação efetiva da liberação pela Cielo**, sem nova pergunta. Até lá flag false e agendador desabilitado. Davi informou a previsão de 11/11; a previsão não equivale à confirmação. O usuário determinou não enviar a consulta preparada para Expansão. Requisitos de fraude permanecem pendentes; não impedem tecnicamente ativar a política atual, mas impedem declarar cobertura automática desses motivos.

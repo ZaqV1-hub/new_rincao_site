@@ -54,11 +54,28 @@ function money(cents: number | null | undefined) {
 }
 
 function Heading({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.heading} minPresenceAhead={40}>{children}</Text>;
+  return <View wrap={false} minPresenceAhead={40}><Text style={styles.heading}>{children}</Text></View>;
 }
 
 function Line({ children }: { children: React.ReactNode }) {
   return <Text style={styles.line}>{children}</Text>;
+}
+
+function presence(value: boolean | null | undefined) {
+  return value === true ? "presente" : value === false ? "não indicado" : "indisponível";
+}
+
+function PaymentDeclarations({ payment }: { payment: NonNullable<ChargebackEvidence["livePayment"]> }) {
+  return (
+    <View>
+      <Line>Titular informado na transação · {display(payment.holderName)}</Line>
+      <Line>Comprador informado na transação · Nome {display(payment.buyerName)} · E-mail {display(payment.buyerEmail)} · Documento mascarado {display(payment.buyerDocumentMasked)}</Line>
+      <Line>ECI informado {payment.eciSources?.conflict ? "ECI divergente" : display(payment.eci)} · Payment.Eci {display(payment.eciSources?.payment)} · ExternalAuthentication.Eci {display(payment.eciSources?.externalAuthentication)}</Line>
+      <Line>Campos de autenticação no retorno · Versão {display(payment.authentication?.version)} · Referência {presence(payment.authentication?.referencePresent)} · CAVV {presence(payment.authentication?.cavvPresent)}</Line>
+      <Line>Authenticate {display(payment.authentication?.requested?.toString())} · DataOnly {display(payment.authentication?.dataOnly?.toString())}</Line>
+      <Text style={styles.note}>Nomes e documento são dados declarados no registro de pagamento. ECI e presença de campos não comprovam, isoladamente, autenticação ou autorização do portador. Valores de CAVV e referência não são reproduzidos.</Text>
+    </View>
+  );
 }
 
 function Dossier({ evidence }: { evidence: ChargebackEvidence }) {
@@ -85,6 +102,7 @@ function Dossier({ evidence }: { evidence: ChargebackEvidence }) {
           <Text style={styles.brand}>PARQUE RINCÃO</Text>
           <Text style={styles.title}>Dossiê de contestação — compra e utilização de ingressos</Text>
           <Text style={styles.note}>Captura dos registros do sistema em {evidence.capturedAt} (UTC)</Text>
+          <Text style={styles.note}>Registros organizados por etapa: compra, cobrança, comunicação e uso. As datas dos eventos mantêm o formato da origem; datas desconhecidas permanecem indisponíveis. A data da coleta não substitui a data do evento.</Text>
         </View>
 
         <Heading>Caso e transação informados pela Cielo</Heading>
@@ -98,7 +116,7 @@ function Dossier({ evidence }: { evidence: ChargebackEvidence }) {
         <Line>Compra {display(evidence.purchaseId)} · PaymentId {display(evidence.paymentId)}</Line>
         <Line>Vínculo {evidence.link?.method === "tid" ? "TID exato" : evidence.link ? "NSU, autorização e data" : "indisponível"} · Comparação do EC no registro do pagamento {evidence.link?.establishmentVerified ? "confirmada" : "indisponível"}</Line>
         <Line>Registro atual da compra · Data {display(purchase?.date)} · Situação {display(purchase?.status)} · Total {money(purchase?.totalCents)}</Line>
-        <Line>Cadastro atual do comprador · Nome {display(purchase?.buyerName)} · E-mail {display(purchase?.buyerEmail)}</Line>
+        <Line>Cadastro consultado na coleta · Nome {display(purchase?.buyerName)} · E-mail {display(purchase?.buyerEmail)}</Line>
 
         <Heading>Registros de pagamento — conciliação armazenada</Heading>
         {evidence.paymentAttempts.length === 0 && <Line>Indisponíveis</Line>}
@@ -109,8 +127,8 @@ function Dossier({ evidence }: { evidence: ChargebackEvidence }) {
             <Line>PaymentId {display(payment.id)} · Cobrança correlacionada · Valor {money(payment.amountCents)} · Parcelas {display(payment.installments)}</Line>
             <Line>Situação Cielo {display(payment.status)} · Situação do registro local {display(payment.ledgerStatus)} · Recebida {display(payment.receivedAt)} · Capturada {display(payment.capturedAt)}</Line>
             <Line>EC {display(payment.establishment)} · TID {display(payment.tid)} · NSU {display(payment.nsu)} · Autorização {display(payment.authorization)}</Line>
-            <Line>Bandeira {display(payment.brand)} · Final do cartão {display(payment.lastFour)} · ECI 3DS informado {display(payment.eci)}</Line>
-            <Line>Comprador no registro da transação · Nome {display(payment.buyerName)} · E-mail {display(payment.buyerEmail)}</Line>
+            <Line>Bandeira {display(payment.brand)} · Final do cartão {display(payment.lastFour)}</Line>
+            <PaymentDeclarations payment={payment} />
             <Line>Cancelamento/estorno {payment.reversalRecorded ? "registrado" : "sem indicação no registro capturado"} · Valor informado {money(payment.reversedCents)}</Line>
           </View>
         ))}
@@ -120,15 +138,25 @@ function Dossier({ evidence }: { evidence: ChargebackEvidence }) {
           <View>
             <Line>Consulta em {display(evidence.livePaymentCheckedAt)} (UTC)</Line>
             <Line>PaymentId {display(evidence.livePayment.id)} · Situação {display(evidence.livePayment.status)} · Capturada {display(evidence.livePayment.capturedAt)} · Valor {money(evidence.livePayment.amountCents)}</Line>
-            <Line>EC {display(evidence.livePayment.establishment)} · ECI 3DS informado {display(evidence.livePayment.eci)} · Cancelamento/estorno {evidence.livePayment.reversalRecorded ? "registrado" : "sem indicação na consulta"} · Valor informado {money(evidence.livePayment.reversedCents)}</Line>
+            <Line>EC {display(evidence.livePayment.establishment)} · Cancelamento/estorno {evidence.livePayment.reversalRecorded ? "registrado" : "sem indicação na consulta"} · Valor informado {money(evidence.livePayment.reversedCents)}</Line>
+            <PaymentDeclarations payment={evidence.livePayment} />
           </View>
         ) : <Line>Consulta recente indisponível</Line>}
+
+        <Heading>Entrega — registros do serviço de ingressos e fila de e-mail</Heading>
+        <Line>Captura dos registros de comunicação {display(evidence.communicationsCapturedAt)} (UTC)</Line>
+        <Line>Indicador de enfileiramento do e-mail {evidence.emailQueued === null ? "indisponível" : evidence.emailQueued ? "registrado" : "não registrado"}</Line>
+        {evidence.deliveryEvents.length === 0 && <Line>Nenhum evento pertinente disponível</Line>}
+        {evidence.deliveryEvents.map((event) => (
+          <Line key={event.id}>Evento {event.id} · {display(event.occurredAt)} · {display(auditAction[event.action])} · Gatilho {display(auditTrigger[event.trigger])} · Ingressos (IDs) {display(event.voucherIds.join(", "))}</Line>
+        ))}
+        <Text style={styles.note}>Os registros de entrega representam o retorno do serviço e o enfileiramento do e-mail. A leitura pelo destinatário é indisponível.</Text>
 
         <Heading>Ingressos — estado atual e agenda no momento da captura</Heading>
         <Line>{usage} · {used} utilizados · {available} disponíveis · {invalidated} invalidados · {unknown} sem informação</Line>
         {evidence.vouchers.length === 0 && <Line>Ingressos indisponíveis</Line>}
         {evidence.vouchers.map((voucher) => (
-          <View key={voucher.id}>
+          <View key={voucher.id} wrap={false}>
             <Line>Ingresso {display(voucher.number)} (ID {voucher.id}) · {display(voucher.category)} · Visita prevista {display(voucher.visitDate)} · {money(voucher.unitCents)}</Line>
             <Line>{voucherState[voucher.state]} · {voucher.state === "invalidated" ? `Invalidação ${display(voucher.invalidatedAt)}` : `Utilização ${display(voucher.usedAt)}`}</Line>
           </View>
@@ -141,14 +169,12 @@ function Dossier({ evidence }: { evidence: ChargebackEvidence }) {
           <Line key={event.id}>Evento {event.id} · {display(event.occurredAt)} · {display(auditAction[event.action])} · Modo {display(auditMode[event.mode])} · Operador {display(event.actor)} · Ingressos (IDs) {display(event.voucherIds.join(", "))}</Line>
         ))}
 
-        <Heading>Entrega — registros do serviço de ingressos e fila de e-mail</Heading>
-        <Line>Captura dos registros de comunicação {display(evidence.communicationsCapturedAt)} (UTC)</Line>
-        <Line>Indicador de enfileiramento do e-mail {evidence.emailQueued === null ? "indisponível" : evidence.emailQueued ? "registrado" : "não registrado"}</Line>
-        {evidence.deliveryEvents.length === 0 && <Line>Nenhum evento pertinente disponível</Line>}
-        {evidence.deliveryEvents.map((event) => (
-          <Line key={event.id}>Evento {event.id} · {display(event.occurredAt)} · {display(auditAction[event.action])} · Gatilho {display(auditTrigger[event.trigger])} · Ingressos (IDs) {display(event.voucherIds.join(", "))}</Line>
+        <Heading>Limites das evidências apresentadas</Heading>
+        <Line>Vínculo entre comprador, portador e usuário do ingresso não comprovado pelos registros apresentados. Identidade física na entrada indisponível.</Line>
+        <Line>Autenticação do portador não comprovada por este dossiê. Dados declarados, pagamento aprovado e uso do ingresso não substituem prova de autorização do portador.</Line>
+        {evidence.vouchers.filter((voucher) => voucher.state === "used" && voucher.usedAt && voucher.visitDate && voucher.usedAt.slice(0, 10) !== voucher.visitDate).map((voucher) => (
+          <Line key={`data-${voucher.id}`}>Ingresso {display(voucher.number)} · Data de utilização diferente da visita prevista; verificar os registros antes de fundamentar a defesa.</Line>
         ))}
-        <Text style={styles.note}>Os registros de entrega representam o retorno do serviço e o enfileiramento do e-mail. A leitura pelo destinatário é indisponível.</Text>
         {evidence.issues.length > 0 && (
           <View>
             <Heading>Lacunas e inconsistências da coleta</Heading>

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** Use `superpowers:executing-plans` para executar as tarefas sequencialmente. Não habilitar envios reais. Revisão independente somente quando justificada pelo risco e pelas instruções vigentes.
 
-**Goal:** Concluir e publicar a preparação verificável dos dossiês de fraude com os dados existentes, mantendo a integração e o agendador desligados, e entregar os critérios objetivos para a futura ativação.
+**Goal:** Finalizar toda a entrega sob nossa responsabilidade — implementação, testes, revisão, publicação e configuração na VM — e, após testes aprovados e confirmação efetiva da liberação pela Cielo, ativar e verificar a automação sem nova autorização. Até essas condições serem satisfeitas, manter integração e agendador desligados. Critérios de fraude continuam dependentes de evidências suficientes; a autorização de ativação não amplia a elegibilidade.
 
 **Architecture:** Enriquecer o coletor e o PDF existentes, sem novo serviço, dependência, flag ou alteração do checkout. Separar evidência disponível de elegibilidade para envio: a classificação atual de fraude como exceção permanece até haver critérios suficientes aprovados. Usar testes sintéticos e sondas isoladas somente leitura; nunca executar o worker de produção nesta etapa.
 
@@ -43,7 +43,7 @@ O coletor atual lê ECI somente em `ExternalAuthentication`. A anotação anteri
 **Arquivos:** `src/lib/chargeback-dossier.ts`, `src/lib/chargeback-dossier.test.ts`.
 **Interfaces:** preservar `collectChargebackEvidence(case): Promise<ChargebackEvidence>` e `evaluateChargebackEvidence(evidence)`; estender os campos do pagamento de modo compatível com evidências já arquivadas e fixtures.
 
-- [ ] Adicionar regressão no helper `payment` existente para ECI no nível raiz, incluindo o valor numérico zero. Dentro do describe atual:
+- [x] Adicionar regressão no helper `payment` existente para ECI no nível raiz, incluindo o valor numérico zero. Dentro do describe atual:
 
 ```ts
 it("reads root Payment.Eci without treating zero as missing", async () => {
@@ -54,34 +54,34 @@ it("reads root Payment.Eci without treating zero as missing", async () => {
 });
 ```
 
-- [ ] Rodar `npm test -- src/lib/chargeback-dossier.test.ts` e confirmar a regressão antes da mudança.
-- [ ] Aceitar ECI raiz como fallback do campo aninhado existente, sem transformar valores inválidos em autenticação. Quando ambos forem válidos e divergirem, preservar a divergência de modo explícito; não escolher silenciosamente um resultado favorável. Cobrir ausência, strings inválidas, zero, igualdade e conflito.
-- [ ] Adicionar campos opcionais para nome declarado do titular e documento mascarado do comprador obtidos do pagamento vinculado. Não substituir esses dados pelo cadastro atual. Limitar comprimento e conteúdo; não carregar o objeto de cartão/autenticação inteiro para a evidência.
-- [ ] Testar snapshot de transação diferente do cadastro, campos ausentes e exclusão de PAN/CVV/CAVV. Confirmar que Visa 104, Mastercard 4837 e Elo 83 continuam inelegíveis mesmo com ingressos usados e campos novos preenchidos.
-- [ ] Rodar a suíte do coletor, revisar diff e publicar commit de implementação quando concluído.
+- [x] Rodar `npm test -- src/lib/chargeback-dossier.test.ts` e confirmar a regressão antes da mudança.
+- [x] Aceitar ECI raiz como fallback do campo aninhado existente, sem transformar valores inválidos em autenticação. Quando ambos forem válidos e divergirem, preservar a divergência de modo explícito; não escolher silenciosamente um resultado favorável. Cobrir ausência, strings inválidas, zero, igualdade e conflito.
+- [x] Adicionar campos opcionais para nome declarado do titular e documento mascarado do comprador obtidos do pagamento vinculado. Não substituir esses dados pelo cadastro atual. Limitar comprimento e conteúdo; não carregar o objeto de cartão/autenticação inteiro para a evidência.
+- [x] Testar snapshot de transação diferente do cadastro, campos ausentes e exclusão de PAN/CVV/CAVV. Confirmar que Visa 104, Mastercard 4837 e Elo 83 continuam inelegíveis mesmo com ingressos usados e campos novos preenchidos.
+- [x] Rodar a suíte do coletor, revisar diff e publicar commit de implementação quando concluído.
 
 ## Tarefa 2 — Dossiê factual para fraude e lacunas visíveis
 
 **Arquivos:** `src/lib/chargeback-dossier-pdf.tsx`, `src/lib/chargeback-dossier-pdf.test.ts`, `src/lib/chargeback-dossier.test.ts`; coletor apenas quando necessário à proveniência.
 **Interfaces:** manter `renderChargebackDossierPdf(evidence)`, consumindo a evidência existente enriquecida na tarefa 1. Novos campos ausentes em arquivos antigos devem ser tratados como não disponíveis.
 
-- [ ] Testar e apresentar rótulos claros: “titular informado na transação”, “comprador informado na transação”, “cadastro consultado na coleta”, “uso registrado do ingresso”. Não chamar qualquer deles de identidade verificada.
-- [ ] Organizar os registros já existentes em sequência temporal: pedido, cobrança, comunicação, utilização e eventual reversão. Distinguir data do evento de data da coleta; manter data desconhecida explícita.
-- [ ] Descrever presença/ausência de autenticação sem concluir responsabilidade a partir de ECI. Não declarar fraude do comprador ou autorização do titular.
-- [ ] Exibir lacunas por caso: vínculo com o portador não comprovado, identidade na entrada não registrada, autenticação não comprovada, evento de comunicação diferente de confirmação de leitura, inconsistência de datas quando houver.
-- [ ] Garantir que essa seção documental não altere a decisão de envio. Preservar os motivos atuais de exceção e todas as proteções contra duplicidade, estorno, prazo expirado e uso parcial.
-- [ ] Validar PDF sintético visualmente e PDF histórico somente no diretório protegido. Testar layout com nomes longos, dados ausentes, documentos antigos e múltiplos ingressos; verificar ausência de segredos no texto/JSON.
-- [ ] Publicar commit após testes do coletor/PDF/sync. Não incluir amostras reais no Git.
+- [x] Testar e apresentar rótulos claros: “titular informado na transação”, “comprador informado na transação”, “cadastro consultado na coleta”, “uso registrado do ingresso”. Não chamar qualquer deles de identidade verificada.
+- [x] Organizar os registros já existentes em sequência temporal: pedido, cobrança, comunicação, utilização e eventual reversão. Distinguir data do evento de data da coleta; manter data desconhecida explícita.
+- [x] Descrever presença/ausência de autenticação sem concluir responsabilidade a partir de ECI. Não declarar fraude do comprador ou autorização do titular.
+- [x] Exibir lacunas por caso: vínculo com o portador não comprovado, identidade na entrada não registrada, autenticação não comprovada, evento de comunicação diferente de confirmação de leitura, inconsistência de datas quando houver.
+- [x] Garantir que essa seção documental não altere a decisão de envio. Preservar os motivos atuais de exceção e todas as proteções contra duplicidade, estorno, prazo expirado e uso parcial.
+- [x] Validar PDF sintético visualmente e PDF histórico somente no diretório protegido. Testar layout com nomes longos, dados ausentes, documentos antigos e múltiplos ingressos; verificar ausência de segredos no texto/JSON.
+- [x] Publicar commit após testes do coletor/PDF/sync. Não incluir amostras reais no Git.
 
 ## Tarefa 3 — Validar dados históricos e limites
 
 **Arquivos:** relatório existente `docs/runbooks/cielo-chargeback-validation-2026-11-07.md`; harness sem credenciais em diretório temporário protegido.
 
-- [ ] Revalidar flag e agendador antes de qualquer sonda. Não chamar job de produção.
-- [ ] Aplicar o coletor completo ao caso sem correspondência única para diferenciar fallback válido, ausência e ambiguidade; não afrouxar a correlação para obter resultado positivo.
-- [ ] Gerar dossiês offline de amostras dos três motivos de fraude; conferir identificadores, proveniência, uso, lacunas e bloqueio de envio. Casos DONE jamais são reapresentados.
-- [ ] Investigar histórico anterior somente como evidência auxiliar, com consulta limitada e somente leitura. CPF repetido não demonstra mesmo cartão nem legitimidade. Sem correlação segura, registrar a limitação e não acrescentar argumento favorável ao PDF. A inclusão automática de histórico detalhado fica condicionada à orientação do produto; não é requisito desta preparação.
-- [ ] Registrar resultados agregados, checks e limites no relatório; nenhuma informação individual de comprador no repositório.
+- [x] Revalidar flag e agendador antes de qualquer sonda. Não chamar job de produção.
+- [x] Aplicar o coletor completo ao caso sem correspondência única para diferenciar fallback válido, ausência e ambiguidade; não afrouxar a correlação para obter resultado positivo.
+- [x] Gerar dossiês offline de amostras dos três motivos de fraude; conferir identificadores, proveniência, uso, lacunas e bloqueio de envio. Casos DONE jamais são reapresentados.
+- [x] Investigar histórico anterior somente como evidência auxiliar, com consulta limitada e somente leitura. CPF repetido não demonstra mesmo cartão nem legitimidade. Sem correlação segura, registrar a limitação e não acrescentar argumento favorável ao PDF. A inclusão automática de histórico detalhado fica condicionada à orientação do produto; não é requisito desta preparação.
+- [x] Registrar resultados agregados, checks e limites no relatório; nenhuma informação individual de comprador no repositório.
 
 ## Tarefa 4 — Publicar, verificar VM e entregar prontidão
 
@@ -93,6 +93,8 @@ it("reads root Payment.Eci without treating zero as missing", async () => {
 - [ ] Confirmar remoto atualizado e checkout limpo. Entregar resumo do que está implementado, testado, não comprovado e dependente de terceiros/autorização.
 
 ## Consulta preparada para Expansão — não enviada
+
+**Estado:** o responsável determinou não enviar em 09/11/2026; não repetir a solicitação de autorização nesta etapa. A consulta não é pré-requisito técnico para ativar a política atual, mas os motivos de fraude continuam sem critérios suficientes.
 
 **Para:** expansao.chargeback@cielo.com.br
 **Cc:** dev@cluberincao.com.br
@@ -121,7 +123,7 @@ Para declarar a automação integralmente funcionando, ainda será necessário:
 
 1. Autorizar e enviar a nova consulta; receber orientação de produto e aprovar critérios objetivos antes de ampliar a política de fraude. Não substituir silêncio por aprovação.
 2. Confirmar a liberação anunciada para 11/11; não esperar recebimento bem-sucedido com a flag false. Alinhar eventual recuperação de notificações ocorridas durante o período desligado, usando consulta de pendentes na ativação.
-3. Obter autorização explícita do responsável para ligar o fluxo único e agendador. Até lá não executar job autenticado em produção.
+3. **Autorização condicionada recebida em 09/11/2026:** após testes aprovados e confirmação efetiva da liberação pela Cielo, ligar o fluxo único e agendador sem perguntar novamente. Antes disso, não executar job autenticado em produção. A data prevista de 11/11, sozinha, não satisfaz a condição. A ativação executará consultas periódicas e poderá enviar defesas já elegíveis; fraude continua bloqueada até critérios suficientes aprovados.
 4. Observar primeiro callback real aceito, duas execuções periódicas, alertas e acompanhamento de um caso realmente elegível. Separar recibo técnico, recuperação do documento e resultado final. Ausência de caso não é prova de fluxo completo.
 
 Acompanhamento futuro: `/painel/compras/contestacoes` (Atualizar consulta), tarefa `RincaoChargebackSync-prod`, histórico `jobName=chargebacks` e alertas `dev@cluberincao.com.br`.
@@ -129,3 +131,20 @@ Acompanhamento futuro: `/painel/compras/contestacoes` (Atualizar consulta), tare
 ## Registro de continuidade
 
 Em 09/11/2026, este plano foi criado após leitura da resposta das 16:36. As tarefas de código acima ainda não foram executadas. Não houve novo e-mail, ativação ou envio de defesa. O objetivo solicitado cobre a preparação executável com envios desligados; sua conclusão não deve ser apresentada como conclusão das etapas externas de operação real.
+
+
+### Escopo atualizado pelo responsável — 09/11/2026
+
+O usuário quer toda a nossa entrega concluída, restando dependências externas, e autorizou explicitamente a ativação **depois dos testes e da confirmação da liberação pela Cielo, sem nova pergunta**. Isso substitui a exigência anterior de uma nova autorização para ativar. Até as duas condições se confirmarem, manter os envios desligados. Não criar ativação por data, não inferir liberação por passagem do prazo e não flexibilizar os motivos de fraude. A ativação e as verificações posteriores fazem parte do objetivo atualizado; não declarar o objetivo integral concluído apenas com a preparação.
+
+O registro de objetivo do aplicativo estava pausado e sua ferramenta não permite editar o texto nem retomar o estado. Este plano vinculado registra a instrução vigente; o trabalho foi retomado pela autorização nesta conversa. Não marcar o objetivo antigo como concluído para contornar essa limitação.
+
+### Execução da preparação — 09/11/2026
+
+Coletor e PDF implementados, com novos campos opcionais para compatibilidade histórica. Testes reproduziram a ausência de ECI raiz/proveniência antes da correção. ECI divergente é explícito, sem resultado favorável escolhido silenciosamente; nome do titular validado e documento mascarado. Os indicadores de presença 3DS não reproduzem valores de autenticação. A política de elegibilidade não mudou.
+
+A sonda completa aplicou o coletor real aos 44 casos DONE da lista protegida anterior: 43 vínculos e consultas E-commerce, sem inconsistências nesses 43; um `transaction_not_found`, inclusive após a lógica de fallback. Nenhum dos 44 elegível. Foram 435 consultas SQL somente leitura e 43 GETs de pagamento. Três PDFs históricos finais, um por motivo, têm três páginas e cerca de 12–13 KiB; inspeção visual identificou e corrigiu título cortado e separação de linhas de um ingresso. Dados pessoais permanecem apenas na área protegida.
+
+Histórico por CPF: a presença de compras anteriores em 28 casos não demonstrou mesmo cartão nem legitimidade; nenhuma argumentação favorável foi adicionada com essa premissa. O contrato de coleta não foi expandido para buscar dados sem utilidade comprovada. Revisão independente não encontrou defeitos concretos em coleta, PDF, compatibilidade, callers e elegibilidade; executou 49 testes. Ajuste posterior de paginação foi validado novamente com PDFs reais.
+
+O usuário reiterou **não enviar** a consulta à Expansão. Essa comunicação permanece suspensa por instrução explícita. A implantação da preparação e a verificação posterior seguem autorizadas; ativação depende dos testes e da confirmação efetiva da liberação, sem nova pergunta.
