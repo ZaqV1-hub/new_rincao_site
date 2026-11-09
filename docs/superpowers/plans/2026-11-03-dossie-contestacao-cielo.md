@@ -309,3 +309,11 @@ Objetivo ativo: concluir o que falta para produção sem separar recebimento/env
 A amostra recente contém 44 motivos de fraude/não autorização em 49 casos. Esses motivos permanecem fora da política automática atual; o dossiê prova registros de uso, sem comprovar identidade do portador. A ampliação depende de requisitos/evidências aprovados, não de habilitar credenciais.
 
 Pendente nesta etapa: publicar revisão, acompanhar deploy e verificar proxy/saúde/flag/tarefa/tabelas, mantendo tudo desligado. Depois: autorização para ativação, confirmação da liberação Cielo/primeiro callback e duas execuções periódicas reais. Não há flags separadas por decisão do usuário. Arquivos anteriores preservados e publicados na branch `codex/preserved-local-work-20261109` (`5b1155c`).
+
+### Encerramento da preparação — 09/11/2026
+
+Preparação autorizada implantada: commit `62f7de8a41e2695526b95c75da012431f7e0861f`, Deploy VM `42625304689` success às 13:30:30 UTC. Conferência final comprovou release, sites 200, callbacks bloqueados 403 mesmo com headers falsos, job não autenticado 401, Node loopback, flag false, tarefa Disabled/nunca executada e tabelas vazias. Nenhuma defesa real. Os três casos reais de serviço não recebido também foram correlacionados, mas não tinham ingressos usados; bloqueio correto. Relatório de validação contém resultados e limites completos.
+
+Git: código publicado em main e branch de trabalho; alterações anteriores preservadas na branch remota `codex/preserved-local-work-20261109`. Main e develop locais atualizadas por fast-forward. Este registro final é documentação, publicado sem repetir deploy. Nenhum processo de teste ou deploy desta tarefa permanece ativo; artefatos protegidos de validação e backups foram preservados.
+
+Próxima etapa externa/operacional: confirmar liberação de webhooks e primeiro evento real, definir requisitos para fraude/não autorização e autorizar ativação do fluxo único. Não ampliar política nem ligar integração/tarefa apenas por passagem do prazo informado pela Cielo. Acompanhamento: `/painel/compras/contestacoes`, log/tarefa `RincaoChargebackSync-prod`, histórico `jobName=chargebacks` e alertas para `dev@cluberincao.com.br`. O painel exige Atualizar consulta; sucesso técnico não significa vitória nem ausência de exceções.
