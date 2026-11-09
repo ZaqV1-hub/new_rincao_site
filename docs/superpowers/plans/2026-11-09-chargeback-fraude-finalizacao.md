@@ -2,7 +2,7 @@
 
 > **For agentic workers:** Use `superpowers:executing-plans` para executar as tarefas sequencialmente. Não habilitar envios reais. Revisão independente somente quando justificada pelo risco e pelas instruções vigentes.
 
-**Goal:** Finalizar toda a entrega sob nossa responsabilidade — implementação, testes, revisão, publicação e configuração na VM — e, após testes aprovados e confirmação efetiva da liberação pela Cielo, ativar e verificar a automação sem nova autorização. Até essas condições serem satisfeitas, manter integração e agendador desligados. Critérios de fraude continuam dependentes de evidências suficientes; a autorização de ativação não amplia a elegibilidade.
+**Goal:** Concluir a cobertura de fraude e a ativação da automação: obter orientação de produto, avaliar as evidências disponíveis, implementar/testar/publicar os ajustes necessários e somente então ativar, após confirmação efetiva da liberação pela Cielo. O usuário já autoriza a ativação final sem nova pergunta; até todas essas condições se confirmarem, manter integração e agendador desligados. Não tornar fraude elegível sem provas suficientes nem declarar cobertura de casos não demonstrada.
 
 **Architecture:** Enriquecer o coletor e o PDF existentes, sem novo serviço, dependência, flag ou alteração do checkout. Separar evidência disponível de elegibilidade para envio: a classificação atual de fraude como exceção permanece até haver critérios suficientes aprovados. Usar testes sintéticos e sondas isoladas somente leitura; nunca executar o worker de produção nesta etapa.
 
@@ -92,9 +92,9 @@ it("reads root Payment.Eci without treating zero as missing", async () => {
 - [x] Publicar código e documentos; acompanhar o deploy autorizado de preparação e conferir release, saúde, proxy, flag false, tarefa desabilitada e ausência de envios. Não modificar credenciais nem reenviar alerta só para repetir prova já existente.
 - [x] Confirmar remoto atualizado e checkout limpo. Entregar resumo do que está implementado, testado, não comprovado e dependente de terceiros/autorização.
 
-## Consulta preparada para Expansão — não enviada
+## Consulta à Expansão — enviada em 09/11/2026 às 17:03
 
-**Estado:** o responsável determinou não enviar em 09/11/2026; não repetir a solicitação de autorização nesta etapa. A consulta não é pré-requisito técnico para ativar a política atual, mas os motivos de fraude continuam sem critérios suficientes.
+**Estado atual:** após a orientação anterior de não enviar, o responsável autorizou explicitamente o envio e criou um novo objetivo. A mensagem abaixo foi enviada uma única vez em nova conversa às 17:03, com destinatário e Cc conferidos. A avaliação da resposta de fraude agora precede a ativação final, por instrução do responsável.
 
 **Para:** expansao.chargeback@cielo.com.br
 **Cc:** dev@cluberincao.com.br
@@ -121,9 +121,9 @@ Juan — Desenvolvimento Clube Rincão
 
 Para declarar a automação integralmente funcionando, ainda será necessário:
 
-1. Antes de ampliar a política de fraude, obter critérios e evidências suficientes. A consulta à Expansão está suspensa por ordem do responsável; não enviá-la nem tratá-la como pré-requisito técnico para ativar a política atual. Não substituir silêncio por aprovação de fraude.
+1. Aguardar e avaliar a resposta da consulta enviada à Expansão; antes de ampliar a política de fraude, obter critérios e evidências suficientes. Não substituir silêncio por aprovação de fraude. Implementar, testar e publicar os ajustes que a avaliação justificar antes da ativação final.
 2. Confirmar a liberação anunciada para 11/11; não esperar recebimento bem-sucedido com a flag false. Alinhar eventual recuperação de notificações ocorridas durante o período desligado, usando consulta de pendentes na ativação.
-3. **Autorização condicionada recebida em 09/11/2026:** após testes aprovados e confirmação efetiva da liberação pela Cielo, ligar o fluxo único e agendador sem perguntar novamente. Antes disso, não executar job autenticado em produção. A data prevista de 11/11, sozinha, não satisfaz a condição. A ativação executará consultas periódicas e poderá enviar defesas já elegíveis; fraude continua bloqueada até critérios suficientes aprovados.
+3. **Autorização condicionada atualizada em 09/11/2026:** após avaliar a resposta de fraude, concluir eventuais ajustes/publicação, aprovar os testes e confirmar efetivamente a liberação pela Cielo, ligar o fluxo único e agendador sem perguntar novamente. Antes disso, não executar job autenticado em produção. A data prevista de 11/11, sozinha, não satisfaz a condição. A ativação executará consultas periódicas e poderá enviar defesas já elegíveis; fraude continua bloqueada até critérios suficientes aprovados.
 4. Observar primeiro callback real aceito, duas execuções periódicas, alertas e acompanhamento de um caso realmente elegível. Separar recibo técnico, recuperação do documento e resultado final. Ausência de caso não é prova de fluxo completo.
 
 Acompanhamento futuro: `/painel/compras/contestacoes` (Atualizar consulta), tarefa `RincaoChargebackSync-prod`, histórico `jobName=chargebacks` e alertas `dev@cluberincao.com.br`.
@@ -156,3 +156,11 @@ Código `46d953df3aba4fe5cc6ce7a738221196f221e0f2` publicado em main e na branch
 Verificação pós-deploy: páginas públicas 200; callbacks externos 403 inclusive com headers forjados; job sem token 401; callbacks por loopback com origem confiável 404, comprovando runtime desligado. Flag false, tarefa Disabled/Enabled=false/nunca executada, quatro tabelas vazias, ACL protegida, Node loopback e proteção do proxy presentes; recursos descartáveis ausentes. A primeira consulta HTTPS da VM excedeu 15 segundos; checagens externas independentes retornaram 200 e nova verificação completa passou. Causa do timeout não foi estabelecida.
 
 As quatro tarefas de preparação estão concluídas. O objetivo atualizado integral continua pendente da confirmação efetiva da Cielo e da ativação/verificação autorizadas; não declarar operação real concluída. Fraude permanece fora da elegibilidade. Nenhum e-mail à Expansão enviado. Nenhum processo de teste/deploy desta tarefa permanece ativo. Próxima ação: diante da confirmação real de liberação, conferir condições e executar ativação conforme runbook, sem nova pergunta. O cartão do objetivo do aplicativo permanece pausado por limitação da ferramenta; este arquivo contém o escopo e a autorização vigentes.
+
+### Novo objetivo ativo e consulta enviada — 09/11/2026, 17:03
+
+O objetivo anterior foi removido pelo usuário. Após nova autorização, foi criado um novo objetivo **ativo** para cobertura de fraude e ativação final. Não confundir com o cartão anteriormente pausado. A ordem vigente é: resposta de produto → avaliação → eventuais ajustes/testes/publicação → confirmação efetiva de liberação → ativação e verificação. Se a liberação técnica chegar antes da resposta de fraude, manter desligado até concluir a avaliação e os ajustes necessários. Não é preciso solicitar novamente autorização de ativação quando todas as condições forem satisfeitas.
+
+Consulta enviada de `juansouza9.dev@gmail.com` para `expansao.chargeback@cielo.com.br`, com `dev@cluberincao.com.br` em Cc, assunto **Critérios de defesa por fraude em ingressos — EC 2899426197**, em nova conversa conforme orientação de Davi. Gmail confirmou “Message sent”; cópia enviada e detalhes confirmaram destinatários e 17:03. Sem anexos, segredos ou dados individuais de compradores. [Mensagem enviada](https://mail.google.com/mail/u/2/#sent/KtbxLthlwDcFvWVwMdZxNfGxgszkwjPRkL). Não reenviar.
+
+Nenhuma alteração de código/VM/flag/tarefa neste envio. Release de preparação continua `46d953d`, com a última conferência documentada desligada. Próximas dependências são a resposta de produto e a confirmação efetiva da liberação; ainda não há base para ampliar elegibilidade ou ativar. O objetivo integral não está concluído.
