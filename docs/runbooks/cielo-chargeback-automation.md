@@ -2,7 +2,7 @@
 
 O job recebe os casos confirmados pela API Cielo, correlaciona a compra, coleta evidências, arquiva o dossiê e apresenta automaticamente as defesas elegíveis. O painel acompanha documentos, resultados e exceções; não há aprovação manual por caso no fluxo normal. A configuração descrita aqui é inicial.
 
-**Estado de validação em 07/11/2026:** certificado, autenticação e consultas foram exercitados nos endpoints reais; uma defesa exclusivamente fictícia foi aceita pelo sandbox com código 102. HTTP 204, multipart, filtro `idCase`, erros aninhados e formatos dos webhooks estão cobertos por testes. O fluxo interno passou também em PostgreSQL descartável. O sandbox devolve documentos fixos e não oferece webhooks: não comprova persistência do PDF enviado nem o circuito completo de callbacks. Não houve deploy, migração na VM, registro de webhook, instalação de tarefa ou envio de defesa em produção. Ver [relatório da homologação e histórico](cielo-chargeback-validation-2026-11-07.md). Os caminhos e domínios abaixo vêm de [DEPLOY_VM.md](../DEPLOY_VM.md); não comprovam a configuração ativa do servidor.
+**Estado em 09/11/2026:** backup/restauração, migração, credenciais e tarefa na VM preparados em 07/11; integração global e tarefa continuam desligadas. Autenticação/consulta reais e apresentação fictícia no sandbox já foram verificadas. A resposta do suporte de 09/11 definiu restrição por IP na entrada, sem token de callback; a implementação e o acompanhamento de saúde estão descritos abaixo. Dossiê real e entrega de alerta foram testados sem apresentar defesa. O circuito externo completo e a primeira execução periódica em produção ainda não foram comprovados. Ver [relatório de validação](cielo-chargeback-validation-2026-11-07.md).
 
 ## 1. Habilitação com a Cielo
 
@@ -51,7 +51,6 @@ Guardar os valores no arquivo persistente do ambiente, fora do Git e da release.
 | `CIELO_CHARGEBACK_ESTABLISHMENT_NUMBERS` | ECs autorizados, cada um com dez dígitos, separados por vírgula. |
 | `CIELO_CHARGEBACK_USER_EMAIL` | E-mail do responsável pela tratativa transmitido à Cielo. |
 | `CIELO_CHARGEBACK_ALERT_EMAIL` | Caixa operacional monitorada para exceções e risco de prazo. |
-| `CIELO_CHARGEBACK_WEBHOOK_TOKEN` | Segredo aleatório exclusivo dos callbacks; diferente do token do job. |
 | `CIELO_CHARGEBACK_START_DATE` | Opcional, `AAAA-MM-DD`, início do histórico a reconciliar. Sem ele, o worker usa a compra local mais antiga e, sem compras, a janela inicial de 30 dias. Escolher data que cubra as contestações pendentes conhecidas. |
 | `INGRESSO_OPERATIONS_JOBS_TOKEN` | Segredo de autenticação da rota operacional. Não é `INGRESSO_OPERATIONS_API_TOKEN`. |
 | `CIELO_CHARGEBACK_JOB_BASE_URL` | Origem explícita do runtime, sem caminho, query ou credenciais. Exemplos do mapeamento: `http://127.0.0.1:8062` em hml, `http://127.0.0.1:8061` em produção. |
@@ -69,18 +68,22 @@ Os alertas usam `queueLegacyEmail`. Configurar `EMAIL_SMTP_SERVER`, `EMAIL_SMTP_
 
 ## 4. Callbacks
 
-URLs de produção propostas a partir do domínio documentado:
+URLs de produção encaminhadas ao suporte em 07/11/2026:
 
 ```text
 https://cluberincao.com.br/api/cielo/chargebacks/notification
 https://cluberincao.com.br/api/cielo/chargebacks/lifecycle
 ```
 
-Preferir `x-cielo-chargeback-token: <segredo>` se a Cielo confirmar suporte a esse header. O receptor também aceita `?token=<segredo-codificado-para-URL>` como alternativa para cadastro da URL. Não cadastrar as duas formas sem necessidade nem colocar URLs com segredo em tickets, documentação, histórico de comandos ou mensagens de erro.
+Davi confirmou em 09/11/2026 que o callback **não oferece autenticação por token**. A origem é validada pelos seis IPs de produção em `src/lib/cielo-chargeback-production-ips.json`: São Paulo `54.207.186.191`, `18.229.238.7`, `54.232.53.112`; Virgínia `52.202.189.158`, `3.216.242.251`, `54.166.2.45`. Os IPs de homologação não estão autorizados em produção.
 
-Antes de usar o token na query, remover ou mascarar o parâmetro `token` dos logs do IIS/reverse proxy, APM, CDN e tracing. No IIS, revisar os campos de logging e não registrar `cs-uri-query` nessas rotas; também remover query strings de logs de erro/requisição e tracing detalhado. Confirmar a redação dos logs com uma requisição controlada usando marcador fictício antes de cadastrar o segredo real. Não registrar o header secreto. Validar com a Cielo que a URL completa e codificação são preservadas. Quando possível, adotar o header para evitar segredo na URL.
+O deploy de produção executa `scripts/configure-chargeback-proxy.ps1`. O script valida o proxy existente, faz backup do `web.config`, bloqueia origens não permitidas nos callbacks e faz o IIS **sobrescrever** `x-rincao-remote-address` com `{REMOTE_ADDR}` em todas as requisições encaminhadas. O aplicativo também valida esse endereço. `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP` e o token antigo não autorizam o callback. O Node deve escutar exclusivamente em `127.0.0.1`; o deploy confere isso após iniciar a release. A instalação foi testada em IIS descartável, incluindo cabeçalho forjado, instalação repetida e restauração do backup.
 
-A notificação aceita o envelope `content: [...]` documentado e o formato direto anterior; o lifecycle aceita `idcase` documentado e `caseId` legado. Aliases conflitantes, lotes ambíguos e ECs não autorizados são rejeitados antes da persistência; limites de 100 eventos e 64 KiB. O receptor apenas persiste o identificador permitido; o worker busca o caso na API autenticada antes de aceitar os dados como evidência. As permissões do EC precisam corresponder à lista local. Planejar rotação coordenada do segredo com a Cielo. Homologação do receptor usa testes locais; a primeira entrega real depende do cadastro em produção, pois não há sandbox de webhook.
+Esta fronteira pressupõe acesso direto ao IIS. Antes de acrescentar CDN/proxy externo ou mudar a exposição do Node, revisar o mecanismo de origem confiável. Não confiar livremente no IP informado pelo cliente. O rollback restaura primeiro o aplicativo anterior e só depois o `web.config`, preservando a proteção durante a troca. Backups ficam em `C:\Deploy\Rincao\proxy-backups`.
+
+Segundo o suporte: qualquer 2xx confirma recebimento, há três tentativas consecutivas e timeout de 30 segundos. Intervalo exato entre tentativas não foi informado. Liberação no firewall foi estimada em dois dias; eventos chegam quando houver casos, sem teste sintético confirmado. Enquanto `CIELO_CHARGEBACK_ENABLED=false`, origens Cielo continuam recebendo 404 no aplicativo; demais origens recebem 403 na borda. Não declarar entrega ativa antes da ativação e de observar um evento real.
+
+A notificação aceita o envelope `content: [...]` documentado e o formato direto anterior; o lifecycle aceita `idcase` documentado e `caseId` legado. Aliases conflitantes, lotes ambíguos e ECs não autorizados são rejeitados antes da persistência; limites de 100 eventos e 64 KiB. O receptor apenas persiste o identificador permitido; o worker busca o caso na API autenticada antes de aceitar os dados como evidência. As permissões do EC precisam corresponder à lista local. Coordenar mudanças dos IPs de saída com a Cielo. Homologação do receptor usa testes locais; a primeira entrega real depende do cadastro em produção, pois não há sandbox de webhook.
 
 ## 5. Runner e tarefa do Windows
 
@@ -155,3 +158,11 @@ Testes locais do runner, sem acessar jobs reais:
 ```powershell
 node --test scripts/run-chargeback-sync.test.mjs
 ```
+
+## 7. Acompanhamento no painel
+
+Abrir `/painel/compras/contestacoes` com permissão de consulta de compras e usar **Atualizar consulta**. A página mostra se a automação está desligada ou, quando habilitada, a saúde da última execução **agendada** de `chargebacks`, seu horário e a última execução bem-sucedida. Uma execução com mais de 15 minutos é marcada como atrasada; ausência de histórico, falha ou indisponibilidade da consulta são estados distintos. A página não liga a integração nem executa o worker.
+
+Sucesso técnico do job não significa ausência de exceções por caso nem vitória na disputa. Conferir prazo, pendência, última sincronização, retorno Cielo, estado do envio e dossiê de cada caso. Alertas vão para `dev@cluberincao.com.br`; teste real de entrega confirmado no Gmail em 09/11. A saúde exibida depende da atualização da consulta; não é um alerta externo de indisponibilidade do servidor.
+
+Por decisão do responsável, recebimento e envio **não foram separados**. A flag global e a tarefa continuam desligadas. Habilitá-las autoriza o processamento completo e pode apresentar defesas elegíveis. A primeira execução real exige autorização explícita e acompanhamento da tarefa/log/painel; os testes isolados não substituem essa etapa.

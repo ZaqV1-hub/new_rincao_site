@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import type { ChargebackAutomationStatus } from "@/lib/chargeback-contract";
 import type { ChargebackCaseSummary } from "@/lib/chargeback-repository";
 
 const pageSize = 20;
@@ -109,7 +110,31 @@ export function ChargebackCaseList({ items }: { items: ChargebackCaseSummary[] }
   );
 }
 
-type ListResult = { items: ChargebackCaseSummary[]; total: number };
+const automationLabels: Record<ChargebackAutomationStatus["status"], string> = {
+  disabled: "Automação desligada. Nenhuma defesa será enviada automaticamente.",
+  healthy: "Automação ativa. Última execução concluída sem falha técnica registrada.",
+  stale: "Atenção: a automação está há mais de 15 minutos sem uma execução bem-sucedida.",
+  failed: "Atenção: a última execução terminou com falha ou pendência.",
+  missing: "Atenção: a automação está habilitada, mas ainda não há execução agendada registrada.",
+  unavailable: "Não foi possível consultar a saúde da automação.",
+};
+
+export function ChargebackAutomationSummary({ automation }: { automation: ChargebackAutomationStatus }) {
+  return (
+    <div role="status" className="rounded-[6px] border border-[#d4dde5] bg-[#f5f8fa] p-4">
+      <p className="font-semibold">{automationLabels[automation.status]}</p>
+      {automation.enabled && (
+        <dl className="mt-2 grid gap-1">
+          <div><dt className="inline font-semibold">Última execução: </dt><dd className="inline">{formatDate(automation.lastRunAt)}</dd></div>
+          <div><dt className="inline font-semibold">Última execução bem-sucedida: </dt><dd className="inline">{formatDate(automation.lastSuccessAt)}</dd></div>
+        </dl>
+      )}
+      <p className="mt-2">Use Atualizar consulta para conferir o estado atual. O resultado da defesa deve ser acompanhado no retorno de cada caso.</p>
+    </div>
+  );
+}
+
+type ListResult = { items: ChargebackCaseSummary[]; total: number; automation?: ChargebackAutomationStatus };
 type ListState = { key: string; result: ListResult | null };
 
 export function PainelCompraContestacoes({ purchaseId }: { purchaseId?: number }) {
@@ -152,6 +177,7 @@ export function PainelCompraContestacoes({ purchaseId }: { purchaseId?: number }
           Atualizar consulta
         </button>
       </header>
+      {!purchaseId && current?.result?.automation && <ChargebackAutomationSummary automation={current.result.automation} />}
       {!current ? <p role="status">Carregando contestações…</p> : current.result ? (
         <ChargebackCaseList items={current.result.items} />
       ) : <p role="alert">Consulta de contestações indisponível.</p>}

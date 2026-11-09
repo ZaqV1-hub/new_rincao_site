@@ -1,3 +1,5 @@
+import type { ChargebackAutomationStatus } from "@/lib/chargeback-contract";
+import { getOperationalJobHealth } from "@/lib/ops-job-runs";
 import { listChargebackCases } from "@/lib/chargeback-repository";
 import { requirePainelApiAccess } from "@/lib/painel-api-auth";
 
@@ -15,8 +17,24 @@ export async function GET(request: Request) {
 
   try {
     const result = await listChargebackCases({ limit: 20, offset });
+    const enabled = process.env.CIELO_CHARGEBACK_ENABLED?.trim() === "true";
+    const automation: ChargebackAutomationStatus = {
+      enabled, status: enabled ? "unavailable" : "disabled", lastRunAt: null, lastSuccessAt: null,
+    };
+    if (enabled) {
+      try {
+        const health = await getOperationalJobHealth({
+          jobName: "chargebacks", triggerSource: "scheduled", maxAgeMinutes: 15,
+        });
+        automation.status = health.status;
+        automation.lastRunAt = health.latestRun?.finishedAt ?? health.latestRun?.createdAt ?? null;
+        automation.lastSuccessAt = health.lastSuccessAt;
+      } catch {
+        // Case monitoring remains available if the separate job history database fails.
+      }
+    }
     return Response.json(
-      { ok: true, ...result },
+      { ok: true, ...result, automation },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch {

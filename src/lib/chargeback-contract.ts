@@ -25,3 +25,10 @@ export type CieloChargebackCase = {
   actionTakenCode?: string;
   lifecycle?: { action: string; actionDate: string };
 };
+
+export type ChargebackAutomationStatus = {
+  enabled: boolean;
+  status: "disabled" | "healthy" | "stale" | "failed" | "missing" | "unavailable";
+  lastRunAt: string | null;
+  lastSuccessAt: string | null;
+};

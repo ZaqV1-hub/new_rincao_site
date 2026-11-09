@@ -188,11 +188,20 @@ function Warm-PublicHome {
   throw "Home publica nao aqueceu com sucesso em $homeUrl. Ultimo erro: $lastError"
 }
 
+$proxyChange = $null
 try {
+  if ($Environment -eq "prod") {
+    $proxyChange = & (Join-Path $SourceRoot "scripts\configure-chargeback-proxy.ps1")
+  }
   Set-Content -LiteralPath $currentFile -Value $releaseRoot -Encoding UTF8
   & $installScriptSource -Environment $Environment
   Start-ScheduledTask -TaskName ([string]$config.TaskName)
   Wait-RuntimeHealth -Port ([int]$config.Port) -TimeoutSeconds ([int]$config.RuntimeHealthTimeoutSeconds)
+
+  $listeners = @(Get-NetTCPConnection -LocalPort ([int]$config.Port) -State Listen)
+  if ($listeners.Count -eq 0 -or @($listeners | Where-Object { $_.LocalAddress -ne '127.0.0.1' }).Count -gt 0) {
+    throw "Runtime must listen on IPv4 loopback only."
+  }
 
   if ($config.IisAppPool) {
     Import-Module WebAdministration
@@ -209,10 +218,14 @@ try {
     Set-Content -LiteralPath $currentFile -Value $previousRelease -Encoding UTF8
     Start-ScheduledTask -TaskName ([string]$config.TaskName)
     Wait-RuntimeHealth -Port ([int]$config.Port) -TimeoutSeconds ([int]$config.RuntimeHealthTimeoutSeconds)
+    if ($proxyChange) {
+      Copy-Item -LiteralPath $proxyChange.BackupPath -Destination $proxyChange.ConfigPath -Force
+    }
     if ($config.IisAppPool) {
       Import-Module WebAdministration
       Restart-WebAppPool -Name ([string]$config.IisAppPool)
     }
+    Wait-PublicHealth -Url ([string]$config.Domain + "robots.txt")
   }
   throw $deployError
 }

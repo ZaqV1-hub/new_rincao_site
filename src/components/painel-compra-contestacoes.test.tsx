@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
-import { PainelCompraContestacoes, ChargebackCaseList } from "./painel-compra-contestacoes";
+import { PainelCompraContestacoes, ChargebackCaseList, ChargebackAutomationSummary } from "./painel-compra-contestacoes";
 
 const caseFixture = {
   id: 71,
@@ -54,4 +54,12 @@ it("links the purchase detail to the automatic monitoring overview", () => {
 
   expect(html).toContain('href="/painel/compras/contestacoes"');
   expect(html).toContain('id="contestacoes"');
+});
+
+it("distinguishes intentionally disabled automation from missing or stale runs", () => {
+  for (const [status, message] of [["disabled", "Automação desligada"], ["missing", "ainda não há execução"], ["stale", "mais de 15 minutos"], ["failed", "falha ou pendência"]] as const) {
+    const html = renderToStaticMarkup(<ChargebackAutomationSummary automation={{ enabled: status !== "disabled", status, lastRunAt: null, lastSuccessAt: null }} />);
+    expect(html).toContain(message);
+    expect(html).not.toContain("Automação ativa");
+  }
 });

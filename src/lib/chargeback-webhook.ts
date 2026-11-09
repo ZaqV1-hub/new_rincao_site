@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
 import { recordChargebackNotification } from "@/lib/chargeback-repository";
 import { parseChargebackJson } from "@/lib/cielo-chargeback";
-import { secureCompare } from "@/lib/secure-compare";
+import productionAddresses from "@/lib/cielo-chargeback-production-ips.json";
 
 type WebhookKind = "notification" | "lifecycle";
 const maxBodyBytes = 64 * 1024;
 const maxBatchItems = 100;
+// Production egress addresses supplied by Cielo support on 2026-11-09.
+const cieloProductionAddresses = new Set(productionAddresses);
 
 function response(status: number) {
   return Response.json(
@@ -41,15 +43,15 @@ function identifier(value: unknown, pattern: RegExp) {
 export async function handleChargebackWebhook(request: Request, kind: WebhookKind) {
   if (process.env.CIELO_CHARGEBACK_ENABLED?.trim() !== "true") return response(404);
 
-  const secret = process.env.CIELO_CHARGEBACK_WEBHOOK_TOKEN?.trim();
   const establishments = (process.env.CIELO_CHARGEBACK_ESTABLISHMENT_NUMBERS ?? "")
     .split(",").map((value) => value.trim()).filter(Boolean);
-  if (!secret || secret.length < 32 || establishments.length === 0 ||
+  if (establishments.length === 0 ||
       establishments.some((value) => !/^\d{10}$/.test(value))) return response(503);
 
-  const token = request.headers.get("x-cielo-chargeback-token") ??
-    new URL(request.url).searchParams.get("token");
-  if (!token || !secureCompare(secret, token)) return response(401);
+  // IIS overwrites this header with REMOTE_ADDR on every proxy request. Node must
+  // remain loopback-only; never substitute client-controlled forwarding headers.
+  const source = request.headers.get("x-rincao-remote-address")?.replace(/^::ffff:/i, "");
+  if (!source || !cieloProductionAddresses.has(source)) return response(403);
 
   const mediaType = request.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
   if (mediaType !== "application/json") return response(415);
