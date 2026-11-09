@@ -136,3 +136,23 @@ Verificações após implantação, na VM e externamente: `/robots.txt` e `/pain
 Conferência complementar dos três casos Visa 131 encontrou compras e pagamentos correspondentes, mas nenhum ingresso utilizado; foram bloqueados por uso não comprovado, além do estado remoto DONE. Não houve tentativa de transformar esses casos em elegíveis.
 
 Pendências para operação efetiva: confirmação da liberação Cielo/primeiro callback real, autorização para habilitar o fluxo único, observar duas execuções periódicas reais e acompanhar recibo/documento/ciclo de vida de uma defesa realmente elegível. A política de fraude/não autorização precisa de critérios e evidências próprios antes de uma ampliação. Essas etapas não foram simuladas como concluídas. Alterações anteriores de outras frentes foram preservadas no commit `5b1155c`, publicado na branch `codex/preserved-local-work-20261109`, sem misturá-las à release de chargeback.
+
+## Auditoria de conclusão e consulta pendente — 09/11/2026
+
+A preparação do turno anterior foi progresso verificável: código/deploy/proxy/painel, testes e entrega de alerta. Nova inspeção confirmou release `62f7de8`, flag false, tarefa desabilitada/nunca executada e tabelas vazias. O objetivo integral permanece incompleto: não há primeiro callback real nem execução periódica real, e não houve autorização para ativar defesas. A restrição de manter envios desligados e a decisão de não separar as permissões continuam vigentes.
+
+Consulta adicional à documentação oficial: a [FAQ da API](https://docs.cielo.com.br/atendimento/docs/d%C3%BAvidas-frequentes-sobre-a-api-de-chargeback) remete ao manual para os documentos; as [orientações do portal Split](https://docs.cielo.com.br/atendimento/docs/como-consultar-um-chargeback) sugerem, para fraude, cadastro, pedido, prestação do serviço, aceite/contrato e evidências de vínculo com o portador, entre outros. Essa lista é uma sugestão geral de outro fluxo, não uma regra de elegibilidade específica para ingressos na API de Chargeback. Não foi interpretada como exigência de todos os itens nem como confirmação de suficiência do dossiê atual. Context7 não encontrou documentação específica para esses motivos; a página do manual excedeu o limite de leitura web e a alternativa Markdown recusou acesso HTTP 403.
+
+### Mensagem preparada, ainda não enviada
+
+Destinatário: Davi / `techsupportchargeback@cielo.com.br`, na mesma conversa de habilitação. Cc: `dev@cluberincao.com.br`.
+
+Olá, Davi! Obrigado pelos esclarecimentos. Concluímos a configuração dos IPs de produção informados e a preparação dos endpoints do EC 2899426197. Mantemos a integração e os envios de defesa desligados. Por favor, avisem quando a liberação dos dois webhooks estiver concluída, para coordenarmos a ativação.
+
+Também precisamos confirmar os critérios de documentação para contestações de ingressos pelos motivos Visa 104, Mastercard 4837 e Elo 83. Nosso dossiê reúne pedido, dados da cobrança, identificadores Cielo e registros de utilização com data/hora. Esses registros comprovam o uso do ingresso, mas não identificam por si só quem utilizou o cartão ou o ingresso.
+
+Para esses motivos, quais evidências são obrigatórias ou recomendadas por bandeira? Esse conjunto pode fundamentar uma defesa ou é necessário algum comprovante adicional de vínculo/autenticação do portador? Se houver um manual ou checklist específico para esse segmento, poderiam encaminhar ou nos direcionar ao responsável?
+
+Não enviaremos documentos de compradores nem ativaremos defesas nesta solicitação. Obrigado, Juan — desenvolvimento Clube Rincão.
+
+O envio desta consulta adicional depende de autorização do responsável. Não há processo de deploy/teste em andamento nesta auditoria; o bloqueio é operacional/externo, não uma execução ainda ativa.
