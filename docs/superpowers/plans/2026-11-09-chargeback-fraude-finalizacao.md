@@ -164,3 +164,9 @@ O objetivo anterior foi removido pelo usuário. Após nova autorização, foi cr
 Consulta enviada de `juansouza9.dev@gmail.com` para `expansao.chargeback@cielo.com.br`, com `dev@cluberincao.com.br` em Cc, assunto **Critérios de defesa por fraude em ingressos — EC 2899426197**, em nova conversa conforme orientação de Davi. Gmail confirmou “Message sent”; cópia enviada e detalhes confirmaram destinatários e 17:03. Sem anexos, segredos ou dados individuais de compradores. [Mensagem enviada](https://mail.google.com/mail/u/2/#sent/KtbxLthlwDcFvWVwMdZxNfGxgszkwjPRkL). Não reenviar.
 
 Nenhuma alteração de código/VM/flag/tarefa neste envio. Release de preparação continua `46d953d`, com a última conferência documentada desligada. Próximas dependências são a resposta de produto e a confirmação efetiva da liberação; ainda não há base para ampliar elegibilidade ou ativar. O objetivo integral não está concluído.
+
+### Dependência externa confirmada — 09/11/2026, após o envio
+
+Três turnos consecutivos encontraram a mesma dependência externa. A última consulta ao Gmail mostra somente a consulta enviada às 17:03, sem resposta da Expansão, e a conversa técnica com seis mensagens, cuja última resposta é a de Davi às 16:36 com previsão para 11/11. Não há confirmação efetiva de liberação.
+
+O objetivo fica bloqueado pelas respostas da Cielo, sem ser considerado concluído. Não há trabalho independente seguro restante nem processo de teste/deploy ativo. Não reenviar a consulta nem ampliar elegibilidade por ausência de resposta. Envios e agendador permanecem desligados. Próxima ação quando houver retorno: avaliar os critérios, executar ajustes sustentados por evidências e suas verificações, publicar e conferir a VM; ativar apenas após todas as condições registradas acima. Não há monitoramento contínuo ativo nesta conversa.
