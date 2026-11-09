@@ -162,3 +162,12 @@ O envio desta consulta adicional depende de autorização do responsável. Não 
 Após nova autorização explícita, a consulta foi enviada na mesma conversa de habilitação, de `juansouza9.dev@gmail.com` para `techsupportchargeback@cielo.com.br`, com `dev@cluberincao.com.br` em Cc. Gmail confirmou “Message sent”; os detalhes da mensagem enviada confirmaram destinatário, cópia e horário. Não confundir com a tentativa anterior interrompida pela pausa, que não enviou mensagem.
 
 Foram informadas a proteção pelos seis IPs e as duas URLs, solicitando confirmação da liberação para coordenar a ativação. A mensagem esclarece que os callbacks das origens permitidas ainda recebem 404 enquanto a integração estiver desligada. Também solicita requisitos de evidência/checklist para Visa 104, Mastercard 4837 e Elo 83, distinguindo uso registrado do ingresso de identificação/vínculo do portador. Nenhum documento de comprador ou segredo foi anexado. Nenhuma configuração de produção foi alterada; envios reais permanecem desligados. Próxima ação: analisar a resposta da Cielo antes de ampliar a política ou coordenar ativação autorizada.
+
+
+### Nova resposta e objetivo de preparação — 09/11/2026, 16:36
+
+Davi informou que em 11/11 a liberação no firewall estará concluída e a Cielo iniciará o envio dos eventos. Os critérios de fraude não foram respondidos: devem ser solicitados em **novo e-mail** para `expansao.chargeback@cielo.com.br`; a conversa técnica atual não entra na fila desse setor. Nenhuma nova mensagem foi enviada nesta reavaliação. A previsão não autoriza ativação nem comprova entrega; flag e agendador devem continuar desligados.
+
+A sonda somente leitura de presença encontrou ECI raiz em 43 pagamentos históricos de fraude, enquanto o coletor só lê ECI aninhado. Portanto, a indicação anterior de ECI ausente no dossiê não comprova ausência no payload. Esses campos tampouco comprovam autenticação ou elegibilidade.
+
+O usuário solicitou criar um novo objetivo. O [plano de finalização da preparação](../superpowers/plans/2026-11-09-chargeback-fraude-finalizacao.md) reúne enriquecimento factual, correção de ECI, testes históricos, publicação e critérios de ativação, além de uma consulta concreta preparada para Expansão. Implementação desta revisão ainda pendente; não confundir a conclusão da preparação com operação real integralmente validada.

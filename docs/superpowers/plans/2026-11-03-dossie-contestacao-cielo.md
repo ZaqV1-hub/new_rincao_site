@@ -327,3 +327,12 @@ Documentação oficial de sugestões de defesa examinada; não resolveu os crit�
 ### Comunicação autorizada concluída — 09/11/2026, 11:49
 
 Consulta adicional enviada ao Davi na conversa existente, para `techsupportchargeback@cielo.com.br`, Cc `dev@cluberincao.com.br`; confirmação de envio e destinatários observada no Gmail. Incluiu liberação dos webhooks, estado desligado/404 e requisitos de defesa para fraude/não autorização. A autorização anterior havia sido interrompida por pausa antes do envio; esta mensagem foi enviada uma única vez após nova instrução explícita. Aguardar resposta; não reenviar por ausência de resposta imediata. O objetivo automático anterior foi removido pelo usuário; esta ação não o recria nem autoriza ativação. Produção permanece sem envios reais.
+
+
+### Nova resposta e objetivo de preparação — 09/11/2026, 16:36
+
+Davi informou que em 11/11 a liberação no firewall estará concluída e a Cielo iniciará o envio dos eventos. Os critérios de fraude não foram respondidos: devem ser solicitados em **novo e-mail** para `expansao.chargeback@cielo.com.br`; a conversa técnica atual não entra na fila desse setor. Nenhuma nova mensagem foi enviada nesta reavaliação. A previsão não autoriza ativação nem comprova entrega; flag e agendador devem continuar desligados.
+
+A sonda somente leitura de presença encontrou ECI raiz em 43 pagamentos históricos de fraude, enquanto o coletor só lê ECI aninhado. Portanto, a indicação anterior de ECI ausente no dossiê não comprova ausência no payload. Esses campos tampouco comprovam autenticação ou elegibilidade.
+
+O usuário solicitou criar um novo objetivo. O [plano de finalização da preparação](2026-11-09-chargeback-fraude-finalizacao.md) reúne enriquecimento factual, correção de ECI, testes históricos, publicação e critérios de ativação, além de uma consulta concreta preparada para Expansão. Implementação desta revisão ainda pendente; não confundir a conclusão da preparação com operação real integralmente validada.
