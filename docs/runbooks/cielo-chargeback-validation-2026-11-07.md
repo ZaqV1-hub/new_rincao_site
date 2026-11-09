@@ -156,3 +156,9 @@ Para esses motivos, quais evidências são obrigatórias ou recomendadas por ban
 Não enviaremos documentos de compradores nem ativaremos defesas nesta solicitação. Obrigado, Juan — desenvolvimento Clube Rincão.
 
 O envio desta consulta adicional depende de autorização do responsável. Não há processo de deploy/teste em andamento nesta auditoria; o bloqueio é operacional/externo, não uma execução ainda ativa.
+
+### Consulta enviada — 09/11/2026, 11:49 (São Paulo)
+
+Após nova autorização explícita, a consulta foi enviada na mesma conversa de habilitação, de `juansouza9.dev@gmail.com` para `techsupportchargeback@cielo.com.br`, com `dev@cluberincao.com.br` em Cc. Gmail confirmou “Message sent”; os detalhes da mensagem enviada confirmaram destinatário, cópia e horário. Não confundir com a tentativa anterior interrompida pela pausa, que não enviou mensagem.
+
+Foram informadas a proteção pelos seis IPs e as duas URLs, solicitando confirmação da liberação para coordenar a ativação. A mensagem esclarece que os callbacks das origens permitidas ainda recebem 404 enquanto a integração estiver desligada. Também solicita requisitos de evidência/checklist para Visa 104, Mastercard 4837 e Elo 83, distinguindo uso registrado do ingresso de identificação/vínculo do portador. Nenhum documento de comprador ou segredo foi anexado. Nenhuma configuração de produção foi alterada; envios reais permanecem desligados. Próxima ação: analisar a resposta da Cielo antes de ampliar a política ou coordenar ativação autorizada.
