@@ -5,6 +5,8 @@ import { PainelOperationalDayPage } from "@/components/painel-operational-day-pa
 import { OperationalDayError } from "@/lib/operational-day";
 import { getOperationalDaySummary, OperationalDaySummaryError } from "@/lib/operational-day-summary";
 import { isCivilDate } from "@/lib/operational-date";
+import { getDayProgram, type DayProgram } from "@/lib/day-program";
+import { hasLegacyPanelResource } from "@/lib/painel-access";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = { title: "Resumo da data | Painel Rincão", robots: { index: false, follow: false } };
@@ -15,6 +17,8 @@ export default async function PainelAgendaDayPage({ params }: { params: Promise<
   if (session.authSource !== "panel") redirect("/painel/login?redirect=%2Fpainel%2Fagenda");
   const { date } = await params;
   if (!isCivilDate(date)) notFound();
+  const canAccessProgram = hasLegacyPanelResource(session.legacyResources, "vis_agenda")
+    && hasLegacyPanelResource(session.legacyResources, ["vis_clientes", "vis_escola"]);
   let summary;
   try {
     summary = await getOperationalDaySummary(date);
@@ -23,5 +27,12 @@ export default async function PainelAgendaDayPage({ params }: { params: Promise<
       ? error.message : "Não foi possível consultar o resumo. Atualize a página para tentar novamente.";
     return <section className="space-y-4 text-[#123b63]"><h1 className="text-2xl font-bold">Resumo de {date.split("-").reverse().join("/")}</h1><p role="alert">{message}</p><Link href={`/painel/agenda?mes=${Number(date.slice(5, 7))}&ano=${date.slice(0, 4)}&dia=${date}`} className="underline">Voltar ao calendário</Link></section>;
   }
-  return <PainelOperationalDayPage key={date} summary={summary} canManage={session.legacyRoleId === 1} />;
+  let programStatus: DayProgram["status"] | null = null;
+  let programError: string | null = null;
+  if (canAccessProgram) {
+    try { programStatus = (await getDayProgram(date)).status; }
+    catch { programError = "Programação do dia indisponível. Atualize a página para tentar novamente."; }
+  }
+  return <PainelOperationalDayPage key={date} summary={summary} canManage={session.legacyRoleId === 1}
+    canAccessProgram={canAccessProgram} programStatus={programStatus} programError={programError} />;
 }

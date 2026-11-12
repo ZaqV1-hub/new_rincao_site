@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type KeyboardEvent } from "react";
+import type { DayProgram } from "@/lib/day-program";
 import type { OperationalDaySummary, SummarySourceValue } from "@/lib/operational-day-summary";
 import type { OperationalDayList } from "@/lib/operational-day-lists";
 
@@ -69,8 +70,12 @@ function DayListPanel({ date, kind }: { date: string; kind: DayList["kind"] }) {
   </div>;
 }
 
-export function PainelOperationalDayPage({ summary, canManage }: { summary: OperationalDaySummary; canManage: boolean }) {
+const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Criado e enviado · arquivos gerados", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
+export function PainelOperationalDayPage({ summary, canManage, canAccessProgram = false, programStatus = null, programError }: {
+  summary: OperationalDaySummary; canManage: boolean; canAccessProgram?: boolean; programStatus?: DayProgram["status"] | null; programError?: string | null;
+}) {
   const [tab, setTab] = useState<Tab>("resumo");
+  const programAction = !canManage || summary.configuration?.closed ? "Abrir" : programStatus === "uncreated" ? "Criar" : programStatus === "created" || programStatus === "exported" ? "Alterar" : "Abrir";
   const { configuration: day, navigation, revenue, attendance, forecast } = summary;
   const dateLabel = new Intl.DateTimeFormat("pt-BR", { dateStyle: "full", timeZone: "UTC" }).format(new Date(`${summary.date}T12:00:00Z`));
   const revenueMaximum = Math.max(0, ...[revenue.siteNetCents, revenue.gateNetCents, revenue.servicesNetCents, revenue.finalizedTripsNetCents].map((source) => source.status === "available" ? source.value : 0));
@@ -101,7 +106,9 @@ export function PainelOperationalDayPage({ summary, canManage }: { summary: Oper
         {day?.priceTableId ? <Link href={`/painel/tabela-preco/${day.priceTableId}`} className="rounded-md border border-[#d4dfeb] px-3 py-2 underline">Tabela de preço #{day.priceTableId}</Link> : <span className="rounded-md border border-[#d4dfeb] px-3 py-2">Tabela de preço {day ? "não definida" : "indisponível"}</span>}
         <span className="rounded-md border border-[#d4dfeb] px-3 py-2">{number(summary.groupCount)} passeio(s)</span>
       </div>
-      <div className="flex flex-wrap items-center gap-3">{canManage && <Link className={button} href={`/painel/agenda/${summary.date}/editar`}>Editar day use</Link>}<p className="text-sm text-[#45647f]">Dia seguinte, caixas e fechamento: integração pendente.</p></div>
+      <div className="flex flex-wrap items-center gap-3">{canManage && <Link className={button} href={`/painel/agenda/${summary.date}/editar`}>Editar day use</Link>}{canAccessProgram && <><Link className={button} href={`/painel/agenda/${summary.date}/dia-seguinte?returnTo=${summary.date}`}>Programação do dia · {programAction}</Link>
+        {programStatus ? <span className="text-sm text-[#45647f]" title={programStatus === "exported" ? "Os arquivos foram gerados; o envio é feito pelo gerente." : undefined}>{programLabels[programStatus]}</span> : <p role="alert" className="text-sm text-[#694812]">{programError || "Programação do dia indisponível. Atualize a página para tentar novamente."}</p>}</>}
+        <p className="text-sm text-[#45647f]">Caixas e fechamento: integração pendente.</p></div>
     </header>
     <div role="tablist" aria-label="Informações da data" className="flex flex-wrap gap-2 border-b border-[#d4dfeb] pb-3">
       {tabs.map((item, index) => <button key={item.id} id={`day-tab-${item.id}`} role="tab" type="button" aria-selected={tab === item.id} aria-controls="day-panel" tabIndex={tab === item.id ? 0 : -1} onKeyDown={(event) => navigateTabs(event, index)} onClick={() => setTab(item.id)} className={`${button} ${tab === item.id ? "border-[#236699] bg-[#edf4fa] underline decoration-2 underline-offset-4" : ""}`}>{item.label}{item.id === "passeios" ? ` (${number(summary.groupCount)})` : ""}</button>)}

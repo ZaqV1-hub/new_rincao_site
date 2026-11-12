@@ -92,6 +92,18 @@ describe("operational agenda calendar", () => {
     expect(unavailable).toContain("Programação indisponível");
     expect(unavailable).not.toContain('type="checkbox"');
   });
+  it("shows program statuses from the server, links with access, and never invents missing statuses", () => {
+    const programStatuses = { "2099-01-02": "uncreated", "2099-01-03": "created", "2099-01-04": "exported", "2099-01-05": "past_created", "2099-01-06": "past_uncreated" } as const;
+    const html = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, programStatuses, canAccessProgram: true }));
+    for (const status of ["A criar", "Criado", "Criado e enviado", "Já ocorreu", "Já ocorreu e não criado"]) expect(html).toContain(status);
+    expect(html).toContain('href="/painel/agenda/2099-01-02/dia-seguinte?returnTo=2099-01-02"');
+    expect(html).toContain("Programação do dia · Criar");
+    expect(html).toContain("Programação indisponível");
+    const denied = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, programStatuses, canAccessProgram: false }));
+    expect(denied).not.toContain("/dia-seguinte"); expect(denied).not.toContain("Criado e enviado");
+    const failed = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, programStatuses: null, canAccessProgram: true }));
+    expect(failed).toContain("Programação do dia indisponível"); expect(failed).not.toContain("Programação do dia · Criar");
+  });
   it("submits only dates, expected versions, price and reason, then returns confirmed days", async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({ ok: true, data: [{ ...day, version: 4 }] }));
     vi.stubGlobal("fetch", fetchMock);

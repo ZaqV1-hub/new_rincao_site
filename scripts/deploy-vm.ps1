@@ -154,6 +154,10 @@ if (-not (Test-Path -LiteralPath $releaseRoot)) {
   if ($LASTEXITCODE -ge 8) { throw "Falha ao copiar a release para $releaseRoot." }
 }
 
+# Verify native DLLs and fonts before switching or stopping the active runtime.
+& $nodeExe (Join-Path $SourceRoot "scripts\verify-program-renderer.mjs") $releaseRoot
+if ($LASTEXITCODE -ne 0) { throw "A release nao consegue gerar imagens da programacao." }
+
 function Wait-RuntimeHealth {
   param([int]$Port, [int]$TimeoutSeconds = 90)
 

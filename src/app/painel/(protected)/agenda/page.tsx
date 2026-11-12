@@ -4,6 +4,8 @@ import { getPainelAgendaScreenData } from "@/lib/painel-agenda";
 import { requirePainelAccess } from "@/lib/painel-session";
 import { listOperationalDays, OperationalDayError, type OperationalDay } from "@/lib/operational-day";
 import { getSaoPauloToday } from "@/lib/operational-date";
+import { getDayPrograms, type DayProgram } from "@/lib/day-program";
+import { hasLegacyPanelResource } from "@/lib/painel-access";
 import { buildPainelAgendaCalendar } from "@/lib/painel-agenda-ui";
 
 export const metadata: Metadata = {
@@ -34,13 +36,20 @@ export default async function PainelAgendaPage({
   });
 
   const dates = buildPainelAgendaCalendar(data.month, data.year).filter((cell) => cell.inMonth);
+  const canAccessProgram = session.authSource === "panel" && hasLegacyPanelResource(session.legacyResources, "vis_agenda")
+    && hasLegacyPanelResource(session.legacyResources, ["vis_clientes", "vis_escola"]);
+  let programStatuses: Record<string, DayProgram["status"]> | null = null;
+  let programError: string | null = null;
   let operationalDays: OperationalDay[] | null = null;
   let operationalError: string | null = null;
-  try {
-    operationalDays = await listOperationalDays(dates[0].date, dates[dates.length - 1].date);
-  } catch (error) {
-    operationalError = error instanceof OperationalDayError ? error.message : "Não foi possível consultar a programação. Tente atualizar em instantes.";
-  }
+  const [configuration, programs] = await Promise.allSettled([
+    listOperationalDays(dates[0].date, dates[dates.length - 1].date),
+    canAccessProgram ? getDayPrograms(dates.map((cell) => cell.date)) : Promise.resolve(null),
+  ]);
+  if (configuration.status === "fulfilled") operationalDays = configuration.value;
+  else operationalError = configuration.reason instanceof OperationalDayError ? configuration.reason.message : "Não foi possível consultar a programação. Tente atualizar em instantes.";
+  if (programs.status === "fulfilled" && programs.value !== null) programStatuses = Object.fromEntries(programs.value.map(({ date, status }) => [date, status]));
+  else if (canAccessProgram) programError = "Programação do dia indisponível. Atualize a página para tentar novamente.";
 
   return (
     <PainelAgendaManager
@@ -48,6 +57,9 @@ export default async function PainelAgendaPage({
       data={data}
       operationalDays={operationalDays}
       operationalError={operationalError}
+      canAccessProgram={canAccessProgram}
+      programStatuses={programStatuses}
+      programError={programError}
       today={getSaoPauloToday()}
       canEdit={session.authSource === "panel" && session.legacyRoleId === 1}
     />

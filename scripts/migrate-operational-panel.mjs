@@ -9,6 +9,8 @@ const migrations = [
   "2026-11-12-operational-voucher-validity.sql",
   "2026-11-12-online-capacity.sql",
   "2026-11-12-operational-service-vouchers.sql",
+  "2026-11-12-day-program.sql",
+  "2026-11-12-weather-forecast.sql",
 ];
 
 export function migrationSql(contents) {

@@ -12,6 +12,7 @@ import {
   formatPainelAgendaMonthLabel,
 } from "@/lib/painel-agenda-ui";
 
+import type { DayProgram } from "@/lib/day-program";
 import type { OperationalDay } from "@/lib/operational-day";
 import { isCivilDate } from "@/lib/operational-date";
 
@@ -21,6 +22,9 @@ type PainelAgendaManagerProps = {
   operationalError?: string | null;
   today: string;
   canEdit: boolean;
+  canAccessProgram?: boolean;
+  programStatuses?: Record<string, DayProgram["status"]> | null;
+  programError?: string | null;
 };
 
 type AgendaToneInput = Pick<PainelAgendaMonthEntry, "status" | "type">;
@@ -120,9 +124,10 @@ export async function applyAgendaPriceSelection(
 }
 
 const control = "min-h-11 rounded-lg border border-[#b8cbdc] px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#236699] disabled:opacity-50";
+const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Criado e enviado · arquivos gerados", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
 const isDayUse = (entry: PainelAgendaMonthEntry) => entry.type === "padra" || entry.type === "promo";
 
-export function PainelAgendaManager({ data, operationalDays, operationalError, today, canEdit }: PainelAgendaManagerProps) {
+export function PainelAgendaManager({ data, operationalDays, operationalError, today, canEdit, canAccessProgram = false, programStatuses = null, programError }: PainelAgendaManagerProps) {
   const entriesByDate = useMemo(() => groupAgendaEntries(data.entries), [data.entries]);
   const calendarCells = useMemo(() => buildPainelAgendaCalendar(data.month, data.year), [data.month, data.year]);
   const [days, setDays] = useState(operationalDays);
@@ -136,8 +141,10 @@ export function PainelAgendaManager({ data, operationalDays, operationalError, t
   const daysByDate = new Map((days ?? []).map((day) => [day.date, day]));
   const selectedDate = data.selectedDate;
   const selectedDay = data.selectedDay;
+  const selectedProgramStatus = selectedDate ? programStatuses?.[selectedDate] : undefined;
   const selectedEntries = selectedDate ? entriesByDate.get(selectedDate) ?? [] : [];
   const selectedConfig = selectedDate ? daysByDate.get(selectedDate) : undefined;
+  const programAction = !canEdit || selectedConfig?.closed ? "Abrir" : selectedProgramStatus === "uncreated" ? "Criar" : selectedProgramStatus === "created" || selectedProgramStatus === "exported" ? "Alterar" : "Abrir";
   const selectedDayUse = selectedEntries.find(isDayUse);
   const selectedPriceId = selectedConfig?.priceTableId ?? selectedDayUse?.priceTableId;
   const previousMonth = addMonths(data.month, data.year, -1);
@@ -199,6 +206,7 @@ export function PainelAgendaManager({ data, operationalDays, operationalError, t
               <button type="button" onClick={() => void reloadConfiguration()} disabled={busy} className={`${control} mt-2`}>Atualizar programação</button>
             </div>
           ) : null}
+          {canAccessProgram && programStatuses === null && <p role="alert" className="mt-4 text-sm text-[#694812]">{programError || "Programação do dia indisponível. Atualize a página para tentar novamente."}</p>}
           <div className="mt-4 overflow-hidden rounded-xl border border-[#d4dfeb]">
             <div className="grid grid-cols-[44px_1fr_44px] items-center bg-[#eef4fb] text-[#123b63]">
               <Link aria-label="Mês anterior" href={buildAgendaHref(previousMonth.month, previousMonth.year)} className="flex min-h-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#123b63]">
@@ -234,6 +242,7 @@ export function PainelAgendaManager({ data, operationalDays, operationalError, t
                           <span className="hidden sm:inline">{(config ? Boolean(config.onlineSoldOut) : dayUse?.status === "lot") ? "Day use esgotado" : open ? "Day use aberto" : "Day use fechado"}</span>
                         </span> : null}
                         {groups.length > 0 ? <span className="block">{`${groups.length} agenda${groups.length === 1 ? "" : "s"} de grupos`}</span> : null}
+                        {canAccessProgram && <span className="mt-1 block rounded border border-current/25 px-1 font-semibold" title={programStatuses?.[cell.date] === "exported" ? "Os arquivos foram gerados; o envio é feito pelo gerente." : undefined}>{programStatuses?.[cell.date] ? `Programação: ${programLabels[programStatuses[cell.date]]}` : "Programação indisponível"}</span>}
                         {config?.priceTableId ? <span className="block truncate" title={tableName(config.priceTableId)}>{tableName(config.priceTableId)}</span> : null}
                       </span>
                     </Link>
@@ -288,6 +297,7 @@ export function PainelAgendaManager({ data, operationalDays, operationalError, t
               </ul>
             ) : <p className="mt-4 text-sm text-[#45647f]">Nenhuma agenda cadastrada nesta data.</p>}
             <div className="mt-4 flex flex-wrap gap-2">
+              {canAccessProgram && <Link href={`/painel/agenda/${selectedDate}/dia-seguinte?returnTo=${selectedDate}`} className={`${control} hover:bg-[#eef4fb]`}>Programação do dia · {programAction}</Link>}
               <Link href={buildAgendaHref(data.month, data.year, selectedDate)} className={`${control} hover:bg-[#eef4fb]`}>Abrir página do dia</Link>
               {selectedEditable ? (
                 <Link href={`/painel/agenda/${selectedDate}/editar?mes=${data.month}&ano=${data.year}`} className={`${control} bg-[#123b63] text-white hover:bg-[#174e7e]`}>

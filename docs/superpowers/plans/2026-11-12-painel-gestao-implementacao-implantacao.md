@@ -175,11 +175,11 @@ Cada entrega termina com diff revisado, testes do domínio e contratos, teste de
 ### E4 — Programação do dia seguinte
 
 **Criar:** `src/lib/day-program.ts`, `day-program-export.tsx`, `weather-forecast.ts`, componentes de programação e rotas `/painel/agenda/[date]/dia-seguinte` e respectivas APIs.
-- [ ] M4; montar grupos reais, contatos/endereço, veículos, transportador e lista fixa de contratações. Item adicional permanece disponível para próximas datas conforme protótipo.
-- [ ] Criação explícita seguida de autosave com versão, indicador salvando/salvo/erro e retry seguro; editar passado exige ação auditada.
-- [ ] Gerar programação em PDF/imagem e fichas por transportador; transporte do cliente fica fora das fichas. Arquivos usam mesma revisão e itens preenchidos.
-- [ ] Reutilizar React PDF. Para PNG, provar renderização local de documento/HTML no Windows; adicionar biblioteca somente se as já instaladas não resolverem. Não usar captura dependente de serviço externo para dados das escolas.
-- [ ] Previsão armazena fonte, coordenadas verificadas, data-alvo, texto e instante da consulta. Datas fora do horizonte e falha da API mostram indisponibilidade; nunca clima fictício.
+- [x] M4; montar grupos reais, contatos/endereço, veículos, transportador e lista fixa de contratações. Item adicional permanece disponível para próximas datas conforme protótipo.
+- [x] Criação explícita seguida de autosave com versão, indicador salvando/salvo/erro e retry seguro; editar passado exige ação auditada.
+- [x] Gerar programação em PDF/imagem e fichas por transportador; transporte do cliente fica fora das fichas. Arquivos usam mesma revisão e itens preenchidos.
+- [x] Reutilizar React PDF. Para PNG, provar renderização local de documento/HTML no Windows; adicionar biblioteca somente se as já instaladas não resolverem. Não usar captura dependente de serviço externo para dados das escolas.
+- [x] Previsão armazena fonte, coordenadas verificadas, data-alvo, texto e instante da consulta. Datas fora do horizonte e falha da API mostram indisponibilidade; nunca clima fictício.
 **Dependência:** fornecedor meteorológico com uso comercial permitido. Open-Meteo gratuito não atende automaticamente essa condição; confirmar alternativa sem custo ou aprovar contratação antes da integração.
 **Testes:** conflito de autosave, reabertura, campo faltante, filtro de contratações, ficha agrupada, exportação falha sem mudar status e previsão vencida.
 
@@ -405,3 +405,13 @@ O usuário escolheu permitir uma utilização em qualquer dia com day use aberto
 - E4–E10, compatibilidade dos scanners externos, homologação real e gates de infraestrutura continuam pendentes. Develop e Product Owner ficam para o final, conforme instrução do usuário.
 
 Verificação final do marco E2/E3: 1.284/1.284 testes em PostgreSQL16.15, sem ignorados; 21/21 scripts; lint sem erros e 14 avisos preexistentes; tipos/build aprovados. Mantém aviso preexistente de tracing dinâmico. Migrations locais conferidas; sem publicação.
+
+
+### E4 — programação e previsão implementadas localmente
+
+- Programação explícita por data, autosave versionado, contatos por passeio, veículos estáveis, contratações e leitura de passado com alteração auditada. Calendário/resumo/navegação usam fingerprint atual em lote; mudança de cliente, venda ou previsão invalida a indicação de arquivos atuais.
+- PDF e PNG da programação e fichas separadas por transportador, com snapshot imutável e confirmação após renderização. Nenhuma mensagem enviada automaticamente. Browser real: criar/editar, conflito409 com rascunho preservado, resposta perdida apóscommit sem retryautomático, teclado/modal,360/390/1440semoverflow, ZIP real com4arquivos íntegros e imagens inspecionadas.
+- Usuário leu/aceitou https://docs.api.met.no/doc/TermsOfService em12/11/2026 e autorizou MET Norway. Coordenadas Rincão verificadas no mapa existente, truncadas a4decimais. Uma consulta real retornou previsão para20/11; nova consulta reutilizou cache com mesmo queriedAt. AtribuiçãoMET/CCBY4 e horários visíveis. Dataspassadas/fechadas preservam snapshot; falhas/consulta interrompida deixam aviso; Estância sem coordenadas verificadas permanece indisponível.
+- Windows: prova emmemória no repositório HML comSharp0.34.5 gerouPNG3700bytes,280x51. Release atual falhou porDLLs omitidas no standalone; inclusão explícita no tracing corrigida para próxima build. Novo verificador geraPNG no artefato empacotado antes de ativar release e também noCI. ArtefatoSharp0.35.5 verificado localmente; nova release Windows ainda exige homologação, sem alteração remota.
+- Validação final local:1409/1409testes emPostgreSQL16.15,312arquivos,0skips;21scripts;lint0erros14avisoslegados;tsc/buildpassaram. Revisão independenteP2cacheinterrompido corrigido e rechecado. MigrationsM4 eprevisão aplicadas somente noPGlocal.
+- Próxima etapa E5: inventário concluiu que caixa atual usa seleção global/horário e abertura implícita. Estender tabelas existentes com vínculos explícitos e snapshot, adaptar todos os escritores; scanner/serviço externo continua gate operacional. Relatório detalhado na pasta local de execução e5-cash-inventory.md. Sem pushdevelop/produção e sem contato aoPO.

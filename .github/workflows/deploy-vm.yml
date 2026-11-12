@@ -51,6 +51,7 @@ jobs:
       - run: npm test
       - run: node --test scripts/run-chargeback-sync.test.mjs scripts/hml-release-retention.test.mjs scripts/migrate-operational-panel.test.mjs
       - run: npm run build
+      - run: node scripts/verify-program-renderer.mjs
 
   deploy:
     needs: verify
