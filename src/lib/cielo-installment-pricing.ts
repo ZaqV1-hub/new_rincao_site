@@ -8,6 +8,10 @@ export const CIELO_INSTALLMENT_RATES_BPS: Record<string, number> = {
   Amex: 330,
 };
 
+export function getMaxCieloInstallments(amountCents: number) {
+  return amountCents >= 20_000 ? 6 : 1;
+}
+
 export function quoteCieloInstallments(
   baseAmount: string | number,
   installments: number,
@@ -25,8 +29,8 @@ export function quoteCieloInstallments(
   if (!Number.isSafeInteger(baseCents) || baseCents <= 0) {
     throw new Error("invalid_purchase_amount");
   }
-  if (!Number.isInteger(installments) || installments < 1 || installments > 3 ||
-      installments > Math.max(1, Math.floor(baseCents / 10000))) {
+  if (!Number.isInteger(installments) || installments < 1 ||
+      installments > getMaxCieloInstallments(baseCents)) {
     throw new Error("invalid_installments");
   }
   const rateBps = installments === 1 ? 0 : CIELO_INSTALLMENT_RATES_BPS[canonicalBrand];

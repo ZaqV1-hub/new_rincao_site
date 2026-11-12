@@ -158,14 +158,22 @@ describe("payment-reconciliation", () => {
     ).toThrow("payment_reference_mismatch");
   });
 
-  it("inserts a missing payment ledger row and confirms the purchase", async () => {
+  it.each([
+    { baseAmount: "120.00", grossAmount: "120.00", installmentCount: 1 },
+    { baseAmount: "200.00", grossAmount: "204.71", installmentCount: 6 },
+  ])("confirms a purchase paid in $installmentCount installments", async ({ baseAmount, grossAmount, installmentCount }) => {
     const queries: Array<{ sql: string; values?: unknown[] }> = [];
     const client = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
         queries.push({ sql, values });
 
         if (sql.includes("FROM compra")) {
-          return { rowCount: 1, rows: [{ idcompra: 123 }] };
+          return { rowCount: 1, rows: [{ idcompra: 123, vltotcompra: baseAmount }] };
+        }
+
+        if (sql.includes("FROM checkout_installment_quotes")) {
+          expect(values).toEqual([123, "200.00", "204.71", 6]);
+          return { rowCount: 1, rows: [{}] };
         }
 
         if (sql.includes("FROM pagpagseguro")) {
@@ -178,7 +186,7 @@ describe("payment-reconciliation", () => {
 
     const result = await applyPaymentReconciliationRecord(
       client as unknown as Parameters<typeof applyPaymentReconciliationRecord>[0],
-      baseRecord(),
+      baseRecord({ grossAmount, installmentCount }),
     );
 
     expect(result).toMatchObject({
@@ -296,10 +304,9 @@ describe("payment-reconciliation", () => {
 
   it("rejects a confirmed charge with a different purchase amount", async () => {
     const client = {
-      query: vi.fn(async () => ({
-        rowCount: 1,
-        rows: [{ idcompra: 123, vltotcompra: "120.00" }],
-      })),
+      query: vi.fn(async (sql: string) => sql.includes("FROM compra")
+        ? { rowCount: 1, rows: [{ idcompra: 123, vltotcompra: "120.00" }] }
+        : { rowCount: 0, rows: [] }),
     };
 
     await expect(
@@ -308,6 +315,6 @@ describe("payment-reconciliation", () => {
         baseRecord({ grossAmount: "90.00" }),
       ),
     ).rejects.toThrow("payment_amount_mismatch");
-    expect(client.query).toHaveBeenCalledTimes(1);
+    expect(client.query).toHaveBeenCalledTimes(2);
   });
 });

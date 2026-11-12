@@ -1,3 +1,4 @@
+import { getMaxCieloInstallments } from "@/lib/cielo-installment-pricing";
 import {
   normalizePaymentReconciliationPayload,
   type PaymentReconciliationRecord,
@@ -405,9 +406,7 @@ function normalizeInstallments(value: unknown, amountCents: number) {
   const requested = Number.isInteger(parsedRequested) && parsedRequested > 0
     ? parsedRequested
     : 1;
-  const byValue = Math.max(Math.floor(amountCents / 10000), 1);
-
-  return Math.min(requested, 3, byValue);
+  return Math.min(requested, getMaxCieloInstallments(amountCents));
 }
 
 function buildPayment(
