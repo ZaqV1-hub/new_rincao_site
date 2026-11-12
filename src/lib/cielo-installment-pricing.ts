@@ -1,11 +1,10 @@
-// Taxas administrativas observadas nas vendas da API E-commerce Cielo do
-// estabelecimento entre maio e outubro de 2026. A antecipação é opcional e
-// não integra o preço informado ao comprador.
-export const CIELO_INSTALLMENT_RATES_BPS: Record<string, number> = {
-  Visa: 230,
-  Mastercard: 230,
-  Elo: 330,
-  Amex: 330,
+// Taxas totais por parcela confirmadas para a afiliação E-commerce em
+// 12/11/2026 (Vendeu, Tá na Conta). Não somar antecipação novamente.
+export const CIELO_INSTALLMENT_RATES_BPS: Record<string, Record<number, number>> = {
+  Visa: { 2: 540, 3: 665, 4: 794, 5: 920, 6: 1046 },
+  Mastercard: { 2: 540, 3: 665, 4: 794, 5: 920, 6: 1046 },
+  Elo: { 2: 640, 3: 765, 4: 894, 5: 1020, 6: 1146 },
+  Amex: { 2: 640, 3: 765, 4: 894, 5: 1020, 6: 1146 },
 };
 
 export function getMaxCieloInstallments(amountCents: number) {
@@ -33,7 +32,7 @@ export function quoteCieloInstallments(
       installments > getMaxCieloInstallments(baseCents)) {
     throw new Error("invalid_installments");
   }
-  const rateBps = installments === 1 ? 0 : CIELO_INSTALLMENT_RATES_BPS[canonicalBrand];
+  const rateBps = installments === 1 ? 0 : CIELO_INSTALLMENT_RATES_BPS[canonicalBrand]?.[installments];
   if (rateBps === undefined) {
     throw new Error("unsupported_installment_brand");
   }
@@ -47,5 +46,6 @@ export function quoteCieloInstallments(
     installments,
     brand: canonicalBrand,
     rateBps,
+    surchargePercent: Math.round((chargedCents - baseCents) * 10000 / baseCents) / 100,
   };
 }

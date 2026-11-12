@@ -214,6 +214,13 @@ async function createNativeCheckoutResponse(
       isCredit ? Number(payment.installments ?? payment.Installments ?? 1) : 1,
       isCredit ? String(card.brand ?? card.Brand ?? "") : "",
     );
+    if (isCredit && quote.installments > 1 && payload.expectedAmountCents !== quote.chargedCents) {
+      return errorResponse(
+        "checkout_quote_changed",
+        "O valor do parcelamento foi atualizado. Atualize a página e confira o total antes de pagar.",
+        409,
+      );
+    }
     if (isCredit) {
       await saveCheckoutInstallmentQuote(client, { purchaseId: purchase.id, ...quote });
     }
