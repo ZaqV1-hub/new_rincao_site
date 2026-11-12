@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const clearAuthCookie = vi.fn();
 const getAuthSession = vi.fn();
@@ -50,6 +50,10 @@ vi.mock("@/lib/payment-reconciliation", async () => {
 });
 
 describe("checkout-link BFF route", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     getAuthSession.mockResolvedValue({ sub: "52998224725" });
@@ -155,7 +159,7 @@ describe("checkout-link BFF route", () => {
 
   it.each([
     { total: "199.99", installments: 2, status: 400, amount: null },
-    { total: "200.00", installments: 6, status: 200, amount: "204.71" },
+    { total: "200.00", installments: 6, status: 200, amount: "223.37" },
     { total: "200.00", installments: 7, status: 400, amount: null },
   ])("applies the credit installment policy for R$ $total in $installments installments", async ({ total, installments, status, amount }) => {
     getUserVoucherPurchaseById.mockResolvedValue({
@@ -170,7 +174,7 @@ describe("checkout-link BFF route", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        idcompra: 456,
+        idcompra: 456, expectedAmountCents: amount === null ? 0 : Math.round(Number(amount) * 100),
         payment: { type: "CreditCard", installments, creditCard: { brand: "Visa" } },
       }),
     }));
@@ -184,6 +188,68 @@ describe("checkout-link BFF route", () => {
         payment: expect.objectContaining({ installments }),
       }));
     }
+  });
+
+  it.each([
+    ...["Visa", "Mastercard"].flatMap((brand) =>
+      [36998, 37494, 38019, 38547, 39089].map((amount, index) => ({ brand, amount, installments: index + 2 }))),
+    ...["Elo", "Amex"].flatMap((brand) =>
+      [37394, 37900, 38437, 38976, 39531].map((amount, index) => ({ brand, amount, installments: index + 2 }))),
+  ])("sends the quoted $brand $installments x total to Cielo in cents", async ({ brand, amount, installments }) => {
+    vi.stubEnv("INGRESSO_CIELO_MERCHANT_ID", "test-merchant");
+    vi.stubEnv("INGRESSO_CIELO_MERCHANT_KEY", "test-key");
+    vi.stubEnv("INGRESSO_CIELO_API_ENDPOINT", "https://api.example.test");
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({
+      MerchantOrderId: "456",
+      Payment: { PaymentId: "pid-quoted", Status: 2, Amount: amount, Installments: installments },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const actualCielo = await vi.importActual<typeof import("@/lib/cielo-ecommerce")>("@/lib/cielo-ecommerce");
+    createNativeCieloCheckout.mockImplementation(actualCielo.createNativeCieloCheckout);
+    getUserVoucherPurchaseById.mockResolvedValue({
+      id: 456, type: "ponli", status: "pend", totalValue: "350.00",
+      checkoutExpiresAt: "2099-01-01T00:00:00.000Z",
+    });
+    const { POST } = await import("@/app/api/checkout/checkout-link/route");
+    const response = await POST(new Request("https://example.com/api/checkout/checkout-link", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        idcompra: 456, valor: "0.01", expectedAmountCents: amount,
+        payment: {
+          type: "CreditCard", installments, amount: 1,
+          creditCard: { brand, cardNumber: "4111111111111111", holder: "Teste",
+            expirationMonth: "12", expirationYear: "2030", securityCode: "123" },
+        },
+      }),
+    }));
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.example.test/1/sales/");
+    expect(JSON.parse(init.body).Payment).toMatchObject({
+      Amount: amount, Installments: installments, Interest: "ByMerchant",
+      CreditCard: { Brand: brand === "Mastercard" ? "Master" : brand },
+    });
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO checkout_installment_quotes"),
+      [456, 350, amount / 100, (amount - 35000) / 100, installments, brand]);
+  });
+
+  it.each([undefined, 35824, 35000, "39089"])("rejects stale or invalid displayed total %s before charging", async (expectedAmountCents) => {
+    getUserVoucherPurchaseById.mockResolvedValue({
+      id: 456, type: "ponli", status: "pend", totalValue: "350.00",
+      checkoutExpiresAt: "2099-01-01T00:00:00.000Z",
+    });
+    const { POST } = await import("@/app/api/checkout/checkout-link/route");
+    const response = await POST(new Request("https://example.com/api/checkout/checkout-link", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ idcompra: 456, expectedAmountCents,
+        payment: { type: "CreditCard", installments: 6, creditCard: { brand: "Visa" } } }),
+    }));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: { code: "checkout_quote_changed" } });
+    expect(createNativeCieloCheckout).not.toHaveBeenCalled();
+    expect(dbQuery.mock.calls.some(([sql]) => sql.includes("INSERT INTO checkout_installment_quotes"))).toBe(false);
   });
 
   it("blocks checkout without falling back when Cielo ecommerce credentials are missing", async () => {

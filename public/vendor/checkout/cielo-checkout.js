@@ -915,12 +915,12 @@
         var baseCents = Math.round(parseNumber(this.current.valor) * 100);
         var brand = this.$modal.find('#cieloCardBrand').val();
         var installments = type === 'CreditCard' ? (this.current.installments || 1) : 1;
-        var rateBps = installments > 1 ? (this.config.installmentRatesBps || {})[brand] : 0;
-        var chargedCents = rateBps ? Math.ceil(baseCents * 10000 / (10000 - rateBps)) : baseCents;
+        var quote = this.config.quoteInstallments(installments, brand || '');
+        var chargedCents = quote.chargedCents;
         this.current.chargedValor = chargedCents / 100;
         this.$modal.find('#cieloResumoValor').text(formatCurrencyBRL(baseCents / 100));
         this.$modal.find('#cieloResumoAcrescimoLabel').text('Acréscimo do parcelamento (' +
-            (rateBps / 100).toFixed(2).replace('.', ',') + '%)');
+            quote.surchargePercent.toFixed(2).replace('.', ',') + '%)');
         this.$modal.find('#cieloResumoAcrescimo').text(formatCurrencyBRL((chargedCents - baseCents) / 100));
         this.$modal.find('#cieloResumoAcrescimoLinha').toggle(chargedCents > baseCents);
         this.$modal.find('#cieloResumoTotal').text(formatCurrencyBRL(chargedCents / 100));
@@ -937,18 +937,17 @@
             return;
         }
         var max = this._getMaxInstallmentsForAmount();
-        var valor = parseNumber(this.current.valor);
         var brand = this.$modal.find('#cieloCardBrand').val();
         var rates = this.config.installmentRatesBps || {};
         $select.empty();
         for (var i = 1; i <= max; i++) {
-            if (i > 1 && !rates[brand]) { break; }
-            var totalCents = i === 1 ? Math.round(valor * 100) :
-                Math.ceil(Math.round(valor * 100) * 10000 / (10000 - rates[brand]));
+            if (i > 1 && !(rates[brand] || {})[i]) { break; }
+            var quote = this.config.quoteInstallments(i, brand || '');
+            var totalCents = quote.chargedCents;
             var parcela = totalCents / 100 / i;
             var label = i + 'x ' + (i > 1 ? 'aprox. ' : '') + formatCurrencyBRL(parcela) +
                 (i > 1 ? ' (total ' + formatCurrencyBRL(totalCents / 100) + ', acréscimo ' +
-                    (rates[brand] / 100).toFixed(2).replace('.', ',') + '%)' : ' sem acréscimo');
+                    quote.surchargePercent.toFixed(2).replace('.', ',') + '%)' : ' sem acréscimo');
             $select.append('<option value="' + i + '">' + label + '</option>');
         }
         max = $select.find('option').length;
@@ -1202,6 +1201,7 @@
         var payload = {
             idcompra: this.current.idcompra,
             valor: this.current.valor,
+            expectedAmountCents: Math.round(this.current.chargedValor * 100),
             nome: this.current.nome,
             email: this.current.email,
             telefone: this.current.telefone,
@@ -1318,10 +1318,18 @@
         }
     };
 
-    CieloCheckout.prototype._handleFail = function () {
+    CieloCheckout.prototype._handleFail = function (xhr) {
         this.current.isProcessing = false;
         this.$modal.find('#cieloPrimaryAction').prop('disabled', false);
-        this._setFeedback('Falha ao comunicar com a Cielo. Tente novamente.');
+        var error;
+        try {
+            error = JSON.parse(xhr && xhr.responseText || '{}').error;
+        } catch (_) {
+            // O proxy pode retornar HTML em falhas de rede.
+        }
+        this._setFeedback(error && error.code === 'checkout_quote_changed'
+            ? 'O valor do parcelamento foi atualizado. Atualize a página e confira o total antes de pagar.'
+            : 'Falha ao comunicar com a Cielo. Tente novamente.');
     };
 
     CieloCheckout.prototype._renderPixResult = function (resp) {

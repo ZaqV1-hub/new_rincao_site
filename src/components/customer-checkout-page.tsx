@@ -8,7 +8,7 @@ import { FlowStepper } from "@/components/order-flow-ui";
 import type { AuthUser } from "@/lib/auth-contracts";
 import type { CheckoutMode } from "@/lib/checkout-mode";
 import type { UserVoucherPurchase } from "@/lib/voucher-contracts";
-import { CIELO_INSTALLMENT_RATES_BPS, getMaxCieloInstallments } from "@/lib/cielo-installment-pricing";
+import { CIELO_INSTALLMENT_RATES_BPS, getMaxCieloInstallments, quoteCieloInstallments } from "@/lib/cielo-installment-pricing";
 
 type CustomerCheckoutPageProps = {
   mode: CheckoutMode;
@@ -266,6 +266,8 @@ export function CustomerCheckoutPage({
       paymentMethods: ["CreditCard", "DebitCard", "Pix"],
       maxInstallments: getMaxCieloInstallments(Math.round(Number(purchase.totalValue) * 100)),
       installmentRatesBps: CIELO_INSTALLMENT_RATES_BPS,
+      quoteInstallments: (installments: number, brand: string) =>
+        quoteCieloInstallments(purchase.totalValue ?? "0.00", installments, brand),
     };
 
     if (widgetThreeDsEnabled) {
@@ -363,7 +365,7 @@ export function CustomerCheckoutPage({
             />
             {jqueryReady ? (
               <Script
-                src="/vendor/checkout/cielo-checkout.js"
+                src="/vendor/checkout/cielo-checkout.js?v=20261112-rates"
                 strategy="afterInteractive"
                 onLoad={() => setCheckoutScriptReady(true)}
               />
