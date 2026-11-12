@@ -78,6 +78,20 @@ const navItems: PainelNavItem[] = [
     resources: ["vis_tabpre"],
   },
   {
+    href: "/painel/servicos",
+    label: "Serviços adicionais",
+    icon: "products",
+    roles: [1, 2],
+    resources: ["vis_ingesp"],
+  },
+  {
+    href: "/painel/locais-caixa",
+    label: "Locais de caixa",
+    icon: "ticket",
+    roles: [1, 2, 3],
+    resources: ["vis_bilhet"],
+  },
+  {
     href: "/painel/administrativo",
     label: "Administrativo",
     icon: "admin",

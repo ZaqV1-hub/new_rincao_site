@@ -88,3 +88,17 @@ O backup de banco existente na VM nao cobre os arquivos do site. Deve existir um
 - `C:\SitesData\Rincao\hml`.
 
 O processo de restauracao deve ser testado periodicamente.
+
+## Migrações do painel de gestão
+
+O catálogo operacional requer a expansão em `docs/sql/2026-11-12-operational-panel-foundation.sql` antes de publicar suas telas. O executor não carrega `.env` automaticamente: fornecer `PANEL_MIGRATION_DATABASE_URL` pelo ambiente do processo, com o destino conferido e sem colocar credenciais em comandos registrados ou no Git.
+
+```bash
+node scripts/migrate-operational-panel.mjs --check
+node scripts/migrate-operational-panel.mjs --apply
+node scripts/migrate-operational-panel.mjs --check
+```
+
+`--check` não altera o banco: retorna 0 se aplicado, 2 se pendente, 1 em erro/checksum divergente. `--apply` exige backup e restauração previamente validados no ambiente selecionado; aplica SQL e journal na mesma transação, com lock e checksum. Repetição idêntica não reaplica. Nunca editar o arquivo de uma migração já aplicada; criar a próxima expansão.
+
+A execução local foi ensaiada em PostgreSQL 16 e 17, com dados sintéticos. Isso não substitui a homologação nem autoriza aplicar no banco real. As integrações de agenda, venda, contagem e fechamento seguem os lotes do plano antes do envio final para develop. Não importar serviços legados por semelhança de nome: o vínculo deve usar o ID de origem conferido.

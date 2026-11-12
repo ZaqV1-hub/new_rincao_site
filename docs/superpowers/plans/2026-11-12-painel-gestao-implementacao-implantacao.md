@@ -6,7 +6,7 @@
 **Arquitetura:** evolução do Next.js existente, preservando compras, vouchers, clientes, tabelas de preço, autenticação e integração de ingressos. Novas regras financeiras ficam no servidor, com transações, auditoria, idempotência e snapshots de fechamento. App de contagem proposto como área web responsiva autenticada, com internet obrigatória, integrada ao mesmo domínio de passeios.
 **Stack verificada:** Next.js 16.4.5 no checkout principal, React 19.2.4, TypeScript, pg/mysql2, Vitest, React PDF e ExcelJS. `develop` ainda possui diferenças de versão/implementação que precisam ser reconciliadas antes de fixar a baseline.
 **Especificação:** `../specs/painel-gestao-referencias/painel-rincao-dev.md` e `../specs/painel-gestao-referencias/painel-rincao-prototipo.html`, cópias integrais dos anexos.
-**Estado:** implementação iniciada em 12/11/2026, etapa E0. Recomendações da seção 9 aprovadas; detalhes externos precisam de evidência, sem simular integrações existentes.
+**Estado:** baseline local integrada; cadastros E1 implementados e verificados localmente em 12/11/2026; E2 em preparação. Recomendações da seção 9 aprovadas; detalhes externos precisam de evidência, sem simular integrações existentes.
 
 ## 1. Decisões confirmadas e limites
 
@@ -349,7 +349,7 @@ Não há estimativa responsável de prazo fechado sem E0, definição das fontes
 - Arquivos do projeto citados acima e `docs/DEPLOY_VM.md`; configuração é evidência do desenho, não prova de estado atual dos servidores.
 - Next.js: documentação local `node_modules/next/dist/docs/01-app/01-getting-started/15-route-handlers.md` e consulta Context7 da versão 16.4.5. GET Route Handlers não são cacheados por padrão; preservar isolamento explícito de respostas sensíveis.
 - Meteorologia: https://open-meteo.com/en/pricing e https://open-meteo.com/en/terms consultados em 12/11/2026. A API gratuita é destinada a uso não comercial; a produção do parque exige escolha compatível.
-- Handoff: análise e plano produzidos; nenhuma implementação/migration/deploy executada. Próxima ação: revisar decisões da seção 9, aprofundar o inventário dos repositórios Estância encontrados e executar E0 após autorização de implementação. Os anexos foram preservados no repositório para o plano não depender da pasta Downloads.
+- Continuidade atual na seção 12; os anexos foram preservados no repositório para o plano não depender da pasta Downloads. As evidências iniciais de análise não substituem as verificações registradas durante a execução.
 
 ## 12. Execução — 12/11/2026
 
@@ -358,7 +358,7 @@ Não há estimativa responsável de prazo fechado sem E0, definição das fontes
 - Product Owner: usuário esclareceu o significado de PO. Atualização apenas ao final; destinatário/canal ainda não especificados.
 - Nenhum push, migração remota ou publicação do painel executados.
 - Ruling: corrigir os testes da baseline integrada, não editar duas cópias divergentes de regras financeiras; investigar antes de alterar expectativas.
-- Próxima ação: integrar main localmente, conferir conflitos/proteções, sanear testes e inventariar bancos/Estância.
+- Baseline integrada no commit `d5d91e5`, sem perda das mudanças de main/develop. Núcleo puro do cálculo do passeio em `be3edd8`, revisado independentemente; a integração financeira E8 continua pendente.
 
 ### Pendência de negócio — Estância (orientação do usuário)
 
@@ -369,3 +369,17 @@ A seção 9 do anexo exige custos/resultado dos dois parques, mas não especific
 **Pergunta para o Zaq:** Na Estância, as despesas devem ser lançadas pelo mesmo fluxo de despesas diárias/passeios descrito para o Rincão, ou o painel dos donos deve consumir uma fonte existente? Se existir, qual sistema/planilha e quais despesas entram no resultado por data de visita?
 
 Sem resposta, custos e resultado da Estância ficam indisponíveis; não apresentar zero nem resultado fictício. Não criar novo módulo de despesas da Estância por suposição. Pergunta preparada, ainda não enviada (canal/destinatário não identificados).
+
+### Verificação E1 e infraestrutura
+
+- Cadastros de serviços/locais com preço site nulo versus zero, ativo/inativo, auditoria, escopo por parque e edição por versão. APIs exigem sessão do painel; somente gerente altera. Telas e menu integrados. Integração desses serviços às vendas/agenda fica para E2/E5, sem afirmar que o catálogo já substitui o legado.
+- Migração expansiva aplicada apenas em PostgreSQL local isolado. Executor `scripts/migrate-operational-panel.mjs`: `--check` somente leitura, `--apply` transacional, journal/checksum e lock. Nenhuma migração remota.
+- Verificações: 1027/1027 testes passam, zero ignorados, incluindo 16 integrações em PostgreSQL 16.15 (VM 16.14). Scripts 21/21; lint zero erros/14 avisos existentes; tipos/build passam. Build mantém aviso existente de tracing em `rincao-content-store.ts`. Revisão independente resolveu dois problemas de UI e encerrou sem achados pendentes.
+- Browser local: cadastro real, valores por canal, zero versus indisponível, conflito de versão sem reload, nome duplicado corrigível e perda simulada da resposta após commit real (consulta retorna exatamente um registro). Layout 1440/390 px e formulário 360 px. Dados de ensaio descartados junto do container PostgreSQL17; desenvolvimento agora PostgreSQL16 na porta54422.
+- Acesso confirmado via SSH com a chave indicada pelo usuário; helper `.data/vm.py` não encontrado, usado SSH direto. Azure não participa do ambiente ativo. HML/PROD usam PostgreSQL16.14 em loopback:5432, bancos separados. Leitura real confirmou releases esperadas.
+- Dumps semanais de 08/11 dos três bancos: hash/tamanho e `pg_restore --list` conferem. Falha global do backup vem de outra instância MySQL; não é falha dos dumps alvo. Restauração atual e arquivos persistentes ainda não comprovados. Disco VM ~8,14GiB livre; sync Estância retorna1; escritores legados ativos precisam mapeamento antes do corte.
+- Limite local: Mac atingiu falta de espaço durante teste temporário; artefatos `.next` deste worktree foram removidos, testes de scripts repetidos e passaram. Não apagar arquivos alheios para liberar espaço.
+
+### Validade — decisão de 12/11/2026
+
+O usuário escolheu permitir uma utilização em qualquer dia com day use aberto dentro da validade, sem reagendamento. Início na data da visita escolhida; intervalo precisa ser mostrado com início/fim explícitos no voucher. Limite de vendas online é separado da admissão em dia alternativo. Isentos continuam contabilizados como vaga de compra, conforme recomendação comunicada; não excluir silenciosamente categorias do limite. Datas efetivas de uso e da venda precisam permanecer distintas para apuração.
