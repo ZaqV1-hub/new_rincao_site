@@ -17,7 +17,7 @@ import {
 import { getSiteUrl } from "@/lib/site-metadata";
 import { getActivePublicUserByCpf } from "@/lib/user-repository";
 import { getUserVoucherPurchaseById } from "@/lib/voucher-repository";
-import { quoteCieloInstallments } from "@/lib/cielo-installment-pricing";
+import { CIELO_INSTALLMENT_RATES_BPS, getMaxCieloInstallments, quoteCieloInstallments } from "@/lib/cielo-installment-pricing";
 import { saveCheckoutInstallmentQuote } from "@/lib/checkout-installment-quotes";
 
 export const runtime = "nodejs";
@@ -215,11 +215,21 @@ async function createNativeCheckoutResponse(
       isCredit ? String(card.brand ?? card.Brand ?? "") : "",
     );
     if (isCredit && quote.installments > 1 && payload.expectedAmountCents !== quote.chargedCents) {
-      return errorResponse(
-        "checkout_quote_changed",
-        "O valor do parcelamento foi atualizado. Atualize a página e confira o total antes de pagar.",
-        409,
+      const installmentQuotes = Object.fromEntries(
+        Object.keys(CIELO_INSTALLMENT_RATES_BPS).map((brand) => [brand, Object.fromEntries(
+          Array.from({ length: getMaxCieloInstallments(quote.baseCents) }, (_, index) => [
+            index + 1, quoteCieloInstallments(purchase.totalValue ?? "0.00", index + 1, brand),
+          ]),
+        )]),
       );
+      return NextResponse.json({
+        ok: false,
+        error: {
+          code: "checkout_quote_changed",
+          message: "Atualizamos o valor do parcelamento. Confira o novo total antes de pagar.",
+        },
+        installmentQuotes,
+      }, { status: 409 });
     }
     if (isCredit) {
       await saveCheckoutInstallmentQuote(client, { purchaseId: purchase.id, ...quote });

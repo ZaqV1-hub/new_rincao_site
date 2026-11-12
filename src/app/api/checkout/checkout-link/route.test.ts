@@ -246,7 +246,15 @@ describe("checkout-link BFF route", () => {
         payment: { type: "CreditCard", installments: 6, creditCard: { brand: "Visa" } } }),
     }));
     expect(response.status).toBe(409);
-    expect(await response.json()).toMatchObject({ error: { code: "checkout_quote_changed" } });
+    const body = await response.json();
+    expect(body).toMatchObject({ error: { code: "checkout_quote_changed" } });
+    for (const brand of ["Visa", "Mastercard", "Elo", "Amex"]) {
+      expect(Object.keys(body.installmentQuotes[brand])).toHaveLength(6);
+      expect(body.installmentQuotes[brand][1]).toMatchObject({ baseCents: 35000, chargedCents: 35000 });
+      expect(body.installmentQuotes[brand][6]).toMatchObject({
+        brand, installments: 6, chargedCents: ["Visa", "Mastercard"].includes(brand) ? 39089 : 39531,
+      });
+    }
     expect(createNativeCieloCheckout).not.toHaveBeenCalled();
     expect(dbQuery.mock.calls.some(([sql]) => sql.includes("INSERT INTO checkout_installment_quotes"))).toBe(false);
   });
