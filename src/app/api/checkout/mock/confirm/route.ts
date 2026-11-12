@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { AuthErrorResponse } from "@/lib/auth-contracts";
 import { getAuthSession } from "@/lib/auth-session";
 import { confirmSandboxCheckout } from "@/lib/checkout-sandbox";
+import { canContinuePayment } from "@/lib/checkout-expiration";
+import { isLocalCheckoutMockEnabled } from "@/lib/checkout-mode";
 import { getUserVoucherPurchaseById } from "@/lib/voucher-repository";
 
 export const runtime = "nodejs";
@@ -38,6 +40,10 @@ function normalizePaymentType(value: unknown) {
 }
 
 export async function POST(request: Request) {
+  if (!isLocalCheckoutMockEnabled()) {
+    return errorResponse("checkout_unavailable", "Checkout de teste indisponivel.", 404);
+  }
+
   const session = await getAuthSession();
 
   if (!session) {
@@ -74,7 +80,7 @@ export async function POST(request: Request) {
 
   const purchase = await getUserVoucherPurchaseById(session.sub, purchaseId);
 
-  if (!purchase || purchase.type !== "ponli" || purchase.status === "canc") {
+  if (!purchase || !canContinuePayment(purchase)) {
     return errorResponse(
       "purchase_not_found",
       "A compra informada nao esta disponivel para checkout.",

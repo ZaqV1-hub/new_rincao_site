@@ -87,7 +87,6 @@ function DemandChart({ values, recordCount }: { values: Record<string, number>; 
   const total = rows.reduce((sum, [, count]) => sum + count, 0);
   const selected = rows.find(([label]) => label === active);
   const circumference = 2 * Math.PI * 54;
-  let offset = 0;
   return <section className={styles.chartCard}>
     <h2 className={styles.chartTitle}>Por tipo de demanda</h2>
     <p className={styles.chartCaption}>Conforme o checklist da ficha.</p>
@@ -97,8 +96,7 @@ function DemandChart({ values, recordCount }: { values: Record<string, number>; 
           <circle cx="75" cy="75" r="54" fill="none" stroke="#eaf2fb" strokeWidth="20" />
           {rows.map(([label, count], index) => {
             const length = count / total * circumference;
-            const start = offset;
-            offset += length;
+            const start = rows.slice(0, index).reduce((sum, [, value]) => sum + value, 0) / total * circumference;
             return <circle key={label} cx="75" cy="75" r="54" fill="none" stroke={chartColors[index % chartColors.length]} strokeWidth={active === label ? "27" : "20"} strokeDasharray={`${length} ${circumference - length}`} strokeDashoffset={-start} transform="rotate(-90 75 75)" className={`${styles.donutSegment} ${active && active !== label ? styles.chartDimmed : ""}`} tabIndex={0} role="button" aria-label={`${label}: ${count} atendimento(s), ${Math.round(count / total * 100)}% das demandas`} onMouseEnter={() => setActive(label)} onFocus={() => setActive(label)} onBlur={() => setActive(null)} onClick={() => setActive(active === label ? null : label)} />;
           })}
         </svg>

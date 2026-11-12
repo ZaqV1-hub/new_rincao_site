@@ -61,6 +61,42 @@ const report: OpsClientTripSchoolReport = {
 };
 
 describe("ops-client-trip-school-report-pdf", () => {
+  it.each(["school", "internal"] as const)("exports only completed purchases in the %s PDF", async (audience) => {
+    const { renderOpsClientTripSchoolReportPdfBuffer } = await import(
+      "@/lib/ops-client-trip-school-report-pdf"
+    );
+    const paid = { ...report.students[0], name: "Aluno Confirmado", unitValue: "100.00" };
+    const pending = {
+      ...paid,
+      voucherId: 9991,
+      name: "Aluno Pendente",
+      purchaseStatus: "pend",
+      classLetter: "Z",
+      classDisplay: "Ensino Fundamental I - 3o ano - Z",
+      unitValue: "999.00",
+    };
+    const cancelled = { ...pending, voucherId: 9992, name: "Aluno Cancelado", purchaseStatus: "canc" };
+    const accompanying = {
+      ...paid,
+      voucherId: 1002,
+      name: "Acompanhante Confirmado",
+      role: "Acompanhante",
+      unitValue: "20.00",
+    };
+    const buffer = await renderOpsClientTripSchoolReportPdfBuffer({
+      ...report,
+      students: [paid, pending, cancelled],
+      educators: [accompanying, { ...accompanying, voucherId: 9993, name: "Acompanhante Pendente", purchaseStatus: "pend" }],
+    }, audience);
+
+    expect(buffer.toString("latin1").match(/\/Type \/Page\b/g)).toHaveLength(3);
+    if (audience === "internal" && process.env.RINCAO_REPORT_PREVIEW === "true") {
+      const { mkdir, writeFile } = await import("node:fs/promises");
+      await mkdir("tmp/pdfs", { recursive: true });
+      await writeFile("tmp/pdfs/school-paid-preview.pdf", buffer);
+    }
+  });
+
   it.each(["school", "internal"] as const)("agrupa variações da mesma turma antiga no PDF %s", async (audience) => {
     const { renderOpsClientTripSchoolReportPdfBuffer } = await import(
       "@/lib/ops-client-trip-school-report-pdf"

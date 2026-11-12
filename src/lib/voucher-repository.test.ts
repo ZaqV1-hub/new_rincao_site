@@ -3,6 +3,7 @@ import {
   getUserVoucherExportData,
   getUserVouchersPage,
   getUserVoucherRescheduleData,
+  ensureVoucherLifecycleSchema,
   resetVoucherLifecycleSchemaForTests,
 } from "@/lib/voucher-repository";
 
@@ -27,6 +28,26 @@ describe("voucher-repository", () => {
     vi.clearAllMocks();
     getSchoolVoucherInformation.mockResolvedValue("");
     resetVoucherLifecycleSchemaForTests();
+  });
+
+  it("retries schema initialization after a transient database failure", async () => {
+    dbQuery.mockRejectedValueOnce(new Error("timeout exceeded when trying to connect"));
+    await expect(ensureVoucherLifecycleSchema()).rejects.toThrow("timeout exceeded");
+
+    dbQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+    await Promise.all([ensureVoucherLifecycleSchema(), ensureVoucherLifecycleSchema()]);
+    expect(dbQuery).toHaveBeenCalledTimes(3);
+    await ensureVoucherLifecycleSchema();
+    expect(dbQuery).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries when only the second schema change fails", async () => {
+    dbQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockRejectedValueOnce(new Error("connection interrupted"));
+    await expect(ensureVoucherLifecycleSchema()).rejects.toThrow("connection interrupted");
+    dbQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+    await ensureVoucherLifecycleSchema();
+    expect(dbQuery).toHaveBeenCalledTimes(4);
   });
 
   it("reads voucher description from the voucher table when listing purchases", async () => {
@@ -148,7 +169,7 @@ describe("voucher-repository", () => {
           {
             idcompra: 77,
             tpcompra: "ponli",
-            dtcompra: "2026-04-20",
+            dtcompra: "2025-10-06",
             vltotcompra: "45.00",
             stcompra: "conc",
             status: 3,
@@ -171,7 +192,7 @@ describe("voucher-repository", () => {
             flreagendado: "n",
             dtuso: null,
             voucherenviado: "n",
-            dtvalidade: "2026-05-20",
+            dtvalidade: "2026-11-20",
             dtagenda: "2026-05-01",
             tpagenda: "escol",
             idescola: 12,

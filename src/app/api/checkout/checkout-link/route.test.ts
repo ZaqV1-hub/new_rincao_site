@@ -67,6 +67,7 @@ describe("checkout-link BFF route", () => {
       id: 456,
       type: "ponli",
       status: "pend",
+      checkoutExpiresAt: "2099-01-01T00:00:00.000Z",
       totalValue: "129.90",
     });
     isCieloEcommerceConfigured.mockReturnValue(true);
@@ -476,6 +477,27 @@ describe("checkout-link BFF route", () => {
     );
 
     expect(response.status).toBe(404);
+    expect(createNativeCieloCheckout).not.toHaveBeenCalled();
+  });
+
+  it("rejects an old pending purchase before creating a new charge", async () => {
+    getUserVoucherPurchaseById.mockResolvedValue({
+      id: 456,
+      type: "ponli",
+      status: "pend",
+      checkoutExpiresAt: "2025-10-07T02:10:53.000Z",
+      totalValue: "150.00",
+    });
+
+    const { POST } = await import("@/app/api/checkout/checkout-link/route");
+    const response = await POST(
+      new Request("https://example.com/api/checkout/checkout-link", {
+        method: "POST",
+        body: JSON.stringify({ idcompra: 456, payment: { type: "Pix" } }),
+      }),
+    );
+
+    expect(response.status).toBe(410);
     expect(createNativeCieloCheckout).not.toHaveBeenCalled();
   });
 });

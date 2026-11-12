@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { queueLegacyEmail } from "@/lib/legacy-email";
 
 const mocks = vi.hoisted(() => ({
@@ -23,12 +23,17 @@ vi.mock("@/lib/ingresso-db", () => ({
 }));
 
 describe("legacy-email queue", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.PASSWORD_RESET_SEND_SYNC = "false";
-    process.env.EMAIL_SMTP_USERNAME = "ingressos@cluberincao.com.br";
-    process.env.EMAIL_SMTP_PASSWORD = "senha-teste";
-    process.env.EMAIL_FROM_NAME = "Clube Rincão";
+    vi.stubEnv("PASSWORD_RESET_SEND_SYNC", "false");
+    vi.stubEnv("EMAIL_SMTP_USERNAME", "ingressos@cluberincao.com.br");
+    vi.stubEnv("EMAIL_SMTP_PASSWORD", "senha-teste");
+    vi.stubEnv("EMAIL_FROM_ADDRESS", undefined);
+    vi.stubEnv("EMAIL_FROM_NAME", "Clube Rincão");
+    vi.stubEnv("EMAIL_REPLYTO_ADDRESS", undefined);
+    vi.stubEnv("EMAIL_MAX_RETRIES", "1");
     mocks.systemQuery.mockResolvedValue({ rows: [{ idemail: 123 }] });
     mocks.sendMail.mockResolvedValue({ messageId: "abc" });
   });
@@ -51,7 +56,7 @@ describe("legacy-email queue", () => {
   });
 
   it("sends queued email synchronously when PASSWORD_RESET_SEND_SYNC is true", async () => {
-    process.env.PASSWORD_RESET_SEND_SYNC = "true";
+    vi.stubEnv("PASSWORD_RESET_SEND_SYNC", "true");
 
     await expect(
       queueLegacyEmail({
@@ -64,8 +69,10 @@ describe("legacy-email queue", () => {
 
     expect(mocks.sendMail).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: "\"Clube Rincão\" <ingressos@rincao.local>",
-        to: "\"Cliente\" <cliente@example.com>",
+        from: { name: "Clube Rincão", address: "ingressos@rincao.local" },
+        to: { name: "Cliente", address: "cliente@example.com" },
+        envelope: { from: "ingressos@rincao.local", to: ["cliente@example.com"] },
+        replyTo: "ingressos@rincao.local",
         subject: "Teste",
         html: "<p>Teste</p>",
       }),
@@ -77,7 +84,7 @@ describe("legacy-email queue", () => {
   });
 
   it("fails the queue operation when synchronous SMTP delivery fails", async () => {
-    process.env.PASSWORD_RESET_SEND_SYNC = "true";
+    vi.stubEnv("PASSWORD_RESET_SEND_SYNC", "true");
     const smtpError = Object.assign(new Error("Authentication failed"), {
       code: "EAUTH",
     });
@@ -99,7 +106,7 @@ describe("legacy-email queue", () => {
   });
 
   it("retries once when SMTP closes before accepting a message", async () => {
-    process.env.PASSWORD_RESET_SEND_SYNC = "true";
+    vi.stubEnv("PASSWORD_RESET_SEND_SYNC", "true");
     mocks.sendMail
       .mockRejectedValueOnce(
         Object.assign(new Error("Connection closed unexpectedly"), {
@@ -126,8 +133,8 @@ describe("legacy-email queue", () => {
   });
 
   it("normalizes mojibake in the sender name", async () => {
-    process.env.PASSWORD_RESET_SEND_SYNC = "true";
-    process.env.EMAIL_FROM_NAME = "Clube RincÃ£o";
+    vi.stubEnv("PASSWORD_RESET_SEND_SYNC", "true");
+    vi.stubEnv("EMAIL_FROM_NAME", "Clube RincÃ£o");
 
     await expect(
       queueLegacyEmail({
@@ -140,7 +147,7 @@ describe("legacy-email queue", () => {
 
     expect(mocks.sendMail).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: "\"Clube Rincão\" <ingressos@rincao.local>",
+        from: { name: "Clube Rincão", address: "ingressos@rincao.local" },
       }),
     );
   });

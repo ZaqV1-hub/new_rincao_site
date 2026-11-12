@@ -4,7 +4,6 @@ import { Document, Font, Page, Text, View, renderToBuffer } from "@react-pdf/ren
 import {
   buildIndicators,
   isPaidPurchase,
-  normalizePurchaseStatus,
   type OpsTripSchoolReportParticipant,
 } from "@/lib/ops-trip-school-report-core";
 import { styles, palette } from "@/lib/ops-trip-school-report-pdf-styles";
@@ -21,7 +20,6 @@ type TripReport = {
 const educationTypes = getSchoolEducationStructure().types;
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const classOrder = new Intl.Collator("pt-BR", { numeric: true });
-const statusLabels = new Map([["conc", "Concluída"], ["pend", "Pendente"], ["canc", "Cancelada"]]);
 const nameParticles = new Set(["da", "das", "de", "do", "dos", "e"]);
 
 function educationLabel(value: string) {
@@ -35,14 +33,6 @@ function formatStudentName(name: string) {
   return name.toLocaleLowerCase("pt-BR").replace(/\p{L}[\p{L}\p{M}]*/gu, (word, offset: number) =>
     offset > 0 && nameParticles.has(word) ? word : word[0].toLocaleUpperCase("pt-BR") + word.slice(1),
   );
-}
-
-function statusCounts(rows: OpsTripSchoolReportParticipant[]) {
-  return {
-    ...buildIndicators(rows),
-    pending: rows.filter((row) => normalizePurchaseStatus(row.purchaseStatus) === "pend").length,
-    cancelled: rows.filter((row) => normalizePurchaseStatus(row.purchaseStatus) === "canc").length,
-  };
 }
 
 function standardPrice(rows: OpsTripSchoolReportParticipant[]) {
@@ -90,7 +80,7 @@ function groupClasses(students: OpsTripSchoolReportParticipant[]) {
     .map(([segment, classes]) => ({
       segment,
       classes: [...classes.values()].sort((left, right) => classOrder.compare(left.label, right.label))
-        .map(({ label, rows }) => ({ label, rows, counts: statusCounts(rows) })),
+        .map(({ label, rows }) => ({ label, rows, counts: buildIndicators(rows) })),
     }));
 }
 
@@ -109,45 +99,21 @@ type Metric = {
   color: string;
 };
 
-function Totals({ counts, date, internal, classCount, fixed = false }: {
-  counts: ReturnType<typeof statusCounts>;
-  date: string;
-  internal: boolean;
+function Totals({ counts, accompanyingCount, soldValue, classCount, date, fixed = false }: {
+  counts: ReturnType<typeof buildIndicators>;
+  accompanyingCount?: number;
+  soldValue?: number;
+  date?: string;
   classCount?: number;
   fixed?: boolean;
 }) {
-  const paidValue = currency.format(Number(counts.paidValue));
-  const percentage = (count: number) => `${counts.totalCount ? Math.round(100 * count / counts.totalCount) : 0}% do total`;
-  const metrics: Metric[] = [];
-
-  if (internal && classCount !== undefined) {
-    metrics.push(
-      { label: "Registros", value: counts.totalCount, note: "na exportação", color: palette.navy },
-      { label: "Concluídas", value: counts.paidCount, note: percentage(counts.paidCount), color: palette.blue },
-      { label: "Pendentes", value: counts.pending, note: percentage(counts.pending), color: palette.amber },
-      { label: "Canceladas", value: counts.cancelled, note: percentage(counts.cancelled), color: palette.coral },
-    );
-  } else if (internal) {
-    metrics.push(
-      { label: "Concluídas", value: counts.paidCount, note: "alunos confirmados", color: palette.navy },
-      { label: "Pendentes", value: counts.pending, note: "aguardando pagamento", color: palette.amber },
-      { label: "Canceladas", value: counts.cancelled, note: "não entram no total", color: palette.coral },
-      { label: "Valor pago", value: paidValue, note: "somente concluídas", color: palette.blue },
-    );
-  } else if (classCount !== undefined) {
-    metrics.push(
-      { label: "Alunos confirmados", value: counts.paidCount, note: "compras concluídas", color: palette.navy },
-      { label: "Turmas", value: classCount, note: "uma folha por turma", color: palette.blue },
-      { label: "Valor total", value: paidValue, note: "pago pelas famílias", color: palette.amber },
-    );
-  } else {
-    metrics.push(
-      { label: "Alunos confirmados", value: counts.paidCount, note: "nesta turma", color: palette.navy },
-      { label: "Valor", value: paidValue, note: "pago pelas famílias", color: palette.blue },
-      { label: "Data do passeio", value: date, note: "Clube e Park Rincão", color: palette.amber },
-    );
-  }
-
+  const metrics: Metric[] = [
+    ...(classCount === undefined ? [] : [{ label: "Turmas", value: classCount, note: "com compras concluídas", color: palette.navy }]),
+    { label: "Alunos", value: counts.paidCount, note: "compras concluídas", color: palette.navy },
+    ...(accompanyingCount === undefined ? [] : [{ label: "Acompanhantes", value: accompanyingCount, note: "compras concluídas", color: palette.blue }]),
+    { label: "Valor total vendido", value: currency.format(soldValue ?? Number(counts.paidValue)), note: "compras concluídas", color: palette.amber },
+    ...(date ? [{ label: "Data do passeio", value: date, note: "Clube e Park Rincão", color: palette.blue }] : []),
+  ];
   return (
     <View style={styles.metrics} fixed={fixed} wrap={false}>
       {metrics.map(({ label, value, note, color }) => (
@@ -178,33 +144,25 @@ function CardHeading({ title, note, badge, fixed = false }: {
   );
 }
 
-function SegmentSummary({ segment, classes, internal }: ReturnType<typeof groupClasses>[number] & { internal: boolean }) {
+function SegmentSummary({ segment, classes }: ReturnType<typeof groupClasses>[number]) {
   return (
     <View style={[styles.card, styles.segment]}>
       <CardHeading title={segment} note={`${classes.length} turma(s) · ${classes.reduce((total, group) => total + group.counts.paidCount, 0)} aluno(s) confirmado(s)`} fixed />
       <View style={[styles.row, styles.tableHead, styles.tableLabel]} fixed wrap={false}>
         <Text style={styles.summaryClass}>TURMA</Text>
-        <Text style={styles.summaryCount}>{internal ? "CONCL." : "ALUNOS"}</Text>
-        {internal ? <Text style={styles.summaryCount}>PEND.</Text> : null}
-        {internal ? <Text style={styles.summaryCount}>CANC.</Text> : null}
-        <Text style={styles.summaryMoney}>{internal ? "VALOR PAGO" : "VALOR"}</Text>
+        <Text style={styles.summaryCount}>ALUNOS</Text>
+        <Text style={styles.summaryMoney}>VALOR</Text>
       </View>
       {classes.map(({ label, counts }) => (
         <View key={label} style={[styles.row, styles.bodyRow, styles.summaryRow]} wrap={false}>
           <Text style={styles.summaryClass}>{label}</Text>
           <Text style={[styles.summaryCount, styles.bold]}>{counts.paidCount}</Text>
-          {internal ? <Text style={[styles.summaryCount, counts.pending ? styles.pendingCount : styles.zeroCount]}>{counts.pending}</Text> : null}
-          {internal ? <Text style={[styles.summaryCount, counts.cancelled ? styles.cancelledCount : styles.zeroCount]}>{counts.cancelled}</Text> : null}
           <Text style={styles.summaryMoney}>{currency.format(Number(counts.paidValue))}</Text>
         </View>
       ))}
     </View>
   );
 }
-
-const pillStyles = new Map([
-  ["conc", styles.paid], ["pend", styles.pending], ["canc", styles.cancelledPill],
-]);
 
 function ParticipantTable({ rows, internal, regularPrice, badge, educatorsOnly = false }: {
   rows: OpsTripSchoolReportParticipant[];
@@ -216,8 +174,8 @@ function ParticipantTable({ rows, internal, regularPrice, badge, educatorsOnly =
   return (
     <View style={styles.card}>
       <CardHeading
-        title={educatorsOnly ? "Educadores" : "Alunos da turma"}
-        note={internal ? "Todos os registros, incluindo pendentes e canceladas." : "Lista de alunos com compra concluída. Marque a presença no dia."}
+        title={educatorsOnly ? "Educadores e acompanhantes" : "Alunos da turma"}
+        note={internal ? "Somente participantes com compra concluída." : "Marque a presença no dia do passeio."}
         badge={badge}
         fixed
       />
@@ -225,36 +183,30 @@ function ParticipantTable({ rows, internal, regularPrice, badge, educatorsOnly =
         <Text style={styles.number}>#</Text>
         <Text style={styles.purchaseId}>ID DA COMPRA</Text>
         <Text style={styles.voucher}>VOUCHER</Text>
-        <Text style={styles.studentName}>{educatorsOnly ? "EDUCADOR" : "ALUNO"}</Text>
+        <Text style={styles.studentName}>{educatorsOnly ? "PARTICIPANTE" : "ALUNO"}</Text>
         <Text style={styles.value}>VALOR</Text>
         <Text style={styles.statusLabel}>{internal ? "STATUS" : "PRESENÇA"}</Text>
       </View>
       {rows.map((row, index) => {
-        const status = normalizePurchaseStatus(row.purchaseStatus);
-        const cancelled = status === "canc";
         const value = Number(row.unitValue);
         const unusual = !educatorsOnly && regularPrice !== undefined && value !== regularPrice;
         const name = formatStudentName(row.name) + (educatorsOnly && row.role ? ` · ${row.role}` : "");
-        const strike = cancelled ? [styles.struck] : [];
 
         return (
           <View key={row.voucherId} wrap={false} style={[
             styles.row, styles.bodyRow,
             ...(rows.length >= 20 ? [styles.denseRow] : []),
-            ...(cancelled ? [styles.cancelled] : []),
           ]}>
-            <Text style={[styles.number, styles.note, ...strike]}>{String(index + 1).padStart(2, "0")}</Text>
-            <Text style={[styles.purchaseId, styles.bold, ...strike]}>{row.purchaseId || "–"}</Text>
-            <Text style={[styles.voucher, styles.bold, ...strike]}>{row.voucherNumber}</Text>
-            <Text style={[styles.studentName, ...strike]}>{name}</Text>
-            <Text style={[styles.value, ...strike]}>
+            <Text style={[styles.number, styles.note]}>{String(index + 1).padStart(2, "0")}</Text>
+            <Text style={[styles.purchaseId, styles.bold]}>{row.purchaseId || "–"}</Text>
+            <Text style={[styles.voucher, styles.bold]}>{row.voucherNumber}</Text>
+            <Text style={styles.studentName}>{name}</Text>
+            <Text style={styles.value}>
               <Text style={unusual ? styles.unusual : undefined}>{currency.format(value)}</Text>
             </Text>
             <View style={styles.status}>
               {internal ? (
-                <Text style={[styles.pill, pillStyles.get(status) ?? styles.unknown]}>
-                  {statusLabels.get(status) ?? row.purchaseStatusLabel}
-                </Text>
+                <Text style={[styles.pill, styles.paid]}>Concluída</Text>
               ) : <View style={styles.presence} />}
             </View>
           </View>
@@ -270,10 +222,11 @@ function ReportDocument({ report, ownerName, audience }: {
   audience: TripReportAudience;
 }) {
   const internal = audience === "internal";
-  const students = internal ? report.students : report.students.filter((row) => isPaidPurchase(row.purchaseStatus));
-  const educators = internal ? report.educators : report.educators.filter((row) => isPaidPurchase(row.purchaseStatus));
+  const students = report.students.filter((row) => isPaidPurchase(row.purchaseStatus));
+  const educators = report.educators.filter((row) => isPaidPurchase(row.purchaseStatus));
   const segments = groupClasses(students);
-  const counts = statusCounts(students);
+  const counts = buildIndicators(students);
+  const totalSold = Number(counts.paidValue) + Number(buildIndicators(educators).paidValue);
   const regularPrice = internal ? standardPrice(students) : undefined;
   const { code, dateLabel: date } = report.trip;
   const generated = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -292,7 +245,7 @@ function ReportDocument({ report, ownerName, audience }: {
       <Text style={[styles.cardTitle, styles.summaryNoteTitle]}>{internal ? "Sobre este relatório" : "Como usar"}</Text>
       <Text style={[styles.note, styles.summaryNote]}>
         {internal
-          ? "Inclui compras concluídas, pendentes e canceladas. A versão da escola mostra só as concluídas." +
+          ? "Este relatório contém somente compras concluídas. O valor total vendido inclui alunos e acompanhantes." +
             (regularPrice === undefined ? "" : ` Valores fora do padrão de ${currency.format(regularPrice)} aparecem destacados.`)
           : "Cada turma está em uma página separada. Imprima e entregue uma folha para cada professor responsável, que pode marcar a presença no dia do passeio."}
       </Text>
@@ -325,7 +278,7 @@ function ReportDocument({ report, ownerName, audience }: {
             </View>
           ) : null}
           <View style={[styles.footer, styles.footerBorder]}>
-            <Text style={styles.note}>{internal ? "Documento interno · Exportação completa do Clube e Park Rincão." : "Documento para uso da escola · Apenas compras concluídas."}</Text>
+            <Text style={styles.note}>{internal ? "Documento interno · Somente compras concluídas." : "Documento para uso da escola · Apenas compras concluídas."}</Text>
             <Text style={[styles.note, styles.footerDetails]}>{code} · {details}</Text>
           </View>
         </View>
@@ -337,12 +290,12 @@ function ReportDocument({ report, ownerName, audience }: {
     <Document title={`Passeio escolar ${code}`} language="pt-BR">
       {sheet("Resumo por turma", `${ownerName} · ${classCount} turma(s) · ${counts.totalCount} aluno(s)`, (
         <>
-          <Totals counts={counts} date={date} internal={internal} classCount={classCount} />
+          <Totals counts={counts} accompanyingCount={educators.length} soldValue={totalSold} classCount={classCount} />
           {classCount ? (
             <View style={styles.columns}>
               {columns.filter((column) => column.length).map((column, index) => (
                 <View key={column[0].segment} style={styles.column}>
-                  {column.map((segment) => <SegmentSummary key={segment.segment} {...segment} internal={internal} />)}
+                  {column.map((segment) => <SegmentSummary key={segment.segment} {...segment} />)}
                   {index === noteColumn || !columns[1].length ? summaryNote : null}
                 </View>
               ))}
@@ -353,14 +306,14 @@ function ReportDocument({ report, ownerName, audience }: {
       {segments.flatMap(({ segment, classes }) => classes.map(({ label, rows, counts }) =>
         sheet(label, `${segment} · ${ownerName}`, (
           <>
-            <Totals counts={counts} date={date} internal={internal} fixed />
+            <Totals counts={counts} date={internal ? undefined : date} fixed />
             <ParticipantTable rows={rows} internal={internal} regularPrice={regularPrice} badge={`${segment} · ${label}`} />
           </>
         ), `${label} · ${counts.paidCount} aluno(s)`, !internal, true),
       ))}
-      {educators.length ? sheet("Educadores", ownerName,
+      {educators.length ? sheet("Educadores e acompanhantes", ownerName,
         <ParticipantTable rows={educators} internal={internal} educatorsOnly />,
-        `${educators.length} educador(es)`, false, true,
+        `${educators.length} participante(s)`, false, true,
       ) : null}
     </Document>
   );

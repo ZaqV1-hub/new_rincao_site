@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cancelCodindicaCashback,
   processCodindicaCashback,
@@ -17,6 +17,8 @@ vi.mock("@/lib/ingresso-db", () => ({
 }));
 
 describe("codindica-cashback", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   beforeEach(() => {
     vi.clearAllMocks();
     resetCodindicaCashbackTableCacheForTests();
@@ -103,6 +105,10 @@ describe("codindica-cashback", () => {
   });
 
   it("queues representative email when cashback history and email queue exist", async () => {
+    vi.stubEnv("EMAIL_FROM_ADDRESS", undefined);
+    vi.stubEnv("EMAIL_FROM_NAME", undefined);
+    vi.stubEnv("EMAIL_REPLYTO_ADDRESS", undefined);
+    vi.stubEnv("PASSWORD_RESET_SEND_SYNC", "false");
     dbQuery.mockImplementation(async (sql: string, params?: unknown[]) => {
       if (sql.includes("FROM compra")) {
         return {
@@ -198,6 +204,14 @@ describe("codindica-cashback", () => {
         };
       }
 
+      if (sql.includes("INSERT INTO email")) {
+        return { rows: [{ idemail: 123 }] };
+      }
+
+      if (sql.includes("SELECT stemail FROM email")) {
+        return { rows: [{ stemail: "nov" }] };
+      }
+
       return { rowCount: 0, rows: [] };
     });
 
@@ -205,18 +219,19 @@ describe("codindica-cashback", () => {
 
     expect(dbQuery).toHaveBeenCalledWith(
       expect.stringContaining("INSERT INTO email"),
-      expect.arrayContaining([
+      [
         "ingressos@rincao.local",
-        "Ingressos Rincao",
+        "ingressos@rincao.local",
+        "Clube Rincão",
         "rep@example.com",
         "Equipe",
-        "ingressos@rincao.local",
         "Rincao - Compra Finalizada",
-      ]),
+        expect.stringContaining('data-compra-id="456"'),
+      ],
     );
     expect(dbQuery).toHaveBeenCalledWith(
       expect.stringContaining("UPDATE codindica_cashback"),
-      [456, "pendente", "Email do representante enfileirado no BFF."],
+      [456, "pendente", "Email do representante enfileirado para envio."],
     );
   });
 });

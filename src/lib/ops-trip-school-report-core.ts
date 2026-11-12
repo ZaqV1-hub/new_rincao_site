@@ -408,7 +408,6 @@ export async function loadOpsTripSchoolReportSections(
         voucher.stusado
       FROM voucher
       JOIN compra ON compra.idcompra = voucher.idcompra
-      LEFT JOIN pagpagseguro ON pagpagseguro.idcompra = compra.idcompra
       WHERE voucher.idagenda = $1
         AND voucher.idescola = $2
         ${purchaseStatusWhere}

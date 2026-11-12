@@ -46,7 +46,7 @@ describe("ops-school-trip-report", () => {
         };
       }
 
-      if (sql.includes("FROM voucher") && sql.includes("LEFT JOIN pagpagseguro")) {
+      if (sql.includes("FROM voucher") && sql.includes("voucher.idvoucher")) {
         return {
           rows: [
             {

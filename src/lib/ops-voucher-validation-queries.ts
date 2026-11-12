@@ -74,6 +74,9 @@ export async function getSchoolTripVouchers(
       WHERE voucher.idescola = $1
         AND voucher.idagenda = $2
         AND COALESCE(voucher.tpparticipante, '') <> 'educador'
+        AND compra.stcompra = 'conc'
+        AND ((compra.tpcompra = 'ponli' AND pagpagseguro.status IN (3,4))
+          OR (compra.tpcompra = 'reser' AND COALESCE(UPPER(TRIM(compra.formapag)), '') NOT IN ('', 'N/A')))
       ORDER BY voucher.idvoucher ASC
       FOR UPDATE OF voucher, compra
     `,

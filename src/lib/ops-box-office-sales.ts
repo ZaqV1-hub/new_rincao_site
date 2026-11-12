@@ -449,6 +449,7 @@ async function loadAgenda(client: PoolClient, agendaId: number) {
       WHERE agenda.idagenda = $1
         AND agenda.tpagenda IN ('padra', 'promo')
         AND agenda.stagenda IN ('abe', 'lot')
+          AND agenda.dtagenda = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
       LIMIT 1
     `,
     [agendaId],

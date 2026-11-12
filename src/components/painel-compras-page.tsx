@@ -17,6 +17,7 @@ const typeOptions = [
 
 const purchaseStatusOptions = [
   { value: "pend", label: "Em processamento" },
+  { value: "expi", label: "Tempo expirado para compra" },
   { value: "conc", label: "Concluída" },
   { value: "canc", label: "Cancelada" },
 ];
@@ -141,6 +142,12 @@ export function PainelComprasPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link
+              className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-xs font-semibold text-[#133d63]"
+              href="/painel/compras/contestacoes"
+            >
+              Contestações Cielo
+            </Link>
             <Link
               className="rounded-[8px] border border-[#d7e3ee] px-3 py-2 text-xs font-semibold text-[#133d63]"
               href="/painel/compras/vouchers"

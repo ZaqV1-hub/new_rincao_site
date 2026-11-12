@@ -270,7 +270,7 @@ export async function resetPasswordByTicket(input: {
         LEFT JOIN trocasenha_audiencia ON trocasenha_audiencia.ticket = trocasenha.ticket
         WHERE trocasenha.ticket = $1
         LIMIT 1
-        FOR UPDATE
+        FOR UPDATE OF trocasenha
       `,
       [input.ticket.trim()],
     );

@@ -90,12 +90,17 @@ describe("ops/admin/clients/trips/[agendaId]/report route", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
+    expect(getOpsClientTripSchoolReport).toHaveBeenCalledWith({
+      agendaId: "10",
+      clientId: "20",
+      purchaseStatus: "conc",
+    });
     expect(formatOpsClientTripSchoolReportCsv).toHaveBeenCalled();
     expect(response.headers.get("content-type")).toContain("text/csv");
     expect(body).toContain("ABC123");
   });
 
-  it("streams pdf when requested", async () => {
+  it("streams a private PDF of completed purchases even with a pending filter", async () => {
     getOpsClientTripSchoolReport.mockResolvedValue({
       trip: { agendaId: 10, clientId: 20, clientName: "Colegio", code: "ABC123" },
       filters: { purchaseStatus: "" },
@@ -125,10 +130,11 @@ describe("ops/admin/clients/trips/[agendaId]/report route", () => {
     expect(getOpsClientTripSchoolReport).toHaveBeenCalledWith({
       agendaId: "10",
       clientId: "20",
-      purchaseStatus: null,
+      purchaseStatus: "conc",
     });
     expect(renderOpsClientTripSchoolReportPdfBuffer).toHaveBeenCalled();
     expect(response.headers.get("content-type")).toBe("application/pdf");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(body).toContain("%PDF");
   });
 });

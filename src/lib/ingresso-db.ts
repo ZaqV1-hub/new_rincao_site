@@ -608,8 +608,8 @@ function createPostgresIngressoDbPool(): IngressoDbPool {
             rowCount: result.rowCount ?? result.rows.length,
           };
         },
-        release() {
-          client.release();
+        release(error?: Error | boolean) {
+          client.release(error);
         },
       };
     },
@@ -659,8 +659,8 @@ function createPrefixedPostgresIngressoDbPool(prefix: IngressoDbConfigPrefix): I
             rowCount: result.rowCount ?? result.rows.length,
           };
         },
-        release() {
-          client.release();
+        release(error?: Error | boolean) {
+          client.release(error);
         },
       };
     },

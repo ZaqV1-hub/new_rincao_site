@@ -39,11 +39,10 @@ function BarChart({ title, hint, values, total, color }: {
 function OriginChart({ values }: { values: CountRow[] }) {
   const colors = ["#153f68", "#4e97c3", "#d9a048"];
   const total = values.reduce((sum, [, count]) => sum + count, 0);
-  let offset = 0;
   const stops = values.map(([, count], index) => {
+    const offset = values.slice(0, index).reduce((sum, [, value]) => sum + value, 0);
     const start = total ? offset / total * 360 : 0;
-    offset += count;
-    return `${colors[index]} ${start}deg ${total ? offset / total * 360 : 0}deg`;
+    return `${colors[index]} ${start}deg ${total ? (offset + count) / total * 360 : 0}deg`;
   });
   return <section className={styles.chartCard}>
     <div className={styles.chartHeading}><h2>Origem do atendimento</h2><p>Como a pessoa chegou ao parque.</p></div>

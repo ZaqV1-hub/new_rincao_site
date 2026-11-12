@@ -59,7 +59,7 @@ O fluxo e:
 7. health check local e publico;
 8. rollback para a release anterior em caso de falha.
 
-As branches sao independentes: push em `develop` publica homologacao e push em `main` publica producao. A suite de testes ainda possui falhas legadas e, ate ser saneada, o gate automatico de deploy e o build completo seguido dos health checks.
+As branches sao independentes: push em `develop` publica homologacao e push em `main` publica producao. Antes da publicacao, o job `verify` executa lint, geracao dos tipos de rotas, TypeScript, testes unitarios/integracao, testes dos scripts e build com Node 20.19.5. O PostgreSQL desse job e descartavel e usa apenas dados sinteticos; nao recebe credenciais dos ambientes. O job de deploy depende dessas verificacoes e continua compilando o SHA exato na VM, seguido dos health checks.
 
 ## Rollback manual
 

@@ -8,6 +8,7 @@ import { getPainelBilheteriaSelectionCapabilities } from "@/lib/painel-bilheteri
 import {
   type PainelBilheteriaCustomerLookupResult,
   type PainelBilheteriaTicketLookupResult,
+  type PainelBilheteriaTripLookupResult,
 } from "@/lib/painel-bilheteria-workstation";
 
 type WorkstationMessage = {
@@ -66,8 +67,6 @@ type PainelBilheteriaWorkstationProps = {
   actorName?: string | null;
   actorCpf?: string | null;
   isManager?: boolean;
-  agendaOpen?: boolean;
-  agendaWarning?: string | null;
   initialTicketLookupState?: {
     isOpen: boolean;
     lookup: string;
@@ -176,11 +175,12 @@ export function PainelBilheteriaWorkstation({
   actorName = null,
   actorCpf = null,
   isManager = false,
-  agendaOpen = true,
-  agendaWarning = null,
   initialTicketLookupState,
 }: PainelBilheteriaWorkstationProps) {
   const contract = legacyPanelContracts.bilheteriaIndex;
+  const [tripCode, setTripCode] = useState("");
+  const [trip, setTrip] = useState<PainelBilheteriaTripLookupResult | null>(null);
+  const [loadingTrip, setLoadingTrip] = useState(false);
   const [voucherNumber, setVoucherNumber] = useState("");
   const [customerDocument, setCustomerDocument] = useState("");
   const [ticketLookup, setTicketLookup] = useState(initialTicketLookupState?.lookup ?? "");
@@ -217,6 +217,7 @@ export function PainelBilheteriaWorkstation({
   const [confirmationState, setConfirmationState] = useState<ConfirmationState>(null);
   const hasServerDrivenTicketLookup = Boolean(initialTicketLookupState?.isOpen);
   const messageRef = useRef<HTMLElement | null>(null);
+  const tripResultRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!observationsOpen) return;
@@ -253,6 +254,12 @@ export function PainelBilheteriaWorkstation({
       behavior: "smooth",
     });
   }, [message]);
+
+  useEffect(() => {
+    if (!trip || !tripResultRef.current) return;
+    const top = Math.max(0, window.scrollY + tripResultRef.current.getBoundingClientRect().top - 120);
+    window.scrollTo({ top, behavior: "smooth" });
+  }, [trip]);
 
   function normalizeVoucherIds(voucherIds: number[]) {
     return [...new Set(voucherIds.filter((voucherId) => voucherId > 0))];
@@ -319,6 +326,26 @@ export function PainelBilheteriaWorkstation({
 
   function isActionRunning(actionKey: string) {
     return runningActionKey === actionKey;
+  }
+
+  async function handleTripSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setLoadingTrip(true);
+    setTrip(null);
+    try {
+      const response = await fetch("/api/painel/bilheteria/trip-lookup", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code: tripCode }),
+      });
+      const payload = await readJson<LookupResponse<PainelBilheteriaTripLookupResult>>(response);
+      if (!response.ok || !payload?.ok || !payload.data) {
+        setMessage({ tone: "error", text: payload?.error?.message || "Não foi possível consultar o passeio." });
+        return;
+      }
+      setTrip(payload.data);
+    } catch {
+      setMessage({ tone: "error", text: "Não foi possível consultar o passeio." });
+    } finally { setLoadingTrip(false); }
   }
 
   async function loadCustomerLookup(
@@ -777,21 +804,16 @@ export function PainelBilheteriaWorkstation({
     <div className="grid gap-6">
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid gap-5">
-          {!agendaOpen && agendaWarning ? (
-            <section className="rounded-[10px] border border-[#f0d3a8] bg-[#fff6e3] px-5 py-4 text-sm text-[#8a6100]">
-              {agendaWarning}
-            </section>
-          ) : null}
           {contract.forms
-            ?.filter((form) => form.id !== "trip-validation")
-            .map((form) => {
+            ?.map((form) => {
             const field = form.fields[0];
+            const isTrip = form.id === "trip-validation";
             const isVoucher = form.id === "voucher-validation";
             const isCustomer = form.id === "customer-validation";
-            const value = isVoucher ? voucherNumber : customerDocument;
-            const setValue = isVoucher ? setVoucherNumber : setCustomerDocument;
-            const submitting = isVoucher ? submittingVoucher : submittingCustomer;
-            const onSubmit = isCustomer ? handleCustomerSubmit : handleVoucherSubmit;
+            const value = isTrip ? tripCode : isVoucher ? voucherNumber : customerDocument;
+            const setValue = isTrip ? (value: string) => { setTripCode(value); setTrip(null); } : isVoucher ? setVoucherNumber : setCustomerDocument;
+            const submitting = isTrip ? loadingTrip : isVoucher ? submittingVoucher : submittingCustomer;
+            const onSubmit = isTrip ? handleTripSubmit : isCustomer ? handleCustomerSubmit : handleVoucherSubmit;
 
             return (
               <article key={form.id} className="panel-section px-7 py-8">
@@ -825,10 +847,29 @@ export function PainelBilheteriaWorkstation({
                     </div>
 
                     <p className="mt-3 text-sm text-[#5d7282]">
-                      {form.id === "voucher-validation"
-                        ? "Digite o código do voucher para validar."
-                        : "Digite o RG ou CPF do cliente para consultar."}
+                      {isTrip
+                        ? "Digite o código do passeio para consultar a escola e os ingressos."
+                        : isVoucher
+                          ? "Digite o código do voucher para validar."
+                          : "Digite o RG ou CPF do cliente para consultar."}
                     </p>
+                    {isTrip && trip ? (
+                      <section ref={tripResultRef} className="mt-5 rounded-[8px] border border-[#c8d9ea] bg-[#eef5fb] p-4" aria-label="Dados do passeio">
+                        {trip.schoolId && trip.agendaId ? <>
+                          <h3 className="font-bold text-[#123b63]">{trip.schoolName}</h3>
+                          <p>Código: {trip.lookup} · Data: {formatPainelBilheteriaDate(trip.visitDate)}</p>
+                          <p>Status: {trip.statusLabel}</p>
+                          <p>{trip.items.length} ingresso(s), {trip.items.filter((item) => item.statusCode === "n").length} não usado(s).</p>
+                          {trip.items.some((item) => item.statusCode === "n") ? <>
+                            <p className="mt-3 font-semibold">Deseja validar os ingressos disponíveis deste passeio?</p>
+                            <button type="button" className="mt-3 inline-flex min-h-[56px] items-center justify-center rounded-[6px] border border-[#c8d9ea] bg-white px-5 text-base font-bold text-[#133d63] hover:bg-[#eef5fb] disabled:opacity-60" disabled={runningActionKey !== null} onClick={async () => {
+                              const ok = await runVoucherMutation("validate-trip", "/api/painel/bilheteria/vouchers/validate", { schoolId: trip.schoolId, agendaId: trip.agendaId });
+                              if (ok) setTrip(null);
+                            }}>Confirmar validação do passeio</button>
+                          </> : <p className="mt-3">Não há ingressos disponíveis para validar neste passeio.</p>}
+                        </> : <p>Passeio não encontrado. Confira o código informado.</p>}
+                      </section>
+                    ) : null}
                   </div>
                 </form>
               </article>

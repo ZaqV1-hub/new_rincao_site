@@ -759,7 +759,7 @@ function ParticipantTable({
                     <Link
                       href={`/painel/compras/${row.purchaseId}`}
                       prefetch={false}
-                      className="cursor-pointer text-[#153f68] hover:underline focus-visible:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#153f68]"
+                      className="cursor-pointer text-[#1d4ed8] underline decoration-[#7aa7cf] underline-offset-2 hover:text-[#1e40af] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]"
                     >
                       {row.purchaseId}
                     </Link>

@@ -28,6 +28,8 @@ beforeEach(() => {
 describe("listPainelUsuariosSite", () => {
   it("lista usuarios do site com filtro padrao ativo", async () => {
     mocks.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ total: "1" }] })
       .mockResolvedValueOnce({
         rows: [
@@ -58,6 +60,11 @@ describe("listPainelUsuariosSite", () => {
     const result = await listPainelUsuariosSite({});
 
     expect(result.filters.stusuario).toBe("ati");
+    expect(result.total).toBe(1);
+    expect(mocks.query).toHaveBeenCalledWith(
+      expect.stringContaining("usuario.stusuario = $1"),
+      ["ati"],
+    );
     expect(result.items[0]).toMatchObject({
       cpfLabel: "123.456.789-01",
       name: "Maria Site",

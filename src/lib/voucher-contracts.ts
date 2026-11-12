@@ -28,6 +28,7 @@ export type UserVoucherPurchase = {
   type: PurchaseType;
   typeLabel: string;
   purchaseDate: string | null;
+  checkoutExpiresAt?: string | null;
   totalValue: string | null;
   status: PurchaseStatus | null;
   statusLabel: string;

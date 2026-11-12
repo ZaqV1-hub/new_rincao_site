@@ -15,7 +15,44 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    name: Lint, types, tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_test_only
+          POSTGRES_DB: chargeback_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CHARGEBACK_TEST_DATABASE_URL: postgres://postgres:ci_test_only@127.0.0.1:5432/chargeback_test
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20.19.5
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npx next typegen
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: node --test scripts/run-chargeback-sync.test.mjs scripts/hml-release-retention.test.mjs
+      - run: npm run build
+
   deploy:
+    needs: verify
     name: ${{ github.ref_name == 'main' && 'Production' || 'Homologation' }}
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'homologation' }}

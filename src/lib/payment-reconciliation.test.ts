@@ -281,6 +281,7 @@ describe("payment-reconciliation", () => {
       ledgerAction: "unchanged",
     });
     expect(client.query.mock.calls.some(([sql]) => /^(UPDATE|INSERT)\b/i.test(sql.trim()))).toBe(false);
+    expect(client.query).toHaveBeenCalledTimes(3);
   });
 
   it("does not reactivate a purchase cancelled in the Cielo portal while the API still says paid", async () => {
@@ -300,6 +301,7 @@ describe("payment-reconciliation", () => {
 
     expect(result).toMatchObject({ purchaseStatus: "canc", ledgerAction: "unchanged" });
     expect(client.query.mock.calls.some(([sql]) => /^(UPDATE|INSERT)\b/i.test(sql.trim()))).toBe(false);
+    expect(client.query).toHaveBeenCalledTimes(3);
   });
 
   it("rejects a confirmed charge with a different purchase amount", async () => {
@@ -316,5 +318,6 @@ describe("payment-reconciliation", () => {
       ),
     ).rejects.toThrow("payment_amount_mismatch");
     expect(client.query.mock.calls.some(([sql]) => /^(UPDATE|INSERT)\b/i.test(sql.trim()))).toBe(false);
+    expect(client.query).toHaveBeenCalledTimes(3);
   });
 });

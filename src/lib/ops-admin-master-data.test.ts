@@ -66,7 +66,7 @@ describe("ops-admin-master-data", () => {
           expect.objectContaining({
             name: "roleId",
             type: "integer",
-            allowedIntegers: [1, 2, 3, 4],
+            allowedIntegers: [1, 2, 3, 4, 5],
           }),
         ]),
       }),

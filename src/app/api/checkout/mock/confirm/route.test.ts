@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const clearAuthCookie = vi.fn();
 const getAuthSession = vi.fn();
@@ -19,14 +19,18 @@ vi.mock("@/lib/checkout-sandbox", () => ({
 }));
 
 describe("checkout mock confirm route", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("NODE_ENV", "test");
     getAuthSession.mockResolvedValue({ sub: "52998224725" });
     getUserVoucherPurchaseById.mockResolvedValue({
       id: 456,
       type: "ponli",
       status: "pend",
       totalValue: "129.90",
+      checkoutExpiresAt: "2099-01-01T00:00:00.000Z",
     });
     confirmSandboxCheckout.mockResolvedValue({
       purchaseId: 456,
@@ -93,7 +97,7 @@ describe("checkout mock confirm route", () => {
     });
   });
 
-  it("keeps auth protection before returning the disabled sandbox response", async () => {
+  it("requires authentication when local checkout is enabled", async () => {
     getAuthSession.mockResolvedValue(null);
     const { POST } = await import("@/app/api/checkout/mock/confirm/route");
     const response = await POST(
@@ -110,5 +114,25 @@ describe("checkout mock confirm route", () => {
         code: "unauthenticated",
       },
     });
+  });
+
+  it("blocks mock checkout in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const { POST } = await import("@/app/api/checkout/mock/confirm/route");
+    const response = await POST(
+      new Request("https://example.test/api/checkout/mock/confirm", {
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: "checkout_unavailable",
+      },
+    });
+    expect(getAuthSession).not.toHaveBeenCalled();
+    expect(confirmSandboxCheckout).not.toHaveBeenCalled();
   });
 });

@@ -52,7 +52,7 @@ describe("payment-reconciliation side effects", () => {
     });
     poolQuery.mockImplementation(async (sql: string) => {
       if (sql.includes("FROM compra")) {
-        return { rowCount: 1, rows: [{ idcompra: 123 }] };
+        return { rowCount: 1, rows: [{ idcompra: 123, vltotcompra: "120.00" }] };
       }
 
       if (sql.includes("FROM pagpagseguro")) {

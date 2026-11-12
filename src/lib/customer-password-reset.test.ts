@@ -18,7 +18,17 @@ vi.mock("@/lib/ingresso-db", () => ({
     query: mocks.legacyQuery,
   }),
   getIngressoSistemaDbPool: () => ({
-    query: mocks.systemQuery,
+    query: async (sql: string, values?: unknown[]) => {
+      if (
+        sql.includes("CREATE TABLE IF NOT EXISTS usuario_site_conta (") ||
+        sql.includes("CREATE INDEX IF NOT EXISTS usuario_site_conta_email_idx ") ||
+        sql.includes("CREATE TABLE IF NOT EXISTS trocasenha_audiencia (")
+      ) {
+        return { rows: [] };
+      }
+
+      return mocks.systemQuery(sql, values);
+    },
     connect: async () => ({
       query: mocks.systemClientQuery,
       release: mocks.release,
@@ -32,7 +42,7 @@ vi.mock("@/lib/legacy-email", () => ({
 
 describe("customer-password-reset", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it("requests a public password reset by cpf and queues the legacy email", async () => {
@@ -50,14 +60,19 @@ describe("customer-password-reset", () => {
               cpf: "52998224725",
               nmusuario: "Cliente Teste",
               email: "cliente@example.com",
+              stusuario: "ati",
             },
           ],
         };
       }
 
-      if (sql.includes("INSERT INTO trocasenha")) {
+      if (sql.includes("INSERT INTO trocasenha (")) {
         expect(values?.[0]).toBe("52998224725");
         expect(typeof values?.[1]).toBe("string");
+        return { rows: [] };
+      }
+
+      if (sql.includes("INSERT INTO trocasenha_audiencia (")) {
         return { rows: [] };
       }
 
@@ -77,6 +92,10 @@ describe("customer-password-reset", () => {
       userFound: true,
       email: "cliente@example.com",
     });
+    expect(mocks.systemQuery).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO trocasenha_audiencia ("),
+      [expect.any(String), "public"],
+    );
     expect(mocks.queueLegacyEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: "cliente@example.com",
@@ -96,6 +115,7 @@ describe("customer-password-reset", () => {
               cpf: "52998224725",
               nmusuario: "Cliente Teste",
               email: "cliente@example.com",
+              stusuario: "ati",
             },
           ],
         };
@@ -126,8 +146,18 @@ describe("customer-password-reset", () => {
   });
 
   it("reports whether the public reset ticket is valid", async () => {
-    mocks.systemQuery.mockResolvedValue({
-      rows: [{ cpf: "52998224725", flusado: "n" }],
+    mocks.systemQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
+      if (sql.includes("FROM trocasenha")) {
+        expect(values).toEqual(["abc"]);
+        return { rows: [{ cpf: "52998224725", flusado: "n", audiencia: null }] };
+      }
+
+      if (sql.includes("SELECT cpf FROM usuario_site_conta")) {
+        expect(values).toEqual(["52998224725"]);
+        return { rows: [] };
+      }
+
+      throw new Error(`Unexpected system query: ${sql}`);
     });
 
     await expect(getCustomerPasswordResetTicket("abc")).resolves.toEqual({
@@ -146,8 +176,13 @@ describe("customer-password-reset", () => {
       if (sql.includes("FROM trocasenha") && sql.includes("FOR UPDATE")) {
         expect(values).toEqual(["abc"]);
         return {
-          rows: [{ cpf: "52998224725", flusado: "n" }],
+          rows: [{ cpf: "52998224725", flusado: "n", audiencia: null }],
         };
+      }
+
+      if (sql.includes("SELECT cpf FROM usuario_site_conta")) {
+        expect(values).toEqual(["52998224725"]);
+        return { rows: [] };
       }
 
       if (sql.includes("UPDATE trocasenha")) {
@@ -155,10 +190,17 @@ describe("customer-password-reset", () => {
         return { rows: [] };
       }
 
-      if (sql.includes("UPDATE usuario")) {
+      if (sql.includes("UPDATE usuario_site_conta SET senha")) {
         expect(values?.[0]).toMatch(/^[a-f0-9]{32}$/);
         expect(values?.[1]).toBe("52998224725");
-        return { rows: [] };
+        return { rows: [], rowCount: 0 };
+      }
+
+      if (sql.includes("UPDATE usuario SET senha")) {
+        expect(sql).toContain("idpapel IS NULL");
+        expect(values?.[0]).toMatch(/^[a-f0-9]{32}$/);
+        expect(values?.[1]).toBe("52998224725");
+        return { rows: [], rowCount: 1 };
       }
 
       throw new Error(`Unexpected query: ${sql}`);
