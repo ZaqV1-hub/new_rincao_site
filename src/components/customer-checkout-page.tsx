@@ -8,7 +8,7 @@ import { FlowStepper } from "@/components/order-flow-ui";
 import type { AuthUser } from "@/lib/auth-contracts";
 import type { CheckoutMode } from "@/lib/checkout-mode";
 import type { UserVoucherPurchase } from "@/lib/voucher-contracts";
-import { CIELO_INSTALLMENT_RATES_BPS } from "@/lib/cielo-installment-pricing";
+import { CIELO_INSTALLMENT_RATES_BPS, getMaxCieloInstallments } from "@/lib/cielo-installment-pricing";
 
 type CustomerCheckoutPageProps = {
   mode: CheckoutMode;
@@ -264,8 +264,7 @@ export function CustomerCheckoutPage({
       continueShoppingUrl: "/meus-ingressos",
       logoUrl: "/brand/rincao-logo-dark.png",
       paymentMethods: ["CreditCard", "DebitCard", "Pix"],
-      maxInstallments: 3,
-      minInstallmentValue: 100,
+      maxInstallments: getMaxCieloInstallments(Math.round(Number(purchase.totalValue) * 100)),
       installmentRatesBps: CIELO_INSTALLMENT_RATES_BPS,
     };
 

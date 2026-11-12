@@ -386,7 +386,7 @@ describe("cielo-ecommerce", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("creates native Cielo checkout payloads", async () => {
+  it.each([2, 6])("creates native Cielo checkout payloads with %i installments", async (installments) => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json({
         MerchantOrderId: "456",
@@ -414,7 +414,7 @@ describe("cielo-ecommerce", () => {
       },
       payment: {
         type: "CreditCard",
-        installments: 2,
+        installments,
         creditCard: {
           cardNumber: "4111111111111111",
           holder: "Cliente Teste",
@@ -457,7 +457,7 @@ describe("cielo-ecommerce", () => {
       Payment: {
         Type: "CreditCard",
         Amount: 22990,
-        Installments: 2,
+        Installments: installments,
         Capture: true,
         CreditCard: {
           Brand: "Visa",

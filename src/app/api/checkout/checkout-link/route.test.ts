@@ -114,7 +114,7 @@ describe("checkout-link BFF route", () => {
           document: "529.982.247-25",
           payment: {
             type: "CreditCard",
-            installments: 2,
+            installments: 1,
           },
         }),
       }),
@@ -135,7 +135,7 @@ describe("checkout-link BFF route", () => {
         }),
         payment: {
           type: "CreditCard",
-          installments: 2,
+          installments: 1,
         },
       }),
     );
@@ -150,6 +150,39 @@ describe("checkout-link BFF route", () => {
       456,
     ]);
     expect(dbRelease).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { total: "199.99", installments: 2, status: 400, amount: null },
+    { total: "200.00", installments: 6, status: 200, amount: "204.71" },
+    { total: "200.00", installments: 7, status: 400, amount: null },
+  ])("applies the credit installment policy for R$ $total in $installments installments", async ({ total, installments, status, amount }) => {
+    getUserVoucherPurchaseById.mockResolvedValue({
+      id: 456,
+      type: "ponli",
+      status: "pend",
+      checkoutExpiresAt: "2099-01-01T00:00:00.000Z",
+      totalValue: total,
+    });
+    const { POST } = await import("@/app/api/checkout/checkout-link/route");
+    const response = await POST(new Request("https://example.com/api/checkout/checkout-link", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        idcompra: 456,
+        payment: { type: "CreditCard", installments, creditCard: { brand: "Visa" } },
+      }),
+    }));
+
+    expect(response.status).toBe(status);
+    if (amount === null) {
+      expect(createNativeCieloCheckout).not.toHaveBeenCalled();
+    } else {
+      expect(createNativeCieloCheckout).toHaveBeenCalledWith(expect.objectContaining({
+        amount,
+        payment: expect.objectContaining({ installments }),
+      }));
+    }
   });
 
   it("blocks checkout without falling back when Cielo ecommerce credentials are missing", async () => {
