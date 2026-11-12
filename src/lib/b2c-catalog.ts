@@ -5,7 +5,7 @@ import type {
   B2cProductType,
   B2cVoucherType,
 } from "@/lib/b2c-catalog-defaults";
-import { getB2cSitePrice } from "@/lib/b2c-catalog-defaults";
+import { getB2cSitePrice, MAX_B2C_PURCHASE_UNITS } from "@/lib/b2c-catalog-defaults";
 
 export type {
   B2cProduct,
@@ -29,16 +29,19 @@ export type B2cCartSummaryLine = {
   totalValue: string;
   voucherType: B2cVoucherType;
   voucherPrefix: string;
+  operationalServiceId?: number;
 };
 
 function normalizeMoney(value: number) {
+  if (value < 0 || !Number.isSafeInteger(Math.round(value * 100))) throw new Error("Valor fora do limite seguro para compra.");
   return value.toFixed(2);
 }
 
 function parseMoney(value: string | null | undefined) {
   const numericValue = Number(value);
 
-  return Number.isFinite(numericValue) ? numericValue : 0;
+  if (!Number.isFinite(numericValue)) throw new Error("Valor inválido para compra.");
+  return numericValue;
 }
 
 function resolveUnitPrice(product: B2cProduct) {
@@ -76,15 +79,22 @@ export function buildB2cCartSummaryForProducts(
   products: B2cProduct[],
 ) {
   const lines: B2cCartSummaryLine[] = [];
+  const selectedIds = new Set<string>();
+  let voucherCount = 0;
 
   for (const item of lineItems) {
-    if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+    if (selectedIds.has(item.productId)) throw new Error("Produto repetido no carrinho.");
+    selectedIds.add(item.productId);
+    if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) {
       throw new Error("Informe quantidades validas para continuar.");
     }
 
+    voucherCount += item.quantity;
+    if (voucherCount > MAX_B2C_PURCHASE_UNITS) throw new Error(`Limite de ${MAX_B2C_PURCHASE_UNITS} unidades por pedido, somando ingressos e serviços.`);
+
     const product = products.find((current) => current.id === item.productId) ?? null;
 
-    if (!product) {
+    if (!product?.active) {
       throw new Error("Produto indisponivel para compra.");
     }
 
@@ -100,10 +110,12 @@ export function buildB2cCartSummaryForProducts(
       totalValue: normalizeMoney(unitPrice * item.quantity),
       voucherType: product.voucherType,
       voucherPrefix: product.voucherPrefix,
+      ...(product.operationalServiceId !== undefined ? { operationalServiceId: product.operationalServiceId } : {}),
     });
   }
 
-  const ticketQuantity = lines.reduce((total, line) => total + line.quantity, 0);
+  const ticketQuantity = lines.reduce((total, line) => total + (line.type === "passport" ? line.quantity : 0), 0);
+  const addonQuantity = lines.reduce((total, line) => total + (line.type === "addon" ? line.quantity : 0), 0);
 
   if (ticketQuantity <= 0) {
     throw new Error("Selecione pelo menos um ingresso para continuar.");
@@ -118,8 +130,8 @@ export function buildB2cCartSummaryForProducts(
     lines,
     ticketQuantity,
     passportQuantity: ticketQuantity,
-    addonQuantity: 0,
-    voucherCount: ticketQuantity,
+    addonQuantity,
+    voucherCount,
     totalValue: normalizeMoney(total),
   };
 }

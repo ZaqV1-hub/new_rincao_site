@@ -6,7 +6,7 @@
 **Arquitetura:** evolução do Next.js existente, preservando compras, vouchers, clientes, tabelas de preço, autenticação e integração de ingressos. Novas regras financeiras ficam no servidor, com transações, auditoria, idempotência e snapshots de fechamento. App de contagem proposto como área web responsiva autenticada, com internet obrigatória, integrada ao mesmo domínio de passeios.
 **Stack verificada:** Next.js 16.4.5 no checkout principal, React 19.2.4, TypeScript, pg/mysql2, Vitest, React PDF e ExcelJS. `develop` ainda possui diferenças de versão/implementação que precisam ser reconciliadas antes de fixar a baseline.
 **Especificação:** `../specs/painel-gestao-referencias/painel-rincao-dev.md` e `../specs/painel-gestao-referencias/painel-rincao-prototipo.html`, cópias integrais dos anexos.
-**Estado:** baseline local integrada; cadastros E1 implementados e verificados localmente em 12/11/2026; E2 com agenda, validade e capacidade verificadas localmente; integração dos serviços à venda em andamento. Recomendações da seção 9 aprovadas; detalhes externos precisam de evidência, sem simular integrações existentes.
+**Estado:** baseline local integrada; cadastros E1 implementados e verificados localmente em 12/11/2026; E2 com agenda, validade, capacidade e serviços na venda online; E3 com resumo e listas por data implementados localmente. E4 em andamento. Recomendações da seção 9 aprovadas; detalhes externos precisam de evidência, sem simular integrações existentes.
 
 ## 1. Decisões confirmadas e limites
 
@@ -393,3 +393,15 @@ O usuário escolheu permitir uma utilização em qualquer dia com day use aberto
 - Navegador com API/banco locais: criação do dia, intervalo, lote em data sem agenda, conflito de edição preservando rascunho e perda de resposta após gravação. Inspeção em desktop e celular; correções de contraste do mês e texto compacto no calendário.
 - Duas revisões independentes por escopo: capacidade/entrega e configuração/calendário. Achados corrigidos, com regressões de concorrência, status legado e grupos. O executor aplicou e reconheceu como já aplicadas as três migrações no banco local isolado.
 - Ainda pendente nesta etapa: oferta dos serviços e tipos habilitados na compra online, classificação histórica dos itens e compatibilidade do serviço externo de ingressos/scanners. Não publicado em develop/main e nenhuma migração remota executada. E3–E10 continuam pendentes.
+
+### Marco local E2/E3 — serviços e página da data (12/11/2026)
+
+- Oferta online usa ingressos habilitados e serviços ativos atribuídos à data/parque. Preço site nulo não oferece o serviço; zero é válido. Compra grava nome, preço e identidade do serviço, sem desconto de indicação; limite de capacidade conta somente pessoas. Limite técnico de 500 unidades por pedido protege a geração de vouchers, incluindo serviços.
+- Resumo por data distingue receita da visita e entrada efetiva, com apuração única em transação de leitura consistente. Valores de passeios/caixas/despesas/fechamento ainda indisponíveis até as etapas correspondentes; subtotal explicitamente parcial. Agendas legadas ambíguas geram aviso sem ocultar a apuração.
+- Compras e passeios carregam sob demanda, 20 itens por página. Acesso exige agenda e permissão do módulo; escolas preservam a alternativa vis_escola. Valores de compra correspondem somente aos itens da data, sem rateio inventado. Vínculo de passeio usa agenda e cliente.
+- Revisões independentes corrigiram quantidade ilimitada de adicionais, preço desatualizado na prévia, bloqueio de resumo por agenda ambígua, precedência do nome do comprador e permissão de escolas. Navegador local confirmou paginação, resposta atrasada sem trocar aba, acesso 403 e recuperação, teclado e larguras 360/390/1440; cabeçalho móvel corrigido após inspeção.
+- Compra sintética via API/banco: adulto 120 com indicação a 90 e dois serviços a 19 = 128 reais; três vouchers, uma vaga, desconto de 30 somente no ingresso. Prévia atualizou o serviço de 17,35 para 19 sem recarregar a página. Nenhuma cobrança externa realizada.
+- Banco de runtime sintético restaurado do PostgreSQL17 temporário para PostgreSQL16.15 local, com quatro migrações reconhecidas; cluster temporário parado. Docker recuperado após limpeza autorizada de caches (4.147.812 KB liberados). Não houve exclusão de arquivos pessoais, migração remota ou publicação.
+- E4–E10, compatibilidade dos scanners externos, homologação real e gates de infraestrutura continuam pendentes. Develop e Product Owner ficam para o final, conforme instrução do usuário.
+
+Verificação final do marco E2/E3: 1.284/1.284 testes em PostgreSQL16.15, sem ignorados; 21/21 scripts; lint sem erros e 14 avisos preexistentes; tipos/build aprovados. Mantém aviso preexistente de tracing dinâmico. Migrations locais conferidas; sem publicação.

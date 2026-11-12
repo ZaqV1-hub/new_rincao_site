@@ -1,3 +1,5 @@
+export const MAX_B2C_PURCHASE_UNITS = 500;
+
 export type B2cProductType = "passport" | "addon";
 export type B2cVoucherType = "norma" | "infan" | "espec" | "isent";
 
@@ -21,6 +23,7 @@ export type B2cProduct = {
   voucherPrefix: string;
   active: boolean;
   sortOrder?: number;
+  operationalServiceId?: number;
 };
 
 export function getB2cSitePrice(product: Pick<B2cProduct, "sitePrice" | "fixedPrice">) {

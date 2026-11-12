@@ -7,6 +7,7 @@ import {
 } from "@/lib/agenda-repository";
 import { encodeLegacyId } from "@/lib/agenda-id";
 import { buildB2cCartSummaryForProducts } from "@/lib/b2c-catalog";
+import { MAX_B2C_PURCHASE_UNITS } from "@/lib/b2c-catalog-defaults";
 import {
   calculateCodindicaCartTotals,
   calculateCodindicaTotals,
@@ -23,7 +24,7 @@ import type {
   PurchaseAgendaDetail,
   PurchasePricing,
 } from "@/lib/purchase-contracts";
-import { buildStandardTicketProducts } from "@/lib/standard-ticket-products";
+import { loadOperationalDayOffer, OperationalDayOfferError } from "@/lib/operational-day-offer";
 import { generateUniqueVoucherNumber } from "@/lib/voucher-number";
 
 type ConvenioRow = {
@@ -267,6 +268,11 @@ function validateQuantities(
   pricing: PurchasePricing,
   quantities: CreatePurchaseQuantities,
 ) {
+  const counts = [quantities.discountedNormal, quantities.discountedChild, quantities.normal, quantities.child, quantities.exempt];
+  if (counts.some((quantity) => !Number.isSafeInteger(quantity) || quantity < 0) ||
+      counts.reduce((sum, quantity) => sum + quantity, 0) > MAX_B2C_PURCHASE_UNITS) {
+    throw new PurchaseCreationError("invalid_purchase", `Selecione até ${MAX_B2C_PURCHASE_UNITS} itens por compra, com quantidades inteiras válidas.`, 400);
+  }
   const discountedTotal =
     quantities.discountedNormal + quantities.discountedChild;
   const paidTotal =
@@ -311,24 +317,31 @@ function resolveVoucherValidityDate(agenda: PurchaseAgendaDetail, now = new Date
   return addMonths(now, 6).toISOString().slice(0, 10);
 }
 
-function buildAgendaCartSummary(
-  agenda: Pick<PurchaseAgendaDetail, "priceTable">,
+async function buildAgendaCartSummary(
+  agenda: Pick<PurchaseAgendaDetail, "id" | "date" | "priceTable">,
   lineItems: NonNullable<CreatePurchaseRequest["lineItems"]>,
+  client?: Pick<PoolClient, "query">,
 ) {
-  return buildB2cCartSummaryForProducts(
-    lineItems,
-    buildStandardTicketProducts({
-      siteNormal: agenda.priceTable.normal,
-      siteChild: agenda.priceTable.child,
-    }),
-  );
+  let offer;
+  try { offer = await loadOperationalDayOffer(agenda, client); }
+  catch (error) {
+    if (error instanceof OperationalDayOfferError) throw new PurchaseCreationError(error.code, error.message, error.status);
+    throw error;
+  }
+  if (lineItems.some((line) => ["ingresso-adulto", "ingresso-crianca", "ingresso-isento"].includes(line.productId) && !offer.products.some((product) => product.id === line.productId))) {
+    throw new PurchaseCreationError("ticket_type_unavailable", "Um dos tipos de ingresso não está disponível nesta data.", 409);
+  }
+  try { return buildB2cCartSummaryForProducts(lineItems, offer.products); }
+  catch (error) { throw new PurchaseCreationError("invalid_purchase", error instanceof Error ? error.message : "Seleção inválida.", 400); }
 }
 
 function buildCartCodindicaPricing(input: {
-  cart: ReturnType<typeof buildAgendaCartSummary>;
+  cart: Awaited<ReturnType<typeof buildAgendaCartSummary>>;
   codindicaTotals: ReturnType<typeof calculateCodindicaCartTotals>;
 }) {
   const lineMap = new Map<string, CartCodindicaLine>();
+  let subtotalCents = 0;
+  let totalCents = 0;
 
   for (const line of input.cart.lines) {
     let paidUnitPrice = Number(line.unitPrice);
@@ -340,8 +353,12 @@ function buildCartCodindicaPricing(input: {
     }
 
     const originalUnitPrice = Number(line.unitPrice);
-    const totalValue = paidUnitPrice * line.quantity;
-    const adjustmentValue = paidUnitPrice - originalUnitPrice;
+    const paidCents = Math.round(paidUnitPrice * 100);
+    const originalCents = Math.round(originalUnitPrice * 100);
+    const totalValue = paidCents * line.quantity / 100;
+    const adjustmentValue = (paidCents - originalCents) / 100;
+    subtotalCents += originalCents * line.quantity;
+    totalCents += paidCents * line.quantity;
 
     lineMap.set(line.productId, {
       productId: line.productId,
@@ -351,11 +368,12 @@ function buildCartCodindicaPricing(input: {
     });
   }
 
+  if (!Number.isSafeInteger(subtotalCents) || !Number.isSafeInteger(totalCents)) throw new PurchaseCreationError("invalid_purchase", "O valor da compra excede o limite permitido.", 400);
   return {
     lines: [...lineMap.values()],
-    subtotal: normalizeMoney(input.codindicaTotals.totalGross),
-    totalAdjustment: normalizeMoney(input.codindicaTotals.totalAdjustment),
-    totalValue: normalizeMoney(input.codindicaTotals.totalPaid),
+    subtotal: normalizeMoney(subtotalCents / 100),
+    totalAdjustment: normalizeMoney((totalCents - subtotalCents) / 100),
+    totalValue: normalizeMoney(totalCents / 100),
   };
 }
 
@@ -390,20 +408,10 @@ export async function createOnlinePurchase(
     if (operationalDay && (operationalDay.date !== agenda.date || operationalDay.priceTableId !== agenda.priceTable.id)) {
       throw new PurchaseCreationError("agenda_changed", "A programação mudou. Atualize os dados e tente novamente.", 409);
     }
-    const capacityTypes = isB2cLineItemSelection(selection)
-      ? selection.lineItems.map((line) => ({
-          type: line.productId === "ingresso-adulto" ? "norma" : line.productId === "ingresso-crianca" ? "infan" : line.productId === "ingresso-isento" ? "isent" : "",
-          quantity: line.quantity,
-        }))
-      : [
-          { type: "norma", quantity: selection.normal + selection.discountedNormal },
-          { type: "infan", quantity: selection.child + selection.discountedChild },
-          { type: "isent", quantity: selection.exempt },
-        ];
-    await validateOnlineCapacitySelection(client, operationalDay, capacityTypes);
 
     if (isB2cLineItemSelection(selection)) {
-      const cart = buildAgendaCartSummary(agenda, selection.lineItems);
+      const cart = await buildAgendaCartSummary(agenda, selection.lineItems, client);
+      await validateOnlineCapacitySelection(client, operationalDay, cart.lines.filter((line) => line.type === "passport").map((line) => ({ type: line.voucherType, quantity: line.quantity })));
 
       const codindica = normalizeCodindica(codindicaInput);
       let cartCodindicaTotals: ReturnType<typeof calculateCodindicaCartTotals> | null = null;
@@ -514,12 +522,8 @@ export async function createOnlinePurchase(
         `,
         [
           cpf,
-          cartCodindicaTotals
-            ? normalizeMoney(cartCodindicaTotals.totalPaid)
-            : cart.totalValue,
-          cartCodindicaTotals
-            ? normalizeMoney(cartCodindicaTotals.totalGross - cartCodindicaTotals.totalPaid)
-            : null,
+          cartCodindicaPricing?.totalValue ?? cart.totalValue,
+          cartCodindicaPricing ? normalizeMoney(-Number(cartCodindicaPricing.totalAdjustment)) : null,
           cartCodindicaTotals?.code ?? null,
         ],
       );
@@ -529,7 +533,7 @@ export async function createOnlinePurchase(
         throw new Error("purchase_insert_failed");
       }
 
-      await reserveOnlineCapacity(client, operationalDay, purchaseId, cart.voucherCount);
+      await reserveOnlineCapacity(client, operationalDay, purchaseId, cart.passportQuantity);
       for (const line of cart.lines) {
         const codindicaLine =
           cartCodindicaPricing?.lines.find((item) => item.productId === line.productId) ??
@@ -556,9 +560,10 @@ export async function createOnlinePurchase(
                 dtvalidade,
                 descricao,
                 dtinicio_validade,
-                parque_operacional
+                parque_operacional,
+                servico_id
               )
-              VALUES ($1, $2, $3, $4, $5, $6, $7, 'n', 'n', $8, $9, $10, $11)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, 'n', 'n', $8, $9, $10, $11, $12)
             `,
             [
               purchaseId,
@@ -566,12 +571,13 @@ export async function createOnlinePurchase(
               agendaId,
               line.voucherType,
               codindicaLine?.unitPrice ?? line.unitPrice,
-              codindicaLine?.adjustmentValue ?? null,
-              cartCodindicaTotals?.code ?? null,
+              line.type === "addon" ? "0.00" : codindicaLine?.adjustmentValue ?? null,
+              line.type === "addon" ? null : cartCodindicaTotals?.code ?? null,
               validityDate,
               line.description,
               validity?.validFrom ?? null,
               operationalDay?.park ?? null,
+              line.operationalServiceId ?? null,
             ],
           );
         }
@@ -590,6 +596,11 @@ export async function createOnlinePurchase(
     const quantities = selection;
 
     validateQuantities(agenda.pricing, quantities);
+    await validateOnlineCapacitySelection(client, operationalDay, [
+      { type: "norma", quantity: quantities.normal + quantities.discountedNormal },
+      { type: "infan", quantity: quantities.child + quantities.discountedChild },
+      { type: "isent", quantity: quantities.exempt },
+    ]);
 
     const discountedNormal = Number(agenda.pricing.discountedNormal);
     const discountedChild = Number(agenda.pricing.discountedChild);
@@ -940,7 +951,7 @@ export async function previewOnlinePurchaseCodindica(
     );
   }
 
-  const cart = buildAgendaCartSummary(agenda, selection.lineItems);
+  const cart = await buildAgendaCartSummary(agenda, selection.lineItems);
   const pool = getIngressoSistemaDbPool();
   const codindica = normalizeCodindica(codindicaInput);
 

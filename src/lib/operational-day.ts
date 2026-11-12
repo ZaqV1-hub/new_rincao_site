@@ -108,9 +108,9 @@ async function readDay(client: QueryClient, park: OperationalParkId, date: strin
   };
 }
 
-export async function getOperationalDay(date: string): Promise<OperationalDay> {
+export async function getOperationalDay(date: string, client?: QueryClient): Promise<OperationalDay> {
   readDate(date);
-  return readDay(getOperationalCatalogPool(), getOperationalParkId(), date);
+  return readDay(client ?? getOperationalCatalogPool(), getOperationalParkId(), date);
 }
 
 export async function listOperationalDays(startDate: string, endDate: string): Promise<OperationalDay[]> {

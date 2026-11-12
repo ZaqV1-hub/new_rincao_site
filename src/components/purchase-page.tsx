@@ -10,6 +10,7 @@ import {
 import type { AuthUser } from "@/lib/auth-contracts";
 import {
   getB2cSitePrice,
+  MAX_B2C_PURCHASE_UNITS,
   type B2cProduct,
 } from "@/lib/b2c-catalog-defaults";
 import type {
@@ -24,6 +25,7 @@ type PurchasePageProps = {
   agenda: PurchaseAgendaDetail;
   user: AuthUser;
   products: B2cProduct[];
+  validity: { validFrom: string; validUntil: string } | null;
 };
 
 type PurchaseStep = "tickets" | "review";
@@ -37,23 +39,29 @@ function formatCurrency(value: number | string) {
 }
 
 function normalizeMoney(value: number) {
+  if (value < 0 || !Number.isSafeInteger(Math.round(value * 100))) throw new Error("Valor fora do limite seguro para compra.");
   return value.toFixed(2);
 }
 
-function buildClientCartSummary(
+export function buildClientCartSummary(
   products: B2cProduct[],
   lineItems: { productId: string; quantity: number }[],
 ) {
+  let quantity = 0;
   const lines = lineItems.map((item) => {
+    if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) throw new Error("Informe quantidades válidas para continuar.");
+    quantity += item.quantity;
+    if (quantity > MAX_B2C_PURCHASE_UNITS) throw new Error(`Limite de ${MAX_B2C_PURCHASE_UNITS} unidades por pedido, somando ingressos e serviços.`);
     const product = products.find((current) => current.id === item.productId);
     const unitPrice = product ? Number(getB2cSitePrice(product)) : 0;
 
-    if (!product || !Number.isFinite(unitPrice)) {
+    if (!product?.active || !Number.isFinite(unitPrice)) {
       throw new Error("Produto indisponível para compra.");
     }
 
     return {
       productId: product.id,
+      type: product.type,
       title: product.title,
       quantity: item.quantity,
       unitPrice: normalizeMoney(unitPrice),
@@ -61,12 +69,25 @@ function buildClientCartSummary(
     };
   });
 
-  const ticketQuantity = lines.reduce((total, line) => total + line.quantity, 0);
+  const ticketQuantity = lines.reduce((total, line) => total + (line.type === "passport" ? line.quantity : 0), 0);
+  const addonQuantity = lines.reduce((total, line) => total + (line.type === "addon" ? line.quantity : 0), 0);
   const totalValue = normalizeMoney(
     lines.reduce((total, line) => total + Number(line.totalValue), 0),
   );
 
-  return { lines, ticketQuantity, totalValue };
+  return { lines, ticketQuantity, addonQuantity, totalValue };
+}
+
+export function applyPurchasePreviewLines(
+  lines: ReturnType<typeof buildClientCartSummary>["lines"],
+  previewLines: { productId: string; unitPrice: string; totalValue: string; adjustmentValue: string }[] | undefined,
+) {
+  return lines.map((line) => {
+    const previewLine = previewLines?.find((item) => item.productId === line.productId);
+    return { ...line, unitPrice: previewLine?.unitPrice ?? line.unitPrice,
+      totalValue: previewLine?.totalValue ?? line.totalValue,
+      adjustmentValue: line.type === "addon" ? "0.00" : previewLine?.adjustmentValue ?? "0.00" };
+  });
 }
 
 function formatLongDate(date: string) {
@@ -111,10 +132,12 @@ type CodindicaPreviewResponse =
 function TicketCard({
   product,
   quantity,
+  canAdd,
   onStep,
 }: {
   product: B2cProduct;
   quantity: number;
+  canAdd: boolean;
   onStep: (delta: number) => void;
 }) {
   const selected = quantity > 0;
@@ -129,7 +152,7 @@ function TicketCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="inline-flex rounded-full bg-[#eaf2fb] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#3f78ab]">
-            Ingresso
+            {product.type === "addon" ? "Serviço adicional" : "Ingresso"}
           </div>
           <h3 className="mt-3 text-[22px] font-extrabold leading-tight text-[#143b63]">
             {product.title}
@@ -157,8 +180,9 @@ function TicketCard({
           <button
             type="button"
             aria-label={`Adicionar ${product.title}`}
+            disabled={!canAdd}
             onClick={() => onStep(1)}
-            className="grid h-10 w-10 place-items-center rounded-[12px] bg-[#1d6fb8] text-[22px] font-bold text-white shadow-[0_10px_18px_rgba(29,111,184,0.18)] hover:bg-[#155990]"
+            className="grid h-10 w-10 place-items-center rounded-[12px] bg-[#1d6fb8] text-[22px] font-bold text-white shadow-[0_10px_18px_rgba(29,111,184,0.18)] hover:bg-[#155990] disabled:cursor-not-allowed disabled:opacity-50"
           >
             +
           </button>
@@ -168,10 +192,11 @@ function TicketCard({
   );
 }
 
-export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
+export function PurchasePage({ agenda, user, products, validity }: PurchasePageProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const tickets = products.filter((product) => product.type === "passport");
+  const tickets = products.filter((product) => product.type === "passport" && product.active);
+  const addons = products.filter((product) => product.type === "addon" && product.active);
   const [step, setStep] = useState<PurchaseStep>("tickets");
   const [quantities, setQuantities] = useState<Quantities>({});
   const [codindica, setCodindica] = useState("");
@@ -221,27 +246,16 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
   const totalQuantity =
     cart?.lines.reduce((total, line) => total + line.quantity, 0) ?? 0;
   const totalValue = cart?.totalValue ?? "0.00";
-  const renderedLines =
-    cart?.lines.map((line) => {
-      const previewLine =
-        codindicaPreview?.lines.find((item) => item.productId === line.productId) ?? null;
-
-      return {
-        ...line,
-        unitPrice: previewLine?.unitPrice ?? line.unitPrice,
-        totalValue: previewLine?.totalValue ?? line.totalValue,
-        adjustmentValue: previewLine?.adjustmentValue ?? "0.00",
-      };
-    }) ?? [];
+  const renderedLines = applyPurchasePreviewLines(cart?.lines ?? [], codindicaPreview?.lines);
   const subtotalValue = codindicaPreview?.subtotal ?? totalValue;
   const totalAdjustment = codindicaPreview?.discountAmount ?? "0.00";
   const finalTotalValue = codindicaPreview?.totalValue ?? totalValue;
 
   function setProductQuantity(productId: string, delta: number) {
-    setQuantities((current) => ({
-      ...current,
-      [productId]: Math.max((current[productId] ?? 0) + delta, 0),
-    }));
+    setQuantities((current) => {
+      if (delta > 0 && Object.values(current).reduce((sum, quantity) => sum + quantity, 0) >= MAX_B2C_PURCHASE_UNITS) return current;
+      return { ...current, [productId]: Math.max((current[productId] ?? 0) + delta, 0) };
+    });
     setAppliedCodindica(null);
     setCodindicaPreview(null);
     setCodindicaFeedback(null);
@@ -383,16 +397,17 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
     }
   }
 
-  function renderProducts(currentProducts: B2cProduct[], title: string) {
+  function renderProducts(currentProducts: B2cProduct[], title: string, description: string) {
+    const Heading = currentProducts[0]?.type === "addon" ? "h2" : "h1";
     return (
       <div>
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-[20px] font-extrabold leading-[1.06] text-[#143b63] sm:text-[25px] lg:text-[28px]">
+            <Heading className="text-[20px] font-extrabold leading-[1.06] text-[#143b63] sm:text-[25px] lg:text-[28px]">
               {title}
-            </h1>
+            </Heading>
             <p className="mt-1.5 max-w-[460px] text-[12px] leading-5 text-[#5f748b] lg:text-[13px]">
-              Escolha a quantidade de ingressos adulto, criança e isento para a sua visita.
+              {description}
             </p>
           </div>
           <Link
@@ -410,6 +425,7 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
               key={product.id}
               product={product}
               quantity={quantities[product.id] ?? 0}
+              canAdd={totalQuantity < MAX_B2C_PURCHASE_UNITS}
               onStep={(delta) => setProductQuantity(product.id, delta)}
             />
           ))}
@@ -483,6 +499,11 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
           }`}
         >
           <FlowStepper current={step === "tickets" ? "tickets" : "payment"} />
+          <p className="mt-3 text-center text-xs text-[#5f748b]">Limite de {MAX_B2C_PURCHASE_UNITS} unidades por pedido, somando ingressos e serviços.</p>
+          {validity ? <section aria-label="Validade dos ingressos" className="mt-4 rounded-[12px] border border-[#d7e3ee] bg-[#f7fbff] px-4 py-3 text-sm text-[#143b63]">
+            <p className="font-bold">Validade dos ingressos: {validity.validFrom.split("-").reverse().join("/")} a {validity.validUntil.split("-").reverse().join("/")}, inclusive.</p>
+            <p className="mt-1">Uma entrada em qualquer dia com day use aberto dentro desse período, sem reagendamento.</p>
+          </section> : null}
 
           {error ? (
             <div className="mt-5 rounded-[16px] border border-[#efc3c3] bg-[#fff3f1] px-4 py-3 text-left text-sm font-semibold text-[#9f3f36]">
@@ -505,7 +526,9 @@ export function PurchasePage({ agenda, user, products }: PurchasePageProps) {
                   </div>
                 </div>
 
-                {renderProducts(tickets, "Escolha seus ingressos")}
+                {renderProducts(tickets, "Escolha seus ingressos", "Escolha a quantidade dos ingressos disponíveis para a sua visita.")}
+                {!tickets.length ? <p role="status" className="mt-4 text-sm">Nenhum ingresso disponível para esta data. Escolha outra data na agenda.</p> : null}
+                {addons.length ? <div className="mt-6">{renderProducts(addons, "Serviços adicionais", "Serviços opcionais para acompanhar seus ingressos. Não substituem a entrada no parque.")}</div> : null}
               </section>
 
               <aside className="hidden h-fit rounded-[12px] border border-[#d7e3ee] bg-white p-3.5 text-left shadow-[0_10px_22px_rgba(20,59,99,0.05)] xl:block">

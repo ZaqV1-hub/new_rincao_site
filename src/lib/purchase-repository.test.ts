@@ -1,7 +1,9 @@
+import { buildStandardTicketProducts } from "@/lib/standard-ticket-products";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createOnlinePurchase } from "@/lib/purchase-repository";
 
 const mocks = vi.hoisted(() => ({
+  offer: vi.fn(),
   query: vi.fn(),
   systemQuery: vi.fn(),
   clientQuery: vi.fn(),
@@ -11,6 +13,11 @@ const mocks = vi.hoisted(() => ({
   isAgendaDateExpired: vi.fn(),
 }));
 
+vi.mock("@/lib/operational-day-offer", () => ({
+  loadOperationalDayOffer: mocks.offer,
+  OperationalDayOfferError: class extends Error {},
+}));
+const standardOffer = (agenda?: { priceTable: { normal: string; child: string } }) => ({ products: buildStandardTicketProducts({ siteNormal: agenda?.priceTable.normal ?? "100.00", siteChild: agenda?.priceTable.child ?? "70.00" }), validity: null });
 vi.mock("@/lib/agenda-repository", () => ({
   getPublicAgendaReservationById: mocks.getPublicAgendaReservationById,
   isAgendaDateExpired: mocks.isAgendaDateExpired,
@@ -44,6 +51,7 @@ vi.mock("@/lib/voucher-number", () => ({
 describe("purchase-repository", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.offer.mockImplementation(standardOffer);
     mocks.getPublicAgendaReservationById.mockResolvedValue({
       id: 123,
       legacyEncodedId: "MTIz",
@@ -62,6 +70,40 @@ describe("purchase-repository", () => {
     mocks.generateUniqueVoucherNumber.mockImplementation(async (_client, prefix) => {
       return `${prefix}-0001`;
     });
+  });
+
+  it.each([501, Number.MAX_SAFE_INTEGER + 1, -1, 1.5])("rejects unsafe legacy quantities before inserting a purchase (%s)", async (exempt) => {
+    mocks.clientQuery.mockResolvedValue({ rows: [] });
+    await expect(createOnlinePurchase("52998224725", 123, {
+      normal: 1, child: 0, discountedNormal: 0, discountedChild: 0, exempt,
+    })).rejects.toMatchObject({ code: "invalid_purchase", status: 400 });
+    expect(mocks.clientQuery.mock.calls.some(([sql]) => String(sql).includes("INSERT INTO compra"))).toBe(false);
+  });
+
+  it("includes a service at full price with an indication code and stores its identity", async () => {
+    mocks.offer.mockResolvedValueOnce({ ...standardOffer(), products: [...standardOffer().products, {
+      id: "servico:7", operationalServiceId: 7, type: "addon", title: "Armário", description: "Armário",
+      subtitle: "Serviço", imageSrc: "", sitePrice: "17.35", boxOfficePrice: "20.00",
+      voucherType: "espec", voucherPrefix: "S", active: true,
+    }] });
+    mocks.systemQuery.mockImplementation(async (sql: string) => ({ rows: sql.includes("FROM codindica") ? [{
+      codindica: "ISAQUE", stcodindica: "ati", validade: "2099-12-31", tpdesconto: "fixo", flpromocional: "n",
+      vlvendanormal: "90.00", vlvendainfant: "70.00", vldescnormal: "0.00", vldescinfant: "0.00",
+      vldescpromonormal: "0.00", vldescpromoinfant: "0.00", vlcashback: "0.00", vlcashbacknormal: "0.00", vlcashbackinfant: "0.00",
+    }] : [] }));
+    const items: unknown[][] = [];
+    mocks.clientQuery.mockImplementation(async (sql: string, values: unknown[]) => {
+      if (sql.includes("INSERT INTO compra")) { expect(values).toEqual(["52998224725", "124.70", "10.00", "ISAQUE"]); return { rows: [{ idcompra: 903 }] }; }
+      if (sql.includes("INSERT INTO voucher")) items.push(values);
+      return mocks.systemQuery(sql, values);
+    });
+    const result = await createOnlinePurchase("52998224725", 123, { lineItems: [
+      { productId: "ingresso-adulto", quantity: 1 }, { productId: "servico:7", quantity: 2 },
+    ] }, "ISAQUE");
+    expect(result).toMatchObject({ totalValue: "124.70", voucherCount: 3 });
+    expect(mocks.offer).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ query: mocks.clientQuery }));
+    expect(items.filter((values) => values[3] === "espec").map((values) => [values[4], values[5], values[6], values.at(-1)]))
+      .toEqual([["17.35", "0.00", null, 7], ["17.35", "0.00", null, 7]]);
   });
 
   it("creates vouchers with B2C product descriptions from cart line items", async () => {
@@ -196,7 +238,7 @@ describe("purchase-repository", () => {
       "ISAQUE",
       expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       "Adulto",
-      null, null,
+      null, null, null,
     ]);
     expect(voucherInserts[1]).toEqual([
       902,
@@ -208,7 +250,7 @@ describe("purchase-repository", () => {
       "ISAQUE",
       expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       "Criança",
-      null, null,
+      null, null, null,
     ]);
   });
 });
@@ -216,6 +258,7 @@ describe("purchase-repository", () => {
 describe("transactional day-use purchase", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.offer.mockImplementation(standardOffer);
     mocks.getPublicAgendaReservationById.mockResolvedValue({ id: 123, date: "2099-07-20", type: "padra", priceTable: { id: 1, normal: "100.00", child: "70.00" } });
     mocks.isAgendaDateExpired.mockReturnValue(false);
     mocks.systemQuery.mockResolvedValue({ rows: [] });

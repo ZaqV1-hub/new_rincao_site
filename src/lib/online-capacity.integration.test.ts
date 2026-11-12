@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { Pool, type PoolClient } from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { createOnlinePurchase } from "@/lib/purchase-repository";
+import { createOnlinePurchase, previewOnlinePurchaseCodindica } from "@/lib/purchase-repository";
 import { beginOnlinePaymentAttempt, getOnlineCapacityOccupied, lockOnlinePurchaseCapacity, assertOnlineCapacityReleased } from "@/lib/online-capacity";
 import { applyPaymentReconciliationRecord } from "@/lib/payment-reconciliation-writer";
 import { normalizePaymentReconciliationPayload } from "@/lib/payment-reconciliation-payload";
@@ -48,6 +48,10 @@ describe.skipIf(!connectionString)("online capacity with PostgreSQL", () => {
       CREATE TABLE informacao (idinformacao INTEGER PRIMARY KEY, texto TEXT);
       CREATE TABLE agenda (idagenda INTEGER PRIMARY KEY, dtagenda DATE, tpagenda TEXT, stagenda TEXT,
         nmpromocional TEXT, dspromocional TEXT, idtabpreco INTEGER REFERENCES tabpreco, idinformacao INTEGER REFERENCES informacao);
+      CREATE TABLE parametro (idparametro TEXT, vlparametro TEXT);
+      CREATE TABLE codindica (codindica TEXT PRIMARY KEY,stcodindica TEXT,validade DATE,nmrepresentante TEXT,tpdesconto TEXT,flpromocional TEXT,
+        vldescnormal NUMERIC,vldescinfant NUMERIC,vldescpromonormal NUMERIC,vldescpromoinfant NUMERIC,
+        vlvendanormal NUMERIC,vlvendainfant NUMERIC,vlcashback NUMERIC,vlcashbacknormal NUMERIC,vlcashbackinfant NUMERIC);
       CREATE TABLE convenio (idconvenio INTEGER PRIMARY KEY, nmconvenio TEXT, stconvenio TEXT, idtabpreco INTEGER);
       CREATE TABLE conveniado (cpf TEXT, idconvenio INTEGER, stconveniado TEXT, qtcompradia INTEGER);
       CREATE TABLE socio (cpf TEXT, stsocio TEXT, qtcompradia INTEGER, idsociocateg INTEGER);
@@ -70,7 +74,7 @@ describe.skipIf(!connectionString)("online capacity with PostgreSQL", () => {
         movimentacao_id INTEGER, movimentacao_tipo VARCHAR(20), periodo_id INTEGER, folha_id INTEGER,
         descricao TEXT, motivo TEXT, usuario_nome VARCHAR(255), detalhes_json TEXT, created_at TIMESTAMPTZ DEFAULT NOW());
     `);
-    for (const filename of ["2026-11-12-operational-panel-foundation.sql", "2026-11-12-operational-voucher-validity.sql", "2026-11-12-online-capacity.sql"]) {
+    for (const filename of ["2026-11-12-operational-panel-foundation.sql", "2026-11-12-operational-voucher-validity.sql", "2026-11-12-online-capacity.sql", "2026-11-12-operational-service-vouchers.sql"]) {
       await pool.query(await readFile(new URL(`../../docs/sql/${filename}`, import.meta.url), "utf8"));
     }
   });
@@ -82,7 +86,7 @@ describe.skipIf(!connectionString)("online capacity with PostgreSQL", () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao");
     vi.stubEnv("SCHOOL_ADMISSION_PROVIDER", "legacy");
     await pool.query(`TRUNCATE online_capacity_reservations, voucher, compra, pagpagseguro, checkout_installment_quotes,
-      operacao_dias, servico_datas, agenda, tabpreco, edicoes_log RESTART IDENTITY;
+      operacao_dias, servico_datas, servicos_adicionais, codindica, agenda, tabpreco, edicoes_log RESTART IDENTITY;
       INSERT INTO tabpreco VALUES (1,'Tarifa','ati',100,70,120,80),(2,'Nova tarifa','ati',200,150,220,170);
       INSERT INTO agenda (idagenda,dtagenda,tpagenda,stagenda,idtabpreco) VALUES (1,'${date}','padra','abe',1);
       INSERT INTO operacao_dias (parque,data,tabela_preco_id,day_use_agenda_id,validade,limite_online)
@@ -107,6 +111,26 @@ describe.skipIf(!connectionString)("online capacity with PostgreSQL", () => {
     await pool.query(`UPDATE operacao_dias SET tipos_ingresso='["norma"]',limite_online=NULL`);
     await expect(createOnlinePurchase("22222222222", 1, { lineItems: [{ productId: "ingresso-adulto", quantity: 1 }, { productId: "ingresso-isento", quantity: 1 }] })).rejects.toMatchObject({ code: "ticket_type_unavailable" });
     expect((await pool.query("SELECT COUNT(*)::int AS count FROM compra")).rows[0].count).toBe(1);
+  });
+
+  it("charges services without indication discount or extra seats and preserves the sold item snapshot", async () => {
+    await pool.query(`INSERT INTO servicos_adicionais (parque,nome,preco_site,preco_bilheteria)
+      VALUES ('rincao','Armário',17.35,20),('rincao','Só bilheteria',NULL,30);
+      INSERT INTO servico_datas VALUES ('rincao','${date}',1),('rincao','${date}',2);
+      INSERT INTO codindica VALUES ('ISAQUE','ati','2099-12-31','Equipe','fixo','n',0,0,0,0,90,70,0,0,0)`);
+    const selection = { lineItems: [{ productId: "ingresso-adulto", quantity: 1 }, { productId: "servico:1", quantity: 2 }] };
+    const preview = await previewOnlinePurchaseCodindica(1, selection, "ISAQUE");
+    expect(preview).toMatchObject({ subtotal: "134.70", totalValue: "124.70", discountAmount: "-10.00" });
+    const purchase = await createOnlinePurchase("11111111111", 1, selection, "ISAQUE");
+    expect(purchase).toMatchObject({ totalValue: "124.70", voucherCount: 3 });
+    expect(await getOnlineCapacityOccupied(pool, "rincao", date)).toBe(1);
+    expect((await pool.query("SELECT servico_id::text,descricao,vlunicompra::text,vldesc::text,codindica FROM voucher WHERE servico_id IS NOT NULL ORDER BY idvoucher")).rows)
+      .toEqual(Array(2).fill({ servico_id: "1", descricao: "Armário", vlunicompra: "17.35", vldesc: "0.00", codindica: null }));
+    await pool.query("UPDATE servicos_adicionais SET nome='Novo nome',preco_site=99,ativo=false WHERE id=1");
+    expect((await pool.query("SELECT descricao,vlunicompra::text FROM voucher WHERE servico_id=1")).rows)
+      .toEqual(Array(2).fill({ descricao: "Armário", vlunicompra: "17.35" }));
+    await expect(createOnlinePurchase("22222222222", 1, { lineItems: [{ productId: "ingresso-adulto", quantity: 1 }, { productId: "servico:2", quantity: 1 }] }))
+      .rejects.toMatchObject({ code: "invalid_purchase" });
   });
 
   it("re-reads updated agenda price under the day lock and retains already sold totals", async () => {

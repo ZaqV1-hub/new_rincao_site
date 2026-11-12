@@ -10,7 +10,7 @@ import {
 } from "@/lib/agenda-repository";
 import { requireAuthenticatedCustomer } from "@/lib/customer-area";
 import { getPurchaseAgendaContext } from "@/lib/purchase-repository";
-import { buildStandardTicketProducts } from "@/lib/standard-ticket-products";
+import { loadOperationalDayOffer, OperationalDayOfferError } from "@/lib/operational-day-offer";
 
 export const metadata: Metadata = {
   title: "Comprar Ingressos | Rincao",
@@ -66,12 +66,13 @@ export default async function BuyRoutePage({ params }: BuyRoutePageProps) {
     notFound();
   }
 
-  const products = buildStandardTicketProducts(
-    {
-      siteNormal: agenda.priceTable.normal,
-      siteChild: agenda.priceTable.child,
-    },
-  );
+  let offer;
+  try {
+    offer = await loadOperationalDayOffer(agenda);
+  } catch (error) {
+    if (error instanceof OperationalDayOfferError) notFound();
+    throw error;
+  }
 
-  return <PurchasePage agenda={agenda} user={customer} products={products} />;
+  return <PurchasePage agenda={agenda} user={customer} products={offer.products} validity={offer.validity} />;
 }

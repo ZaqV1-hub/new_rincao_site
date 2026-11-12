@@ -1,6 +1,8 @@
+import { DEFAULT_B2C_PRODUCTS, type B2cProduct } from "@/lib/b2c-catalog-defaults";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildB2cCartSummary,
+  buildB2cCartSummaryForProducts,
   getB2cProduct,
   listB2cAddons,
   listB2cPassports,
@@ -101,4 +103,41 @@ describe("b2c catalog", () => {
       buildB2cCartSummary([{ productId: "ingresso-adulto", quantity: 0 }]),
     ).rejects.toThrow("Informe quantidades validas para continuar.");
   });
+});
+
+const service: B2cProduct = { id: "servico:17", type: "addon", title: "Armário", subtitle: "Serviço adicional", description: "Uso do armário na data da compra", imageSrc: "", sitePrice: "12.50", boxOfficePrice: "15.00", active: true, voucherType: "espec", voucherPrefix: "S", operationalServiceId: 17 };
+describe("operational services in the cart", () => {
+  it("counts people separately from services and preserves operational identity", () => {
+    const cart = buildB2cCartSummaryForProducts([
+      { productId: "ingresso-adulto", quantity: 1 }, { productId: "ingresso-isento", quantity: 2 }, { productId: "servico:17", quantity: 4 },
+    ], [...DEFAULT_B2C_PRODUCTS, service]);
+    expect(cart).toMatchObject({ ticketQuantity: 3, passportQuantity: 3, addonQuantity: 4, voucherCount: 7, totalValue: "150.00" });
+    expect(cart.lines[2]).toMatchObject({ operationalServiceId: 17, type: "addon", unitPrice: "12.50", totalValue: "50.00", voucherType: "espec", voucherPrefix: "S" });
+  });
+  it("keeps a zero-priced service free while requiring an actual entrance", () => {
+    const free = { ...service, sitePrice: "0.00" };
+    expect(buildB2cCartSummaryForProducts([{ productId: "ingresso-adulto", quantity: 1 }, { productId: service.id, quantity: 1 }], [...DEFAULT_B2C_PRODUCTS, free]).totalValue).toBe("100.00");
+    expect(() => buildB2cCartSummaryForProducts([{ productId: service.id, quantity: 1 }], [service])).toThrow("Selecione pelo menos um ingresso");
+  });
+  it("refuses inactive products and duplicate IDs before referral pricing can see them", () => {
+    expect(() => buildB2cCartSummaryForProducts([{ productId: "ingresso-adulto", quantity: 1 }], [{ ...DEFAULT_B2C_PRODUCTS[0], active: false }])).toThrow("Produto indisponivel");
+    expect(() => buildB2cCartSummaryForProducts([{ productId: "ingresso-adulto", quantity: 1 }, { productId: "ingresso-adulto", quantity: 2 }], DEFAULT_B2C_PRODUCTS)).toThrow("Produto repetido");
+  });
+  it("caps all vouchers at 500 while leaving services out of the people count", () => {
+    const free = { ...service, sitePrice: "0.00" };
+    const products = [...DEFAULT_B2C_PRODUCTS, free];
+    expect(buildB2cCartSummaryForProducts([{ productId: "ingresso-adulto", quantity: 1 }, { productId: free.id, quantity: 499 }], products))
+      .toMatchObject({ voucherCount: 500, ticketQuantity: 1, addonQuantity: 499 });
+    for (const quantity of [500, 1_000_000]) {
+      expect(() => buildB2cCartSummaryForProducts([{ productId: "ingresso-adulto", quantity: 1 }, { productId: free.id, quantity }], products)).toThrow("500 unidades");
+    }
+  });
+  it.each([Number.MAX_SAFE_INTEGER + 1, Infinity, 1.5])("rejects unsafe or nonintegral quantities %s", (quantity) => {
+    expect(() => buildB2cCartSummaryForProducts([{ productId: "ingresso-adulto", quantity }], DEFAULT_B2C_PRODUCTS)).toThrow("quantidades validas");
+  });
+  it("rejects price and total overflow before voucher creation", () => {
+    expect(() => buildB2cCartSummaryForProducts([{ productId: "ingresso-adulto", quantity: 1 }], [{ ...DEFAULT_B2C_PRODUCTS[0], sitePrice: "1e308" }])).toThrow();
+    expect(() => buildB2cCartSummaryForProducts([{ productId: "ingresso-adulto", quantity: 1 }, { productId: service.id, quantity: 1 }], [{ ...DEFAULT_B2C_PRODUCTS[0], sitePrice: "50000000000000.00" }, { ...service, sitePrice: "50000000000000.00" }])).toThrow();
+  });
+
 });
