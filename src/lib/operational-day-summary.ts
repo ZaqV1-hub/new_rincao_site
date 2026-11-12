@@ -33,7 +33,7 @@ export type OperationalDaySummary = {
   forecast: { ticketsForSelectedDate: SummarySourceValue<number>; plannedGroupPeople: SummarySourceValue<number> };
   groupCount: number;
   receipts: UnavailableSummarySource;
-  cash: UnavailableSummarySource;
+  cash: SummarySourceValue<number>;
   expenses: UnavailableSummarySource;
   closure: UnavailableSummarySource;
   warnings: { code: string; message: string }[];
@@ -108,17 +108,21 @@ export async function readOperationalDaySummary(client: QueryClient, date: strin
   const site = safeInteger(row.site);
   const gate = safeInteger(row.gate);
   const services = safeInteger(row.services);
-  const metadata = await client.query<{ generatedAt: Date; previousDate: string | null; nextDate: string | null; groupCount: string }>(`
+  const metadata = await client.query<{ generatedAt: Date; previousDate: string | null; nextDate: string | null; groupCount: string; cashCount: string }>(`
     WITH movement AS (
       SELECT DISTINCT a.dtagenda AS date FROM agenda a
       WHERE (a.tpagenda IN ('padra','promo') AND a.stagenda IN ('abe','lot') AND NOT EXISTS (
         SELECT 1 FROM operacao_dias d WHERE d.parque=$2 AND d.data=a.dtagenda AND d.estado='closed'
       )) OR EXISTS (SELECT 1 FROM agenda_extras ae WHERE ae.idagenda=a.idagenda)
+      UNION
+      SELECT data_operacional AS date FROM caixa_periodos
+      WHERE parque=$2 AND data_operacional IS NOT NULL AND local_id IS NOT NULL
     )
     SELECT CURRENT_TIMESTAMP AS "generatedAt",
       (SELECT MAX(date)::text FROM movement WHERE date<$1::date) AS "previousDate",
       (SELECT MIN(date)::text FROM movement WHERE date>$1::date) AS "nextDate",
-      (SELECT COUNT(*)::text FROM agenda_extras ae JOIN agenda a ON a.idagenda=ae.idagenda WHERE a.dtagenda=$1::date) AS "groupCount"`, [date, park]);
+      (SELECT COUNT(*)::text FROM agenda_extras ae JOIN agenda a ON a.idagenda=ae.idagenda WHERE a.dtagenda=$1::date) AS "groupCount",
+      (SELECT COUNT(*)::text FROM caixa_periodos WHERE parque=$2 AND data_operacional=$1::date AND local_id IS NOT NULL) AS "cashCount"`, [date, park]);
   const meta = metadata.rows[0];
   const warnings = [
     { code: "revenue_incomplete", message: "Subtotal das fontes disponíveis. Finalização de passeios e total diário ainda indisponíveis." },
@@ -152,7 +156,7 @@ export async function readOperationalDaySummary(client: QueryClient, date: strin
     },
     groupCount: safeInteger(meta.groupCount),
     receipts: unavailable("payment_receipts", "Recebimentos por data e passeio ainda não integrados ao resumo."),
-    cash: unavailable("operational_cash_sessions", "Caixas por local e data ainda não integrados; o caixa legado usa períodos por horário."),
+    cash: available(safeInteger(meta.cashCount), "operational_cash_sessions:park_operational_date"),
     expenses: unavailable("operational_expenses", "Despesas por data e passeio ainda não integradas."),
     closure: unavailable("daily_closure", "Fechamento diário revisionado ainda não integrado."),
     warnings,

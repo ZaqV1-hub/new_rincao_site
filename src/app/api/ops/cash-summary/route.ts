@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { AuthErrorResponse } from "@/lib/auth-contracts";
-import { authenticateOperationsRequest } from "@/lib/ops-auth";
-import { authorizePainelApiAccess } from "@/lib/painel-api-auth";
+import { requirePainelApiAccess } from "@/lib/painel-api-auth";
 import {
   asOperationalCashError,
   getOperationalCashSummary,
@@ -18,22 +17,15 @@ function errorResponse(code: string, message: string, status: number) {
         message,
       },
     },
-    { status },
+    { status, headers: { "Cache-Control": "private, no-store" } },
   );
 }
 
 export async function GET(request: Request) {
-  const auth = authenticateOperationsRequest(request, {
-    requiredPermission: "ops.read",
-  });
-
-  if (!auth.ok) {
-    return auth.response;
-  }
-
-  const painelAuth = await authorizePainelApiAccess(request, "vis_bilhet");
+  const painelAuth = await requirePainelApiAccess(request, "vis_bilhet");
 
   if (!painelAuth.ok) {
+    painelAuth.response.headers.set("Cache-Control", "private, no-store");
     return painelAuth.response;
   }
 
@@ -43,7 +35,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       data,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const operationError = asOperationalCashError(error);
 

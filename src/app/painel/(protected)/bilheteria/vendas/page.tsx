@@ -3,7 +3,9 @@ import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-
 import { PainelBilheteriaSalesBuilder } from "@/components/painel-bilheteria-sales-builder";
 import { getBilheteriaAgendaStatusToday } from "@/lib/bilheteria-agenda";
 import { requirePainelAccess } from "@/lib/painel-session";
-import { buildStandardTicketProducts } from "@/lib/standard-ticket-products";
+import { loadOperationalDayOffer } from "@/lib/operational-day-offer";
+import { getCashSession } from "@/lib/operational-cash-session";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Painel - Vendas da Bilheteria | Rincao",
@@ -15,21 +17,16 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function PainelBilheteriaVendasPage() {
+export default async function PainelBilheteriaVendasPage({ searchParams }: { searchParams?: Promise<{ periodId?: string }> }) {
   const session = await requirePainelAccess("vis_bilhet", "/painel/bilheteria/vendas");
+  const periodId = Number((await searchParams)?.periodId);
+  if (!Number.isSafeInteger(periodId) || periodId <= 0) redirect("/painel/caixas");
+  const cash = await getCashSession(periodId);
   const { today, openAgendas } = await getBilheteriaAgendaStatusToday();
-  const agendas = openAgendas.filter((agenda) => agenda.status === "abe");
+  if (cash.type !== "sales" || cash.closedAt || cash.date !== today) redirect(`/painel/caixas/${periodId}`);
+  const agendas = openAgendas;
   const agenda = agendas[0] ?? null;
-  const availableProducts = agenda
-    ? buildStandardTicketProducts(
-        {
-          siteNormal: agenda.priceTable.normal,
-          siteChild: agenda.priceTable.child,
-          gateNormal: agenda.priceTable.gateNormal ?? agenda.priceTable.normal,
-          gateChild: agenda.priceTable.gateChild ?? agenda.priceTable.child,
-        },
-      )
-    : [];
+  const availableProducts = agenda ? (await loadOperationalDayOffer(agenda, undefined, "gate")).products : [];
 
   return (
     <div className="grid gap-5">
@@ -43,6 +40,7 @@ export default async function PainelBilheteriaVendasPage() {
       />
 
       <PainelBilheteriaSalesBuilder
+        periodId={periodId}
         today={today}
         agendas={agendas}
         products={availableProducts}

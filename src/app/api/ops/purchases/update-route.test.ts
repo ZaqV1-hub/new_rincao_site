@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const authenticateOperationsRequest = vi.fn();
+const requirePainelApiAccess = vi.fn();
 const updateOperationalPurchase = vi.fn();
 const asPurchaseOperationError = vi.fn();
 
-vi.mock("@/lib/ops-auth", () => ({
-  authenticateOperationsRequest,
-}));
+vi.mock("@/lib/painel-api-auth", () => ({ requirePainelApiAccess }));
 
 vi.mock("@/lib/ops-purchase-management", () => ({
   updateOperationalPurchase,
@@ -16,7 +14,7 @@ vi.mock("@/lib/ops-purchase-management", () => ({
 describe("ops/purchases update BFF route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authenticateOperationsRequest.mockReturnValue({ ok: true });
+    requirePainelApiAccess.mockResolvedValue({ ok: true, session: { actorName: "Gestor Teste", actorCpf: "52998224725" } });
     asPurchaseOperationError.mockImplementation((error: Error) => error);
   });
 
@@ -49,7 +47,6 @@ describe("ops/purchases update BFF route", () => {
           cpf: "52998224725",
           vouchers: [{ id: 1, status: "s", discountId: 7 }],
           payments: [{ method: "pix", value: "150,00" }],
-          actor: { name: "Gestor Teste" },
         }),
       }),
     );

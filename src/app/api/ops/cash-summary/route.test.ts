@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const authenticateOperationsRequest = vi.fn();
+const requirePainelApiAccess = vi.fn();
 const getOperationalCashSummary = vi.fn();
 const asOperationalCashError = vi.fn();
 
-vi.mock("@/lib/ops-auth", () => ({
-  authenticateOperationsRequest,
+vi.mock("@/lib/painel-api-auth", () => ({
+  requirePainelApiAccess,
 }));
 
 vi.mock("@/lib/ops-cash-management", () => ({
@@ -16,8 +16,17 @@ vi.mock("@/lib/ops-cash-management", () => ({
 describe("ops/cash-summary BFF route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authenticateOperationsRequest.mockReturnValue({ ok: true });
+    requirePainelApiAccess.mockResolvedValue({ ok: true, session: { actorName: "Gestor Teste", actorCpf: null, legacyRoleId: 1 } });
     asOperationalCashError.mockImplementation((error: Error) => error);
+  });
+
+  it("requires a panel session before querying cash", async () => {
+    requirePainelApiAccess.mockResolvedValue({ ok: false, response: new Response(null, { status: 401 }) });
+    const { GET } = await import("./route");
+    const response = await GET(new Request("https://example.com/api/ops/cash-summary"));
+    expect(response.status).toBe(401);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(getOperationalCashSummary).not.toHaveBeenCalled();
   });
 
   it("returns the current cash summary", async () => {
@@ -50,6 +59,7 @@ describe("ops/cash-summary BFF route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(body).toEqual({
       ok: true,
       data: {

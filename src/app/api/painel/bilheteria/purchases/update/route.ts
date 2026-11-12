@@ -18,7 +18,7 @@ type UpdatePurchasePayload = {
   payments?: unknown;
 };
 
-export async function POST(request: Request) {
+async function run(request: Request) {
   const access = await requirePainelApiAccess(request, "vis_bilhet");
 
   if (!access.ok) {
@@ -26,6 +26,7 @@ export async function POST(request: Request) {
   }
 
   const payload = await readJsonPayload<UpdatePurchasePayload>(request);
+  if (payload && typeof payload === "object" && "actor" in payload) return NextResponse.json({ ok: false, error: { code: "invalid_operations_payload", message: "O operador é identificado pela sessão." } }, { status: 400 });
   const purchaseId = Number(payload?.purchaseId);
   const reason = typeof payload?.reason === "string" ? payload.reason.trim() : "";
   const purchaseDate =
@@ -94,4 +95,10 @@ export async function POST(request: Request) {
       { status: operationError.status },
     );
   }
+}
+
+export async function POST(request: Request) {
+  const response = await run(request);
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }

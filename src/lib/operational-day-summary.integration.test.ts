@@ -28,6 +28,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
       CREATE TABLE agenda_extras (idagenda INTEGER REFERENCES agenda, idcliente INTEGER, PRIMARY KEY (idagenda,idcliente));
       CREATE TABLE compra (idcompra INTEGER PRIMARY KEY, tpcompra VARCHAR(5), stcompra VARCHAR(4), formapag VARCHAR(5), vltotcompra NUMERIC, vltotdesc NUMERIC);
       CREATE TABLE compra_pagamentos (id SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,forma_pagamento TEXT,valor NUMERIC);
+      CREATE TABLE caixa_periodos (id SERIAL PRIMARY KEY,parque TEXT,data_operacional DATE,local_id BIGINT,fechado_em TIMESTAMPTZ,troco_inicial NUMERIC);
       CREATE TABLE voucher (idvoucher SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,idagenda INTEGER REFERENCES agenda,
         tpvoucher VARCHAR(5),vlunicompra NUMERIC,stusado VARCHAR(3) DEFAULT 'n',dtuso DATE,idescola INTEGER,item_id INTEGER,vldesc NUMERIC,dtvalidade DATE);
     `);
@@ -38,7 +39,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
   afterAll(async () => { try { await pool?.end(); if (created) await admin.query(`DROP SCHEMA ${schema} CASCADE`); } finally { await admin?.end(); } });
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao");
-    await pool.query("TRUNCATE voucher,compra_pagamentos,compra,agenda_extras,operacao_dias,servico_datas,servicos_adicionais,agenda RESTART IDENTITY");
+    await pool.query("TRUNCATE caixa_periodos,voucher,compra_pagamentos,compra,agenda_extras,operacao_dias,servico_datas,servicos_adicionais,agenda RESTART IDENTITY");
     await pool.query("INSERT INTO agenda VALUES (1,1,'2099-11-15','padra','abe')");
   });
   afterEach(() => vi.unstubAllEnvs());
@@ -49,8 +50,29 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
       revenue: { siteNetCents: { status: "available", value: 0 }, knownSubtotalCents: 0,
         totalCents: { status: "unavailable", value: null }, finalizedTripsNetCents: { status: "unavailable", value: null } },
       attendance: { dayUseAdmitted: { status: "available", value: 0 }, totalAdmitted: { status: "unavailable", value: null } },
-      cash: { status: "unavailable", value: null }, receipts: { status: "unavailable", value: null }, expenses: { status: "unavailable", value: null } });
-    expect((await pool.query("SELECT tablename FROM pg_tables WHERE schemaname=$1 AND tablename IN ('caixa_periodos','edicoes_log')", [schema])).rowCount).toBe(0);
+      cash: { status: "available", value: 0 }, receipts: { status: "unavailable", value: null }, expenses: { status: "unavailable", value: null } });
+    expect((await pool.query("SELECT * FROM caixa_periodos")).rowCount).toBe(0);
+    expect((await pool.query("SELECT tablename FROM pg_tables WHERE schemaname=$1 AND tablename='edicoes_log'", [schema])).rowCount).toBe(0);
+  });
+  it("counts only explicit sessions for this park and date without treating opening cash as revenue", async () => {
+    await pool.query(`INSERT INTO caixa_periodos(parque,data_operacional,local_id,fechado_em,troco_inicial) VALUES
+      ('rincao','2099-11-15',1,NULL,100),('rincao','2099-11-15',1,now(),200),
+      ('estancia','2099-11-15',2,NULL,900),('rincao','2099-11-16',3,NULL,800),(NULL,NULL,NULL,NULL,700);`);
+    const summary = await getOperationalDaySummary(date);
+    expect(summary.cash).toMatchObject({ status: "available", value: 2 });
+    expect(summary.revenue.knownSubtotalCents).toBe(0);
+    for (const source of [summary.receipts, summary.expenses, summary.closure, summary.revenue.totalCents]) {
+      expect(source).toMatchObject({ status: "unavailable", value: null });
+    }
+  });
+  it("navigates to session dates without an agenda and excludes foreign and unscoped cash", async () => {
+    await pool.query(`INSERT INTO caixa_periodos(parque,data_operacional,local_id) VALUES
+      ('rincao','2099-11-12',1),('rincao','2099-11-18',1),
+      ('estancia','2099-11-14',2),('estancia','2099-11-16',2),(NULL,'2099-11-17',NULL);`);
+    expect((await getOperationalDaySummary(date)).navigation).toEqual({ previousDate: "2099-11-12", nextDate: "2099-11-18" });
+    const cashOnlyDate = await getOperationalDaySummary("2099-11-18");
+    expect(cashOnlyDate.cash).toMatchObject({ status: "available", value: 1 });
+    expect(cashOnlyDate.revenue.knownSubtotalCents).toBe(0);
   });
   it("sums net sold snapshots once with multiple payments and groups, excluding school and pending purchases", async () => {
     await pool.query(`INSERT INTO servicos_adicionais (parque,nome,preco_bilheteria) VALUES ('rincao','Serviço',25);
@@ -146,12 +168,16 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
       await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
       const before = await readOperationalDaySummary(client, date, "rincao");
       await pool.query("INSERT INTO compra VALUES(1,'ponli','conc','pgseg',10,0); INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra) VALUES(1,1,'norma',10)");
+      await pool.query("INSERT INTO caixa_periodos(parque,data_operacional,local_id) VALUES('rincao','2099-11-15',1),('rincao','2099-11-16',1)");
       const after = await readOperationalDaySummary(client, date, "rincao");
       expect(after.revenue.siteNetCents).toEqual(before.revenue.siteNetCents);
+      expect(after.cash).toEqual(before.cash);
+      expect(after.navigation).toEqual(before.navigation);
       expect((await client.query("SHOW transaction_read_only")).rows[0].transaction_read_only).toBe("on");
       await client.query("ROLLBACK");
     } finally { client.release(); }
     expect((await getOperationalDaySummary(date)).revenue.siteNetCents).toMatchObject({ value: 1000 });
+    expect((await getOperationalDaySummary(date)).cash).toMatchObject({ status: "available", value: 1 });
   });
   it("refuses unsafe money totals and preserves paid invalidated vouchers as a financial warning", async () => {
     await pool.query("INSERT INTO compra VALUES(1,'ponli','conc','pgseg',10,0); INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,stusado) VALUES(1,1,'norma',10,'inv')");

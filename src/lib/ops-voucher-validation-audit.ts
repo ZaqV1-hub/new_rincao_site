@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import type { VoucherOperationInputActor, VoucherValidationRow, VoucherOperationSuccess, VoucherOperationMode } from "@/lib/ops-voucher-validation-contract";
+import type { CashSession } from "@/lib/operational-cash-session";
 
 export function buildAuditActorName(actor?: VoucherOperationInputActor | null) {
   const name = String(actor?.name ?? "").trim();
@@ -120,6 +121,7 @@ export async function registerVoucherOperationAuditLog(
   client: PoolClient,
   input: {
     action: VoucherOperationSuccess["action"];
+    cash: CashSession;
     mode: VoucherOperationMode;
     actor?: VoucherOperationInputActor | null;
     vouchers: VoucherValidationRow[];
@@ -136,9 +138,12 @@ export async function registerVoucherOperationAuditLog(
     input.vouchers,
     input.affectedVoucherIds,
   );
+  const after = (await client.query(`SELECT idvoucher,stusado,dtuso::text,hruso::text,validacao_periodo_id,validado_em::text,validado_por_nome
+    FROM voucher WHERE idvoucher=ANY($1::int[]) ORDER BY idvoucher`, [input.affectedVoucherIds])).rows;
 
   return registerOpsAuditLog(client, {
     origem: "voucher",
+    periodoId: input.cash.id,
     acao:
       input.action === "validate"
         ? "validar"
@@ -162,6 +167,9 @@ export async function registerVoucherOperationAuditLog(
     usuarioNome: buildAuditActorName(input.actor),
     detalhes: {
       via: "apps/web",
+      cash: { id: input.cash.id, park: input.cash.park, date: input.cash.date, locationId: input.cash.locationId, locationName: input.cash.locationName },
+      before: affectedVoucherRows,
+      after,
       mode: input.mode,
       affectedVoucherIds: input.affectedVoucherIds,
       affectedVoucherNumbers: affectedVoucherRows.map(

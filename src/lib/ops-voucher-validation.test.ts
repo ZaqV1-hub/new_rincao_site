@@ -1,16 +1,42 @@
 import type { PoolClient } from "pg";
-import { markVoucherUsed } from "@/lib/ops-voucher-validation-shared";
+import { markVoucherUsed as markVoucherUsedInCash } from "@/lib/ops-voucher-validation-shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  invalidateSelectedVouchers,
-  invalidatePurchaseVouchers,
-  unvalidatePurchaseVouchers,
-  unvalidateSelectedVouchers,
-  validatePurchaseVouchers,
-  validateSchoolTripVouchers,
-  validateSelectedVouchers,
-  validateVoucherByNumber,
+  invalidateSelectedVouchers as invalidateSelectedVouchersInCash,
+  invalidatePurchaseVouchers as invalidatePurchaseVouchersInCash,
+  unvalidatePurchaseVouchers as unvalidatePurchaseVouchersInCash,
+  unvalidateSelectedVouchers as unvalidateSelectedVouchersInCash,
+  validatePurchaseVouchers as validatePurchaseVouchersInCash,
+  validateSchoolTripVouchers as validateSchoolTripVouchersInCash,
+  validateSelectedVouchers as validateSelectedVouchersInCash,
+  validateVoucherByNumber as validateVoucherByNumberInCash,
 } from "@/lib/ops-voucher-validation";
+
+import { lockVoucherCashContext } from "@/lib/ops-voucher-validation-cash";
+import type { CashSession } from "@/lib/operational-cash-session";
+import type { VoucherOperationInputActor } from "@/lib/ops-voucher-validation-contract";
+const periodId = 11;
+function session(date: string): CashSession { return { id: periodId, park: "rincao", date, locationId: 1, locationName: "Portaria", type: "sales", openingCashCents: 0, openedAt: `${date}T10:00:00Z`, closedAt: null, openedBy: { name: "Operador", cpf: null }, closedBy: null, closureId: null, countedCashCents: null, automatic: false }; }
+vi.mock("@/lib/operational-cash-session", () => ({
+  CashSessionError: class extends Error {},
+  lockOpenCashSession: async (client: PoolClient, input: { periodId: number; date: string }) => {
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`operational-day:rincao:${input.date}`]);
+    await client.query("SELECT id FROM caixa_periodos WHERE id=$1 FOR UPDATE", [input.periodId]);
+    return session(input.date);
+  },
+}));
+const validateVoucherByNumber = (number: string, confirm = false, actor?: VoucherOperationInputActor | null) => validateVoucherByNumberInCash(number, confirm, actor, periodId);
+const validatePurchaseVouchers = (id: number, confirm = false, actor?: VoucherOperationInputActor | null) => validatePurchaseVouchersInCash(id, confirm, actor, periodId);
+const validateSchoolTripVouchers = (school: number, agenda: number, actor?: VoucherOperationInputActor | null) => validateSchoolTripVouchersInCash(school, agenda, actor, periodId);
+const validateSelectedVouchers = (ids: number[], actor?: VoucherOperationInputActor | null) => validateSelectedVouchersInCash(ids, actor, periodId);
+const unvalidateSelectedVouchers = (ids: number[], actor?: VoucherOperationInputActor | null) => unvalidateSelectedVouchersInCash(ids, actor, periodId);
+const invalidateSelectedVouchers = (ids: number[], actor?: VoucherOperationInputActor | null) => invalidateSelectedVouchersInCash(ids, actor, periodId);
+const unvalidatePurchaseVouchers = (id: number, actor?: VoucherOperationInputActor | null) => unvalidatePurchaseVouchersInCash(id, actor, periodId);
+const invalidatePurchaseVouchers = (id: number, actor?: VoucherOperationInputActor | null) => invalidatePurchaseVouchersInCash(id, actor, periodId);
+async function markVoucherUsed(client: PoolClient, id: number, date: string, time: string) {
+  vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(`${date}T15:00:00Z`));
+  return markVoucherUsedInCash(client, id, date, time, await lockVoucherCashContext(client, periodId, date));
+}
 
 const {
   query,
@@ -53,7 +79,11 @@ describe("ops-voucher-validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     connect.mockResolvedValue({
-      query,
+      query: async (sql: string, ...args: unknown[]) => {
+        const result = await query(sql, ...args);
+        if (/^select idcompra, dtinicio_validade/.test(sql) && !result.rows.length) return { rows: [{ idcompra: null, stusado: "n" }] };
+        return result;
+      },
       release,
     });
     syncTicketValidation.mockResolvedValue({
@@ -138,7 +168,7 @@ describe("ops-voucher-validation", () => {
     });
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining("UPDATE voucher"),
-      [9001, "2026-04-23", "12:00:00"],
+      [9001, "2026-04-23", "12:00:00", periodId, null, null],
     );
     expect(syncTicketValidation).toHaveBeenCalledWith(
       [{ purchaseId: 456, voucherId: 9001 }],
@@ -258,7 +288,7 @@ describe("ops-voucher-validation", () => {
       mode: "selection",
       processedCount: 1,
       affectedVoucherIds: [9001],
-      warnings: ["Voucher A9999 ja utilizado ou indisponivel para validacao."],
+      warnings: ["Voucher A9999 ja utilizado em: 22/04/2026 09:00:00. Local: não registrado."],
       message: "1 voucher(s) validado(s) com sucesso.",
     });
   });
@@ -701,6 +731,7 @@ describe("operational voucher validity", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao");
+    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-04-23T15:00:00Z"));
     row = { ...snapshot };
     open = true;
     connect.mockResolvedValue({ query, release });
@@ -708,7 +739,7 @@ describe("operational voucher validity", () => {
     query.mockImplementation(async (sql: string) => {
       if (sql.includes("WHERE voucher.numvoucher = $1") || sql.includes("WHERE voucher.idvoucher = ANY") || sql.includes("WHERE voucher.idcompra = $1") || /select .*idcompra[\s\S]*from voucher where idvoucher/i.test(sql)) return { rows: [row] };
       if (sql.includes("FROM agenda") && sql.includes("operacao_dias")) return { rows: open ? [{ idagenda: 44 }] : [] };
-      if (sql.includes("UPDATE voucher")) row.stusado = "s";
+      if (sql.includes("UPDATE voucher")) { row.stusado = "s"; return { rows: [], rowCount: 1 }; }
       return { rows: [], rowCount: 0 };
     });
   });
@@ -721,7 +752,7 @@ describe("operational voucher validity", () => {
     const openIndex = query.mock.calls.findIndex(([sql]) => String(sql).includes("FROM agenda"));
     expect(lockIndex).toBeGreaterThan(-1);
     expect(openIndex).toBeGreaterThan(lockIndex);
-    expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE voucher"), [9001, date, "12:00:00"]);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE voucher"), [9001, date, "12:00:00", periodId, null, null]);
   });
 
   it.each([

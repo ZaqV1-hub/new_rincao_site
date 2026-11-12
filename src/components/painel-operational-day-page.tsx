@@ -71,8 +71,8 @@ function DayListPanel({ date, kind }: { date: string; kind: DayList["kind"] }) {
 }
 
 const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Criado e enviado · arquivos gerados", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
-export function PainelOperationalDayPage({ summary, canManage, canAccessProgram = false, programStatus = null, programError }: {
-  summary: OperationalDaySummary; canManage: boolean; canAccessProgram?: boolean; programStatus?: DayProgram["status"] | null; programError?: string | null;
+export function PainelOperationalDayPage({ summary, canManage, canAccessCash = false, canAccessProgram = false, programStatus = null, programError }: {
+  summary: OperationalDaySummary; canManage: boolean; canAccessCash?: boolean; canAccessProgram?: boolean; programStatus?: DayProgram["status"] | null; programError?: string | null;
 }) {
   const [tab, setTab] = useState<Tab>("resumo");
   const programAction = !canManage || summary.configuration?.closed ? "Abrir" : programStatus === "uncreated" ? "Criar" : programStatus === "created" || programStatus === "exported" ? "Alterar" : "Abrir";
@@ -108,7 +108,8 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessProgram 
       </div>
       <div className="flex flex-wrap items-center gap-3">{canManage && <Link className={button} href={`/painel/agenda/${summary.date}/editar`}>Editar day use</Link>}{canAccessProgram && <><Link className={button} href={`/painel/agenda/${summary.date}/dia-seguinte?returnTo=${summary.date}`}>Programação do dia · {programAction}</Link>
         {programStatus ? <span className="text-sm text-[#45647f]" title={programStatus === "exported" ? "Os arquivos foram gerados; o envio é feito pelo gerente." : undefined}>{programLabels[programStatus]}</span> : <p role="alert" className="text-sm text-[#694812]">{programError || "Programação do dia indisponível. Atualize a página para tentar novamente."}</p>}</>}
-        <p className="text-sm text-[#45647f]">Caixas e fechamento: integração pendente.</p></div>
+        {canAccessCash && <Link className={button} href={`/painel/caixas?date=${summary.date}`}>Caixas da data</Link>}
+        <p className="text-sm text-[#45647f]">Fechamento diário: integração pendente.</p></div>
     </header>
     <div role="tablist" aria-label="Informações da data" className="flex flex-wrap gap-2 border-b border-[#d4dfeb] pb-3">
       {tabs.map((item, index) => <button key={item.id} id={`day-tab-${item.id}`} role="tab" type="button" aria-selected={tab === item.id} aria-controls="day-panel" tabIndex={tab === item.id ? 0 : -1} onKeyDown={(event) => navigateTabs(event, index)} onClick={() => setTab(item.id)} className={`${button} ${tab === item.id ? "border-[#236699] bg-[#edf4fa] underline decoration-2 underline-offset-4" : ""}`}>{item.label}{item.id === "passeios" ? ` (${number(summary.groupCount)})` : ""}</button>)}
@@ -125,13 +126,13 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessProgram 
             <SourceValue label="Faturamento total do dia" source={revenue.totalCents} currency /><SourceValue label="Valores sem classificação, fora do subtotal" source={revenue.unclassifiedNetCents} currency />
           </dl></section>
           <div className="space-y-6"><section className={panel} aria-labelledby="day-count-title"><h2 id="day-count-title" className="text-lg font-bold">Contagem dos passeios</h2><p className="mt-2 text-sm text-[#45647f]">{summary.groupCount === 0 ? "Nenhum passeio cadastrado nesta data." : `${number(summary.groupCount)} passeio(s) cadastrado(s) nesta data.`}</p><dl><SourceValue label="Pessoas em veículos com contagem concluída" source={attendance.completedVehiclePeople} /></dl><button type="button" className={button} onClick={() => { setTab("passeios"); document.getElementById("day-tab-passeios")?.focus(); }}>Ver passeios</button></section>
-            <section className={panel} aria-labelledby="day-finance-title"><h2 id="day-finance-title" className="text-lg font-bold">Recebimentos e fechamento</h2><dl className="mt-2 divide-y divide-[#d4dfeb]"><SourceValue label="Recebimentos na data" source={summary.receipts} currency /><SourceValue label="Caixas por local" source={summary.cash} /><SourceValue label="Despesas da data" source={summary.expenses} currency /><SourceValue label="Fechamento do dia" source={summary.closure} /></dl></section>
+            <section className={panel} aria-labelledby="day-finance-title"><h2 id="day-finance-title" className="text-lg font-bold">Recebimentos e fechamento</h2><dl className="mt-2 divide-y divide-[#d4dfeb]"><SourceValue label="Recebimentos na data" source={summary.receipts} currency /><SourceValue label="Sessões de caixa" source={summary.cash} /><SourceValue label="Despesas da data" source={summary.expenses} currency /><SourceValue label="Fechamento do dia" source={summary.closure} /></dl></section>
           </div>
         </div>
         {summary.warnings.length > 0 && <aside className={`${panel} bg-[#f4f8fc]`} aria-labelledby="day-warnings"><h2 id="day-warnings" className="font-bold">Pendências da apuração</h2><ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-[#45647f]">{summary.warnings.map((warning) => <li key={warning.code}>{warning.message}</li>)}</ul></aside>}
       </>}
       {(tab === "passeios" || tab === "compras") && <DayListPanel key={`${summary.date}:${tab}`} date={summary.date} kind={tab === "passeios" ? "groups" : "purchases"} />}
-      {tab === "caixas" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Caixas</h2><p>{summary.cash.reason}</p><Link className="inline-flex min-h-11 items-center underline" href="/painel/bilheteria">Abrir bilheteria existente</Link></div>}
+      {tab === "caixas" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Caixas</h2><dl><SourceValue label="Sessões de caixa" source={summary.cash} /></dl><p>Caixas abertos e fechados por local nesta data. O saldo em caixa não compõe a receita da visita.</p>{canAccessCash ? <Link className="inline-flex min-h-11 items-center underline" href={`/painel/caixas?date=${summary.date}`}>Abrir caixas da data</Link> : <p>Seu perfil não permite acessar os caixas.</p>}</div>}
       {tab === "fechamento" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Fechamento do dia</h2><p>{summary.closure.reason}</p><p className="text-sm text-[#45647f]">O subtotal disponível no resumo é parcial e não constitui um fechamento.</p></div>}
     </section>
     <p className="text-xs text-[#45647f]">Consultado em <time dateTime={summary.generatedAt}>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(summary.generatedAt))}</time> (horário de São Paulo).</p>

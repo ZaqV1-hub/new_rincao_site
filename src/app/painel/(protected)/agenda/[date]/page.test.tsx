@@ -25,6 +25,12 @@ describe("operational day route", () => {
     await expect(Page(props)).rejects.toThrow("REDIRECT");
     expect(mocks.read).not.toHaveBeenCalled();
   });
+  it.each([1, 3])("grants cash access to panel role %s only with vis_bilhet", async (legacyRoleId) => {
+    mocks.access.mockResolvedValue({ authSource: "panel", legacyRoleId, legacyResources: ["vis_agenda", "vis_bilhet"] });
+    expect((await Page(props)).props.canAccessCash).toBe(true);
+    mocks.access.mockResolvedValue({ authSource: "panel", legacyRoleId, legacyResources: ["vis_agenda"] });
+    expect((await Page(props)).props.canAccessCash).toBe(false);
+  });
   it("rejects impossible civil dates before querying", async () => {
     await expect(Page({ params: Promise.resolve({ date: "2099-02-30" }) })).rejects.toThrow("NOT_FOUND");
     expect(mocks.read).not.toHaveBeenCalled();

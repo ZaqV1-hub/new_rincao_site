@@ -20,7 +20,7 @@ type CashMovementPayload = {
 };
 
 function readMovementType(value: unknown): OperationalCashMovementType {
-  return value === "fundo" || value === "sangria" ? value : "fundo";
+  return value === "fundo" || value === "sangria" ? value : ("" as OperationalCashMovementType);
 }
 
 function readMovementValue(value: unknown) {
@@ -35,6 +35,7 @@ export async function POST(request: Request) {
   const access = await authorize(request);
 
   if (!access.ok) {
+    access.response.headers.set("Cache-Control", "private, no-store");
     return access.response;
   }
 
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ ok: true, data: result });
+    return NextResponse.json({ ok: true, data: result }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const operationError = asOperationalCashError(error);
 
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
           message: operationError.message,
         },
       },
-      { status: operationError.status },
+      { status: operationError.status, headers: { "Cache-Control": "private, no-store" } },
     );
   }
 }
@@ -75,6 +76,7 @@ export async function PATCH(request: Request) {
   const access = await authorize(request);
 
   if (!access.ok) {
+    access.response.headers.set("Cache-Control", "private, no-store");
     return access.response;
   }
 
@@ -92,7 +94,7 @@ export async function PATCH(request: Request) {
       },
     });
 
-    return NextResponse.json({ ok: true, data: result });
+    return NextResponse.json({ ok: true, data: result }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const operationError = asOperationalCashError(error);
 
@@ -106,7 +108,7 @@ export async function PATCH(request: Request) {
           message: operationError.message,
         },
       },
-      { status: operationError.status },
+      { status: operationError.status, headers: { "Cache-Control": "private, no-store" } },
     );
   }
 }
@@ -115,6 +117,7 @@ export async function DELETE(request: Request) {
   const access = await authorize(request);
 
   if (!access.ok) {
+    access.response.headers.set("Cache-Control", "private, no-store");
     return access.response;
   }
 
@@ -130,7 +133,7 @@ export async function DELETE(request: Request) {
       },
     });
 
-    return NextResponse.json({ ok: true, data: result });
+    return NextResponse.json({ ok: true, data: result }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const operationError = asOperationalCashError(error);
 
@@ -144,7 +147,7 @@ export async function DELETE(request: Request) {
           message: operationError.message,
         },
       },
-      { status: operationError.status },
+      { status: operationError.status, headers: { "Cache-Control": "private, no-store" } },
     );
   }
 }

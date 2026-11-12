@@ -19,6 +19,7 @@ export default async function PainelAgendaDayPage({ params }: { params: Promise<
   if (!isCivilDate(date)) notFound();
   const canAccessProgram = hasLegacyPanelResource(session.legacyResources, "vis_agenda")
     && hasLegacyPanelResource(session.legacyResources, ["vis_clientes", "vis_escola"]);
+  const canAccessCash = hasLegacyPanelResource(session.legacyResources, "vis_bilhet");
   let summary;
   try {
     summary = await getOperationalDaySummary(date);
@@ -34,5 +35,5 @@ export default async function PainelAgendaDayPage({ params }: { params: Promise<
     catch { programError = "Programação do dia indisponível. Atualize a página para tentar novamente."; }
   }
   return <PainelOperationalDayPage key={date} summary={summary} canManage={session.legacyRoleId === 1}
-    canAccessProgram={canAccessProgram} programStatus={programStatus} programError={programError} />;
+    canAccessCash={canAccessCash} canAccessProgram={canAccessProgram} programStatus={programStatus} programError={programError} />;
 }

@@ -14,7 +14,7 @@ function summary(): OperationalDaySummary {
     revenue: { basis: "selected_visit_date", siteNetCents: available(0), gateNetCents: available(2500), servicesNetCents: available(500), unclassifiedNetCents: available(1200), knownSubtotalCents: 3000, totalCents: unavailable, finalizedTripsNetCents: unavailable },
     attendance: { basis: "actual_use_date", dayUseAdmitted: available(3), completedVehiclePeople: unavailable, totalAdmitted: unavailable },
     forecast: { ticketsForSelectedDate: available(8), plannedGroupPeople: unavailable },
-    groupCount: 2, receipts: unavailable, cash: unavailable, expenses: unavailable, closure: unavailable,
+    groupCount: 2, receipts: unavailable, cash: available(2), expenses: unavailable, closure: unavailable,
     warnings: [{ code: "partial", message: "Subtotal das fontes disponíveis." }],
   };
 }
@@ -60,7 +60,14 @@ describe("operational day summary UI", () => {
     const html = renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage canAccessProgram programStatus={programStatus} />);
     expect(html).toContain(`Programação do dia · ${action}`); expect(html).toContain(label);
     expect(html).toContain('href="/painel/agenda/2099-01-02/dia-seguinte?returnTo=2099-01-02"');
-    expect(html).toContain("Caixas e fechamento: integração pendente."); expect(html).not.toContain("Dia seguinte, caixas");
+    expect(html).toContain("Fechamento diário: integração pendente."); expect(html).not.toContain("Dia seguinte, caixas");
+  });
+  it("shows session counts separately from revenue and links the selected date only with cash permission", () => {
+    const html = renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage={false} canAccessCash />);
+    expect(html).toContain('href="/painel/caixas?date=2099-01-02"');
+    expect(html).toMatch(/Sessões de caixa<\/dt><dd[^>]*>2<\/dd>/);
+    expect(html).not.toContain("Caixas e fechamento: integração pendente.");
+    expect(render()).not.toContain('href="/painel/caixas');
   });
   it("does not expose program links without permission or imply creation after an error", () => {
     expect(render()).not.toContain("/dia-seguinte");

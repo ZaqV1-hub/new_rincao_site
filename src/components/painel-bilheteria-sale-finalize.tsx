@@ -1,588 +1,111 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  PAINEL_BILHETERIA_SALE_DRAFT_KEY,
-  type PainelBilheteriaSaleDraft,
-} from "@/lib/painel-bilheteria-sales";
+import { useState, useSyncExternalStore } from "react";
+import { isValidCpf } from "@/lib/cpf";
+import { readStoredCashCommand, submitCashCommand, type StoredCashCommand } from "@/lib/cash-command-client";
+import { CASH_PAYMENT_OPTIONS, cashInputCents, previewCashPayments, saleCommandPayload, saleCommandStorageKey, saleDraftStorageKey, type PainelBilheteriaSaleDraft } from "@/lib/painel-bilheteria-sales";
 
-type PaymentRow = {
-  id: string;
-  method: string;
-  value: string;
-};
-
-type SaleResponse = {
-  ok: boolean;
-  data?: {
-    purchaseId: number;
-    voucherIds: number[];
-    message: string;
-  };
-  error?: {
-    message?: string;
-  };
-};
-
-type WhatsappResponse = {
-  ok: boolean;
-  data?: {
-    ok?: boolean;
-    message?: string;
-  };
-  error?: {
-    message?: string;
-  };
-};
-
-const paymentOptions = [
-  { value: "dinhe", label: "Dinheiro" },
-  { value: "debit", label: "Débito" },
-  { value: "credi", label: "Crédito" },
-  { value: "pix", label: "Pix" },
-  { value: "chequ", label: "Cheque" },
-  { value: "tranb", label: "Trans. bancária" },
-];
-
-function formatMoney(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
+export type CashPaymentRow = { method: string; value: string };
+export function cashDisplay(cents: number) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100); }
+export function CashPaymentFields({ rows, onChange, totalCents, disabled }: {
+  rows: CashPaymentRow[]; onChange: (rows: CashPaymentRow[]) => void; totalCents: number; disabled: boolean;
+}) {
+  const preview = previewCashPayments(totalCents, rows);
+  return <fieldset disabled={disabled} className="grid gap-3 disabled:opacity-70">
+    <legend className="mb-3 font-semibold">Valores entregues por forma de pagamento</legend>
+    {rows.map((row, index) => <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+      <label>Forma {index + 1}<select aria-label={`Forma ${index + 1}`} className="mt-1 w-full rounded border p-2" value={row.method} onChange={(event) => onChange(rows.map((item, i) => i === index ? { ...item, method: event.target.value } : item))}>
+        <option value="">Selecione</option>{CASH_PAYMENT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select></label>
+      <label>Valor entregue {index + 1}<input aria-label={`Valor entregue ${index + 1}`} inputMode="decimal" className="mt-1 w-full rounded border p-2" value={row.value} onChange={(event) => onChange(rows.map((item, i) => i === index ? { ...item, value: event.target.value } : item))} /></label>
+      <button type="button" onClick={() => onChange(rows.filter((_, i) => i !== index))} className="rounded border px-3">Remover</button>
+    </div>)}
+    {totalCents === 0 && rows.length === 0 ? <p>Compra sem cobrança. Confirme para registrar os ingressos.</p> : null}
+    <button type="button" disabled={rows.length >= 20} onClick={() => onChange([...rows, { method: "", value: "" }])} className="justify-self-start rounded border px-3 py-2">Adicionar forma</button>
+    <p>Total da compra: <strong>{cashDisplay(totalCents)}</strong></p>
+    {preview.ok ? <p aria-live="polite">Entregue: {cashDisplay(preview.receivedCents)} · Troco: <strong>{cashDisplay(preview.changeCents)}</strong></p> : <p>{preview.message}</p>}
+  </fieldset>;
 }
 
-function parseMoney(value: string | null | undefined) {
-  const raw = String(value ?? "").trim().replace(/^R\$\s*/i, "");
-  const normalized =
-    raw.includes(",") && raw.includes(".")
-      ? raw.replace(/\./g, "").replace(",", ".")
-      : raw.includes(",")
-        ? raw.replace(",", ".")
-        : raw;
-  const parsed = Number(normalized);
-
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function createRow(id: string, value: string, method = ""): PaymentRow {
-  return { id, method, value };
-}
-
-function createId() {
-  return `pg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function readSaleDraftFromSessionStorage() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const raw = sessionStorage.getItem(PAINEL_BILHETERIA_SALE_DRAFT_KEY);
-
-  if (!raw) {
-    return null;
-  }
-
+type SaleResult = { purchaseId: number; voucherIds: number[]; message: string; totalCents: number; receivedCents: number; changeCents: number };
+function initialState(periodId: number) {
+  if (typeof window === "undefined") return { draft: null, command: null, issue: null };
+  let draft: PainelBilheteriaSaleDraft | null = null;
+  let command: StoredCashCommand | null = null;
   try {
-    return JSON.parse(raw) as PainelBilheteriaSaleDraft;
-  } catch {
-    return null;
-  }
+    const raw = sessionStorage.getItem(saleDraftStorageKey(periodId));
+    draft = raw ? JSON.parse(raw) as PainelBilheteriaSaleDraft : null;
+    if (draft && (draft.periodId !== periodId || !Array.isArray(draft.services) || !Array.isArray(draft.items) || !Array.isArray(draft.courtesies))) throw new Error("Invalid draft");
+    command = readStoredCashCommand(saleCommandStorageKey(periodId));
+    return { draft, command, issue: null };
+  } catch { return { draft, command, issue: "Não foi possível ler a operação salva. Peça conferência ao responsável antes de continuar." }; }
 }
 
-export function PainelBilheteriaSaleFinalize() {
-  const router = useRouter();
-  const autoConfirmedCourtesySaleRef = useRef(false);
-  const confirmPaymentRef = useRef<() => Promise<void>>(async () => {});
-  const [draft] = useState<PainelBilheteriaSaleDraft | null>(() =>
-    readSaleDraftFromSessionStorage(),
-  );
-  const isCourtesyOnlyZeroSale =
-    draft != null &&
-    draft.items.length === 0 &&
-    draft.courtesies.length > 0 &&
-    parseMoney(draft.totalValue) === 0;
-  const [paymentRows, setPaymentRows] = useState<PaymentRow[]>(() => {
-    const initialDraft = readSaleDraftFromSessionStorage();
-    if (!initialDraft) {
-      return [];
-    }
-
-    const isZeroCourtesyOnly =
-      initialDraft.items.length === 0 &&
-      initialDraft.courtesies.length > 0 &&
-      parseMoney(initialDraft.totalValue) === 0;
-
-    return isZeroCourtesyOnly ? [] : [createRow("0", initialDraft.totalValue, "")];
-  });
-  const [cashReceived, setCashReceived] = useState("");
+const subscribeReady = () => () => {};
+export function PainelBilheteriaSaleFinalize({ periodId, readOnly = false }: { periodId: number; readOnly?: boolean }) {
+  const clientReady = useSyncExternalStore(subscribeReady, () => true, () => false);
+  const [initial] = useState(() => initialState(periodId));
+  const draft = initial.draft;
+  const [pending, setPending] = useState(Boolean(initial.command || initial.issue));
+  const [rows, setRows] = useState<CashPaymentRow[]>(() => Array.isArray(initial.command?.payload.payments)
+    ? initial.command.payload.payments as CashPaymentRow[] : draft && cashInputCents(draft.totalValue) !== 0 ? [{ method: "", value: draft.totalValue }] : []);
   const [submitting, setSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [success, setSuccess] = useState<{
-    purchaseId: number;
-    voucherIds: number[];
-    message: string;
-  } | null>(null);
-  const [whatsOpen, setWhatsOpen] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [whatsSubmitting, setWhatsSubmitting] = useState(false);
-  const [whatsMessage, setWhatsMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!draft) {
-      router.replace("/painel/bilheteria/vendas");
+  const [error, setError] = useState<string | null>(initial.issue ?? (initial.command ? "Há uma tentativa anterior sem confirmação. Confira os dados e tente conferir novamente." : null));
+  const [success, setSuccess] = useState<SaleResult | null>(null);
+  const [phone, setPhone] = useState("");
+  const [deliveryMessage, setDeliveryMessage] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const back = `/painel/caixas/${periodId}?tab=vendas`;
+  const totalCents = cashInputCents(draft?.totalValue ?? "0") ?? 0;
+  async function confirm() {
+    if (submitting || initial.issue) return;
+    let payload: Record<string, unknown> | undefined;
+    if (!pending) {
+      if (readOnly || !draft) return;
+      if (!isValidCpf(draft.cpf)) { setError("Informe um CPF válido na compra antes de confirmar."); return; }
+      const preview = previewCashPayments(totalCents, rows);
+      if (!preview.ok) { setError(preview.message); return; }
+      payload = saleCommandPayload(draft, preview.payments);
     }
-  }, [draft, router]);
-
-  const totalPurchase = useMemo(() => parseMoney(draft?.totalValue), [draft]);
-  const totalInformed = useMemo(
-    () => paymentRows.reduce((total, payment) => total + parseMoney(payment.value), 0),
-    [paymentRows],
-  );
-  const difference = Math.round((totalInformed - totalPurchase) * 100) / 100;
-  const showCashReceived = paymentRows.some((payment) => payment.method === "dinhe");
-  const cashChange = Math.max(parseMoney(cashReceived) - totalPurchase, 0);
-
-  function updatePaymentRow(id: string, patch: Partial<PaymentRow>) {
-    setPaymentRows((current) =>
-      current.map((row) => (row.id === id ? { ...row, ...patch } : row)),
-    );
+    setSubmitting(true); setError(null);
+    const result = await submitCashCommand<SaleResult>({ storageKey: saleCommandStorageKey(periodId), url: "/api/painel/bilheteria/sales", ...(payload ? { payload } : {}) });
+    setSubmitting(false);
+    if (!result.ok) { setPending(result.uncertain); setError(result.message); return; }
+    setPending(false); setSuccess(result.data);
+    try { sessionStorage.removeItem(saleDraftStorageKey(periodId)); } catch { /* Receipt remains visible even if browser storage becomes unavailable. */ }
   }
-
-  function addPaymentRow() {
-    setPaymentRows((current) => [...current, createRow(createId(), "", "")]);
-  }
-
-  function removePaymentRow(id: string) {
-    setPaymentRows((current) => current.filter((row) => row.id !== id));
-  }
-
-  async function handleConfirmPayment() {
-    if (!draft) {
-      return;
-    }
-
-    const normalizedPayments = paymentRows
-      .map((payment) => ({
-        method: payment.method,
-        value: payment.value,
-      }))
-      .filter((payment) => payment.method && parseMoney(payment.value) > 0);
-
-    if (!isCourtesyOnlyZeroSale && normalizedPayments.length === 0) {
-      setErrorMessage("Informe ao menos uma forma de pagamento.");
-      return;
-    }
-
-    if (!isCourtesyOnlyZeroSale && Math.abs(difference) > 0.01) {
-      setErrorMessage("O total informado precisa bater com o total da compra.");
-      return;
-    }
-
-    setSubmitting(true);
-    setErrorMessage(null);
-
+  async function sendWhatsapp() {
+    if (!success || sending) return;
+    setSending(true); setDeliveryMessage(null);
     try {
-      const response = await fetch("/api/painel/bilheteria/sales", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          agendaId: draft.agendaId,
-          cpf: draft.cpf,
-          items: draft.items.map((item) => ({
-            type: item.type,
-            quantity: item.quantity,
-            label: item.label,
-            discountId: item.discountId,
-          })),
-          courtesies: draft.courtesies.map((courtesy) => ({
-            authorId: courtesy.authorId,
-            quantity: courtesy.quantity,
-            identification: courtesy.identification,
-            note: courtesy.note,
-          })),
-          payments: isCourtesyOnlyZeroSale ? [] : normalizedPayments,
-          reason: draft.reason,
-          idempotencyKey: createId(),
-        }),
-      });
-      const payload = (await response.json().catch(() => null)) as SaleResponse | null;
-
-      if (!response.ok || !payload?.ok || !payload.data) {
-        setErrorMessage(
-          payload?.error?.message || "Não foi possível confirmar a venda agora.",
-        );
-        return;
-      }
-
-      setSuccess({
-        purchaseId: payload.data.purchaseId,
-        voucherIds: payload.data.voucherIds,
-        message: payload.data.message,
-      });
-      sessionStorage.removeItem(PAINEL_BILHETERIA_SALE_DRAFT_KEY);
-    } finally {
-      setSubmitting(false);
-    }
+      const response = await fetch(`/api/painel/bilheteria/purchases/${success.purchaseId}/whatsapp`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ phoneNumber: phone, voucherIds: success.voucherIds }) });
+      const result = await response.json();
+      setDeliveryMessage(response.ok && result.ok ? result.data?.message ?? "Ingressos enviados." : result.error?.message ?? "Não foi possível enviar os ingressos.");
+    } catch { setDeliveryMessage("Não foi possível confirmar o envio. Confira antes de enviar novamente."); } finally { setSending(false); }
   }
-
-  useEffect(() => {
-    confirmPaymentRef.current = handleConfirmPayment;
-  });
-
-  useEffect(() => {
-    if (!isCourtesyOnlyZeroSale || !draft || success || submitting) {
-      return;
-    }
-
-    if (autoConfirmedCourtesySaleRef.current) {
-      return;
-    }
-
-    autoConfirmedCourtesySaleRef.current = true;
-    void confirmPaymentRef.current();
-  }, [draft, isCourtesyOnlyZeroSale, submitting, success]);
-
-  async function handleSendWhatsapp() {
-    if (!success) {
-      return;
-    }
-
-    setWhatsSubmitting(true);
-    setWhatsMessage(null);
-
-    try {
-      const response = await fetch(
-        `/api/painel/bilheteria/purchases/${success.purchaseId}/whatsapp`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            phoneNumber,
-            voucherIds: success.voucherIds,
-          }),
-        },
-      );
-      const payload =
-        (await response.json().catch(() => null)) as WhatsappResponse | null;
-
-      if (!response.ok || !payload?.ok) {
-        setWhatsMessage(
-          payload?.error?.message ||
-            "Não foi possível enviar os ingressos por WhatsApp.",
-        );
-        return;
-      }
-
-      setWhatsMessage(
-        payload.data?.message || "Ingressos enviados por WhatsApp com sucesso.",
-      );
-    } finally {
-      setWhatsSubmitting(false);
-    }
-  }
-
-  if (!draft) {
-    return null;
-  }
-
-  return (
-    <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
-      <article className="panel-section p-3.5">
-        <p className="panel-eyebrow">Resumo</p>
-        <h2 className="mt-1 text-[20px] font-black text-[#17351f]">Fechamento</h2>
-        <p className="mt-1 text-xs text-[#5f7564]">Agenda: {draft.agendaLabel}</p>
-
-        <div className="mt-3 overflow-hidden rounded-[12px] border border-[#dbe7d7]">
-          <table className="min-w-full text-sm">
-            <tbody>
-              {draft.items.map((item) => (
-                <tr key={`${item.type}-${item.label}`} className="bg-white">
-                  <td className="px-3 py-2.5 text-[#17351f]">
-                    <div className="font-semibold">{item.label}</div>
-                    <div className="mt-1 text-xs text-[#5f7564]">
-                      {item.quantity} x {formatMoney(parseMoney(item.unitValue))}
-                    </div>
-                    {item.discountLabel ? (
-                      <div className="mt-1 text-xs text-[#205a7f]">
-                        Desconto: {item.discountLabel}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-semibold text-[#17351f]">
-                    {formatMoney(parseMoney(item.totalValue))}
-                  </td>
-                </tr>
-              ))}
-              {draft.courtesies.map((courtesy) => (
-                <tr
-                  key={`${courtesy.authorId}-${courtesy.identification}-${courtesy.note}`}
-                  className="bg-[#fbfdf9]"
-                >
-                  <td className="px-3 py-2.5 text-[#17351f]">
-                    <div className="font-semibold">Cortesia {courtesy.authorName}</div>
-                    <div className="mt-1 text-xs text-[#5f7564]">{courtesy.quantity} unidade(s)</div>
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-semibold text-[#17351f]">
-                    {formatMoney(0)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="mt-3 grid gap-2 rounded-[12px] border border-[#dbe7d7] bg-[#f7fbf5] px-3 py-3 text-sm">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[#5f7564]">Subtotal</span>
-            <strong className="text-[#17351f]">
-              {formatMoney(parseMoney(draft.subtotalValue))}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[#5f7564]">Descontos</span>
-            <strong className="text-[#17351f]">
-              - {formatMoney(parseMoney(draft.discountValue))}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between gap-3 border-t border-[#dbe7d7] pt-3">
-            <span className="text-[13px] font-bold uppercase tracking-[0.14em] text-[#6f9565]">
-              Total da compra
-            </span>
-            <strong className="text-[22px] font-black text-[#17351f]">
-              {formatMoney(totalPurchase)}
-            </strong>
-          </div>
-        </div>
-      </article>
-
-      <article className="panel-section p-3.5">
-        {!success ? (
-          <>
-            <p className="panel-eyebrow">Pagamento</p>
-            <h2 className="mt-1 text-[18px] font-black text-[#17351f]">
-              Finalizar compra
-            </h2>
-
-            {isCourtesyOnlyZeroSale ? (
-              <div className="mt-3 rounded-[12px] border border-[#dbe7d7] bg-[#f7fbf5] px-4 py-4 text-sm text-[#5f7564]">
-                Registrando a venda de cortesia e liberando os atalhos finais.
-              </div>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={addPaymentRow}
-                  className="mt-3 rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-xs font-semibold text-[#17351f]"
-                >
-                  Adicionar forma
-                </button>
-
-                <div className="mt-3 space-y-2">
-                  {paymentRows.map((payment, index) => (
-                    <div
-                      key={payment.id}
-                      className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_110px_auto]"
-                    >
-                      <select
-                        value={payment.method}
-                        onChange={(event) =>
-                          updatePaymentRow(payment.id, { method: event.target.value })
-                        }
-                        className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm text-[#17351f]"
-                      >
-                        <option value="">Selecione</option>
-                        {paymentOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        value={payment.value}
-                        onChange={(event) =>
-                          updatePaymentRow(payment.id, { value: event.target.value })
-                        }
-                        readOnly={index === 0 && paymentRows.length === 1}
-                        className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm text-[#17351f]"
-                      />
-                      {paymentRows.length > 1 ? (
-                        <button
-                          type="button"
-                          onClick={() => removePaymentRow(payment.id)}
-                          className="rounded-[8px] border border-[#ecd2d0] px-2.5 py-1.5 text-xs font-semibold text-[#b24239]"
-                        >
-                          Remover
-                        </button>
-                      ) : (
-                        <div />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {showCashReceived && !isCourtesyOnlyZeroSale ? (
-              <div className="mt-3 grid gap-2 rounded-[12px] border border-[#dbe7d7] bg-[#f7fbf5] p-3">
-                <label className="grid gap-1.5 text-[13px] font-semibold text-[#17351f]">
-                  Valor entregue
-                  <input
-                    value={cashReceived}
-                    onChange={(event) => setCashReceived(event.target.value)}
-                    className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm text-[#17351f]"
-                  />
-                </label>
-                <div className="text-sm text-[#5f7564]">
-                  Troco: <strong className="text-[#17351f]">{formatMoney(cashChange)}</strong>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-3 rounded-[12px] border border-[#dbe7d7] bg-[#f7fbf5] px-3 py-3 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[#5f7564]">Total informado</span>
-                <strong className="text-[#17351f]">
-                  {formatMoney(isCourtesyOnlyZeroSale ? 0 : totalInformed)}
-                </strong>
-              </div>
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <span className="text-[#5f7564]">Total da compra</span>
-                <strong className="text-[#17351f]">{formatMoney(totalPurchase)}</strong>
-              </div>
-            </div>
-
-            {errorMessage ? (
-              <div className="mt-4 rounded-[12px] border border-[#f2d6d6] bg-[#fff1f1] px-4 py-3 text-sm text-[#8b2d2d]">
-                {errorMessage}
-              </div>
-            ) : null}
-
-            {isCourtesyOnlyZeroSale ? (
-              errorMessage ? (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
-                  <Link
-                    href="/painel/bilheteria/vendas"
-                    className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm font-semibold text-[#17351f]"
-                  >
-                    Voltar
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      autoConfirmedCourtesySaleRef.current = false;
-                      void handleConfirmPayment();
-                    }}
-                    disabled={submitting}
-                    className="rounded-[8px] bg-[#2b8c46] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                  >
-                    {submitting ? "Confirmando..." : "Tentar novamente"}
-                  </button>
-                </div>
-              ) : null
-            ) : (
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2.5">
-                <Link
-                  href="/painel/bilheteria/vendas"
-                  className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm font-semibold text-[#17351f]"
-                >
-                  Voltar
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => void handleConfirmPayment()}
-                  disabled={submitting}
-                  className="rounded-[8px] bg-[#2b8c46] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {submitting ? "Confirmando..." : "Confirmar pagamento"}
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <p className="panel-eyebrow">Pagamento concluído</p>
-            <h2 className="mt-1 text-[18px] font-black text-[#17351f]">
-              Compra #{success.purchaseId}
-            </h2>
-            <p className="mt-2 text-sm text-[#5f7564]">{success.message}</p>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              <a
-                href={`/painel/bilheteria/compras/${success.purchaseId}/imprimir`}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-[8px] bg-[#2b8c46] px-3 py-2 text-sm font-semibold text-white"
-              >
-                Imprimir QRs
-              </a>
-              <button
-                type="button"
-                onClick={() => setWhatsOpen(true)}
-                className="rounded-[8px] bg-[#25D366] px-3 py-2 text-sm font-semibold text-white"
-              >
-                Enviar WhatsApp
-              </button>
-              <Link
-                href="/painel/bilheteria/vendas"
-                className="rounded-[8px] border border-[#dbe7d7] px-3 py-2 text-sm font-semibold text-[#17351f]"
-              >
-                Nova venda
-              </Link>
-            </div>
-          </>
-        )}
-      </article>
-
-      {whatsOpen && success ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b223580] p-4">
-          <div className="w-full max-w-md rounded-[18px] bg-white p-5 shadow-[0_24px_60px_rgba(16,45,70,0.24)]">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-black text-[#17351f]">
-                Enviar ingressos por WhatsApp
-              </h3>
-              <button
-                type="button"
-                onClick={() => setWhatsOpen(false)}
-                className="rounded-[8px] border border-[#dbe7d7] px-3 py-1.5 text-xs font-semibold text-[#5d745f]"
-              >
-                Fechar
-              </button>
-            </div>
-
-            <label className="mt-4 grid gap-1.5 text-[13px] font-semibold text-[#17351f]">
-              Telefone com DDD
-              <input
-                value={phoneNumber}
-                onChange={(event) => setPhoneNumber(event.target.value)}
-                placeholder="(DDD) 9xxxx-xxxx"
-                className="rounded-[8px] border border-[#dbe7d7] px-3 py-2.5 text-sm text-[#17351f]"
-              />
-            </label>
-
-            {whatsMessage ? (
-              <div className="mt-4 rounded-[12px] border border-[#dbe7d7] bg-[#f7fbf5] px-4 py-3 text-sm text-[#5f7564]">
-                {whatsMessage}
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={() => void handleSendWhatsapp()}
-              disabled={whatsSubmitting}
-              className="mt-4 inline-flex w-full items-center justify-center rounded-[8px] bg-[#25D366] px-4 py-3 text-sm font-black text-white disabled:opacity-60"
-            >
-              {whatsSubmitting ? "Enviando..." : "Enviar"}
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </section>
-  );
+  if (!clientReady) return <p>Carregando compra salva…</p>;
+  if (!draft && !pending) return <section className="panel-section p-5"><p>Nenhuma compra preparada para este caixa.</p><Link href={back}>Voltar ao caixa</Link></section>;
+  return <section className="grid gap-4 lg:grid-cols-2">
+    <article className="panel-section p-5">
+      <h2 className="text-xl font-bold">Conferir compra · caixa #{periodId}</h2>
+      <p className="mt-3">CPF: {String(initial.command?.payload.cpf ?? draft?.cpf ?? "Indisponível")}</p>
+      {draft ? <><p>Agenda: {draft.agendaLabel}</p><ul className="my-4 space-y-2">
+        {draft.items.map((item, i) => <li key={`i${i}`}>{item.quantity} × {item.label} · {cashDisplay(cashInputCents(item.totalValue) ?? 0)}{item.discountLabel ? ` · ${item.discountLabel}` : ""}</li>)}
+        {draft.services.map((item, i) => <li key={`s${i}`}>{item.quantity} × {item.label} · {cashDisplay(cashInputCents(item.totalValue) ?? 0)} · Sem desconto</li>)}
+        {draft.courtesies.map((item, i) => <li key={`c${i}`}>{item.quantity} × Cortesia · {item.authorName}</li>)}
+      </ul><p>Total: <strong>{cashDisplay(totalCents)}</strong></p></> : <p>Os dados da tentativa anterior permanecem salvos para conferência.</p>}
+      <Link className="mt-4 inline-block underline" href={back}>Voltar ao caixa</Link>
+    </article>
+    <article className="panel-section p-5">
+      {success ? <><h2 className="text-xl font-bold">Compra #{success.purchaseId} concluída</h2><p>{success.message}</p><p>Troco confirmado: <strong>{cashDisplay(success.changeCents)}</strong></p>
+        <div className="my-4 flex gap-4"><a href={`/painel/bilheteria/compras/${success.purchaseId}/imprimir`} target="_blank" rel="noreferrer">Imprimir QRs</a><Link href={back}>Nova venda</Link></div>
+        <label>Telefone com DDD<input className="m-2 rounded border p-2" value={phone} onChange={(event) => setPhone(event.target.value)} /></label><button disabled={sending} onClick={() => void sendWhatsapp()} className="rounded border p-2">Enviar WhatsApp</button>{deliveryMessage ? <p role="status">{deliveryMessage}</p> : null}
+      </> : <><CashPaymentFields rows={rows} onChange={setRows} totalCents={totalCents} disabled={pending || submitting || readOnly} />
+        {readOnly ? <p className="my-3">Este caixa está encerrado ou fora da data de hoje. Apenas a tentativa já enviada pode ser conferida.</p> : null}
+        {error ? <p role="alert" className="my-3 text-red-800">{error}</p> : null}
+        <button disabled={submitting || Boolean(initial.issue) || (readOnly && !pending)} onClick={() => void confirm()} className="mt-4 rounded bg-green-800 px-4 py-3 text-white disabled:opacity-50">{submitting ? "Conferindo..." : pending ? "Conferir tentativa anterior" : "Confirmar pagamento"}</button>
+      </>}
+    </article>
+  </section>;
 }

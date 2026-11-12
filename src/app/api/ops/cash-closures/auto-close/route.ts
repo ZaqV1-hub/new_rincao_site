@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { AuthErrorResponse } from "@/lib/auth-contracts";
 import { authenticateOperationsRequest } from "@/lib/ops-auth";
-import { authorizePainelApiAccess } from "@/lib/painel-api-auth";
+import { requirePainelApiAccess } from "@/lib/painel-api-auth";
 import {
   asOperationalCashClosureError,
   autoCloseOperationalCashClosures,
@@ -18,7 +18,7 @@ function errorResponse(code: string, message: string, status: number) {
         message,
       },
     },
-    { status },
+    { status, headers: { "Cache-Control": "private, no-store" } },
   );
 }
 
@@ -36,13 +36,21 @@ export async function POST(request: Request) {
   });
 
   if (!auth.ok) {
+    auth.response.headers.set("Cache-Control", "private, no-store");
     return auth.response;
   }
 
-  const painelAuth = await authorizePainelApiAccess(request, "vis_bilhet");
-
-  if (!painelAuth.ok) {
-    return painelAuth.response;
+  let actor: { name: string | null; cpf: string | null } = { name: "Fechamento automatico", cpf: null };
+  if (auth.via !== "bearer") {
+    const access = await requirePainelApiAccess(request, "vis_bilhet");
+    if (!access.ok) {
+      access.response.headers.set("Cache-Control", "private, no-store");
+      return access.response;
+    }
+    if (access.session.legacyRoleId !== 1) {
+      return errorResponse("manager_required", "Somente gestor pode executar o fechamento.", 403);
+    }
+    actor = { name: access.session.actorName, cpf: access.session.actorCpf };
   }
 
   let payload: AutoCloseCashClosuresPayload | null = null;
@@ -56,22 +64,13 @@ export async function POST(request: Request) {
   try {
     const result = await autoCloseOperationalCashClosures({
       reason: typeof payload?.reason === "string" ? payload.reason : "",
-      actor: {
-        name:
-          typeof payload?.actor?.name === "string"
-            ? payload.actor.name.trim()
-            : null,
-        cpf:
-          typeof payload?.actor?.cpf === "string"
-            ? payload.actor.cpf.trim()
-            : null,
-      },
+      actor,
     });
 
     return NextResponse.json({
       ok: true,
       data: result,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const operationError = asOperationalCashClosureError(error);
 

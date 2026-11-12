@@ -1,6 +1,10 @@
 import type { PoolClient } from "pg";
 import type { VoucherValidationRow, SchoolTripVoucherRow } from "@/lib/ops-voucher-validation-shared";
 const VALIDATION_COLUMNS = `voucher.idvoucher,voucher.idagenda,voucher.numvoucher,voucher.stusado,voucher.stvoucher,
+        voucher.validacao_periodo_id,voucher.validado_em::text,voucher.validado_por_nome,voucher.periodo_id,voucher.closed_at::text,
+        voucher.tpvoucher,voucher.servico_id,compra.caixa_periodo_id,
+        ARRAY(SELECT periodo_id FROM compra_pagamentos WHERE idcompra=voucher.idcompra AND periodo_id IS NOT NULL) AS payment_period_ids,
+        (SELECT local_nome FROM caixa_periodos WHERE id=voucher.validacao_periodo_id) AS validacao_local_nome,
         to_char(voucher.dtinicio_validade, 'YYYY-MM-DD') AS dtinicio_validade,
         to_char(voucher.dtvalidade, 'YYYY-MM-DD') AS dtvalidade, voucher.parque_operacional,
         to_char(voucher.dtuso, 'YYYY-MM-DD') AS dtuso,voucher.hruso::text AS hruso,voucher.idcompra,
@@ -88,7 +92,7 @@ export async function getSchoolTripVouchers(
         AND voucher.idagenda = $2
         AND COALESCE(voucher.tpparticipante, '') <> 'educador'
         AND compra.stcompra = 'conc'
-        AND ((compra.tpcompra = 'ponli' AND pagpagseguro.status IN (3,4))
+        AND (compra.tpcompra = 'bilhe' OR (compra.tpcompra = 'ponli' AND pagpagseguro.status IN (3,4))
           OR (compra.tpcompra = 'reser' AND COALESCE(UPPER(TRIM(compra.formapag)), '') NOT IN ('', 'N/A')))
       ORDER BY voucher.idvoucher ASC
       FOR UPDATE OF voucher

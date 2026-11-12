@@ -2,11 +2,9 @@ import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getOperationalCashClosureDetail, listOperationalCashClosures } from "@/lib/ops-cash-closures";
 import {
   buildOperationalCashSummary,
-  ensureCashPeriodsTable,
   getOperationalCashSummary,
   listCashMovementsByType,
 } from "@/lib/ops-cash-management";
-import { ensureOpsAuditLogTable } from "@/lib/ops-audit-log";
 import {
   buildBilheteriaCashClosureReportModel,
   type BilheteriaCashAggregateRow,
@@ -104,7 +102,8 @@ async function querySiteRows(client: import("pg").PoolClient, openedAt: string, 
         COALESCE(SUM(v.vlunicompra), 0)::text AS valor_total
       FROM voucher v
       JOIN compra c ON c.idcompra = v.idcompra
-      WHERE c.tpcompra = 'ponli'
+      WHERE c.caixa_periodo_id IS NULL AND c.tpcompra = 'ponli'
+        AND v.validacao_periodo_id IS NULL
         AND v.stusado = 's'
         AND (v.dtuso::timestamp + COALESCE(v.hruso, '00:00'::time)) >= ($1::timestamptz AT TIME ZONE 'America/Sao_Paulo')
         AND (v.dtuso::timestamp + COALESCE(v.hruso, '00:00'::time)) <= ($2::timestamptz AT TIME ZONE 'America/Sao_Paulo')
@@ -131,7 +130,7 @@ async function queryBoxOfficeRows(
         COALESCE(SUM(v.vlunicompra), 0)::text AS valor_total
       FROM voucher v
       JOIN compra c ON c.idcompra = v.idcompra
-      WHERE c.tpcompra IN ('bilhe', 'reser')
+      WHERE c.caixa_periodo_id IS NULL AND c.tpcompra IN ('bilhe', 'reser')
         AND c.stcompra = 'conc'
         AND c.formapag IS NOT NULL
         AND c.formapag <> 'N/A'
@@ -168,7 +167,7 @@ async function queryDiscountRows(
       JOIN compra c ON c.idcompra = v.idcompra
       LEFT JOIN descontos d ON d.id = v.desconto_id
       LEFT JOIN descontos_tipos dt ON dt.id = d.tipo_id
-      WHERE c.tpcompra IN ('bilhe', 'reser')
+      WHERE c.caixa_periodo_id IS NULL AND c.tpcompra IN ('bilhe', 'reser')
         AND c.stcompra = 'conc'
         AND c.formapag IS NOT NULL
         AND c.formapag <> 'N/A'
@@ -218,7 +217,7 @@ async function queryDiscountRows(
           SUM(CASE WHEN v.tpvoucher NOT IN ('corte', 'espec') AND v.desconto_id IS NULL THEN v.vlunicompra ELSE 0 END) AS regular_vouchers
         FROM voucher v
         JOIN compra c ON c.idcompra = v.idcompra
-        WHERE c.tpcompra IN ('bilhe', 'reser')
+        WHERE c.caixa_periodo_id IS NULL AND c.tpcompra IN ('bilhe', 'reser')
           AND c.stcompra = 'conc'
           AND c.formapag IS NOT NULL
           AND c.formapag <> 'N/A'
@@ -237,7 +236,7 @@ async function queryDiscountRows(
         JOIN compra c ON c.idcompra = v.idcompra
         LEFT JOIN descontos d ON d.id = v.desconto_id
         LEFT JOIN descontos_tipos dt ON dt.id = d.tipo_id
-        WHERE c.tpcompra IN ('bilhe', 'reser')
+        WHERE c.caixa_periodo_id IS NULL AND c.tpcompra IN ('bilhe', 'reser')
           AND c.stcompra = 'conc'
           AND c.formapag IS NOT NULL
           AND c.formapag <> 'N/A'
@@ -255,7 +254,7 @@ async function queryDiscountRows(
           SUM(cp.valor) AS total
         FROM compra_pagamentos cp
         JOIN compra c ON c.idcompra = cp.idcompra
-        WHERE c.tpcompra IN ('bilhe', 'reser')
+        WHERE cp.periodo_id IS NULL AND c.caixa_periodo_id IS NULL AND c.tpcompra IN ('bilhe', 'reser')
           AND c.stcompra = 'conc'
           AND c.formapag IS NOT NULL
           AND c.formapag <> 'N/A'
@@ -347,7 +346,7 @@ async function queryCourtesyRows(
       FROM voucher v
       JOIN compra c ON c.idcompra = v.idcompra
       LEFT JOIN cortesias ct ON ct.id = v.autorizado_por_id
-      WHERE v.tpvoucher = 'corte'
+      WHERE c.caixa_periodo_id IS NULL AND v.tpvoucher = 'corte'
         AND v.stusado <> 'inv'
         AND (c.dtcompra + COALESCE(c.hrcompra, '00:00'::time)) >= $1::timestamptz
         AND (c.dtcompra + COALESCE(c.hrcompra, '00:00'::time)) <= $2::timestamptz
@@ -378,7 +377,7 @@ async function queryPaymentTotals(
           SUM(CASE WHEN v.tpvoucher NOT IN ('corte', 'espec') AND v.desconto_id IS NULL THEN v.vlunicompra ELSE 0 END) AS regular_vouchers
         FROM voucher v
         JOIN compra c ON c.idcompra = v.idcompra
-        WHERE c.tpcompra IN ('bilhe', 'reser')
+        WHERE c.caixa_periodo_id IS NULL AND c.tpcompra IN ('bilhe', 'reser')
           AND c.stcompra = 'conc'
           AND c.formapag IS NOT NULL
           AND c.formapag <> 'N/A'
@@ -394,7 +393,7 @@ async function queryPaymentTotals(
           SUM(cp.valor) AS total_pagamento
         FROM compra_pagamentos cp
         JOIN compra c ON c.idcompra = cp.idcompra
-        WHERE c.tpcompra IN ('bilhe', 'reser')
+        WHERE cp.periodo_id IS NULL AND c.caixa_periodo_id IS NULL AND c.tpcompra IN ('bilhe', 'reser')
           AND c.stcompra = 'conc'
           AND c.formapag IS NOT NULL
           AND c.formapag <> 'N/A'
@@ -513,7 +512,6 @@ export async function getBilheteriaCashClosureReport(
 
   const client = await getIngressoSistemaDbPool().connect();
   try {
-    await ensureCashPeriodsTable(client);
     const { summary } = await buildOperationalCashSummary(client);
     const openedAt = summary.period.openedAt;
     const closedAt = new Date().toISOString();
@@ -569,7 +567,6 @@ export async function listBilheteriaCashEdits(input?: {
   const client = await pool.connect();
 
   try {
-    await ensureOpsAuditLogTable(client, "postgres");
 
     let periodId: number | null = null;
     let sheetId: number | null = null;

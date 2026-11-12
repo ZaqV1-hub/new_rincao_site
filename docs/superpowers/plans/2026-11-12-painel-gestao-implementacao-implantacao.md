@@ -6,7 +6,7 @@
 **Arquitetura:** evolução do Next.js existente, preservando compras, vouchers, clientes, tabelas de preço, autenticação e integração de ingressos. Novas regras financeiras ficam no servidor, com transações, auditoria, idempotência e snapshots de fechamento. App de contagem proposto como área web responsiva autenticada, com internet obrigatória, integrada ao mesmo domínio de passeios.
 **Stack verificada:** Next.js 16.4.5 no checkout principal, React 19.2.4, TypeScript, pg/mysql2, Vitest, React PDF e ExcelJS. `develop` ainda possui diferenças de versão/implementação que precisam ser reconciliadas antes de fixar a baseline.
 **Especificação:** `../specs/painel-gestao-referencias/painel-rincao-dev.md` e `../specs/painel-gestao-referencias/painel-rincao-prototipo.html`, cópias integrais dos anexos.
-**Estado:** baseline local integrada; cadastros E1 implementados e verificados localmente em 12/11/2026; E2 com agenda, validade, capacidade e serviços na venda online; E3 com resumo e listas por data implementados localmente. E4 em andamento. Recomendações da seção 9 aprovadas; detalhes externos precisam de evidência, sem simular integrações existentes.
+**Estado:** baseline local integrada; cadastros E1 implementados e verificados localmente em 12/11/2026; E2 com agenda, validade, capacidade e serviços na venda online; E3 com resumo e listas por data implementados localmente. E4 e E5 implementados e verificados localmente; E6 em levantamento. Recomendações da seção 9 aprovadas; detalhes externos precisam de evidência, sem simular integrações existentes.
 
 ## 1. Decisões confirmadas e limites
 
@@ -186,11 +186,11 @@ Cada entrega termina com diff revisado, testes do domínio e contratos, teste de
 ### E5 — Caixas por local
 
 **Modificar:** `ops-cash-management.ts`, `ops-cash-closures.ts`, `ops-box-office-sales.ts`, componentes `painel-bilheteria-*`, `bilheteria-cash-*`, APIs `/api/ops/cash-*`, `/api/ops/box-office/sales`, `scripts/run-cash-auto-close.ps1`.
-- [ ] Completar M3; substituir agrupamento financeiro só por horário por vínculos explícitos. Revisar todos os chamadores de `getOrCreateOpenCashPeriod` para impedir abertura implícita.
-- [ ] Abrir somente hoje/local ativo, um aberto por local/data, troco inicial, vários operadores, histórico de sessões.
-- [ ] Quatro abas: venda, consulta, fundo/sangria e fechamento. CPF obrigatório validado no servidor; cortesias exigem autorizador permitido; pagamento dividido com restante/troco; operação idempotente.
-- [ ] Sangria concorrente nunca excede saldo. Validação guarda caixa/ator/horário e rejeita voucher usado/fora da validade.
-- [ ] Fechamento guarda esperado/contado/diferença. Meia-noite fecha sem inventar contado; registra pendência de conferência. Job recupera atraso após indisponibilidade, sem reabrir automaticamente.
+- [x] Completar M3; substituir agrupamento financeiro só por horário por vínculos explícitos. Revisar todos os chamadores de `getOrCreateOpenCashPeriod` para impedir abertura implícita.
+- [x] Abrir somente hoje/local ativo, um aberto por local/data, troco inicial, vários operadores, histórico de sessões.
+- [x] Quatro abas: venda, consulta, fundo/sangria e fechamento. CPF obrigatório validado no servidor; cortesias exigem autorizador permitido; pagamento dividido com restante/troco; operação idempotente.
+- [x] Sangria concorrente nunca excede saldo. Validação guarda caixa/ator/horário e rejeita voucher usado/fora da validade.
+- [x] Fechamento guarda esperado/contado/diferença. Meia-noite fecha sem inventar contado; registra pendência de conferência. Job recupera atraso após indisponibilidade, sem reabrir automaticamente.
 **Aceite:** teste com dois caixas e dois operadores, dupla venda, dupla sangria, fechamento durante venda, job repetido e dinheiro conciliado ao centavo.
 
 ### E6 — Compras e vouchers pela data
@@ -415,3 +415,16 @@ Verificação final do marco E2/E3: 1.284/1.284 testes em PostgreSQL16.15, sem i
 - Windows: prova emmemória no repositório HML comSharp0.34.5 gerouPNG3700bytes,280x51. Release atual falhou porDLLs omitidas no standalone; inclusão explícita no tracing corrigida para próxima build. Novo verificador geraPNG no artefato empacotado antes de ativar release e também noCI. ArtefatoSharp0.35.5 verificado localmente; nova release Windows ainda exige homologação, sem alteração remota.
 - Validação final local:1409/1409testes emPostgreSQL16.15,312arquivos,0skips;21scripts;lint0erros14avisoslegados;tsc/buildpassaram. Revisão independenteP2cacheinterrompido corrigido e rechecado. MigrationsM4 eprevisão aplicadas somente noPGlocal.
 - Próxima etapa E5: inventário concluiu que caixa atual usa seleção global/horário e abertura implícita. Estender tabelas existentes com vínculos explícitos e snapshot, adaptar todos os escritores; scanner/serviço externo continua gate operacional. Relatório detalhado na pasta local de execução e5-cash-inventory.md. Sem pushdevelop/produção e sem contato aoPO.
+
+
+### E5 — caixas por local implementados e verificados localmente
+
+- Sessões explícitas por parque, data e local, com abertura somente hoje, troco inicial, operadores autenticados, fechamento manual e automático sem abrir sucessor. Vendas, recebimentos, movimentos e validações guardam vínculos próprios; registros históricos sem local permanecem legados, sem inferência por horário.
+- Quatro abas, CPF obrigatório, serviços pelo preço da bilheteria (inclusive exclusivos desse canal), cortesias autorizadas, pagamentos divididos, troco e comandos idempotentes. Tentativas sem resposta preservam dados e chave; conferência continua disponível após fechamento ou mudança de data. Resposta antiga de uma tentativa não substitui snapshot fechado.
+- Validação guarda local, instante e operador; mantém a validade em qualquer dia aberto do intervalo. Serviços não aumentam o público. Pagamentos online não viram dinheiro do caixa de validação. Sangria não excede o saldo; dinheiro não contado permanece ausente no fechamento automático.
+- Rotas e páginas financeiras exigem sessão do painel e vis_bilhet. Atores vêm da sessão. Caminhos antigos orientam para os novos caixas; falta de caixa ou erro de leitura não exibe saldo zero inventado. Reconciliação do caixa legado exige gerente; histórico continua separado dos novos snapshots.
+- Revisão independente corrigiu leitura de vínculo financeiro após bloqueio concorrente, reserva de outro parque, transação que atravessa a meia-noite, repetição de resposta antiga sobre caixa fechado e liberação de controles durante consulta ainda pendente. Testes de regressão verificam cada caso.
+- Verificação final: **1.595 testes passaram em 333 arquivos, sem ignorados**, incluindo PostgreSQL 16.15 isolado; **21 testes de scripts passaram**; lint sem erros e 12 avisos preexistentes; TypeScript e build aprovados. As sete migrações estão aplicadas e com checksum conferido apenas no banco local.
+- Navegador e banco reais de ensaio: compra de 160 reais (ingresso 130 + serviço exclusivo do caixa 30), Pix 60 e dinheiro entregue 150 com troco 50. Resposta perdida após gravação; mesma compra recuperada após fechamento, sem duplicar venda ou pagamentos. Troco inicial 100 + dinheiro líquido 100 + fundo 50 − sangria 20 = saldo e contado 230, diferença zero. Validação identificou operador, horário e local; consulta preservou o caixa após navegação. Larguras 360/390/1440 sem overflow.
+- Relatório de caixa usa o mesmo snapshot na tela e impressão A4; PDF de duas páginas gerado pelo navegador, margens e páginas inspecionadas visualmente no artefato standalone. Arquivo de ensaio local: /tmp/rincao-e5-cash-1-final.pdf. Nenhuma cobrança ou mensagem externa enviada; serviço de ingressos não configurado no ambiente isolado.
+- **Gate de publicação:** E6 deve proteger os escritores antigos de edição/reagendamento de compra e passeio encontrados no inventário. A contagem de caixas já alimenta o resumo; recebimentos completos de passeios, despesas e fechamento diário seguem E8/E9. Homologação da VM, restauração comprovada e corte dos escritores externos ainda necessários. Nada enviado à develop/main ou ao Product Owner.

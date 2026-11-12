@@ -58,7 +58,7 @@ describe("painel/bilheteria/reservations/[purchaseId]/pay BFF route", () => {
     expect(response.status).toBe(403);
     expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
-      ["vis_bilhet"],
+      "vis_bilhet",
     );
   });
 
@@ -83,6 +83,7 @@ describe("painel/bilheteria/reservations/[purchaseId]/pay BFF route", () => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
+          periodId: 55, idempotencyKey: "reservation-pay-10",
           payments: [
             {
               method: "dinhe",
@@ -99,10 +100,10 @@ describe("painel/bilheteria/reservations/[purchaseId]/pay BFF route", () => {
 
     expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
-      ["vis_bilhet"],
+      "vis_bilhet",
     );
     expect(payPainelBilheteriaReservation).toHaveBeenCalledWith({
-      purchaseId: 10,
+      purchaseId: 10, periodId: 55, idempotencyKey: "reservation-pay-10",
       payments: [
         {
           method: "dinhe",

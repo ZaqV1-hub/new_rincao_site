@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const authenticateOperationsRequest = vi.fn();
+const requirePainelApiAccess = vi.fn();
 const getOperationalCashClosureDetail = vi.fn();
 const asOperationalCashClosureError = vi.fn();
 
-vi.mock("@/lib/ops-auth", () => ({
-  authenticateOperationsRequest,
+vi.mock("@/lib/painel-api-auth", () => ({
+  requirePainelApiAccess,
 }));
 
 vi.mock("@/lib/ops-cash-closures", () => ({
@@ -16,8 +16,17 @@ vi.mock("@/lib/ops-cash-closures", () => ({
 describe("ops/cash-closures/[closureId] BFF route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authenticateOperationsRequest.mockReturnValue({ ok: true });
+    requirePainelApiAccess.mockResolvedValue({ ok: true, session: { actorName: "Gestor Teste", actorCpf: null, legacyRoleId: 1 } });
     asOperationalCashClosureError.mockImplementation((error: Error) => error);
+  });
+
+  it("requires a panel session before querying historical detail", async () => {
+    requirePainelApiAccess.mockResolvedValue({ ok: false, response: new Response(null, { status: 401 }) });
+    const { GET } = await import("./route");
+    const response = await GET(new Request("https://example.com/api/ops/cash-closures/44"), { params: Promise.resolve({ closureId: "44" }) });
+    expect(response.status).toBe(401);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(getOperationalCashClosureDetail).not.toHaveBeenCalled();
   });
 
   it("returns the closure detail", async () => {
@@ -55,6 +64,7 @@ describe("ops/cash-closures/[closureId] BFF route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(getOperationalCashClosureDetail).toHaveBeenCalledWith(44);
     expect(body).toEqual({
       ok: true,

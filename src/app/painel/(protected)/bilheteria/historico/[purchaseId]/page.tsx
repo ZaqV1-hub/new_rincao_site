@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import {
   loadPainelBilheteriaPurchaseDetailFromParams,
@@ -24,6 +24,7 @@ export default async function PainelBilheteriaHistoricoDetailPage({
     purchaseId: string;
   }>;
   searchParams?: Promise<{
+    periodId?: string;
     success?: string;
     warning?: string | string[];
   }>;
@@ -36,6 +37,9 @@ export default async function PainelBilheteriaHistoricoDetailPage({
   const nextParams = new URLSearchParams({
     purchase: String(detail.purchaseId),
   });
+
+  const periodId = Number(resolvedSearchParams?.periodId);
+  if (Number.isSafeInteger(periodId) && periodId > 0) nextParams.set("periodId", String(periodId));
 
   if (flashSuccess) {
     nextParams.set("success", flashSuccess);

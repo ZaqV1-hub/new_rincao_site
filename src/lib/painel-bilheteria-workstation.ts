@@ -8,6 +8,13 @@ import {
   formatPainelBilheteriaMoney,
 } from "@/lib/painel-bilheteria-format";
 
+type ValidationMetadataRow = { validacao_periodo_id?: number | null; validacao_local_nome?: string | null; validado_em?: string | null; validado_por_nome?: string | null };
+export type PainelVoucherValidationMetadata = { validationPeriodId?: number | null; validationLocationName?: string | null; validatedAt?: string | null; validatedByName?: string | null };
+function validationMetadata(row: ValidationMetadataRow): PainelVoucherValidationMetadata {
+  return { validationPeriodId: row.validacao_periodo_id ?? null, validationLocationName: row.validacao_local_nome ?? null,
+    validatedAt: row.validado_em ? new Date(row.validado_em).toISOString() : null, validatedByName: row.validado_por_nome ?? null };
+}
+
 type CustomerRow = {
   cpf: string;
   nmusuario: string | null;
@@ -25,7 +32,7 @@ type CustomerPurchaseRow = {
   total_venda: string | null;
 };
 
-type CustomerVoucherRow = {
+type CustomerVoucherRow = ValidationMetadataRow & {
   idcompra: number;
   idvoucher: number;
   numvoucher: string | null;
@@ -38,7 +45,8 @@ type CustomerVoucherRow = {
   vlunicompra: string | null;
 };
 
-type TripVoucherRow = {
+type TripVoucherRow = ValidationMetadataRow & {
+  dtuso?: string | null; hruso?: string | null;
   codescoladata: string | null;
   nmescola: string | null;
   dtagenda: string | null;
@@ -57,7 +65,8 @@ type TripVoucherRow = {
   tpcompra: string | null;
 };
 
-type TicketLookupRow = {
+type TicketLookupRow = ValidationMetadataRow & {
+  hruso?: string | null;
   idvoucher: number;
   idcompra: number | null;
   dtcompra: string | null;
@@ -65,7 +74,7 @@ type TicketLookupRow = {
   numvoucher: string | null;
 };
 
-export type PainelBilheteriaLookupVoucher = {
+export type PainelBilheteriaLookupVoucher = PainelVoucherValidationMetadata & {
   voucherId: number;
   voucherNumber: string | null;
   voucherTypeCode: string | null;
@@ -78,7 +87,8 @@ export type PainelBilheteriaLookupVoucher = {
   unitValue: string;
 };
 
-export type PainelBilheteriaTicketLookupResult = {
+export type PainelBilheteriaTicketLookupResult = PainelVoucherValidationMetadata & {
+  usedTime?: string | null;
   lookup: string;
   voucherId: number;
   purchaseId: number | null;
@@ -116,7 +126,8 @@ export type PainelBilheteriaCustomerLookupResult = {
   observations: Awaited<ReturnType<typeof listSiteUserObservations>>;
 };
 
-export type PainelBilheteriaTripLookupItem = {
+export type PainelBilheteriaTripLookupItem = PainelVoucherValidationMetadata & {
+  usedDate?: string | null; usedTime?: string | null;
   voucherId: number;
   purchaseId: number | null;
   voucherNumber: string | null;
@@ -182,6 +193,7 @@ const voucherTypeLabels: Record<string, string> = {
   isent: "Isento",
   corte: "Cortesia",
   escol: "Escola",
+  espec: "Serviço",
 };
 
 const voucherStatusLabels: Record<string, string> = {
@@ -268,7 +280,8 @@ export async function lookupPainelBilheteriaTicketByVoucherId(
         voucher.idcompra,
         compra.dtcompra::text AS dtcompra,
         voucher.dtuso::text AS dtuso,
-        voucher.numvoucher
+        voucher.numvoucher,voucher.hruso::text,voucher.validacao_periodo_id,voucher.validado_em::text,voucher.validado_por_nome,
+        (SELECT local_nome FROM caixa_periodos WHERE id=voucher.validacao_periodo_id) AS validacao_local_nome
       FROM voucher
       LEFT JOIN compra ON compra.idcompra = voucher.idcompra
       WHERE (
@@ -297,6 +310,8 @@ export async function lookupPainelBilheteriaTicketByVoucherId(
     purchaseDate: row.dtcompra ? row.dtcompra.slice(0, 10) : null,
     usedDate: row.dtuso ? row.dtuso.slice(0, 10) : null,
     used: Boolean(String(row.dtuso ?? "").trim()),
+    usedTime: row.hruso?.slice(0, 8) ?? null,
+    ...validationMetadata(row),
   };
 }
 
@@ -418,7 +433,8 @@ export async function lookupPainelBilheteriaCustomerDocument(
           v.descricao,
           v.stusado,
           v.dtuso::text AS dtuso,
-          v.hruso::text AS hruso,
+          v.hruso::text AS hruso,v.validacao_periodo_id,v.validado_em::text,v.validado_por_nome,
+          (SELECT local_nome FROM caixa_periodos WHERE id=v.validacao_periodo_id) AS validacao_local_nome,
           a.dtagenda::text AS agenda_data,
           v.vlunicompra::text AS vlunicompra
         FROM voucher v
@@ -440,6 +456,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
         statusLabel: formatVoucherStatusLabel(row.stusado),
         usedDate: row.dtuso ? row.dtuso.slice(0, 10) : null,
         usedTime: row.hruso ? row.hruso.slice(0, 8) : null,
+        ...validationMetadata(row),
         visitDate: row.agenda_data ? row.agenda_data.slice(0, 10) : null,
         unitValue: formatPainelBilheteriaMoney(row.vlunicompra),
       });
@@ -534,13 +551,14 @@ export async function lookupPainelBilheteriaTrip(
       SELECT ed.codescoladata, ed.nmescola, ed.dtagenda::text AS dtagenda,
         ed.status, ed.idescola, ed.idagenda,
         v.idcompra, v.idvoucher, v.numvoucher, v.tpvoucher, v.descricao,
-        v.stusado, v.nomealuno, v.turma, v.periodo, c.tpcompra
+        v.stusado, v.nomealuno, v.turma, v.periodo, c.tpcompra, v.dtuso::text,v.hruso::text,v.validacao_periodo_id,v.validado_em::text,v.validado_por_nome,
+        (SELECT local_nome FROM caixa_periodos WHERE id=v.validacao_periodo_id) AS validacao_local_nome
       FROM trips ed
       LEFT JOIN voucher v ON v.idagenda = ed.idagenda AND v.idescola = ed.idescola
         AND COALESCE(v.tpparticipante, '') <> 'educador'
         AND EXISTS (
           SELECT 1 FROM compra paid WHERE paid.idcompra = v.idcompra AND paid.stcompra = 'conc'
-          AND ((paid.tpcompra = 'ponli' AND EXISTS (
+          AND (paid.tpcompra = 'bilhe' OR (paid.tpcompra = 'ponli' AND EXISTS (
             SELECT 1 FROM pagpagseguro p WHERE p.idcompra = paid.idcompra AND p.status IN (3,4)
           )) OR (paid.tpcompra = 'reser' AND COALESCE(UPPER(TRIM(paid.formapag)), '') NOT IN ('', 'N/A')))
         )
@@ -572,6 +590,8 @@ export async function lookupPainelBilheteriaTrip(
       statusCode: row.stusado,
       voucherTypeLabel: resolveVoucherDisplayLabel(row.descricao, row.tpvoucher),
       statusLabel: formatVoucherStatusLabel(row.stusado),
+      ...validationMetadata(row),
+      usedDate: row.dtuso?.slice(0, 10) ?? null, usedTime: row.hruso?.slice(0, 8) ?? null,
       studentName: row.nomealuno,
       className: row.turma,
       periodName: row.periodo,

@@ -1,15 +1,15 @@
-import { lockOperationalDay } from "@/lib/operational-day-lock";
-import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { ensureVoucherLifecycleSchema } from "@/lib/voucher-repository";
 import { getVoucherByNumber } from "@/lib/ops-voucher-validation-queries";
-import { VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, formatDateBr, normalizeVoucherNumber, normalizeCpfDigits, registerVoucherOperationAuditLog, addMonthsToDateString, isVoucherExpired, isOnlinePurchasePaid, buildReservationPaymentMessage, buildAlreadyUsedMessage, evaluateAgendaUsage, markVoucherUsed, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
+import { requireVoucherPeriodId, lockVoucherCashContext, alreadyUsedError, VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, formatDateBr, normalizeVoucherNumber, normalizeCpfDigits, registerVoucherOperationAuditLog, addMonthsToDateString, isVoucherExpired, isOnlinePurchasePaid, buildReservationPaymentMessage, evaluateAgendaUsage, markVoucherUsed, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
 
 export async function validateVoucherByNumber(
   voucherNumberInput: string,
   confirm = false,
   actor?: VoucherOperationInputActor | null,
+  periodId?: number,
 ): Promise<VoucherOperationSuccess> {
+  requireVoucherPeriodId(periodId);
   const voucherNumber = normalizeVoucherNumber(voucherNumberInput);
 
   if (!voucherNumber) {
@@ -27,7 +27,7 @@ export async function validateVoucherByNumber(
 
   try {
     await client.query("BEGIN");
-    await lockOperationalDay(client, getOperationalParkId(), date);
+    const cash = await lockVoucherCashContext(client, periodId, date);
     const voucher = await getVoucherByNumber(client, voucherNumber);
 
     if (!voucher) {
@@ -38,7 +38,7 @@ export async function validateVoucherByNumber(
       );
     }
 
-    if (voucher.tpcompra !== "ponli") {
+    if (!["ponli", "bilhe"].includes(voucher.tpcompra ?? "")) {
       throw new VoucherOperationError(
         "voucher_payment_required",
         buildReservationPaymentMessage(voucher),
@@ -51,11 +51,7 @@ export async function validateVoucherByNumber(
     }
 
     if (voucher.stusado !== "n") {
-      throw new VoucherOperationError(
-        "voucher_already_used",
-        buildAlreadyUsedMessage(voucher),
-        409,
-      );
+      throw alreadyUsedError(voucher);
     }
 
     if (voucher.dtinicio_validade != null && isVoucherExpired(voucher, date)) {
@@ -83,7 +79,7 @@ export async function validateVoucherByNumber(
       );
     }
 
-    if (!isOnlinePurchasePaid(voucher)) {
+    if (voucher.tpcompra === "ponli" ? !isOnlinePurchasePaid(voucher) : voucher.stcompra !== "conc") {
       throw new VoucherOperationError(
         "voucher_payment_status_invalid",
         `A transacao do voucher ${voucher.numvoucher ?? ""} nao esta confirmada para validacao.`,
@@ -97,8 +93,9 @@ export async function validateVoucherByNumber(
       throw new VoucherOperationError(usage.code, usage.message, 409);
     }
 
-    await markVoucherUsed(client, voucher.idvoucher, date, time);
+    await markVoucherUsed(client, voucher.idvoucher, date, time, cash, actor);
     const auditLogId = await registerVoucherOperationAuditLog(client, {
+      cash: cash.session,
       action: "validate",
       mode: "voucher_number",
       actor,

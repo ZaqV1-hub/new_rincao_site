@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { PublicAgendaEvent } from "@/lib/agenda-contracts";
 import {
   getB2cBoxOfficePrice,
@@ -9,11 +9,18 @@ import {
 } from "@/lib/b2c-catalog-defaults";
 import type { OpsCourtesyAuthor, OpsDiscount } from "@/lib/ops-reference-data";
 import {
-  PAINEL_BILHETERIA_SALE_DRAFT_KEY,
+  saleDraftStorageKey,
+  cashInputCents,
+  discountedCashUnitCents,
+  saleCommandStorageKey,
   type PainelBilheteriaSaleDraft,
   type PainelBilheteriaSaleDraftCourtesy,
   type PainelBilheteriaSaleDraftItem,
+  type PainelBilheteriaSaleDraftService,
 } from "@/lib/painel-bilheteria-sales";
+
+import { isValidCpf, sanitizeCpf } from "@/lib/cpf";
+import { readStoredCashCommand } from "@/lib/cash-command-client";
 
 type ReferenceDataResponse = {
   ok: boolean;
@@ -37,6 +44,7 @@ type SaleLineDraft = {
 };
 
 type PainelBilheteriaSalesBuilderProps = {
+  periodId: number;
   today: string;
   agendas: PublicAgendaEvent[];
   products: B2cProduct[];
@@ -145,7 +153,7 @@ function calculateDiscountedUnitPrice(
   const value = parseMoney(discount.value);
 
   if (discount.applicationType === "percentual") {
-    const unitPrice = money(Math.max(0, basePrice - basePrice * (value / 100)));
+    const unitPrice = discountedCashUnitCents(Math.round(basePrice * 100), cashInputCents(discount.value) ?? 0, discount.applicationType) / 100;
     return {
       unitPrice,
       discountValue: money(basePrice - unitPrice),
@@ -172,12 +180,17 @@ function calculateDiscountedUnitPrice(
   };
 }
 
+const subscribeReady = () => () => {};
 export function PainelBilheteriaSalesBuilder({
+  periodId,
   today,
   agendas,
   products,
 }: PainelBilheteriaSalesBuilderProps) {
   const router = useRouter();
+  const clientReady = useSyncExternalStore(subscribeReady, () => true, () => false);
+  const [pendingAttempt] = useState(() => { if (typeof window === "undefined") return false; try { return Boolean(readStoredCashCommand(saleCommandStorageKey(periodId))); } catch { return true; } });
+  const [cpf, setCpf] = useState("");
   const agendaId = agendas[0] ? String(agendas[0].id) : "";
   const [saleLines, setSaleLines] = useState<SaleLineDraft[]>([]);
   const [discounts, setDiscounts] = useState<OpsDiscount[]>([]);
@@ -211,7 +224,7 @@ export function PainelBilheteriaSalesBuilder({
 
         setDiscounts(payload.data.discounts);
         setCourtesyAuthors(payload.data.courtesyAuthors);
-      } finally {
+      } catch { if (active) setErrorMessage("Não foi possível carregar descontos e autorizadores."); } finally {
         if (active) {
           setLoadingReference(false);
         }
@@ -235,7 +248,7 @@ export function PainelBilheteriaSalesBuilder({
       saleLines.flatMap((line) => {
         const product = products.find((item) => item.id === line.selection);
 
-        if (!product || line.quantity <= 0) {
+        if (!product || product.type === "addon" || line.quantity <= 0) {
           return [];
         }
 
@@ -273,6 +286,14 @@ export function PainelBilheteriaSalesBuilder({
     [discounts, products, saleLines],
   );
 
+  const serviceDrafts: PainelBilheteriaSaleDraftService[] = useMemo(() => saleLines.flatMap((line) => {
+    const product = products.find((item) => item.id === line.selection && item.type === "addon");
+    if (!product?.operationalServiceId) return [];
+    const unit = readAgendaPrice(product);
+    return [{ serviceId: product.operationalServiceId, quantity: line.quantity, label: product.title,
+      unitValue: unit.toFixed(2), totalValue: money(unit * line.quantity).toFixed(2) }];
+  }), [products, saleLines]);
+
   const courtesyDrafts: PainelBilheteriaSaleDraftCourtesy[] = useMemo(
     () =>
       saleLines.flatMap((line) => {
@@ -301,16 +322,17 @@ export function PainelBilheteriaSalesBuilder({
     [courtesyAuthors, saleLines],
   );
 
+  const serviceTotal = serviceDrafts.reduce((sum, item) => sum + parseMoney(item.totalValue), 0);
   const subtotalValue = useMemo(
     () =>
       money(
         saleItems.reduce(
           (total, item) =>
             total + parseMoney(item.baseUnitValue) * item.quantity,
-          0,
+          serviceTotal,
         ),
       ),
-    [saleItems],
+    [saleItems, serviceTotal],
   );
   const discountValue = useMemo(
     () =>
@@ -329,11 +351,11 @@ export function PainelBilheteriaSalesBuilder({
     [saleItems],
   );
   const saleTotal = useMemo(
-    () => money(saleItems.reduce((total, item) => total + parseMoney(item.totalValue), 0)),
-    [saleItems],
+    () => money(saleItems.reduce((total, item) => total + parseMoney(item.totalValue), serviceTotal)),
+    [saleItems, serviceTotal],
   );
   const canProceed =
-    selectedAgenda != null && (saleItems.length > 0 || courtesyDrafts.length > 0);
+    selectedAgenda != null && (saleItems.length > 0 || courtesyDrafts.length > 0 || serviceDrafts.length > 0);
 
   function addLine() {
     setSaleLines((current) => [
@@ -362,7 +384,7 @@ export function PainelBilheteriaSalesBuilder({
 
   function updateQuantity(lineId: string, quantity: number) {
     updateLine(lineId, {
-      quantity: Math.max(1, Math.trunc(quantity) || 1),
+      quantity: Math.min(500, Math.max(1, Math.trunc(quantity) || 1)),
     });
   }
 
@@ -377,16 +399,27 @@ export function PainelBilheteriaSalesBuilder({
       return;
     }
 
+    if (saleLines.some((line) => !line.selection || (line.selection === "courtesy" ? !courtesyAuthors.some((author) => String(author.id) === line.authorId) : !products.some((product) => product.id === line.selection)))) { setErrorMessage("Complete ou remova as linhas sem ingresso ou autorizador."); return; }
+
     if (!canProceed) {
       setErrorMessage("Adicione ao menos um ingresso ou uma cortesia.");
       return;
     }
 
+    if (!isValidCpf(sanitizeCpf(cpf))) { setErrorMessage("Informe um CPF válido para a compra."); return; }
+    if (saleLines.reduce((sum, line) => sum + line.quantity, 0) > 500) { setErrorMessage("Limite de 500 unidades por compra."); return; }
+    try {
+      if (readStoredCashCommand(saleCommandStorageKey(periodId))) {
+        router.push(`/painel/bilheteria/finalizar?periodId=${periodId}`); return;
+      }
+    } catch { setErrorMessage("Há uma operação salva que precisa de conferência. Abra a finalização deste caixa."); return; }
     const draft: PainelBilheteriaSaleDraft = {
+      periodId,
       agendaId: selectedAgenda.id,
       agendaLabel: `${selectedAgenda.date} - #${selectedAgenda.id}`,
-      cpf: "",
+      cpf: sanitizeCpf(cpf),
       items: saleItems,
+      services: serviceDrafts,
       courtesies: courtesyDrafts,
       discountValue: discountValue.toFixed(2),
       subtotalValue: subtotalValue.toFixed(2),
@@ -395,9 +428,12 @@ export function PainelBilheteriaSalesBuilder({
       createdAt: new Date().toISOString(),
     };
 
-    sessionStorage.setItem(PAINEL_BILHETERIA_SALE_DRAFT_KEY, JSON.stringify(draft));
-    router.push("/painel/bilheteria/finalizar");
+    try { sessionStorage.setItem(saleDraftStorageKey(periodId), JSON.stringify(draft)); }
+    catch { setErrorMessage("Não foi possível salvar a compra neste navegador. Tente novamente."); return; }
+    router.push(`/painel/bilheteria/finalizar?periodId=${periodId}`);
   }
+
+  if (clientReady && pendingAttempt) return <section className="panel-section p-5"><p>Há uma tentativa de venda sem confirmação neste caixa. Confira antes de montar outra compra.</p><a href={`/painel/bilheteria/finalizar?periodId=${periodId}`}>Conferir tentativa anterior</a></section>;
 
   if (agendas.length === 0) {
     return (
@@ -415,6 +451,9 @@ export function PainelBilheteriaSalesBuilder({
 
   return (
     <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
+      <label className="panel-section grid gap-2 p-4 xl:col-span-2">CPF do comprador (obrigatório)
+        <input aria-label="CPF do comprador" inputMode="numeric" maxLength={14} value={cpf} onChange={(event) => setCpf(event.target.value)} className="rounded border px-3 py-2" />
+      </label>
       <div className="grid gap-6">
         <article className="panel-section p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -447,9 +486,6 @@ export function PainelBilheteriaSalesBuilder({
                     : null;
                 const lineBaseValue = lineProduct
                   ? readAgendaPrice(lineProduct)
-                  : 0;
-                const lineSubtotal = lineProduct
-                  ? money(lineBaseValue * line.quantity)
                   : 0;
                 const isCourtesy = line.selection === "courtesy";
                 const hasSelection = line.selection !== "";
@@ -593,7 +629,7 @@ export function PainelBilheteriaSalesBuilder({
                               <option value="">
                                 {isDiscountAllowed
                                   ? "Sem desconto"
-                                  : "Isento não aceita desconto"}
+                                  : "Este item não aceita desconto"}
                               </option>
                               {isDiscountAllowed
                                 ? discounts.map((discount) => (
@@ -764,7 +800,7 @@ export function PainelBilheteriaSalesBuilder({
           </div>
 
           <div className="mt-4 space-y-2 rounded-[8px] border border-dashed border-[#dbe4d7] bg-[#fcfefd] px-5 py-5">
-            {saleItems.length > 0 || courtesyDrafts.length > 0 ? (
+            {saleItems.length > 0 || courtesyDrafts.length > 0 || serviceDrafts.length > 0 ? (
               <>
                 {saleItems.map((item) => (
                   <div
@@ -819,6 +855,8 @@ export function PainelBilheteriaSalesBuilder({
               </div>
             )}
           </div>
+
+          {serviceDrafts.map((service) => <p key={service.serviceId} className="mt-3 text-sm">{service.quantity} × {service.label} — {formatMoney(parseMoney(service.totalValue))}</p>)}
 
           <div className="mt-6 space-y-3 border-t border-[#dbe7d7] pt-5 text-sm">
             <div className="flex items-center justify-between gap-3">

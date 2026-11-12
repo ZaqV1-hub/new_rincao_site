@@ -85,6 +85,13 @@ const navItems: PainelNavItem[] = [
     resources: ["vis_ingesp"],
   },
   {
+    href: "/painel/caixas",
+    label: "Caixas por local",
+    icon: "ticket",
+    roles: [1, 2, 3],
+    resources: ["vis_bilhet"],
+  },
+  {
     href: "/painel/locais-caixa",
     label: "Locais de caixa",
     icon: "ticket",

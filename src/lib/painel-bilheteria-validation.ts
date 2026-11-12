@@ -36,7 +36,7 @@ export function isPainelBilheteriaPurchasePaymentSettled(
     return paymentMethodCode !== "" && paymentMethodCode !== "n/a";
   }
 
-  return true;
+  return purchaseTypeCode === "bilhe";
 }
 
 export function isPainelBilheteriaVoucherVisibleForValidation(

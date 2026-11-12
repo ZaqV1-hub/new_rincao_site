@@ -9,6 +9,7 @@ import {
   type PainelBilheteriaCustomerLookupResult,
   type PainelBilheteriaTicketLookupResult,
   type PainelBilheteriaTripLookupResult,
+  type PainelVoucherValidationMetadata,
 } from "@/lib/painel-bilheteria-workstation";
 
 type WorkstationMessage = {
@@ -64,6 +65,8 @@ type LookupResponse<T> = {
 };
 
 type PainelBilheteriaWorkstationProps = {
+  periodId?: number | null;
+  cashSessionId?: number;
   actorName?: string | null;
   actorCpf?: string | null;
   isManager?: boolean;
@@ -171,13 +174,41 @@ async function readJson<T>(response: Response) {
   }
 }
 
+function ValidationMetadata({ metadata }: { metadata: PainelVoucherValidationMetadata }) {
+  const date = metadata.validatedAt ? new Date(metadata.validatedAt) : null;
+  const timestamp = date && Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "medium",
+  }).format(date) : null;
+  return <div className="mt-2 space-y-1 text-xs">
+    {metadata.validationLocationName ? <p>Local da validação: <strong>{metadata.validationLocationName}</strong></p> : null}
+    {timestamp ? <p>Validado em: <time dateTime={metadata.validatedAt!}>{timestamp}</time></p> : null}
+    {metadata.validatedByName ? <p>Validado por: <strong>{metadata.validatedByName}</strong></p> : null}
+    {!metadata.validationLocationName && !timestamp && !metadata.validatedByName ? <p>Local, horário e operador da validação não registrados.</p> : null}
+  </div>;
+}
+
 export function PainelBilheteriaWorkstation({
+  periodId = null,
+  cashSessionId,
   actorName = null,
   actorCpf = null,
   isManager = false,
   initialTicketLookupState,
 }: PainelBilheteriaWorkstationProps) {
   const contract = legacyPanelContracts.bilheteriaIndex;
+  const navigationCashSessionId = cashSessionId || periodId;
+  const consultationHref = navigationCashSessionId
+    ? `/painel/caixas/${navigationCashSessionId}?tab=consultation`
+    : "/painel/bilheteria";
+  function actionHref(key: string | undefined, href: string) {
+    if (["sales", "cash-closure", "cash-fund"].includes(key ?? "")) {
+      const tab = key === "sales" ? "sale" : key === "cash-closure" ? "closure" : "movement";
+      return navigationCashSessionId ? `/painel/caixas/${navigationCashSessionId}?tab=${tab}` : "/painel/caixas";
+    }
+    if (["/painel/bilheteria/finalizar", "/painel/bilheteria/reservas"].includes(href)) return navigationCashSessionId ? `${href}?periodId=${navigationCashSessionId}` : "/painel/caixas";
+    if (key === "history") return navigationCashSessionId ? `${href}?periodId=${navigationCashSessionId}` : href;
+    return href;
+  }
   const [tripCode, setTripCode] = useState("");
   const [trip, setTrip] = useState<PainelBilheteriaTripLookupResult | null>(null);
   const [loadingTrip, setLoadingTrip] = useState(false);
@@ -400,6 +431,7 @@ export function PainelBilheteriaWorkstation({
     endpoint: string,
     body: Record<string, unknown>,
   ) {
+    if (!periodId) { setMessage({ tone: "warning", text: "Selecione um caixa aberto para validar ou desvalidar ingressos." }); return false; }
     setRunningActionKey(actionKey);
 
     try {
@@ -408,7 +440,7 @@ export function PainelBilheteriaWorkstation({
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...body, periodId }),
       });
       const payload = await readJson<VoucherValidationResponse>(response);
 
@@ -587,6 +619,7 @@ export function PainelBilheteriaWorkstation({
   }
 
   async function executeVoucherSubmit(confirm = false) {
+    if (!periodId) { setMessage({ tone: "warning", text: "Selecione um caixa aberto para validar ingressos." }); return; }
     setSubmittingVoucher(true);
     setObservationsOpen(false);
     setCustomerLookup(null);
@@ -600,10 +633,7 @@ export function PainelBilheteriaWorkstation({
         body: JSON.stringify({
           voucherNumber,
           confirm,
-          actor: {
-            name: actorName,
-            cpf: actorCpf,
-          },
+          periodId,
         }),
       });
       const payload = await readJson<VoucherValidationResponse>(response);
@@ -667,7 +697,7 @@ export function PainelBilheteriaWorkstation({
       setTicketLookupResult(null);
       return;
     }
-    const href = `/painel/bilheteria?ingresso=${encodeURIComponent(lookup)}`;
+    const href = `${consultationHref}${navigationCashSessionId ? "&" : "?"}ingresso=${encodeURIComponent(lookup)}`;
 
     if (typeof window !== "undefined") {
       window.location.assign(href);
@@ -683,7 +713,7 @@ export function PainelBilheteriaWorkstation({
 
   function handleCloseTicketLookup() {
     if (hasServerDrivenTicketLookup && typeof window !== "undefined") {
-      window.location.assign("/painel/bilheteria");
+      window.location.assign(consultationHref);
       return;
     }
 
@@ -802,6 +832,7 @@ export function PainelBilheteriaWorkstation({
 
   return (
     <div className="grid gap-6">
+      {!periodId && <p className="rounded-lg border border-[#d4dfeb] bg-white p-4">Consultas disponíveis. Para validar ou desvalidar ingressos, <Link className="underline" href="/painel/caixas">selecione um caixa aberto</Link>.</p>}
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid gap-5">
           {contract.forms
@@ -860,6 +891,7 @@ export function PainelBilheteriaWorkstation({
                           <p>Código: {trip.lookup} · Data: {formatPainelBilheteriaDate(trip.visitDate)}</p>
                           <p>Status: {trip.statusLabel}</p>
                           <p>{trip.items.length} ingresso(s), {trip.items.filter((item) => item.statusCode === "n").length} não usado(s).</p>
+                          {trip.items.filter((item) => item.statusCode === "s").map((item) => <div key={item.voucherId} className="mt-3 rounded border p-2"><p>Ingresso {item.voucherNumber || `#${item.voucherId}`} · USADO</p><ValidationMetadata metadata={item} /></div>)}
                           {trip.items.some((item) => item.statusCode === "n") ? <>
                             <p className="mt-3 font-semibold">Deseja validar os ingressos disponíveis deste passeio?</p>
                             <button type="button" className="mt-3 inline-flex min-h-[56px] items-center justify-center rounded-[6px] border border-[#c8d9ea] bg-white px-5 text-base font-bold text-[#133d63] hover:bg-[#eef5fb] disabled:opacity-60" disabled={runningActionKey !== null} onClick={async () => {
@@ -906,7 +938,7 @@ export function PainelBilheteriaWorkstation({
                 ) : (
                   <Link
                     key={action.key}
-                    href={action.href}
+                    href={actionHref(action.key, action.href)}
                     className={`inline-flex min-h-[58px] items-center justify-between rounded-[6px] px-5 py-3 text-left text-[15px] font-bold shadow-[0_8px_22px_rgba(24,67,34,0.05)] ${
                       actionButtonClasses(false)
                     }`}
@@ -1015,9 +1047,7 @@ export function PainelBilheteriaWorkstation({
                     </p>
                   ) : null}
                   {ticketLookupResult.used ? (
-                    <p className="mt-3 text-[#8a6100]">
-                      Este ingresso já foi utilizado. Validação segue bloqueada, mas a consulta permanece disponível.
-                    </p>
+                    <div className="mt-3 text-[#8a6100]"><p>Este ingresso já foi utilizado. Validação segue bloqueada, mas a consulta permanece disponível.</p><ValidationMetadata metadata={ticketLookupResult} /></div>
                   ) : null}
                   {ticketLookupResult.purchaseId ? (
                     <div className="mt-4 grid gap-3">
@@ -1226,6 +1256,7 @@ export function PainelBilheteriaWorkstation({
                                     <span className={voucher.statusCode?.trim().toLowerCase() === "s" ? "font-bold text-[#68727b]" : "font-semibold text-[#24733c]"}>
                                       {voucher.statusCode?.trim().toLowerCase() === "s" ? "USADO" : "NÃO USADO"}
                                     </span>
+                                    {voucher.statusCode?.trim().toLowerCase() === "s" ? <ValidationMetadata metadata={voucher} /> : null}
                                     {voucher.usedDate ? (
                                       <span className="mt-1 block text-xs text-[#68727b]">
                                         {formatPainelBilheteriaDate(voucher.usedDate)}{voucher.usedTime ? ` às ${voucher.usedTime}` : ""}
@@ -1324,7 +1355,7 @@ export function PainelBilheteriaWorkstation({
                             </button>
                             {purchase.purchaseTypeCode === "reser" ? (
                               <Link
-                                href={`/painel/bilheteria/pagar-reserva/${purchase.purchaseId}`}
+                                href={navigationCashSessionId ? `/painel/bilheteria/pagar-reserva/${purchase.purchaseId}?periodId=${navigationCashSessionId}` : "/painel/caixas"}
                                 className="rounded-[4px] border border-[#c9d8e3] bg-white px-4 py-2 text-xs font-bold text-[#205a7f]"
                               >
                                 Pagar reserva

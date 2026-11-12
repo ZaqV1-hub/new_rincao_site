@@ -6,7 +6,8 @@ import {
   sendPainelBilheteriaVoucherWhatsapp,
 } from "@/lib/painel-bilheteria";
 
-const { sendPurchaseTicketsWhatsApp, query, connect, clientQuery, release, generateVoucherQrcodes, registerOpsAuditLog, queuePurchaseConfirmationEmail } = vi.hoisted(() => ({
+const { cashCommand, cashLock, sendPurchaseTicketsWhatsApp, query, connect, clientQuery, release, generateVoucherQrcodes, registerOpsAuditLog, queuePurchaseConfirmationEmail } = vi.hoisted(() => ({
+  cashCommand: vi.fn(), cashLock: vi.fn(),
   sendPurchaseTicketsWhatsApp: vi.fn(),
   query: vi.fn(),
   connect: vi.fn(),
@@ -17,7 +18,9 @@ const { sendPurchaseTicketsWhatsApp, query, connect, clientQuery, release, gener
   queuePurchaseConfirmationEmail: vi.fn(),
 }));
 
+vi.mock("@/lib/operational-cash-session", () => ({ withCashSessionCommand: cashCommand, lockOpenCashSession: cashLock, CashSessionError: class extends Error {} }));
 vi.mock("@/lib/ingresso-db", () => ({
+  getIngressoSistemaDbDialect: () => "postgres",
   getIngressoDbPool: () => ({
     query,
     connect,
@@ -43,6 +46,7 @@ vi.mock("@/lib/ticket-api", () => ({
 }));
 
 vi.mock("@/lib/ops-audit-log", () => ({
+  ensureOpsAuditLogTable: async () => {},
   registerOpsAuditLog,
 }));
 
@@ -55,6 +59,8 @@ vi.mock("@/lib/ticket-service", () => ({ sendPurchaseTicketsWhatsApp }));
 describe("painel-bilheteria", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cashCommand.mockImplementation(async (_client, _input, run) => (await run()).response);
+    cashLock.mockResolvedValue({ id: 55, park: "rincao", date: "2099-01-01", type: "sales" });
     connect.mockResolvedValue({
       query: clientQuery,
       release,
@@ -63,10 +69,11 @@ describe("painel-bilheteria", () => {
 
   it("releases the database connection before queuing a reservation email", async () => {
     clientQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes("FROM compra")) {
+      if (sql.includes('AS "isCurrentCashDate"')) return { rows: [{ isCurrentCashDate: true }] };
+      if (sql.includes("FROM compra WHERE")) {
         return {
           rows: [{
-            idcompra: 321,
+            idcompra: 321, cpf: "52998224725", formapag: "N/A",
             tpcompra: "reser",
             stcompra: "pend",
             vltotcompra: "60.00",
@@ -81,7 +88,7 @@ describe("painel-bilheteria", () => {
     queuePurchaseConfirmationEmail.mockResolvedValue({ status: "queued" });
 
     await expect(payPainelBilheteriaReservation({
-      purchaseId: 321,
+      purchaseId: 321, periodId: 55, idempotencyKey: "reservation-test-321",
       payments: [{ method: "pix", value: "60.00" }],
     })).resolves.toMatchObject({ purchaseId: 321, status: "conc" });
 
@@ -93,6 +100,7 @@ describe("painel-bilheteria", () => {
 
   it("returns voucher editing metadata for history detail", async () => {
     query.mockImplementation(async (sql: string, values?: unknown[]) => {
+      if (sql.includes('AS "isCurrentCashDate"')) return { rows: [{ isCurrentCashDate: true }] };
       if (sql.includes("FROM compra")) {
         expect(values).toEqual([321]);
 
@@ -205,6 +213,7 @@ describe("painel-bilheteria", () => {
 
   it("returns a single voucher print model and extends validity", async () => {
     clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
+      if (sql.includes('AS "isCurrentCashDate"')) return { rows: [{ isCurrentCashDate: true }] };
       if (sql === "BEGIN" || sql === "COMMIT") {
         return { rows: [] };
       }
@@ -293,6 +302,7 @@ describe("painel-bilheteria", () => {
 
   it("allows QR print for used voucher", async () => {
     clientQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes('AS "isCurrentCashDate"')) return { rows: [{ isCurrentCashDate: true }] };
       if (sql === "BEGIN" || sql === "COMMIT") {
         return { rows: [] };
       }
@@ -349,6 +359,7 @@ describe("painel-bilheteria", () => {
 
   it("keeps voucher printing available when QR generation is unavailable", async () => {
     clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
+      if (sql.includes('AS "isCurrentCashDate"')) return { rows: [{ isCurrentCashDate: true }] };
       if (sql === "BEGIN" || sql === "COMMIT") {
         return { rows: [] };
       }
@@ -416,10 +427,13 @@ describe("painel-bilheteria", () => {
 describe("operational voucher reissue", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cashCommand.mockImplementation(async (_client, _input, run) => (await run()).response);
+    cashLock.mockResolvedValue({ id: 55, park: "rincao", date: "2099-01-01", type: "sales" });
     connect.mockResolvedValue({ query: clientQuery, release });
     generateVoucherQrcodes.mockResolvedValue({ 12: "https://qr.example/12.png" });
     sendPurchaseTicketsWhatsApp.mockResolvedValue({ status: "sent" });
     clientQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes('AS "isCurrentCashDate"')) return { rows: [{ isCurrentCashDate: true }] };
       if (sql.includes("FROM voucher")) return { rows: [{ idvoucher: 12, idcompra: 321, idagenda: 44, numvoucher: "A1234", tpvoucher: "norma", stusado: "n", dtvalidade: "2026-05-07", dtinicio_validade: "2026-05-01", parque_operacional: "rincao", vlunicompra: "49.90", descricao: "Adulto", cpf: "52998224725", tpcompra: "ponli", dtcompra: "2026-04-20" }] };
       if (sql.includes("FROM compra")) return { rows: [{ idcompra: 321, stcompra: "conc" }] };
       if (sql.includes("FROM agenda")) return { rows: [{ dtagenda: "2026-05-01" }] };

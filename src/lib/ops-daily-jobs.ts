@@ -232,7 +232,7 @@ export async function runOperationalDailyJobs(
             reason:
               String(input?.cashAutoCloseReason ?? "").trim() ||
               "Rotina diaria operacional no BFF",
-            actor: input?.actor,
+            actor: { name: "Rotina diaria de fechamento", cpf: null },
           }),
         retriesPerStep,
       );

@@ -1,105 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const authenticateOperationsRequest = vi.fn();
-const autoCloseOperationalCashClosures = vi.fn();
-const asOperationalCashClosureError = vi.fn();
-
-vi.mock("@/lib/ops-auth", () => ({
-  authenticateOperationsRequest,
-}));
-
-vi.mock("@/lib/ops-cash-closures", () => ({
-  autoCloseOperationalCashClosures,
-  asOperationalCashClosureError,
-}));
-
-describe("ops/cash-closures/auto-close BFF route", () => {
+import { POST } from "./route";
+const { auth, access, close } = vi.hoisted(() => ({ auth: vi.fn(), access: vi.fn(), close: vi.fn() }));
+vi.mock("@/lib/ops-auth", () => ({ authenticateOperationsRequest: auth }));
+vi.mock("@/lib/painel-api-auth", () => ({ requirePainelApiAccess: access }));
+vi.mock("@/lib/ops-cash-closures", () => ({ autoCloseOperationalCashClosures: close, asOperationalCashClosureError: (error: Error) => error }));
+const request = () => new Request("https://example.com/api/ops/cash-closures/auto-close", { method: "POST", headers: { authorization: "Bearer job-token" }, body: JSON.stringify({ reason: "Fechamento automatico diario a meia-noite", actor: { name: "Spoof", cpf: "123" } }) });
+describe("cash auto-close job", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authenticateOperationsRequest.mockReturnValue({ ok: true });
-    asOperationalCashClosureError.mockImplementation((error: Error) => error);
+    auth.mockReturnValue({ ok: true, via: "bearer" });
+    close.mockResolvedValue({ action: "auto_close", closedCount: 0, closedPeriodIds: [], currentSummary: null });
   });
-
-  it("auto closes stale cash periods", async () => {
-    autoCloseOperationalCashClosures.mockResolvedValue({
-      action: "auto_close",
-      closedCount: 1,
-      closedPeriodIds: [6],
-      closureIds: [55],
-      currentSummary: {
-        period: {
-          id: 7,
-          openedAt: "2026-04-23 03:00:00+00",
-          closedAt: null,
-          operator: null,
-          closureSheetId: null,
-        },
-        funds: [],
-        sangrias: [],
-        totals: {
-          cashSales: "0.00",
-          fund: "0.00",
-          sangria: "0.00",
-          cashInDrawer: "0.00",
-        },
-      },
-      auditLogIds: [981],
-      message: "1 periodo(s) anterior(es) fechados automaticamente.",
-    });
-
-    const { POST } = await import("@/app/api/ops/cash-closures/auto-close/route");
-    const response = await POST(
-      new Request("https://example.com/api/ops/cash-closures/auto-close", {
-        method: "POST",
-        headers: {
-          authorization: "Bearer ops-token",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          reason: "Virada do dia no BFF",
-          actor: {
-            name: "Sistema",
-          },
-        }),
-      }),
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(autoCloseOperationalCashClosures).toHaveBeenCalledWith({
-      reason: "Virada do dia no BFF",
-      actor: {
-        name: "Sistema",
-        cpf: null,
-      },
-    });
-    expect(body).toEqual({
-      ok: true,
-      data: {
-        action: "auto_close",
-        closedCount: 1,
-        closedPeriodIds: [6],
-        closureIds: [55],
-        currentSummary: {
-          period: {
-            id: 7,
-            openedAt: "2026-04-23 03:00:00+00",
-            closedAt: null,
-            operator: null,
-            closureSheetId: null,
-          },
-          funds: [],
-          sangrias: [],
-          totals: {
-            cashSales: "0.00",
-            fund: "0.00",
-            sangria: "0.00",
-            cashInDrawer: "0.00",
-          },
-        },
-        auditLogIds: [981],
-        message: "1 periodo(s) anterior(es) fechados automaticamente.",
-      },
-    });
+  it("preserves machine auth and script reason while ignoring body actor", async () => {
+    const response = await POST(request());
+    expect(auth).toHaveBeenCalledWith(expect.any(Request), { requiredPermission: "ops.cash" });
+    expect(access).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledWith({ reason: "Fechamento automatico diario a meia-noite", actor: { name: "Fechamento automatico", cpf: null } });
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect((await response.json()).data).toMatchObject({ action: "auto_close", closedCount: 0, currentSummary: null });
+  });
+  it("derives interactive actor only from a panel manager", async () => {
+    auth.mockReturnValue({ ok: true, via: "session" });
+    access.mockResolvedValue({ ok: true, session: { legacyRoleId: 1, actorName: "Gestor", actorCpf: "123" } });
+    await POST(request());
+    expect(close).toHaveBeenCalledWith(expect.objectContaining({ actor: { name: "Gestor", cpf: "123" } }));
+  });
+  it("rejects a nonmanager session", async () => {
+    auth.mockReturnValue({ ok: true, via: "session" });
+    access.mockResolvedValue({ ok: true, session: { legacyRoleId: 2 } });
+    const response = await POST(request());
+    expect(response.status).toBe(403);
+    expect(close).not.toHaveBeenCalled();
+  });
+  it("keeps authentication errors private", async () => {
+    auth.mockReturnValue({ ok: false, response: new Response(null, { status: 401 }) });
+    const response = await POST(request());
+    expect(response.status).toBe(401);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(close).not.toHaveBeenCalled();
   });
 });

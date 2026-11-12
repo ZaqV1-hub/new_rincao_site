@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const authenticateOperationsRequest = vi.fn();
+const requirePainelApiAccess = vi.fn();
 const cancelOperationalPurchase = vi.fn();
 const asPurchaseOperationError = vi.fn();
 
-vi.mock("@/lib/ops-auth", () => ({
-  authenticateOperationsRequest,
-}));
+vi.mock("@/lib/painel-api-auth", () => ({ requirePainelApiAccess }));
 
 vi.mock("@/lib/ops-purchase-management", () => ({
   cancelOperationalPurchase,
@@ -16,7 +14,7 @@ vi.mock("@/lib/ops-purchase-management", () => ({
 describe("ops/purchases cancel BFF route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authenticateOperationsRequest.mockReturnValue({ ok: true });
+    requirePainelApiAccess.mockResolvedValue({ ok: true, session: { actorName: "Gestor Teste", actorCpf: "52998224725" } });
     asPurchaseOperationError.mockImplementation((error: Error) => error);
   });
 
@@ -42,20 +40,13 @@ describe("ops/purchases cancel BFF route", () => {
         body: JSON.stringify({
           purchaseId: 321,
           reason: "Cancelamento manual",
-          actor: {
-            name: "Gestor Teste",
-            cpf: "52998224725",
-          },
         }),
       }),
     );
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(authenticateOperationsRequest).toHaveBeenCalledWith(
-      expect.any(Request),
-      { requiredPermission: "ops.purchases" },
-    );
+    expect(requirePainelApiAccess).toHaveBeenCalledWith(expect.any(Request), "vis_bilhet");
     expect(cancelOperationalPurchase).toHaveBeenCalledWith(
       321,
       "Cancelamento manual",

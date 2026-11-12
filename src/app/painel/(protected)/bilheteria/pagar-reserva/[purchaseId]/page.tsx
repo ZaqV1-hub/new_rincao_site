@@ -1,4 +1,6 @@
-﻿import { notFound } from "next/navigation";
+import { getCashSession } from "@/lib/operational-cash-session";
+import { getSaoPauloToday } from "@/lib/operational-date";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import { PainelBilheteriaReservationPayment } from "@/components/painel-bilheteria-reservation-payment";
@@ -17,7 +19,9 @@ export const dynamic = "force-dynamic";
 
 export default async function PainelBilheteriaPagarReservaPage({
   params,
+  searchParams,
 }: {
+  searchParams?: Promise<{ periodId?: string }>;
   params: Promise<{
     purchaseId: string;
   }>;
@@ -30,6 +34,10 @@ export default async function PainelBilheteriaPagarReservaPage({
     notFound();
   }
 
+  const requestedPeriodId = Number((await searchParams)?.periodId);
+  const periodId = Number.isSafeInteger(requestedPeriodId) && requestedPeriodId > 0 ? requestedPeriodId : undefined;
+  const cash = periodId ? await getCashSession(periodId) : null;
+  const readOnly = !cash || cash.type !== "sales" || Boolean(cash.closedAt) || cash.date !== getSaoPauloToday();
   return (
     <div className="grid gap-5">
       <PainelBilheteriaPageHeader
@@ -41,7 +49,7 @@ export default async function PainelBilheteriaPagarReservaPage({
         actorName={session.actorName}
       />
 
-      <PainelBilheteriaReservationPayment detail={detail} />
+      <PainelBilheteriaReservationPayment detail={detail} periodId={periodId} readOnly={readOnly} />
     </div>
   );
 }

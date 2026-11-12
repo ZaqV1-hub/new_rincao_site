@@ -35,6 +35,9 @@ vi.mock("@/components/painel-bilheteria-purchase-detail", () => ({
   PainelBilheteriaPurchaseDetail: (props: Record<string, unknown>) =>
     React.createElement("div", {
       "data-testid": "purchase-detail",
+      "data-period-id": props.periodId,
+      "data-return-href": props.returnHref,
+      "data-edit-href": props.editHref,
       "data-purchase-id": String((props.detail as { purchaseId: number }).purchaseId),
     }),
 }));
@@ -110,4 +113,21 @@ describe("/painel/bilheteria/historico page", () => {
     expect(html).toContain("Fechar modal");
     expect(html).not.toContain("Contexto inline");
   });
+  it("preserves the validated session through list actions, filters and the detail overlay", async () => {
+    const page = (await import("./page")).default;
+    const html = renderToStaticMarkup(await page({ searchParams: Promise.resolve({ periodId: "7", purchase: "171387" }) }));
+    expect(html).toContain('href="/painel/caixas/7?tab=consultation"');
+    expect(html).toContain('name="periodId" value="7"');
+    expect(html).toContain('href="/painel/bilheteria/historico?periodId=7&amp;purchase=171387"');
+    expect(html).toContain('href="/painel/bilheteria/historico?periodId=7&amp;purchase=171387&amp;mode=edit"');
+    expect(html).toContain('data-period-id="7"');
+    expect(html).toContain('data-return-href="/painel/bilheteria/historico?periodId=7"');
+    expect(html).toContain('href="/painel/bilheteria/historico?periodId=7"');
+  });
+  it.each(["-1", "0", "4.2", "Infinity", "1e3", "2147483648", "bad"])("discards an invalid period query %s without passing it to the overlay", async (periodId) => {
+    const page = (await import("./page")).default;
+    const html = renderToStaticMarkup(await page({ searchParams: Promise.resolve({ periodId, purchase: "171387" }) }));
+    expect(html).not.toContain("periodId="); expect(html).not.toContain('name="periodId"'); expect(html).not.toContain("data-period-id=");
+  });
+
 });

@@ -1,10 +1,10 @@
 import type { PoolClient } from "pg";
+import { autoCloseExpiredCashSessions, CashSessionError } from "@/lib/operational-cash-session";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { ensureOpsAuditLogTable, registerOpsAuditLog } from "@/lib/ops-audit-log";
 import {
-  buildOperationalCashSummary,
-  ensureCashPeriodsTable,
-  getOrCreateOpenCashPeriod,
+  lockLegacyOpenCashPeriod,
+  OperationalCashError,
   listCashMovementsByType,
   type OperationalCashSummary,
 } from "@/lib/ops-cash-management";
@@ -12,12 +12,13 @@ import {
 type CashClosureRow = {
   id: number;
   periodo_id: number | null;
-  snapshot_json: string | null;
+  snapshot_json: unknown;
   totals_dinheiro: string | null;
   totals_fundo: string | null;
   totals_geral: string | null;
   created_at: string | null;
   data_caixa?: string | null;
+  fallback_data_caixa?: string | null;
   periodo_aberto_em: string | null;
   periodo_fechado_em: string | null;
   periodo_operador: string | null;
@@ -68,10 +69,10 @@ export type CloseOperationalCashClosureInput = {
 export type CloseOperationalCashClosureSuccess = {
   action: "close";
   periodId: number;
-  nextPeriodId: number;
+  nextPeriodId: null;
   closure: OperationalCashClosureDetail;
   closedSummary: OperationalCashSummary;
-  currentSummary: OperationalCashSummary;
+  currentSummary: null;
   auditLogId: number | null;
   message: string;
 };
@@ -85,9 +86,9 @@ export type AutoCloseOperationalCashClosuresSuccess = {
   action: "auto_close";
   closedCount: number;
   closedPeriodIds: number[];
-  closureIds: number[];
-  currentSummary: OperationalCashSummary;
-  auditLogIds: number[];
+  closureIds?: number[];
+  currentSummary: null;
+  auditLogIds?: number[];
   message: string;
 };
 
@@ -120,10 +121,12 @@ function getActorUserName(actor?: CashClosureActor | null) {
     : null;
 }
 
-function parseSnapshotJson(value: string | null) {
+function parseSnapshotJson(value: unknown) {
   if (!value) {
     return null;
   }
+
+  if (typeof value !== "string") return value;
 
   try {
     return JSON.parse(value) as unknown;
@@ -166,6 +169,14 @@ function resolveSnapshotPeriod(
         record.operador.trim() :
         fallback.operator,
   };
+}
+
+function resolveSnapshotCashDate(snapshot: unknown): string | null {
+  const record = getSnapshotRecord(snapshot);
+  for (const value of [record?.data_caixa, record?.cashDate, record?.data_operacional]) {
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  }
+  return null;
 }
 
 function mapCashClosureRow(row: CashClosureRow): OperationalCashClosureDetail {
@@ -211,6 +222,8 @@ async function getOperationalCashClosureDetailForClient(
         periodo.operador AS periodo_operador
       ${buildCashClosuresBaseQuery()}
       WHERE fechamento.id = $1
+        AND fechamento.modelo_operacional = FALSE
+        AND periodo.parque IS NULL
       LIMIT 1
     `,
     [closureId],
@@ -241,31 +254,8 @@ function buildCashClosuresBaseQuery() {
   `;
 }
 
-async function ensureCashClosuresTable(client: PoolClient) {
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS caixa_fechamentos (
-      id SERIAL PRIMARY KEY,
-      periodo_id INTEGER NULL,
-      data_caixa DATE NULL,
-      snapshot_json TEXT NULL,
-      totals_dinheiro NUMERIC(12,2) NOT NULL DEFAULT 0,
-      totals_fundo NUMERIC(12,2) NOT NULL DEFAULT 0,
-      totals_geral NUMERIC(12,2) NOT NULL DEFAULT 0,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-  await client.query(`
-    ALTER TABLE caixa_fechamentos
-    ADD COLUMN IF NOT EXISTS periodo_id INTEGER
-  `);
-  await client.query(`
-    ALTER TABLE caixa_fechamentos
-    ADD COLUMN IF NOT EXISTS data_caixa DATE
-  `);
-}
-
 export function asOperationalCashClosureError(error: unknown) {
-  if (error instanceof OperationalCashClosureError) {
+  if (error instanceof OperationalCashClosureError || error instanceof OperationalCashError || error instanceof CashSessionError) {
     return error;
   }
 
@@ -286,9 +276,6 @@ export async function listOperationalCashClosures(input?: {
   const client = await pool.connect();
 
   try {
-    await ensureCashPeriodsTable(client);
-    await ensureCashClosuresTable(client);
-
     const rows = await client.query<CashClosureRow>(
       `
         SELECT
@@ -302,12 +289,12 @@ export async function listOperationalCashClosures(input?: {
           periodo.aberto_em::text AS periodo_aberto_em,
           periodo.fechado_em::text AS periodo_fechado_em,
           periodo.operador AS periodo_operador,
-          COALESCE(
-            fechamento.data_caixa,
-            (periodo.aberto_em AT TIME ZONE 'America/Sao_Paulo')::date
-          )::text AS data_caixa
+          to_jsonb(fechamento)->>'data_caixa' AS data_caixa,
+          (periodo.aberto_em AT TIME ZONE 'America/Sao_Paulo')::date::text AS fallback_data_caixa
         ${buildCashClosuresBaseQuery()}
-        WHERE NOT (
+        WHERE fechamento.modelo_operacional = FALSE
+          AND periodo.parque IS NULL
+          AND NOT (
           COALESCE(periodo.fechamento_auto, FALSE)
           AND COALESCE(fechamento.totals_dinheiro, 0) = 0
           AND COALESCE(fechamento.totals_fundo, 0) = 0
@@ -324,7 +311,9 @@ export async function listOperationalCashClosures(input?: {
       `
         SELECT COUNT(*)::text AS total
         ${buildCashClosuresBaseQuery()}
-        WHERE NOT (
+        WHERE fechamento.modelo_operacional = FALSE
+          AND periodo.parque IS NULL
+          AND NOT (
           COALESCE(periodo.fechamento_auto, FALSE)
           AND COALESCE(fechamento.totals_dinheiro, 0) = 0
           AND COALESCE(fechamento.totals_fundo, 0) = 0
@@ -339,7 +328,7 @@ export async function listOperationalCashClosures(input?: {
         return {
           id: detail.id,
           periodId: detail.periodId,
-          cashDate: row.data_caixa ?? null,
+          cashDate: row.data_caixa ?? resolveSnapshotCashDate(detail.snapshot) ?? row.fallback_data_caixa ?? null,
           openedAt: detail.openedAt,
           closedAt: detail.closedAt,
           operator: detail.operator,
@@ -358,32 +347,6 @@ export async function listOperationalCashClosures(input?: {
   }
 }
 
-async function lockCashPeriod(client: PoolClient, periodId: number) {
-  const result = await client.query<{
-    id: number;
-    aberto_em: string | null;
-    fechado_em: string | null;
-    operador: string | null;
-    folha_id: number | null;
-  }>(
-    `
-      SELECT
-        id,
-        aberto_em::text AS aberto_em,
-        fechado_em::text AS fechado_em,
-        operador,
-        folha_id
-      FROM caixa_periodos
-      WHERE id = $1
-      LIMIT 1
-      FOR UPDATE
-    `,
-    [periodId],
-  );
-
-  return result.rows[0] ?? null;
-}
-
 async function createCashClosureRecord(
   client: PoolClient,
   periodId: number,
@@ -393,13 +356,11 @@ async function createCashClosureRecord(
     fund: string;
     overall: string;
   },
-  openedAt: string,
 ) {
   const result = await client.query<{ id: number }>(
     `
       INSERT INTO caixa_fechamentos (
         periodo_id,
-        data_caixa,
         snapshot_json,
         totals_dinheiro,
         totals_fundo,
@@ -407,7 +368,6 @@ async function createCashClosureRecord(
         created_at
       ) VALUES (
         $1,
-        ($6::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date,
         $2,
         $3,
         $4,
@@ -422,7 +382,6 @@ async function createCashClosureRecord(
       totals.cash,
       totals.fund,
       totals.overall,
-      openedAt,
     ],
   );
 
@@ -435,25 +394,6 @@ async function getCurrentTimeText(client: PoolClient) {
   );
 
   return String(result.rows[0]?.current_at ?? "").trim();
-}
-
-async function getNextLocalMidnightForPeriod(
-  client: PoolClient,
-  openedAt: string,
-) {
-  const result = await client.query<{ closed_at: string }>(
-    `
-      SELECT (
-        (
-          date_trunc('day', $1::timestamptz AT TIME ZONE 'America/Sao_Paulo')
-          + interval '1 day'
-        ) AT TIME ZONE 'America/Sao_Paulo'
-      )::text AS closed_at
-    `,
-    [openedAt],
-  );
-
-  return String(result.rows[0]?.closed_at ?? "").trim();
 }
 
 async function closeCashPeriod(
@@ -471,25 +411,10 @@ async function closeCashPeriod(
           operador = $2,
           fechamento_auto = $5,
           folha_id = $3
-      WHERE id = $1
+      WHERE id = $1 AND parque IS NULL AND fechado_em IS NULL
     `,
     [periodId, operatorName, closureId, closedAt, automatic],
   );
-}
-
-async function openNextCashPeriod(client: PoolClient, openedAt?: string) {
-  const result = await client.query<{ id: number }>(
-    `
-      INSERT INTO caixa_periodos (
-        aberto_em,
-        created_at
-      ) VALUES (COALESCE($1::timestamptz, NOW()), NOW())
-      RETURNING id
-    `,
-    [openedAt ?? null],
-  );
-
-  return result.rows[0]?.id ?? null;
 }
 
 async function bindAuditLogsToClosure(
@@ -505,48 +430,6 @@ async function bindAuditLogsToClosure(
         AND folha_id IS NULL
     `,
     [periodId, closureId],
-  );
-}
-
-async function markClosedVouchersForPeriod(
-  client: PoolClient,
-  periodId: number,
-  openedAt: string,
-  closedAt: string,
-) {
-  await client.query(
-    `
-      UPDATE voucher v
-      SET periodo_id = $1,
-          closed_at = NOW()
-      FROM compra c
-      WHERE v.periodo_id IS NULL
-        AND v.stusado = 's'
-        AND c.idcompra = v.idcompra
-        AND c.tpcompra = 'ponli'
-        AND (
-          (v.dtuso::timestamp + COALESCE(v.hruso, '00:00'::time))
-          BETWEEN $2::timestamptz AND $3::timestamptz
-        )
-    `,
-    [periodId, openedAt, closedAt],
-  );
-
-  await client.query(
-    `
-      UPDATE voucher v
-      SET periodo_id = $1,
-          closed_at = NOW()
-      FROM compra c
-      WHERE v.periodo_id IS NULL
-        AND c.idcompra = v.idcompra
-        AND c.tpcompra <> 'ponli'
-        AND (
-          (c.dtcompra + COALESCE(c.hrcompra, '00:00'::time))
-          BETWEEN $2::timestamptz AND $3::timestamptz
-        )
-    `,
-    [periodId, openedAt, closedAt],
   );
 }
 
@@ -570,7 +453,8 @@ async function getCashSalesTotalForRange(
           ) AS total_vouchers
         FROM voucher v
         JOIN compra c ON c.idcompra = v.idcompra
-        WHERE c.tpcompra IN ('bilhe', 'reser')
+        WHERE c.caixa_periodo_id IS NULL
+          AND c.tpcompra IN ('bilhe', 'reser')
           AND c.stcompra = 'conc'
           AND c.formapag IS NOT NULL
           AND c.formapag <> 'N/A'
@@ -585,7 +469,8 @@ async function getCashSalesTotalForRange(
           SUM(cp.valor) AS total_pagamento
         FROM compra_pagamentos cp
         JOIN compra c ON c.idcompra = cp.idcompra
-        WHERE c.tpcompra IN ('bilhe', 'reser')
+        WHERE cp.periodo_id IS NULL AND c.caixa_periodo_id IS NULL
+          AND c.tpcompra IN ('bilhe', 'reser')
           AND c.stcompra = 'conc'
           AND c.formapag IS NOT NULL
           AND c.formapag <> 'N/A'
@@ -682,34 +567,6 @@ function buildClosureSnapshot(
   };
 }
 
-async function findNextStaleOpenCashPeriod(client: PoolClient) {
-  const result = await client.query<{
-    id: number;
-    aberto_em: string | null;
-    fechado_em: string | null;
-    operador: string | null;
-    folha_id: number | null;
-  }>(
-    `
-      SELECT
-        id,
-        aberto_em::text AS aberto_em,
-        fechado_em::text AS fechado_em,
-        operador,
-        folha_id
-      FROM caixa_periodos
-      WHERE fechado_em IS NULL
-        AND (aberto_em AT TIME ZONE 'America/Sao_Paulo')::date
-          < (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-      ORDER BY aberto_em ASC
-      LIMIT 1
-      FOR UPDATE
-    `,
-  );
-
-  return result.rows[0] ?? null;
-}
-
 async function closeCashPeriodInternal(
   client: PoolClient,
   options: {
@@ -746,7 +603,6 @@ async function closeCashPeriodInternal(
       fund: summary.totals.fund,
       overall: summary.totals.cashInDrawer,
     },
-    options.openedAt,
   );
 
   if (!closureId) {
@@ -764,12 +620,6 @@ async function closeCashPeriodInternal(
     closureId,
     options.closedAt,
     options.automatic,
-  );
-  await markClosedVouchersForPeriod(
-    client,
-    options.periodId,
-    options.openedAt,
-    options.closedAt,
   );
   await ensureOpsAuditLogTable(client, "postgres");
   await bindAuditLogsToClosure(client, options.periodId, closureId);
@@ -814,9 +664,6 @@ export async function getOperationalCashClosureDetail(
   const client = await pool.connect();
 
   try {
-    await ensureCashPeriodsTable(client);
-    await ensureCashClosuresTable(client);
-
     return await getOperationalCashClosureDetailForClient(client, closureId);
   } finally {
     client.release();
@@ -851,11 +698,7 @@ export async function closeOperationalCashClosure(
   try {
     await client.query("BEGIN");
 
-    await ensureCashPeriodsTable(client);
-    await ensureCashClosuresTable(client);
-
-    const openPeriod = await getOrCreateOpenCashPeriod(client);
-    const lockedPeriod = await lockCashPeriod(client, openPeriod.id);
+    const lockedPeriod = await lockLegacyOpenCashPeriod(client);
 
     if (!lockedPeriod) {
       throw new OperationalCashClosureError(
@@ -894,18 +737,16 @@ export async function closeOperationalCashClosure(
       actor: input.actor,
     });
 
-    const nextPeriodId = await openNextCashPeriod(client, closedAt);
-    const { summary: currentSummary } = await buildOperationalCashSummary(client);
 
     await client.query("COMMIT");
 
     return {
       action: "close",
       periodId: lockedPeriod.id,
-      nextPeriodId: nextPeriodId ?? currentSummary.period.id,
+      nextPeriodId: null,
       closure: closedClosure.detail,
       closedSummary: closedClosure.summary,
-      currentSummary,
+      currentSummary: null,
       auditLogId: closedClosure.auditLogId,
       message: "Caixa fechado com sucesso.",
     };
@@ -930,78 +771,16 @@ export async function autoCloseOperationalCashClosures(
     );
   }
 
-  const pool = getIngressoSistemaDbPool();
-  const client = await pool.connect();
-
-  try {
-    await client.query("BEGIN");
-
-    await ensureCashPeriodsTable(client);
-    await ensureCashClosuresTable(client);
-    await ensureOpsAuditLogTable(client, "postgres");
-
-    const closedPeriodIds: number[] = [];
-    const closureIds: number[] = [];
-    const auditLogIds: number[] = [];
-
-    for (let index = 0; index < 90; index += 1) {
-      const stalePeriod = await findNextStaleOpenCashPeriod(client);
-
-      if (!stalePeriod) {
-        break;
-      }
-
-      const openedAt = String(stalePeriod.aberto_em ?? "").trim();
-
-      if (!openedAt) {
-        throw new OperationalCashClosureError(
-          "cash_period_opened_at_missing",
-          "Periodo de caixa sem data de abertura valida.",
-          409,
-        );
-      }
-
-      const closedAt = await getNextLocalMidnightForPeriod(client, openedAt);
-      const closedClosure = await closeCashPeriodInternal(client, {
-        periodId: stalePeriod.id,
-        openedAt,
-        operatorName: stalePeriod.operador ? String(stalePeriod.operador).trim() : null,
-        reason,
-        automatic: true,
-        closedAt,
-        actor: input.actor,
-      });
-
-      closedPeriodIds.push(stalePeriod.id);
-      closureIds.push(closedClosure.closureId);
-
-      if (closedClosure.auditLogId != null) {
-        auditLogIds.push(closedClosure.auditLogId);
-      }
-
-      await openNextCashPeriod(client, closedAt);
-    }
-
-    const { summary: currentSummary } = await buildOperationalCashSummary(client);
-
-    await client.query("COMMIT");
-
-    return {
-      action: "auto_close",
-      closedCount: closedPeriodIds.length,
-      closedPeriodIds,
-      closureIds,
-      currentSummary,
-      auditLogIds,
-      message:
-        closedPeriodIds.length > 0
-          ? `${closedPeriodIds.length} periodo(s) anterior(es) fechados automaticamente.`
-          : "Nenhum periodo anterior elegivel para fechamento automatico.",
-    };
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
+  const result = await autoCloseExpiredCashSessions({
+    name: input.actor?.name ?? "Fechamento automatico",
+    cpf: input.actor?.cpf ?? null,
+  });
+  return {
+    action: "auto_close",
+    ...result,
+    currentSummary: null,
+    message: result.closedCount > 0
+      ? `${result.closedCount} periodo(s) anterior(es) fechados automaticamente.`
+      : "Nenhum periodo anterior elegivel para fechamento automatico.",
+  };
 }

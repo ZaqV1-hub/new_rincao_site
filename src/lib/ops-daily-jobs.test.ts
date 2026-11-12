@@ -58,25 +58,7 @@ describe("ops-daily-jobs", () => {
       action: "auto_close",
       closedCount: 1,
       closedPeriodIds: [6],
-      closureIds: [55],
-      currentSummary: {
-        period: {
-          id: 7,
-          openedAt: "2026-04-23 03:00:00+00",
-          closedAt: null,
-          operator: null,
-          closureSheetId: null,
-        },
-        funds: [],
-        sangrias: [],
-        totals: {
-          cashSales: "0.00",
-          fund: "0.00",
-          sangria: "0.00",
-          cashInDrawer: "0.00",
-        },
-      },
-      auditLogIds: [901],
+      currentSummary: null,
       message: "1 periodo(s) anterior(es) fechados automaticamente.",
     });
     recoverPendingTicketDeliveries.mockResolvedValue({
@@ -155,7 +137,8 @@ describe("ops-daily-jobs", () => {
     expect(autoCloseOperationalCashClosures).toHaveBeenCalledWith({
       reason: "Virada diaria",
       actor: {
-        name: "Gestor Operacional",
+        name: "Rotina diaria de fechamento",
+        cpf: null,
       },
     });
     expect(expireUnusedVouchers).toHaveBeenCalledWith();
@@ -177,25 +160,7 @@ describe("ops-daily-jobs", () => {
       action: "auto_close",
       closedCount: 0,
       closedPeriodIds: [],
-      closureIds: [],
-      currentSummary: {
-        period: {
-          id: 7,
-          openedAt: "2026-04-23 03:00:00+00",
-          closedAt: null,
-          operator: null,
-          closureSheetId: null,
-        },
-        funds: [],
-        sangrias: [],
-        totals: {
-          cashSales: "0.00",
-          fund: "0.00",
-          sangria: "0.00",
-          cashInDrawer: "0.00",
-        },
-      },
-      auditLogIds: [],
+      currentSummary: null,
       message: "Nenhum periodo anterior elegivel para fechamento automatico.",
     });
     runMembershipMaintenance.mockResolvedValue({

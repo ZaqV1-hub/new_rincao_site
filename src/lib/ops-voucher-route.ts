@@ -1,169 +1,41 @@
-import { NextResponse } from "next/server";
-import type { AuthErrorResponse } from "@/lib/auth-contracts";
-import { asVoucherOperationError } from "@/lib/ops-voucher-validation";
-import {
-  authorizeOpsRouteAccess,
-  readJsonPayload,
-  readRouteActor,
-} from "@/lib/ops-route-utils";
+import { requirePainelApiAccess } from "@/lib/painel-api-auth";
+import { readJsonPayload } from "@/lib/ops-route-utils";
+import { asVoucherOperationError, validateVoucherByNumber, validatePurchaseVouchers, validateSchoolTripVouchers, validateSelectedVouchers,
+  unvalidatePurchaseVouchers, unvalidateSelectedVouchers, invalidatePurchaseVouchers, invalidateSelectedVouchers } from "@/lib/ops-voucher-validation";
+import { VoucherOperationError } from "@/lib/ops-voucher-validation-contract";
+import { requireVoucherPeriodId } from "@/lib/ops-voucher-validation-cash";
 
-type VoucherActor = ReturnType<typeof readRouteActor>;
-
-type VoucherPayloadBase = {
-  voucherIds?: unknown;
-  purchaseId?: unknown;
-  actor?: {
-    name?: unknown;
-    cpf?: unknown;
-  } | null;
-};
-
-type ValidatePayload = VoucherPayloadBase & {
-  voucherNumber?: unknown;
-  schoolId?: unknown;
-  agendaId?: unknown;
-  confirm?: unknown;
-};
-
-type VoucherRouteContext = {
-  purchaseId: number;
-  voucherIds: number[];
-  actor: VoucherActor;
-};
-
-type ValidateRouteContext = VoucherRouteContext & {
-  voucherNumber: string;
-  schoolId: number;
-  agendaId: number;
-  confirm: boolean;
-};
-
-type VoucherOperationContext = VoucherRouteContext | ValidateRouteContext;
-
-function errorResponse(code: string, message: string, status: number) {
-  return NextResponse.json<AuthErrorResponse>(
-    {
-      ok: false,
-      error: {
-        code,
-        message,
-      },
-    },
-    { status },
-  );
-}
-
-function readVoucherIds(value: unknown) {
-  return Array.isArray(value)
-    ? value
-        .map((voucherId) => Number(voucherId))
-        .filter((voucherId) => Number.isInteger(voucherId) && voucherId > 0)
-    : [];
-}
-
-function readBaseContext(payload: VoucherPayloadBase | null): VoucherRouteContext {
-  return {
-    purchaseId: Number(payload?.purchaseId),
-    voucherIds: readVoucherIds(payload?.voucherIds),
-    actor: readRouteActor(payload?.actor),
-  };
-}
-
-export async function authorizeOpsVoucherRoute(request: Request) {
-  return authorizeOpsRouteAccess(request, {
-    requiredPermission: "ops.vouchers",
-    painelPermissions: "vis_bilhet",
-  });
-}
-
-export async function readValidateVoucherPayload(request: Request) {
-  const payload = await readJsonPayload<ValidatePayload>(request);
-  const base = readBaseContext(payload);
-
-  return {
-    context: {
-      ...base,
-      confirm: payload?.confirm === true,
-      voucherNumber:
-        typeof payload?.voucherNumber === "string" ? payload.voucherNumber.trim() : "",
-      schoolId: Number(payload?.schoolId),
-      agendaId: Number(payload?.agendaId),
-    } satisfies ValidateRouteContext,
-  };
-}
-
-export async function readVoucherOperationPayload(request: Request) {
-  const payload = await readJsonPayload<VoucherPayloadBase>(request);
-
-  return {
-    context: readBaseContext(payload),
-  };
-}
-
-export function invalidValidateVoucherResponse() {
-  return errorResponse(
-    "invalid_operations_payload",
-    "Informe voucherNumber, purchaseId, schoolId+agendaId ou voucherIds para validar.",
-    400,
-  );
-}
-
-export function invalidUnvalidateVoucherResponse() {
-  return errorResponse(
-    "invalid_operations_payload",
-    "Informe voucherIds ou purchaseId para desvalidar.",
-    400,
-  );
-}
-
-export function createVoucherOperationErrorResponse(
-  code: string,
-  message: string,
-  status: number,
-) {
-  return errorResponse(code, message, status);
-}
-
-export async function runOpsVoucherOperationRoute<
-  TContext extends VoucherOperationContext,
-  TResult,
->(
-  request: Request,
-  options: {
-    readContext: (request: Request) => Promise<{ context: TContext }>;
-    run: (context: TContext) => Promise<TResult | null>;
-    invalidResponse: () => Response;
-    logKey: string;
-  },
-) {
-  const access = await authorizeOpsVoucherRoute(request);
-
-  if (!access.ok) {
-    return access.response;
-  }
-
-  const { context } = await options.readContext(request);
-
+type Action = "validate" | "unvalidate" | "invalidate";
+function privateResponse(response: Response) { response.headers.set("Cache-Control", "private, no-store"); return response; }
+function positiveId(value: unknown) { const id = Number(value); return Number.isSafeInteger(id) && id > 0 ? id : 0; }
+export async function runOpsVoucherOperationRoute(request: Request, action: Action) {
   try {
-    const result = await options.run(context);
-
-    if (!result) {
-      return options.invalidResponse();
+    const access = await requirePainelApiAccess(request, "vis_bilhet");
+    if (!access.ok) return privateResponse(access.response);
+    if (new URL(request.url).search || request.headers.get("Content-Type")?.split(";")[0].trim().toLowerCase() !== "application/json" || Number(request.headers.get("Content-Length")) > 512000) {
+      throw new VoucherOperationError("invalid_operations_payload", "Envie os dados em JSON, sem parâmetros adicionais.", 400);
     }
-
-    return NextResponse.json({
-      ok: true,
-      data: result,
-    });
+    const payload = await readJsonPayload<Record<string, unknown>>(request);
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new VoucherOperationError("invalid_operations_payload", "Dados da operação inválidos.", 400);
+    const voucherNumber = typeof payload.voucherNumber === "string" ? payload.voucherNumber.trim() : "";
+    const purchaseId = positiveId(payload.purchaseId); const schoolId = positiveId(payload.schoolId); const agendaId = positiveId(payload.agendaId);
+    const voucherIds = Array.isArray(payload.voucherIds) ? payload.voucherIds.map(positiveId) : [];
+    if (voucherIds.length > 1000 || voucherIds.some((id) => !id) || !(purchaseId || voucherIds.length || action === "validate" && (voucherNumber || schoolId && agendaId))) {
+      throw new VoucherOperationError("invalid_operations_payload", action === "validate" ? "Informe voucherNumber, purchaseId, schoolId+agendaId ou voucherIds para validar." : `Informe voucherIds ou purchaseId para ${action === "unvalidate" ? "desvalidar" : "invalidar"}.`, 400);
+    }
+    const periodId = requireVoucherPeriodId(payload.periodId);
+    const actor = { name: access.session.actorName, cpf: access.session.actorCpf };
+    const result = action === "validate"
+      ? voucherNumber ? await validateVoucherByNumber(voucherNumber, payload.confirm === true, actor, periodId)
+        : purchaseId ? await validatePurchaseVouchers(purchaseId, payload.confirm === true, actor, periodId)
+          : schoolId && agendaId ? await validateSchoolTripVouchers(schoolId, agendaId, actor, periodId)
+            : await validateSelectedVouchers(voucherIds, actor, periodId)
+      : action === "unvalidate" ? purchaseId ? await unvalidatePurchaseVouchers(purchaseId, actor, periodId) : await unvalidateSelectedVouchers(voucherIds, actor, periodId)
+        : purchaseId ? await invalidatePurchaseVouchers(purchaseId, actor, periodId) : await invalidateSelectedVouchers(voucherIds, actor, periodId);
+    return privateResponse(Response.json({ ok: true, data: result }));
   } catch (error) {
-    const operationError = asVoucherOperationError(error);
-
-    console.error(options.logKey, error);
-
-    return createVoucherOperationErrorResponse(
-      operationError.code,
-      operationError.message,
-      operationError.status,
-    );
+    const operationError = error instanceof VoucherOperationError ? error : asVoucherOperationError(error);
+    return privateResponse(Response.json({ ok: false, error: { code: operationError.code, message: operationError.message,
+      ...(operationError.details ? { details: operationError.details } : {}) } }, { status: operationError.status }));
   }
 }

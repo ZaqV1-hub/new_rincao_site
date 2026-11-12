@@ -5,10 +5,13 @@ export type { VoucherValidationRow, SchoolTripVoucherRow, VoucherOperationMode, 
 export { buildAuditActorName, normalizeCpfDigits, getAffectedVoucherRows, collectAffectedAgendaIds, resolveAuditPurchaseId, buildVoucherAuditDescription, buildVoucherAuditReason, registerVoucherOperationAuditLog } from "@/lib/ops-voucher-validation-audit";
 import { type PoolClient } from "pg";
 import { getSchoolPaymentHold } from "@/lib/school-payment-eligibility";
-import { lockOperationalDay } from "@/lib/operational-day-lock";
 import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { isCivilDate } from "@/lib/operational-date";
 import { syncTicketValidation } from "@/lib/ticket-service";
+import { CashSessionError } from "@/lib/operational-cash-session";
+import { assertVoucherCashDate, type VoucherCashContext } from "@/lib/ops-voucher-validation-cash";
+import type { VoucherOperationInputActor } from "@/lib/ops-voucher-validation-contract";
+export { requireVoucherPeriodId, lockVoucherCashContext, assertVoucherReversalAllowed } from "@/lib/ops-voucher-validation-cash";
 
 export function getSaoPauloDateParts(date = new Date()) {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -19,7 +22,7 @@ export function getSaoPauloDateParts(date = new Date()) {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
   });
   const parts = formatter.formatToParts(date);
   const valueByType = new Map(parts.map((part) => [part.type, part.value]));
@@ -109,7 +112,14 @@ export function buildReservationPaymentMessage(row: VoucherValidationRow) {
 }
 
 export function buildAlreadyUsedMessage(row: VoucherValidationRow) {
-  return `Voucher ${row.numvoucher ?? ""} ja utilizado em: ${formatDateBr(row.dtuso)} ${String(row.hruso ?? "").trim()}`.trim();
+  return `Voucher ${row.numvoucher ?? ""} ja utilizado em: ${formatDateBr(row.dtuso)} ${String(row.hruso ?? "").trim()}. Local: ${row.validacao_local_nome || "não registrado"}.`.trim();
+}
+
+export function alreadyUsedError(row: VoucherValidationRow) {
+  const error = new VoucherOperationError("voucher_already_used", buildAlreadyUsedMessage(row), 409);
+  error.details = { validation: { periodId: row.validacao_periodo_id ?? null, locationName: row.validacao_local_nome ?? null,
+    validatedAt: row.validado_em ?? null, date: row.dtuso, time: row.hruso } };
+  return error;
 }
 
 export function evaluateAgendaUsage(
@@ -141,15 +151,19 @@ export async function markVoucherUsed(
   voucherId: number,
   date: string,
   time: string,
+  context: VoucherCashContext,
+  actor?: VoucherOperationInputActor | null,
 ) {
   const park = getOperationalParkId();
-  await lockOperationalDay(client, park, date);
+  assertVoucherCashDate(context, date);
   await client.query("SELECT idcompra FROM compra WHERE idcompra IN (SELECT idcompra FROM voucher WHERE idvoucher=$1) FOR UPDATE", [voucherId]);
   const voucher = await client.query<Pick<VoucherValidationRow,
-    "idcompra" | "dtinicio_validade" | "dtvalidade" | "parque_operacional" | "stusado" | "stvoucher"
-  >>(`select idcompra, dtinicio_validade::text, dtvalidade::text, parque_operacional, stusado, stvoucher
+    "idcompra" | "dtinicio_validade" | "dtvalidade" | "parque_operacional" | "stusado" | "stvoucher" | "tpvoucher" | "servico_id"
+  >>(`select idcompra, dtinicio_validade::text, dtvalidade::text, parque_operacional, stusado, stvoucher,tpvoucher,servico_id
       from voucher where idvoucher=$1 FOR UPDATE`, [voucherId]);
   const row = voucher.rows[0];
+  if (!row) throw new VoucherOperationError("voucher_not_found", "Ingresso não encontrado.", 404);
+  if (row.stusado !== "n") throw new VoucherOperationError("voucher_already_used", "Ingresso já utilizado ou indisponível para entrada.", 409);
   if (row?.dtinicio_validade != null) {
     if (row.parque_operacional !== park || !isCivilDate(row.dtinicio_validade) ||
       !isCivilDate(row.dtvalidade) || row.dtinicio_validade > row.dtvalidade || !isCivilDate(date)) {
@@ -188,29 +202,41 @@ export async function markVoucherUsed(
       throw error;
     }
   }
-  await client.query(
+  assertVoucherCashDate(context, date);
+  const updated = await client.query(
     `
       UPDATE voucher
       SET stusado = 's',
           dtuso = $2,
-          hruso = $3
-      WHERE idvoucher = $1
+          hruso = $3,
+          validacao_periodo_id = $4,
+          validado_em = clock_timestamp(),
+          validado_por_nome = $5,
+          validado_por_cpf = $6
+      WHERE idvoucher = $1 AND stusado = 'n'
+        AND $2::date = (clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::date
     `,
-    [voucherId, date, time],
+    [voucherId, date, time, context.session.id, actor?.name?.trim() || null, String(actor?.cpf ?? "").replace(/\D/g, "") || null],
   );
+  if (updated.rowCount === 0) throw new VoucherOperationError("cash_date_not_today", "A data do caixa terminou. Atualize a tela.", 409);
 }
 
-export async function markVoucherUnused(client: PoolClient, voucherId: number) {
-  await client.query(
+export async function markVoucherUnused(client: PoolClient, voucherId: number, date: string) {
+  const updated = await client.query(
     `
       UPDATE voucher
       SET stusado = 'n',
           dtuso = NULL,
-          hruso = NULL
-      WHERE idvoucher = $1
+          hruso = NULL,
+          validacao_periodo_id = NULL,
+          validado_em = NULL,
+          validado_por_nome = NULL,
+          validado_por_cpf = NULL
+      WHERE idvoucher = $1 AND $2::date = (clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::date
     `,
-    [voucherId],
+    [voucherId, date],
   );
+  if (updated.rowCount === 0) throw new VoucherOperationError("cash_date_not_today", "A data do caixa terminou. Atualize a tela.", 409);
 }
 
 export async function markVoucherInvalid(
@@ -219,16 +245,17 @@ export async function markVoucherInvalid(
   date: string,
   time: string,
 ) {
-  await client.query(
+  const updated = await client.query(
     `
       UPDATE voucher
       SET stusado = 'inv',
           dtuso = $2,
           hruso = $3
-      WHERE idvoucher = $1
+      WHERE idvoucher = $1 AND $2::date = (clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::date
     `,
     [voucherId, date, time],
   );
+  if (updated.rowCount === 0) throw new VoucherOperationError("cash_date_not_today", "A data do caixa terminou. Atualize a tela.", 409);
 }
 
 export async function appendTicketWarnings(
@@ -266,6 +293,7 @@ export function asVoucherOperationError(error: unknown) {
   if (error instanceof VoucherOperationError) {
     return error;
   }
+  if (error instanceof CashSessionError) return new VoucherOperationError(error.code, error.message, error.status);
 
   return new VoucherOperationError(
     "voucher_operation_unavailable",

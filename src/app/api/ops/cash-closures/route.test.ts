@@ -1,245 +1,49 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const authenticateOperationsRequest = vi.fn();
-const closeOperationalCashClosure = vi.fn();
-const listOperationalCashClosures = vi.fn();
-const asOperationalCashClosureError = vi.fn();
-
-vi.mock("@/lib/ops-auth", () => ({
-  authenticateOperationsRequest,
-}));
-
-vi.mock("@/lib/ops-cash-closures", () => ({
-  closeOperationalCashClosure,
-  listOperationalCashClosures,
-  asOperationalCashClosureError,
-}));
-
-describe("ops/cash-closures BFF route", () => {
+import { GET, POST } from "./route";
+import { POST as panelPost } from "@/app/api/painel/bilheteria/cash-closures/route";
+const { access, close, list } = vi.hoisted(() => ({ access: vi.fn(), close: vi.fn(), list: vi.fn() }));
+vi.mock("@/lib/painel-api-auth", () => ({ requirePainelApiAccess: access }));
+vi.mock("@/lib/ops-cash-closures", () => ({ closeOperationalCashClosure: close, listOperationalCashClosures: list, asOperationalCashClosureError: (error: Error) => error }));
+const request = () => new Request("https://example.com/api/ops/cash-closures", { method: "POST", body: JSON.stringify({ reason: "Reconciliacao", operatorName: "Spoof", actor: { name: "Spoof" } }) });
+describe("legacy closure access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authenticateOperationsRequest.mockReturnValue({ ok: true });
-    asOperationalCashClosureError.mockImplementation((error: Error) => error);
+    access.mockResolvedValue({ ok: true, session: { legacyRoleId: 1, actorName: "Gestor", actorCpf: "123" } });
   });
-
-  it("returns the paginated closure history", async () => {
-    listOperationalCashClosures.mockResolvedValue({
-      items: [
-        {
-          id: 44,
-          periodId: 7,
-          openedAt: "2026-04-22 08:00:00+00",
-          closedAt: "2026-04-22 18:00:00+00",
-          operator: "Gestor Teste",
-          totals: {
-            cash: "320.00",
-            fund: "50.00",
-            overall: "470.00",
-          },
-          createdAt: "2026-04-22 18:00:00+00",
-        },
-      ],
-      meta: {
-        limit: 10,
-        offset: 0,
-        total: 1,
-      },
-    });
-
-    const { GET } = await import("@/app/api/ops/cash-closures/route");
-    const response = await GET(
-      new Request("https://example.com/api/ops/cash-closures?limit=10&offset=0", {
-        headers: {
-          authorization: "Bearer ops-token",
-        },
-      }),
-    );
-    const body = await response.json();
-
+  it("reads private history using strict panel access", async () => {
+    list.mockResolvedValue({ items: [], meta: { limit: 20, offset: 0, total: 0 } });
+    const response = await GET(new Request("https://example.com/api/ops/cash-closures"));
+    expect(access).toHaveBeenCalledWith(expect.any(Request), "vis_bilhet");
     expect(response.status).toBe(200);
-    expect(listOperationalCashClosures).toHaveBeenCalledWith({
-      limit: 10,
-      offset: 0,
-    });
-    expect(body).toEqual({
-      ok: true,
-      data: {
-        items: [
-          {
-            id: 44,
-            periodId: 7,
-            openedAt: "2026-04-22 08:00:00+00",
-            closedAt: "2026-04-22 18:00:00+00",
-            operator: "Gestor Teste",
-            totals: {
-              cash: "320.00",
-              fund: "50.00",
-              overall: "470.00",
-            },
-            createdAt: "2026-04-22 18:00:00+00",
-          },
-        ],
-        meta: {
-          limit: 10,
-          offset: 0,
-          total: 1,
-        },
-      },
-    });
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   });
-
-  it("closes the current cash period", async () => {
-    closeOperationalCashClosure.mockResolvedValue({
-      action: "close",
-      periodId: 7,
-      nextPeriodId: 8,
-      closure: {
-        id: 44,
-        periodId: 7,
-        openedAt: "2026-04-23 08:00:00+00",
-        closedAt: "2026-04-23 18:00:00+00",
-        operator: "Gestor Teste",
-        totals: {
-          cash: "320.00",
-          fund: "50.00",
-          overall: "350.00",
-        },
-        createdAt: "2026-04-23 18:00:00+00",
-        snapshot: {
-          period: {
-            ini: "2026-04-23 08:00:00+00",
-            fim: "2026-04-23 18:00:00+00",
-          },
-        },
-      },
-      closedSummary: {
-        period: {
-          id: 7,
-          openedAt: "2026-04-23 08:00:00+00",
-          closedAt: "2026-04-23 18:00:00+00",
-          operator: "Gestor Teste",
-          closureSheetId: null,
-        },
-        funds: [],
-        sangrias: [],
-        totals: {
-          cashSales: "320.00",
-          fund: "50.00",
-          sangria: "20.00",
-          cashInDrawer: "350.00",
-        },
-      },
-      currentSummary: {
-        period: {
-          id: 8,
-          openedAt: "2026-04-23 18:00:00+00",
-          closedAt: null,
-          operator: null,
-          closureSheetId: null,
-        },
-        funds: [],
-        sangrias: [],
-        totals: {
-          cashSales: "0.00",
-          fund: "0.00",
-          sangria: "0.00",
-          cashInDrawer: "0.00",
-        },
-      },
-      auditLogId: 981,
-      message: "Caixa fechado com sucesso.",
-    });
-
-    const { POST } = await import("@/app/api/ops/cash-closures/route");
-    const response = await POST(
-      new Request("https://example.com/api/ops/cash-closures", {
-        method: "POST",
-        headers: {
-          authorization: "Bearer ops-token",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          reason: "Fechamento manual",
-          operatorName: "Gestor Teste",
-          actor: {
-            name: "Gestor Teste",
-          },
-        }),
-      }),
-    );
-    const body = await response.json();
-
+  it.each([POST, panelPost])("uses the authenticated manager for reconciliation", async (post) => {
+    close.mockResolvedValue({ action: "close", nextPeriodId: null, currentSummary: null });
+    const response = await post(request());
     expect(response.status).toBe(200);
-    expect(closeOperationalCashClosure).toHaveBeenCalledWith({
-      reason: "Fechamento manual",
-      operatorName: "Gestor Teste",
-      actor: {
-        name: "Gestor Teste",
-        cpf: null,
-      },
-    });
-    expect(body).toEqual({
-      ok: true,
-      data: {
-        action: "close",
-        periodId: 7,
-        nextPeriodId: 8,
-        closure: {
-          id: 44,
-          periodId: 7,
-          openedAt: "2026-04-23 08:00:00+00",
-          closedAt: "2026-04-23 18:00:00+00",
-          operator: "Gestor Teste",
-          totals: {
-            cash: "320.00",
-            fund: "50.00",
-            overall: "350.00",
-          },
-          createdAt: "2026-04-23 18:00:00+00",
-          snapshot: {
-            period: {
-              ini: "2026-04-23 08:00:00+00",
-              fim: "2026-04-23 18:00:00+00",
-            },
-          },
-        },
-        closedSummary: {
-          period: {
-            id: 7,
-            openedAt: "2026-04-23 08:00:00+00",
-            closedAt: "2026-04-23 18:00:00+00",
-            operator: "Gestor Teste",
-            closureSheetId: null,
-          },
-          funds: [],
-          sangrias: [],
-          totals: {
-            cashSales: "320.00",
-            fund: "50.00",
-            sangria: "20.00",
-            cashInDrawer: "350.00",
-          },
-        },
-        currentSummary: {
-          period: {
-            id: 8,
-            openedAt: "2026-04-23 18:00:00+00",
-            closedAt: null,
-            operator: null,
-            closureSheetId: null,
-          },
-          funds: [],
-          sangrias: [],
-          totals: {
-            cashSales: "0.00",
-            fund: "0.00",
-            sangria: "0.00",
-            cashInDrawer: "0.00",
-          },
-        },
-        auditLogId: 981,
-        message: "Caixa fechado com sucesso.",
-      },
-    });
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(close).toHaveBeenCalledWith({ reason: "Reconciliacao", operatorName: "Gestor", actor: { name: "Gestor", cpf: "123" } });
+    expect((await response.json()).data.nextPeriodId).toBeNull();
+  });
+  it("rejects a panel operator even when cash permission is present", async () => {
+    access.mockResolvedValue({ ok: true, session: { legacyRoleId: 2 } });
+    const response = await POST(request());
+    expect(response.status).toBe(403);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(close).not.toHaveBeenCalled();
+  });
+  it.each([GET, POST])("rejects unauthenticated and bearer-only interactive access", async (handler) => {
+    access.mockResolvedValue({ ok: false, response: new Response(null, { status: 401 }) });
+    const response = await handler(request());
+    expect(response.status).toBe(401);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(close).not.toHaveBeenCalled();
+    expect(list).not.toHaveBeenCalled();
+  });
+  it("preserves conflict status privately", async () => {
+    close.mockRejectedValue(Object.assign(new Error("Selecione caixa"), { status: 409, code: "cash_session_required" }));
+    const response = await POST(request());
+    expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   });
 });

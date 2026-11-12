@@ -41,6 +41,18 @@ describe("operational date offer", () => {
     mock.query.mockImplementation(async (sql: string) => ({ rows: sql.includes("FROM operacao_dias") ? [{ ...configuration, ticketTypes: [] }] : [] }));
     expect((await loadOperationalDayOffer(agenda)).products).toEqual([]);
   });
+  it("offers gate-only and free services at gate prices without the site's availability filter", async () => {
+    mock.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM operacao_dias")) return { rows: [configuration] };
+      expect(sql).not.toContain("s.preco_site IS NOT NULL");
+      expect(sql).toContain("s.ativo=TRUE");
+      return { rows: [{ ...service, sitePrice: null, gatePrice: "0.00" }] };
+    });
+    const offer = await loadOperationalDayOffer(agenda, undefined, "gate");
+    expect(offer.products[0]).toMatchObject({ sitePrice: "110.00", boxOfficePrice: "120.00" });
+    expect(offer.products.at(-1)).toMatchObject({ operationalServiceId: 17, sitePrice: "", boxOfficePrice: "0.00" });
+    expect(offer.validity).toEqual({ validFrom: "2099-01-31", validUntil: "2099-02-06" });
+  });
   it.each([{ state: "closed" }, { agendaId: 99 }, { priceTableId: 99 }, { ticketTypes: ["escol"] }, { ticketTypes: null }])("refuses inconsistent or closed configuration %j", async (change) => {
     mock.query.mockResolvedValue({ rows: [{ ...configuration, ...change }] });
     await expect(loadOperationalDayOffer(agenda)).rejects.toMatchObject({ code: "agenda_unavailable", status: 409 });

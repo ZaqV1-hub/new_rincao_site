@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { PainelBilheteriaHistoryEditor } from "@/components/painel-bilheteria-history-editor";
@@ -49,6 +49,7 @@ export default async function PainelBilheteriaHistoricoPage({
   searchParams,
 }: {
   searchParams: Promise<{
+    periodId?: string;
     idcompra?: string;
     cpf?: string;
     valor?: string;
@@ -72,6 +73,8 @@ export default async function PainelBilheteriaHistoricoPage({
   }
 
   const params = await searchParams;
+  const candidatePeriodId = typeof params.periodId === "string" && /^\d+$/.test(params.periodId) ? Number(params.periodId) : 0;
+  const periodId = Number.isSafeInteger(candidatePeriodId) && candidatePeriodId > 0 && candidatePeriodId <= 2147483647 ? candidatePeriodId : undefined;
   const history = await listPainelBilheteriaHistory({
     purchaseId: params.idcompra,
     cpf: params.cpf,
@@ -92,6 +95,7 @@ export default async function PainelBilheteriaHistoricoPage({
       : null;
 
   const baseQuery = new URLSearchParams();
+  if (periodId) baseQuery.set("periodId", String(periodId));
 
   if (history.filters.purchaseId) {
     baseQuery.set("idcompra", history.filters.purchaseId);
@@ -149,6 +153,8 @@ export default async function PainelBilheteriaHistoricoPage({
         description="Consulta auditável de compras de bilheteria e reservas, com filtro operacional e abertura inline de detalhe ou edição."
         actorName={session.actorName}
       />
+
+      {periodId ? <Link href={`/painel/caixas/${periodId}?tab=consultation`} className="justify-self-start underline">Voltar ao caixa #{periodId}</Link> : null}
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="rounded-[6px] border border-[#d3dde6] bg-white p-6 shadow-[0_8px_22px_rgba(31,67,98,0.08)]">
@@ -278,6 +284,7 @@ export default async function PainelBilheteriaHistoricoPage({
             Filtrar
           </div>
           <form method="GET" className="grid gap-4 p-4">
+            {periodId ? <input type="hidden" name="periodId" value={periodId} /> : null}
             <label className="grid gap-2 text-sm font-semibold text-[#345062]">
               ID da compra
               <input
@@ -340,7 +347,7 @@ export default async function PainelBilheteriaHistoricoPage({
               Filtrar
             </button>
             <Link
-              href="/painel/bilheteria/historico"
+              href={periodId ? `/painel/bilheteria/historico?periodId=${periodId}` : "/painel/bilheteria/historico"}
               className="text-center text-sm font-semibold text-[#205a7f] hover:underline"
             >
               Limpar
@@ -384,6 +391,7 @@ export default async function PainelBilheteriaHistoricoPage({
                 />
               ) : (
                 <PainelBilheteriaPurchaseDetail
+                  periodId={periodId}
                   detail={selectedDetail}
                   actorName={session.actorName}
                   actorCpf={session.actorCpf}

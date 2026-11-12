@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { formatPainelBilheteriaMoney as formatMoney } from "@/lib/painel-bilheteria-format";
@@ -170,8 +171,6 @@ function resolveErrorTarget(code: string | null): ErrorTarget {
 
 export function PainelBilheteriaHistoryEditor({
   detail,
-  actorName,
-  actorCpf,
   paymentOptions,
   returnHref = `/painel/bilheteria/historico/${detail.purchaseId}`,
 }: PainelBilheteriaHistoryEditorProps) {
@@ -193,6 +192,7 @@ export function PainelBilheteriaHistoryEditor({
   const [success, setSuccess] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [readOnly, setReadOnly] = useState(false);
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
   const voucherTotal = useMemo(
     () =>
@@ -357,6 +357,7 @@ export function PainelBilheteriaHistoryEditor({
   }
 
   async function handleSubmit() {
+    if (readOnly || submitting) return;
     const trimmedReason = reason.trim();
 
     if (!hasChanges) {
@@ -415,10 +416,6 @@ export function PainelBilheteriaHistoryEditor({
               : null,
           })),
           payments,
-          actor: {
-            name: actorName,
-            cpf: actorCpf,
-          },
         }),
       });
 
@@ -428,18 +425,21 @@ export function PainelBilheteriaHistoryEditor({
           response,
           "Não foi possível salvar a edição da venda agora.",
         );
+        if (payload.code === "purchase_financial_adjustment_required" || payload.code === "cash_session_closed") {
+          setReadOnly(true);
+        }
         setError(payload.message);
         setErrorTarget(resolveErrorTarget(payload.code));
         return;
       }
 
       const payload = (await response.json().catch(() => null)) as
-        | { message?: string; warnings?: string[] }
+        | { data?: { message?: string; warnings?: string[] } }
         | null;
 
-      const nextSuccess = payload?.message?.trim() || "Alteracoes salvas.";
-      const nextWarnings = Array.isArray(payload?.warnings)
-        ? payload.warnings.filter(
+      const nextSuccess = payload?.data?.message?.trim() || "Alteracoes salvas.";
+      const nextWarnings = Array.isArray(payload?.data?.warnings)
+        ? payload.data.warnings.filter(
             (warning): warning is string =>
               typeof warning === "string" && warning.trim() !== "",
           )
@@ -458,13 +458,16 @@ export function PainelBilheteriaHistoryEditor({
 
       router.replace(`${returnHref}${returnHref.includes("?") ? "&" : "?"}${params.toString()}`);
       router.refresh();
+    } catch {
+      setConfirmSaveOpen(false);
+      setError("Não foi possível confirmar a alteração. Consulte o histórico antes de tentar novamente.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <fieldset aria-label="Edição da compra" disabled={readOnly || submitting} className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <section className="rounded-[28px] border border-[#d7e5ef] bg-white p-6 shadow-[0_12px_34px_rgba(31,67,98,0.08)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -852,6 +855,7 @@ export function PainelBilheteriaHistoryEditor({
           {error ? (
             <div className="mt-4 rounded-[18px] border border-[#f0bbb1] bg-[#fff2ef] px-4 py-3 text-sm text-[#9f3d2f]">
               {error}
+              {readOnly ? <p className="mt-2">Edição bloqueada para preservar o histórico financeiro. <Link href="/painel/caixas" className="font-semibold underline">Consultar caixas</Link>.</p> : null}
             </div>
           ) : null}
           {success ? (
@@ -871,13 +875,9 @@ export function PainelBilheteriaHistoryEditor({
           ) : null}
 
           <div className="mt-5 flex flex-wrap justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => router.replace(returnHref)}
-              className="rounded-full border border-[#c9d8e3] px-5 py-3 text-sm font-semibold text-[#205a7f]"
-            >
-              Cancelar
-            </button>
+            <Link href={returnHref} className="rounded-full border border-[#c9d8e3] px-5 py-3 text-sm font-semibold text-[#205a7f]">
+              {readOnly ? "Voltar ao histórico" : "Cancelar"}
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -942,6 +942,6 @@ export function PainelBilheteriaHistoryEditor({
           </div>
         </div>
       ) : null}
-    </div>
+    </fieldset>
   );
 }

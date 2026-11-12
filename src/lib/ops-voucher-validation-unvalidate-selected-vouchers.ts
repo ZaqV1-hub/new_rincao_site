@@ -1,11 +1,13 @@
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getVouchersByIds } from "@/lib/ops-voucher-validation-queries";
-import { VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, normalizeVoucherIds, normalizeCpfDigits, registerVoucherOperationAuditLog, markVoucherUnused, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
+import { requireVoucherPeriodId, lockVoucherCashContext, assertVoucherReversalAllowed, VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, normalizeVoucherIds, normalizeCpfDigits, registerVoucherOperationAuditLog, markVoucherUnused, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
 
 export async function unvalidateSelectedVouchers(
   voucherIdsInput: number[],
   actor?: VoucherOperationInputActor | null,
+  periodId?: number,
 ): Promise<VoucherOperationSuccess> {
+  requireVoucherPeriodId(periodId);
   const voucherIds = normalizeVoucherIds(voucherIdsInput);
 
   if (voucherIds.length === 0) {
@@ -16,11 +18,13 @@ export async function unvalidateSelectedVouchers(
     );
   }
 
+  const { date } = getSaoPauloDateParts();
   const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+    const cash = await lockVoucherCashContext(client, periodId, date, { voucherIds });
     const vouchers = await getVouchersByIds(client, voucherIds);
     const vouchersById = new Map(vouchers.map((voucher) => [voucher.idvoucher, voucher]));
     const affectedVoucherIds: number[] = [];
@@ -41,7 +45,8 @@ export async function unvalidateSelectedVouchers(
         continue;
       }
 
-      await markVoucherUnused(client, voucher.idvoucher);
+      assertVoucherReversalAllowed(voucher, cash);
+      await markVoucherUnused(client, voucher.idvoucher, date);
       affectedVoucherIds.push(voucher.idvoucher);
 
       console.info("ops-voucher-unvalidate", {
@@ -62,6 +67,7 @@ export async function unvalidateSelectedVouchers(
     }
 
     const auditLogId = await registerVoucherOperationAuditLog(client, {
+      cash: cash.session,
       action: "unvalidate",
       mode: "selection",
       actor,

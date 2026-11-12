@@ -7,6 +7,16 @@ export type VoucherValidationRow = {
   dtinicio_validade?: string | null;
   dtvalidade?: string | null;
   parque_operacional?: string | null;
+  validacao_periodo_id?: number | null;
+  validado_em?: string | null;
+  validado_por_nome?: string | null;
+  validacao_local_nome?: string | null;
+  periodo_id?: number | null;
+  closed_at?: string | null;
+  caixa_periodo_id?: number | null;
+  payment_period_ids?: number[];
+  tpvoucher?: string | null;
+  servico_id?: number | null;
   dtuso: string | null;
   hruso: string | null;
   idcompra: number | null;
@@ -58,6 +68,7 @@ export type VoucherAgendaUsageResult =
 export class VoucherOperationError extends Error {
   code: string;
   status: number;
+  details?: { validation: { periodId: number | null; locationName: string | null; validatedAt: string | null; date: string | null; time: string | null } };
 
   constructor(code: string, message: string, status: number) {
     super(message);

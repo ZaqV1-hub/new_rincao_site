@@ -1,15 +1,15 @@
-import { lockOperationalDay } from "@/lib/operational-day-lock";
-import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { ensureVoucherLifecycleSchema } from "@/lib/voucher-repository";
 import { getVouchersByPurchaseId } from "@/lib/ops-voucher-validation-queries";
-import { VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, normalizeCpfDigits, registerVoucherOperationAuditLog, isVoucherExpired, isOnlinePurchasePaid, isReservationPaid, buildReservationPaymentMessage, evaluateAgendaUsage, markVoucherUsed, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
+import { requireVoucherPeriodId, lockVoucherCashContext, buildAlreadyUsedMessage, VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, normalizeCpfDigits, registerVoucherOperationAuditLog, isVoucherExpired, isOnlinePurchasePaid, isReservationPaid, buildReservationPaymentMessage, evaluateAgendaUsage, markVoucherUsed, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
 
 export async function validatePurchaseVouchers(
   purchaseId: number,
   confirm = false,
   actor?: VoucherOperationInputActor | null,
+  periodId?: number,
 ): Promise<VoucherOperationSuccess> {
+  requireVoucherPeriodId(periodId);
   if (!Number.isInteger(purchaseId) || purchaseId <= 0) {
     throw new VoucherOperationError(
       "invalid_purchase_id",
@@ -25,7 +25,7 @@ export async function validatePurchaseVouchers(
 
   try {
     await client.query("BEGIN");
-    await lockOperationalDay(client, getOperationalParkId(), date);
+    const cash = await lockVoucherCashContext(client, periodId, date);
     const vouchers = await getVouchersByPurchaseId(client, purchaseId);
 
     if (vouchers.length === 0) {
@@ -41,6 +41,7 @@ export async function validatePurchaseVouchers(
 
     for (const voucher of vouchers) {
       if (voucher.stusado === "s" || voucher.stusado === "inv") {
+        if (voucher.stusado === "s") warnings.push(buildAlreadyUsedMessage(voucher));
         continue;
       }
 
@@ -76,8 +77,8 @@ export async function validatePurchaseVouchers(
         if (usage.status === "invalid") {
           throw new VoucherOperationError(usage.code, usage.message, 409);
         }
-      } else if (voucher.tpcompra === "reser") {
-        if (!isReservationPaid(voucher)) {
+      } else if ((voucher.tpcompra === "reser" || voucher.tpcompra === "bilhe")) {
+        if (voucher.tpcompra === "bilhe" ? voucher.stcompra !== "conc" : !isReservationPaid(voucher)) {
           throw new VoucherOperationError(
             "voucher_payment_required",
             buildReservationPaymentMessage(voucher),
@@ -92,19 +93,20 @@ export async function validatePurchaseVouchers(
         );
       }
 
-      await markVoucherUsed(client, voucher.idvoucher, date, time);
+      await markVoucherUsed(client, voucher.idvoucher, date, time, cash, actor);
       affectedVoucherIds.push(voucher.idvoucher);
     }
 
     if (affectedVoucherIds.length === 0) {
       throw new VoucherOperationError(
         "voucher_validation_unavailable",
-        "Nenhum voucher disponivel para validacao nesta compra.",
+        warnings[0] ?? "Nenhum voucher disponivel para validacao nesta compra.",
         409,
       );
     }
 
     const auditLogId = await registerVoucherOperationAuditLog(client, {
+      cash: cash.session,
       action: "validate",
       mode: "purchase",
       actor,

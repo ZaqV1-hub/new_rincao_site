@@ -1,7 +1,11 @@
 import { assertOnlineCapacityReleased, OnlineCapacityError } from "@/lib/online-capacity";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getNativeCieloCheckoutStatus, isCieloEcommerceConfigured } from "@/lib/cielo-ecommerce";
-import { registerOpsAuditLog } from "@/lib/ops-audit-log";
+import { isValidCpf } from "@/lib/cpf";
+import { getOperationalCatalogPool } from "@/lib/painel-operational-catalog";
+import { CashSessionError, lockOpenCashSession, withCashSessionCommand } from "@/lib/operational-cash-session";
+import { assertCashSessionDate, asBoxOfficeSaleError, readCashAmountCents, readCashPayments, settleCashPayments, cashCentsValue, insertCashPurchasePayments, type CashPaymentSettlement } from "@/lib/ops-box-office-sales";
+import { ensureOpsAuditLogTable, registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { queuePurchaseConfirmationEmail } from "@/lib/purchase-confirmation-email";
 import { sendPurchaseTicketsWhatsApp } from "@/lib/ticket-service";
 import { mapCheckoutStatusPayload } from "@/lib/checkout-status";
@@ -157,6 +161,8 @@ export type PainelBilheteriaPaymentMethodOption = {
 
 export type PayPainelReservationInput = {
   purchaseId: number;
+  periodId: number;
+  idempotencyKey: string;
   payments: Array<{
     method: string;
     value: string | number;
@@ -171,7 +177,8 @@ export type SendPainelBilheteriaVoucherWhatsappInput = {
   actor?: BilheteriaActor | null;
 };
 
-export type PayPainelReservationSuccess = {
+export type PayPainelReservationSuccess = CashPaymentSettlement & {
+  periodId: number;
   purchaseId: number;
   status: "conc";
   totalValue: string;
@@ -1173,192 +1180,55 @@ export async function getPainelBilheteriaGatewayStatus(
   };
 }
 
-export async function payPainelBilheteriaReservation(
-  input: PayPainelReservationInput,
-) {
-  if (!Number.isInteger(input.purchaseId) || input.purchaseId <= 0) {
-    throw new PainelBilheteriaError(
-      "invalid_purchase_id",
-      "Informe uma reserva valida.",
-      400,
-    );
+export async function payPainelBilheteriaReservation(input: PayPainelReservationInput): Promise<PayPainelReservationSuccess> {
+  if (!Number.isSafeInteger(input.purchaseId) || input.purchaseId <= 0 || !Number.isSafeInteger(input.periodId) || input.periodId <= 0) {
+    throw new PainelBilheteriaError("invalid_purchase_id", "Informe uma reserva e um caixa válidos.", 400);
   }
-
-  const normalizedPayments = (Array.isArray(input.payments) ? input.payments : [])
-    .map((payment) => ({
-      method: String(payment.method ?? "").trim(),
-      value: parseMoney(payment.value),
-    }))
-    .filter(
-      (payment): payment is { method: string; value: number } =>
-        payment.method !== "" && payment.value != null && payment.value > 0,
-    );
-
-  if (normalizedPayments.length === 0) {
-    throw new PainelBilheteriaError(
-      "reservation_payments_required",
-      "Informe ao menos uma forma de pagamento.",
-      400,
-    );
-  }
-
-  const pool = getIngressoSistemaDbPool();
-  const client = await pool.connect();
-  let paymentResult: PayPainelReservationSuccess;
-
+  if (typeof input.idempotencyKey !== "string" || !/^[A-Za-z0-9._:-]{8,100}$/.test(input.idempotencyKey)) throw new PainelBilheteriaError("invalid_idempotency_key", "Informe uma chave de idempotência válida.", 400);
+  const payments = readCashPayments(input.payments);
+  const actor = { name: String(input.actor?.name ?? "").trim() || null, cpf: normalizeCpf(input.actor?.cpf ?? "") || null };
+  const client = await getOperationalCatalogPool().connect();
+  let discard = false; let received = false; let result: PayPainelReservationSuccess;
   try {
-    await client.query("BEGIN");
-    const purchaseResult = await client.query<PurchaseDetailRow>(
-      `
-        SELECT
-          compra.idcompra,
-          compra.dtcompra::text AS dtcompra,
-          compra.cpf,
-          compra.tpcompra,
-          compra.stcompra,
-          compra.formapag,
-          compra.vltotcompra::text AS vltotcompra,
-          compra.dtpagamento::text AS dtpagamento,
-          compra.hrpagamento::text AS hrpagamento
-        FROM compra
-        WHERE compra.idcompra = $1
-          AND compra.tpcompra = 'reser'
-        LIMIT 1
-        FOR UPDATE
-      `,
-      [input.purchaseId],
-    );
-    const purchase = purchaseResult.rows[0] ?? null;
-
-    if (!purchase) {
-      throw new PainelBilheteriaError(
-        "reservation_not_found",
-        "Reserva nao encontrada.",
-        404,
-      );
-    }
-
-    if (String(purchase.stcompra ?? "").trim() === "canc") {
-      throw new PainelBilheteriaError(
-        "reservation_cancelled",
-        "Nao e possivel pagar uma reserva cancelada.",
-        409,
-      );
-    }
-
-    const totalValue = Number(purchase.vltotcompra ?? 0);
-    const totalPayments = normalizedPayments.reduce(
-      (sum, payment) => sum + payment.value,
-      0,
-    );
-
-    if (Math.abs(totalPayments - totalValue) > 0.01) {
-      throw new PainelBilheteriaError(
-        "reservation_payments_total_mismatch",
-        `Total informado (R$ ${roundMoney(totalPayments).toFixed(2)}) difere do valor da reserva (R$ ${roundMoney(totalValue).toFixed(2)}).`,
-        409,
-      );
-    }
-
-    if (purchase.dtpagamento) {
+    await ensureOpsAuditLogTable(client, "postgres"); await client.query("BEGIN");
+    try {
+      result = await withCashSessionCommand(client, { action: "reservation_pay", key: input.idempotencyKey, periodId: input.periodId,
+        payload: { purchaseId: input.purchaseId, periodId: input.periodId, payments } }, async () => {
+        const session = await lockOpenCashSession(client, { periodId: input.periodId, expectedType: "sales" });
+        const purchase = (await client.query<PurchaseDetailRow>(`SELECT idcompra,cpf,tpcompra,stcompra,formapag,vltotcompra::text AS vltotcompra,dtpagamento::text AS dtpagamento
+          FROM compra WHERE idcompra=$1 AND tpcompra='reser' FOR UPDATE`, [input.purchaseId])).rows[0];
+        if (!purchase) throw new PainelBilheteriaError("reservation_not_found", "Reserva não encontrada.", 404);
+        if (purchase.stcompra === "canc") throw new PainelBilheteriaError("reservation_cancelled", "Não é possível pagar uma reserva cancelada.", 409);
+        if (!purchase.cpf || !isValidCpf(purchase.cpf)) throw new PainelBilheteriaError("reservation_invalid_cpf", "Corrija o CPF no cadastro da reserva antes de receber o pagamento.", 409);
+        const foreignVoucher = await client.query("SELECT idvoucher FROM voucher WHERE idcompra=$1 AND parque_operacional IS NOT NULL AND parque_operacional<>$2 LIMIT 1", [input.purchaseId, session.park]);
+        if (foreignVoucher.rows.length) throw new PainelBilheteriaError("reservation_park_mismatch", "A reserva possui ingressos de outro parque. Receba no caixa do parque correspondente.", 409);
+        const existing = await client.query("SELECT id FROM compra_pagamentos WHERE idcompra=$1 LIMIT 1", [input.purchaseId]);
+        if (purchase.dtpagamento || existing.rows.length > 0 || (purchase.formapag && !["", "N/A"].includes(purchase.formapag.trim().toUpperCase()))) {
+          throw new PainelBilheteriaError("reservation_already_paid", "A reserva já possui recebimento. Use o ajuste financeiro explícito; não receba novamente.", 409);
+        }
+        const settlement = settleCashPayments(readCashAmountCents(purchase.vltotcompra), payments);
+        await assertCashSessionDate(client, session.date);
+        await client.query(`UPDATE compra SET dtpagamento=(clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::date,hrpagamento=(clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::time,formapag=$2,stcompra='conc' WHERE idcompra=$1`, [input.purchaseId, settlement.netPayments[0]?.method ?? "corte"]);
+        await insertCashPurchasePayments(client, input.purchaseId, input.periodId, settlement.netPayments);
+        const auditLogId = await registerOpsAuditLog(client, { origem: "compra", acao: "editar", compraId: input.purchaseId, periodoId: input.periodId,
+          descricao: "Pagamento de reserva confirmado no caixa.", motivo: "Pagamento operacional da reserva no painel.", usuarioNome: actor.name,
+          detalhes: { park: session.park, date: session.date, actorCpf: actor.cpf, periodId: input.periodId, ...settlement, deliveredPayments: payments, idempotencyKey: input.idempotencyKey } }, "postgres");
+        await assertCashSessionDate(client, session.date);
+        received = true;
+        return { periodId: input.periodId, response: { purchaseId: input.purchaseId, periodId: input.periodId, status: "conc" as const, ...settlement,
+          totalValue: cashCentsValue(settlement.totalCents), paymentMethods: settlement.netPayments.map((payment) => payment.method), message: "Pagamento da reserva confirmado com sucesso.", alreadyPaid: false, auditLogId } };
+      });
       await client.query("COMMIT");
-
-      return {
-        purchaseId: purchase.idcompra,
-        status: "conc",
-        totalValue: formatMoney(totalValue),
-        paymentMethods: normalizedPayments.map((payment) => payment.method),
-        message: "Reserva ja estava paga.",
-        alreadyPaid: true,
-        auditLogId: null,
-      } satisfies PayPainelReservationSuccess;
-    }
-
-    await client.query(
-      `
-        UPDATE compra
-        SET
-          dtpagamento = CURRENT_DATE,
-          hrpagamento = CURRENT_TIME,
-          formapag = $2,
-          stcompra = 'conc'
-        WHERE idcompra = $1
-      `,
-      [input.purchaseId, normalizedPayments[0].method],
-    );
-
-    await client.query("DELETE FROM compra_pagamentos WHERE idcompra = $1", [
-      input.purchaseId,
-    ]);
-
-    for (const payment of normalizedPayments) {
-      await client.query(
-        `
-          INSERT INTO compra_pagamentos (
-            idcompra,
-            forma_pagamento,
-            valor,
-            created_at
-          ) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-        `,
-        [input.purchaseId, payment.method, payment.value.toFixed(2)],
-      );
-    }
-
-    const auditLogId = await registerOpsAuditLog(
-      client,
-      {
-        origem: "compra",
-        acao: "editar",
-        compraId: input.purchaseId,
-        descricao: `Pagamento de reserva confirmado em ${normalizedPayments
-          .map(
-            (payment) =>
-              `${formatPaymentMethodLabel(payment.method)} ${formatMoney(payment.value)}`,
-          )
-          .join("; ")}`,
-        motivo: "Pagamento operacional da reserva no painel.",
-        usuarioNome:
-          [String(input.actor?.name ?? "").trim(), normalizeCpf(input.actor?.cpf ?? "")]
-            .filter(Boolean)
-            .join(" ") || null,
-        detalhes: {
-          via: "apps/web",
-          paymentMethods: normalizedPayments.map((payment) => ({
-            method: payment.method,
-            value: payment.value.toFixed(2),
-          })),
-          actor: {
-            name: String(input.actor?.name ?? "").trim() || null,
-            cpf: normalizeCpf(input.actor?.cpf ?? "") || null,
-          },
-        },
-      },
-      "postgres",
-    );
-
-    await client.query("COMMIT");
-    paymentResult = {
-      purchaseId: input.purchaseId,
-      status: "conc",
-      totalValue: formatMoney(totalValue),
-      paymentMethods: normalizedPayments.map((payment) => payment.method),
-      message: "Pagamento da reserva confirmado com sucesso.",
-      alreadyPaid: false,
-      auditLogId,
-    } satisfies PayPainelReservationSuccess;
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
-
-  await queuePurchaseConfirmationEmail(input.purchaseId).catch(() => undefined);
-  return paymentResult;
+    } catch (error) { try { await client.query("ROLLBACK"); } catch { discard = true; } throw error; }
+  } finally { client.release(discard); }
+  if (received) await queuePurchaseConfirmationEmail(input.purchaseId).catch(() => undefined);
+  return result;
 }
 
 export function asPainelBilheteriaError(error: unknown) {
+  if (error instanceof CashSessionError) return error;
+  const saleError = asBoxOfficeSaleError(error);
+  if (saleError.code !== "box_office_sale_unavailable") return saleError;
   if (error instanceof PainelBilheteriaError) {
     return error;
   }

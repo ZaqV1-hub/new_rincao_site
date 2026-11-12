@@ -4,6 +4,7 @@ import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { syncTicketValidation } from "@/lib/ticket-service";
 
 type PurchaseRow = {
+  cash_linked: boolean;
   idcompra: number;
   tpcompra: string | null;
   stcompra: string | null;
@@ -155,6 +156,10 @@ function getSaoPauloDateParts(date = new Date()) {
 }
 
 async function getPurchaseById(client: PoolClient, purchaseId: number) {
+  // A separate statement refreshes the READ COMMITTED snapshot after a concurrent
+  // receipt or admission releases the purchase lock. Subqueries in the waiting
+  // FOR UPDATE statement would otherwise retain the earlier snapshot.
+  await client.query("SELECT idcompra FROM compra WHERE idcompra=$1 FOR UPDATE", [purchaseId]);
   const result = await client.query<PurchaseRow>(
     `
       SELECT
@@ -164,11 +169,13 @@ async function getPurchaseById(client: PoolClient, purchaseId: number) {
         compra.vltotcompra::text AS vltotcompra,
         compra.dtcompra::text AS dtcompra,
         compra.cpf,
-        compra.formapag
+        compra.formapag,
+        (compra.caixa_periodo_id IS NOT NULL
+          OR EXISTS (SELECT 1 FROM compra_pagamentos cp WHERE cp.idcompra=compra.idcompra AND cp.periodo_id IS NOT NULL)
+          OR EXISTS (SELECT 1 FROM voucher v WHERE v.idcompra=compra.idcompra AND v.validacao_periodo_id IS NOT NULL)) AS cash_linked
       FROM compra
       WHERE compra.idcompra = $1
       LIMIT 1
-      FOR UPDATE
     `,
     [purchaseId],
   );
@@ -701,6 +708,8 @@ export async function cancelOperationalPurchase(
       );
     }
 
+    if (purchase.cash_linked) throw new PurchaseOperationError("purchase_financial_adjustment_required", "Esta compra possui operação em caixa. Use um ajuste financeiro explícito; edição e cancelamento legados não alteram recebimentos nem entradas.", 409);
+
     if (purchase.stcompra === "canc") {
       throw new PurchaseOperationError(
         "purchase_already_cancelled",
@@ -877,6 +886,8 @@ export async function updateOperationalPurchase(
         404,
       );
     }
+
+    if (purchase.cash_linked) throw new PurchaseOperationError("purchase_financial_adjustment_required", "Esta compra possui operação em caixa. Use um ajuste financeiro explícito; edição e cancelamento legados não alteram recebimentos nem entradas.", 409);
 
     if (purchase.stcompra === "canc") {
       throw new PurchaseOperationError(

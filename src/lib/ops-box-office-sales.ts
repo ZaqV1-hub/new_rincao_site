@@ -1,699 +1,87 @@
 import { randomInt } from "node:crypto";
 import type { PoolClient } from "pg";
-import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
-import {
-  ensureOpsAuditLogTable,
-  registerOpsAuditLog,
-} from "@/lib/ops-audit-log";
-import { getOrCreateOpenCashPeriod } from "@/lib/ops-cash-management";
+import { ensureOpsAuditLogTable, registerOpsAuditLog } from "@/lib/ops-audit-log";
+import { getOperationalCatalogPool } from "@/lib/painel-operational-catalog";
+import { CashSessionError, lockOpenCashSession, withCashSessionCommand } from "@/lib/operational-cash-session";
+import { isValidCpf, sanitizeCpf } from "@/lib/cpf";
+import { voucherValidityRange, type OperationalValidity } from "@/lib/operational-date";
 import { processConfirmedPurchaseTickets } from "@/lib/ticket-service";
 
-type BoxOfficeActor = {
-  name?: string | null;
-  cpf?: string | null;
-};
-
-type BoxOfficeAgendaRow = {
-  idagenda: number;
-  dtagenda: string | null;
-  tpagenda: string | null;
-  stagenda: string | null;
-  vlnormalbil: string | null;
-  vlinfantbil: string | null;
-};
-
-type BoxOfficeDiscountRow = {
-  id: number;
-  nome: string | null;
-  tipo_aplicacao: string | null;
-  valor: string | null;
-};
-
-type BoxOfficeCourtesyAuthorRow = {
-  id: number;
-  nome: string | null;
-};
-
-type PurchaseInsertRow = {
-  idcompra: number;
-};
-
-type CommittedBoxOfficeSale = {
-  purchaseId: number;
-  agendaId: number;
-  totalValue: number;
-  paymentMethods: string[];
-  voucherIds: number[];
-  auditLogId: number | null;
-  replayed: boolean;
-};
-
-type IdempotentSaleRow = {
-  audit_log_id: number;
-  purchase_id: number;
-  total_value: string | null;
-  payment_method: string | null;
-  voucher_ids: number[] | string | null;
-  detalhes_json: string | null;
-};
-
-export type BoxOfficeSaleItemInput = {
-  type: "norma" | "infan" | "isent" | string;
-  quantity: number;
-  discountId?: number | null;
-  label?: string | null;
-};
-
-export type BoxOfficeSaleCourtesyInput = {
-  authorId: number;
-  authorizedById?: number | null;
-  quantity: number;
-  identification?: string | null;
-  note?: string | null;
-};
-
-export type BoxOfficeSalePaymentInput = {
-  method: string;
-  value: string | number;
-};
-
+type BoxOfficeActor = { name?: string | null; cpf?: string | null };
+export type BoxOfficeSaleItemInput = { type: string; quantity: number; discountId?: number | null; label?: string | null };
+export type BoxOfficeSaleCourtesyInput = { authorId: number; authorizedById?: number | null; quantity: number; identification?: string | null; note?: string | null };
+export type BoxOfficeSalePaymentInput = { method: string; value: string | number };
+export type CashPayment = { method: string; amountCents: number };
+export type CashPaymentSettlement = { totalCents: number; receivedCents: number; changeCents: number; netPayments: CashPayment[] };
 export type CreateBoxOfficeSaleInput = {
-  agendaId: number;
-  cpf?: string | null;
-  items?: BoxOfficeSaleItemInput[];
-  courtesies?: BoxOfficeSaleCourtesyInput[];
-  payments?: BoxOfficeSalePaymentInput[];
-  reason?: string | null;
-  actor?: BoxOfficeActor | null;
-  idempotencyKey?: string | null;
+  agendaId: number; periodId: number; cpf?: string | null; items?: BoxOfficeSaleItemInput[];
+  services?: { serviceId: number; quantity: number }[]; courtesies?: BoxOfficeSaleCourtesyInput[];
+  payments?: BoxOfficeSalePaymentInput[]; reason?: string | null; actor?: BoxOfficeActor | null; idempotencyKey: string;
 };
-
-type NormalizedSaleItem = {
-  type: "norma" | "infan" | "isent";
-  label: string;
-  quantity: number;
-  discountId: number | null;
+export type BoxOfficeSaleSuccess = CashPaymentSettlement & {
+  action: "create"; purchaseId: number; agendaId: number; periodId: number; totalValue: string;
+  paymentMethods: string[]; voucherIds: number[]; voucherCount: number; auditLogId: number | null; warnings: string[]; message: string;
 };
-
-type NormalizedCourtesy = {
-  authorId: number;
-  quantity: number;
-  identification: string;
-  note: string;
-};
-
-type NormalizedPayment = {
-  method: string;
-  value: number;
-};
-
-type VoucherDraft = {
-  type: "norma" | "infan" | "isent" | "corte";
-  prefix: string;
-  value: number;
-  discountId: number | null;
-  discountFlag: "s" | "n";
-  description: string;
-  identification: string | null;
-  courtesyAuthorId: number | null;
-};
-
-export type BoxOfficeSaleSuccess = {
-  action: "create";
-  purchaseId: number;
-  agendaId: number;
-  totalValue: string;
-  paymentMethods: string[];
-  voucherIds: number[];
-  voucherCount: number;
-  auditLogId: number | null;
-  warnings: string[];
-  message: string;
-};
-
+type AgendaRow = { idagenda: number; dtagenda: string; vlnormalbil: string | null; vlinfantbil: string | null; validity: OperationalValidity; ticketTypes: string[] };
+type Discount = { id: number; nome: string | null; tipo_aplicacao: string; valor: string };
+type VoucherDraft = { type: string; prefix: string; amountCents: number; discountId: number | null; description: string; identification: string | null; courtesyAuthorId: number | null; serviceId: number | null; discountCents: number };
 class BoxOfficeSaleError extends Error {
-  code: string;
-  status: number;
-
-  constructor(code: string, message: string, status: number) {
-    super(message);
-    this.name = "BoxOfficeSaleError";
-    this.code = code;
-    this.status = status;
-  }
+  constructor(readonly code: string, message: string, readonly status: number) { super(message); this.name = "BoxOfficeSaleError"; }
 }
-
 export function asBoxOfficeSaleError(error: unknown) {
-  if (error instanceof BoxOfficeSaleError) {
-    return error;
-  }
-
-  return new BoxOfficeSaleError(
-    "box_office_sale_unavailable",
-    "Nao foi possivel registrar a venda de bilheteria agora.",
-    502,
-  );
+  if (error instanceof BoxOfficeSaleError || error instanceof CashSessionError) return error;
+  return new BoxOfficeSaleError("box_office_sale_unavailable", "Não foi possível registrar a venda de bilheteria agora.", 502);
 }
-
-function normalizeText(value: string | null | undefined) {
-  return String(value ?? "").trim();
+function invalid(message = "Dados da venda inválidos."): never { throw new BoxOfficeSaleError("invalid_box_office_payload", message, 400); }
+function id(value: unknown, max = 2147483647): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1 || value > max) invalid("Informe identificadores válidos de agenda e caixa.");
+  return value;
 }
-
-function normalizeCpf(value: string | null | undefined) {
-  const digits = String(value ?? "").replace(/\D+/g, "");
-  return digits.length === 11 ? digits : null;
+function boundedText(value: unknown, max: number): string {
+  if (value === undefined || value === null) return "";
+  if (typeof value !== "string" || value.length > max || value.includes("\0")) invalid();
+  return value.trim();
 }
-
-function parseMoney(value: string | number | null | undefined) {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-
-  const raw = String(value ?? "").trim().replace(/^R\$\s*/i, "");
-  const normalized =
-    raw.includes(",") && raw.includes(".")
-      ? raw.replace(/\./g, "").replace(",", ".")
-      : raw.includes(",")
-        ? raw.replace(",", ".")
-        : raw;
-  const parsed = Number(normalized);
-
-  return Number.isFinite(parsed) ? parsed : null;
+function quantity(value: unknown): number { const result = id(value); if (result > 500) invalid("A venda permite no máximo 500 unidades."); return result; }
+function list<T>(value: T[] | undefined): T[] { if (value === undefined) return []; if (!Array.isArray(value) || value.length > 500 || value.some((item) => !item || typeof item !== "object")) invalid(); return value; }
+export function readCashAmountCents(value: unknown): number {
+  if (typeof value !== "number" && typeof value !== "string") invalid("Informe valores em reais com até duas casas decimais.");
+  const raw = String(value).trim().replace(/^R\$\s*/i, "");
+  if (raw.includes(",") && !/^(?:\d+|\d{1,3}(?:\.\d{3})+),\d{1,2}$/.test(raw)) invalid("Valor monetário inválido.");
+  const normalized = raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw;
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) invalid("Informe valores não negativos com até duas casas decimais.");
+  const [whole, fraction = ""] = normalized.split(".");
+  const cents = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+  if (!Number.isSafeInteger(cents) || cents > 9999999999) invalid("Valor fora do intervalo permitido.");
+  return cents;
 }
-
-function money(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+export function cashCentsValue(cents: number): string { return (cents / 100).toFixed(2); }
+export function readCashPayments(value: BoxOfficeSalePaymentInput[] | undefined): CashPayment[] {
+  const payments = list(value); if (payments.length > 20) invalid("Informe até 20 pagamentos.");
+  const grouped = new Map<string, number>();
+  for (const item of payments) {
+    if (!["dinhe", "pix", "credi", "debit"].includes(item.method)) invalid("Selecione dinheiro, Pix, crédito ou débito.");
+    const cents = readCashAmountCents(item.value);
+    if (cents === 0) invalid("Não informe pagamento de valor zero.");
+    grouped.set(item.method, (grouped.get(item.method) ?? 0) + cents);
+  }
+  return [...grouped].map(([method, amountCents]) => ({ method, amountCents }));
 }
-
-function formatMoney(value: number) {
-  return money(value).toFixed(2);
+export function settleCashPayments(totalCents: number, payments: CashPayment[]): CashPaymentSettlement {
+  const receivedCents = payments.reduce((sum, payment) => sum + payment.amountCents, 0);
+  const changeCents = receivedCents - totalCents;
+  if (!Number.isSafeInteger(totalCents) || totalCents < 0 || totalCents > 9999999999 || !Number.isSafeInteger(receivedCents) || receivedCents > 9999999999) invalid("Total fora do intervalo permitido.");
+  if (changeCents < 0 || changeCents > (payments.find((payment) => payment.method === "dinhe")?.amountCents ?? 0)) {
+    throw new BoxOfficeSaleError("box_office_payment_mismatch", "O valor entregue deve cobrir o total; troco só pode sair do dinheiro entregue.", 409);
+  }
+  return { totalCents, receivedCents, changeCents, netPayments: payments.map((payment) => ({ ...payment, amountCents: payment.amountCents - (payment.method === "dinhe" ? changeCents : 0) })).filter((payment) => payment.amountCents > 0) };
 }
-
-function addMonths(date: Date, months: number) {
-  const next = new Date(date);
-  next.setMonth(next.getMonth() + months);
-  return next;
-}
-
-function resolveVoucherValidityDate(agenda: BoxOfficeAgendaRow, now = new Date()) {
-  if (String(agenda.tpagenda ?? "").trim() === "promo" && agenda.dtagenda) {
-    return String(agenda.dtagenda).slice(0, 10);
-  }
-
-  return addMonths(now, 6).toISOString().slice(0, 10);
-}
-
-function normalizeItemType(value: string) {
-  const normalized = normalizeText(value);
-
-  if (
-    normalized === "norma" ||
-    normalized === "adulto" ||
-    normalized === "normal" ||
-    normalized === "passaporte"
-  ) {
-    return "norma";
-  }
-
-  if (
-    normalized === "infan" ||
-    normalized === "crianca" ||
-    normalized === "infantil" ||
-    normalized === "passaporte infantil"
-  ) {
-    return "infan";
-  }
-
-  if (normalized === "isent" || normalized === "isento") {
-    return "isent";
-  }
-
-  return null;
-}
-
-function labelForItemType(type: NormalizedSaleItem["type"]) {
-  if (type === "norma") {
-    return "Adulto";
-  }
-
-  if (type === "infan") {
-    return "Infantil";
-  }
-
-  return "Isento";
-}
-
-function prefixForVoucherType(type: VoucherDraft["type"]) {
-  if (type === "infan") {
-    return "C";
-  }
-
-  if (type === "isent") {
-    return "I";
-  }
-
-  return "A";
-}
-
-function normalizeItems(items: BoxOfficeSaleItemInput[] | undefined) {
-  return (items ?? []).flatMap<NormalizedSaleItem>((item) => {
-    const type = normalizeItemType(String(item.type ?? ""));
-    const quantity = Number(item.quantity);
-    const label = normalizeText(item.label);
-
-    if (!type || !Number.isInteger(quantity) || quantity <= 0) {
-      return [];
-    }
-
-    return [
-      {
-        type,
-        label: label || labelForItemType(type),
-        quantity,
-        discountId:
-          Number.isInteger(Number(item.discountId)) && Number(item.discountId) > 0
-            ? Number(item.discountId)
-            : null,
-      },
-    ];
-  });
-}
-
-function normalizeCourtesies(courtesies: BoxOfficeSaleCourtesyInput[] | undefined) {
-  return (courtesies ?? []).flatMap<NormalizedCourtesy>((courtesy) => {
-    const authorId = Number(courtesy.authorId ?? courtesy.authorizedById);
-    const quantity = Number(courtesy.quantity);
-
-    if (!Number.isInteger(authorId) || authorId <= 0 || !Number.isInteger(quantity) || quantity <= 0) {
-      return [];
-    }
-
-    return [
-      {
-        authorId,
-        quantity,
-        identification: normalizeText(courtesy.identification),
-        note: normalizeText(courtesy.note),
-      },
-    ];
-  });
-}
-
-function normalizePayments(payments: BoxOfficeSalePaymentInput[] | undefined) {
-  return (payments ?? []).flatMap<NormalizedPayment>((payment) => {
-    const method = normalizeText(payment.method);
-    const value = parseMoney(payment.value);
-
-    if (!method || value === null || value <= 0) {
-      return [];
-    }
-
-    return [
-      {
-        method,
-        value: money(value),
-      },
-    ];
-  });
-}
-
-function actorName(actor: BoxOfficeActor | null | undefined) {
-  return normalizeText(actor?.name) || normalizeText(actor?.cpf) || null;
-}
-
-function normalizeIdempotencyKey(value: string | null | undefined) {
-  const key = normalizeText(value);
-
-  if (!key) {
-    return null;
-  }
-
-  if (!/^[A-Za-z0-9._:-]{8,120}$/.test(key)) {
-    throw new BoxOfficeSaleError(
-      "invalid_box_office_idempotency_key",
-      "Chave de idempotencia invalida para venda de bilheteria.",
-      400,
-    );
-  }
-
-  return key;
-}
-
-function parseAuditDetails(value: string | null) {
-  if (!value) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return parsed && typeof parsed === "object"
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
-}
-
-function normalizeVoucherIds(value: IdempotentSaleRow["voucher_ids"]) {
-  if (Array.isArray(value)) {
-    return value.map(Number).filter((id) => Number.isInteger(id) && id > 0);
-  }
-
-  return String(value ?? "")
-    .replace(/[{}]/g, "")
-    .split(",")
-    .map((id) => Number(id))
-    .filter((id) => Number.isInteger(id) && id > 0);
-}
-
-async function lockIdempotencyKey(client: PoolClient, idempotencyKey: string) {
-  await client.query("SELECT pg_advisory_xact_lock(hashtext($1)::bigint)", [
-    `ops-box-office-sale:${idempotencyKey}`,
-  ]);
-}
-
-async function findIdempotentSale(
-  client: PoolClient,
-  idempotencyKey: string,
-  fallbackAgendaId: number,
-) {
-  const result = await client.query<IdempotentSaleRow>(
-    `
-      SELECT
-        edicoes_log.id AS audit_log_id,
-        edicoes_log.compra_id AS purchase_id,
-        compra.vltotcompra::text AS total_value,
-        compra.formapag AS payment_method,
-        NULLIF(edicoes_log.detalhes_json, '') AS detalhes_json,
-        COALESCE(
-          array_agg(voucher.idvoucher ORDER BY voucher.idvoucher)
-            FILTER (WHERE voucher.idvoucher IS NOT NULL),
-          '{}'::integer[]
-        ) AS voucher_ids
-      FROM edicoes_log
-      JOIN compra ON compra.idcompra = edicoes_log.compra_id
-      LEFT JOIN voucher ON voucher.idcompra = compra.idcompra
-      WHERE edicoes_log.origem = 'ops-box-office'
-        AND edicoes_log.acao = 'sale_create'
-        AND NULLIF(edicoes_log.detalhes_json, '')::jsonb ->> 'idempotencyKey' = $1
-      GROUP BY
-        edicoes_log.id,
-        edicoes_log.compra_id,
-        compra.vltotcompra,
-        compra.formapag,
-        edicoes_log.detalhes_json
-      ORDER BY edicoes_log.id DESC
-      LIMIT 1
-    `,
-    [idempotencyKey],
-  );
-  const row = result.rows[0];
-
-  if (!row?.purchase_id) {
-    return null;
-  }
-
-  const details = parseAuditDetails(row.detalhes_json);
-  const paymentMethods = Array.isArray(details.paymentMethods)
-    ? details.paymentMethods.map(String).filter(Boolean)
-    : row.payment_method
-      ? [row.payment_method]
-      : [];
-
-  return {
-    purchaseId: row.purchase_id,
-    agendaId:
-      Number.isInteger(Number(details.agendaId)) && Number(details.agendaId) > 0
-        ? Number(details.agendaId)
-        : fallbackAgendaId,
-    totalValue: parseMoney(row.total_value) ?? 0,
-    paymentMethods,
-    voucherIds: normalizeVoucherIds(row.voucher_ids),
-    auditLogId: row.audit_log_id,
-    replayed: true,
-  } satisfies CommittedBoxOfficeSale;
-}
-
-async function loadAgenda(client: PoolClient, agendaId: number) {
-  const result = await client.query<BoxOfficeAgendaRow>(
-    `
-      SELECT
-        agenda.idagenda,
-        agenda.dtagenda::text AS dtagenda,
-        agenda.tpagenda,
-        agenda.stagenda,
-        tabpreco.vlnormalbil::text AS vlnormalbil,
-        tabpreco.vlinfantbil::text AS vlinfantbil
-      FROM agenda
-      JOIN tabpreco ON tabpreco.idtabpreco = agenda.idtabpreco
-      WHERE agenda.idagenda = $1
-        AND agenda.tpagenda IN ('padra', 'promo')
-        AND agenda.stagenda IN ('abe', 'lot')
-          AND agenda.dtagenda = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
-      LIMIT 1
-    `,
-    [agendaId],
-  );
-
-  return result.rows[0] ?? null;
-}
-
-async function loadDiscounts(client: PoolClient, discountIds: number[]) {
-  if (discountIds.length === 0) {
-    return new Map<number, BoxOfficeDiscountRow>();
-  }
-
-  const result = await client.query<BoxOfficeDiscountRow>(
-    `
-      SELECT
-        descontos.id,
-        descontos.nome,
-        descontos.tipo_aplicacao,
-        descontos.valor::text AS valor
-      FROM descontos
-      WHERE descontos.id = ANY($1::int[])
-    `,
-    [discountIds],
-  );
-
-  return new Map(result.rows.map((row) => [row.id, row]));
-}
-
-async function loadCourtesyAuthors(client: PoolClient, authorIds: number[]) {
-  if (authorIds.length === 0) {
-    return new Map<number, BoxOfficeCourtesyAuthorRow>();
-  }
-
-  const result = await client.query<BoxOfficeCourtesyAuthorRow>(
-    `
-      SELECT
-        cortesias.id,
-        cortesias.nome
-      FROM cortesias
-      WHERE cortesias.id = ANY($1::int[])
-    `,
-    [authorIds],
-  );
-
-  return new Map(result.rows.map((row) => [row.id, row]));
-}
-
-function calculateDiscountedUnitPrice(
-  totalValue: number,
-  discount: BoxOfficeDiscountRow | null,
-) {
-  if (!discount) {
-    return totalValue;
-  }
-
-  const discountValue = parseMoney(discount.valor) ?? 0;
-  const applicationType = normalizeText(discount.tipo_aplicacao);
-
-  if (applicationType === "percentual") {
-    return Math.max(0, money(totalValue - totalValue * (discountValue / 100)));
-  }
-
-  if (applicationType === "valor_fixo") {
-    return Math.max(0, money(totalValue - Math.min(totalValue, discountValue)));
-  }
-
-  throw new BoxOfficeSaleError(
-    "invalid_discount_application",
-    "Tipo de aplicacao de desconto invalido.",
-    409,
-  );
-}
-
-function buildPaidVoucherDrafts(
-  agenda: BoxOfficeAgendaRow,
-  items: NormalizedSaleItem[],
-  discounts: Map<number, BoxOfficeDiscountRow>,
-  applyLegacyItemDiscounts: boolean,
-) {
-  const normalPrice = parseMoney(agenda.vlnormalbil);
-  const childPrice = parseMoney(agenda.vlinfantbil);
-
-  if (normalPrice === null || childPrice === null) {
-    throw new BoxOfficeSaleError(
-      "box_office_pricing_unavailable",
-      "Tabela de preco da bilheteria indisponivel para esta data.",
-      409,
-    );
-  }
-
-  const drafts: VoucherDraft[] = [];
-
-  for (const item of items) {
-    const basePrice =
-      item.type === "norma" ? normalPrice : item.type === "infan" ? childPrice : 0;
-    const discount =
-      applyLegacyItemDiscounts && item.discountId
-        ? discounts.get(item.discountId) ?? null
-        : null;
-
-    if (applyLegacyItemDiscounts && item.discountId && !discount) {
-      throw new BoxOfficeSaleError(
-        "discount_not_found",
-        "Desconto informado nao foi encontrado.",
-        404,
-      );
-    }
-
-    if (item.type === "isent" && discount) {
-      throw new BoxOfficeSaleError(
-        "invalid_discount_for_exempt",
-        "Ingresso isento nao aceita desconto.",
-        400,
-      );
-    }
-
-    const unitPrice =
-      item.type === "isent" ? 0 : calculateDiscountedUnitPrice(basePrice, discount);
-    const description = discount?.nome
-      ? `${item.label} - ${normalizeText(discount.nome)}`
-      : item.type === "isent"
-        ? "Isento"
-        : item.label;
-
-    for (let index = 0; index < item.quantity; index += 1) {
-      drafts.push({
-        type: item.type,
-        prefix: prefixForVoucherType(item.type),
-        value: unitPrice,
-        discountId: discount?.id ?? null,
-        discountFlag: discount ? "s" : "n",
-        description,
-        identification: null,
-        courtesyAuthorId: null,
-      });
-    }
-  }
-
-  return drafts;
-}
-
-function applyPurchaseDiscountToDrafts(
-  drafts: VoucherDraft[],
-  discount: BoxOfficeDiscountRow | null,
-) {
-  if (!discount) {
-    return {
-      drafts,
-      totalDiscount: 0,
-    };
-  }
-
-  const subtotal = money(drafts.reduce((total, draft) => total + draft.value, 0));
-
-  if (subtotal <= 0) {
-    return {
-      drafts,
-      totalDiscount: 0,
-    };
-  }
-
-  const discountedTotal = calculateDiscountedUnitPrice(subtotal, discount);
-  const totalDiscount = money(subtotal - discountedTotal);
-
-  if (totalDiscount <= 0) {
-    return {
-      drafts,
-      totalDiscount: 0,
-    };
-  }
-
-  const nextDrafts = drafts.map((draft) => ({ ...draft }));
-  let remainingDiscount = totalDiscount;
-  let remainingBase = subtotal;
-
-  for (let index = 0; index < nextDrafts.length; index += 1) {
-    const draft = nextDrafts[index];
-
-    if (index === nextDrafts.length - 1) {
-      draft.value = money(Math.max(0, draft.value - remainingDiscount));
-      draft.discountFlag = remainingDiscount > 0 ? "s" : "n";
-      break;
-    }
-
-    const proportionalDiscount = money(
-      remainingBase > 0 ? (remainingDiscount * draft.value) / remainingBase : 0,
-    );
-    const appliedDiscount = Math.min(draft.value, proportionalDiscount);
-
-    draft.value = money(Math.max(0, draft.value - appliedDiscount));
-    draft.discountFlag = appliedDiscount > 0 ? "s" : "n";
-    remainingDiscount = money(remainingDiscount - appliedDiscount);
-    remainingBase = money(remainingBase - (draft.value + appliedDiscount));
-  }
-
-  return {
-    drafts: nextDrafts,
-    totalDiscount,
-  };
-}
-
-function buildCourtesyVoucherDrafts(
-  courtesies: NormalizedCourtesy[],
-  authors: Map<number, BoxOfficeCourtesyAuthorRow>,
-) {
-  const drafts: VoucherDraft[] = [];
-
-  for (const courtesy of courtesies) {
-    const author = authors.get(courtesy.authorId);
-
-    if (!author) {
-      throw new BoxOfficeSaleError(
-        "courtesy_author_not_found",
-        "Autorizador de cortesia nao encontrado.",
-        404,
-      );
-    }
-
-    let description = `Cortesia - ${normalizeText(author.nome) || "Autorizador"}`;
-
-    if (courtesy.identification) {
-      description += ` - ${courtesy.identification}`;
-    }
-
-    if (courtesy.note) {
-      description += ` (${courtesy.note})`;
-    }
-
-    for (let index = 0; index < courtesy.quantity; index += 1) {
-      drafts.push({
-        type: "corte",
-        prefix: "A",
-        value: 0,
-        discountId: null,
-        discountFlag: "n",
-        description,
-        identification: courtesy.identification || null,
-        courtesyAuthorId: courtesy.authorId,
-      });
-    }
-  }
-
-  return drafts;
+function discountedPrice(cents: number, discount?: Discount): number {
+  if (!discount) return cents;
+  const value = readCashAmountCents(discount.valor);
+  if (discount.tipo_aplicacao === "valor_fixo") return Math.max(0, cents - value);
+  if (discount.tipo_aplicacao === "percentual") return Number((BigInt(cents) * BigInt(Math.max(0, 10000 - value)) + BigInt(5000)) / BigInt(10000));
+  throw new BoxOfficeSaleError("invalid_discount_application", "Tipo de desconto inválido.", 409);
 }
 
 function voucherAlphabetCode(prefix: string) {
@@ -752,335 +140,113 @@ async function generateVoucherNumbers(client: PoolClient, drafts: VoucherDraft[]
   return codes;
 }
 
-async function insertVouchers(
-  client: PoolClient,
-  purchaseId: number,
-  agendaId: number,
-  validityDate: string,
-  drafts: VoucherDraft[],
-  voucherNumbers: string[],
-) {
-  if (drafts.length === 0) {
-    return [];
-  }
 
-  const values: Array<string | number | null> = [];
+async function insertVouchers(client: PoolClient, purchaseId: number, agendaId: number, park: string, validity: { validFrom: string; validUntil: string }, drafts: VoucherDraft[], numbers: string[]) {
+  const values: (string | number | null)[] = [];
   const placeholders = drafts.map((draft, index) => {
-    const offset = index * 12;
-
-    values.push(
-      purchaseId,
-      voucherNumbers[index],
-      agendaId,
-      draft.type,
-      formatMoney(draft.value),
-      draft.discountFlag,
-      validityDate,
-      draft.discountId,
-      draft.description,
-      draft.identification,
-      draft.courtesyAuthorId,
-      "n",
-    );
-
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12})`;
+    values.push(purchaseId, numbers[index], agendaId, draft.type, cashCentsValue(draft.amountCents), draft.discountCents > 0 ? "s" : "n", validity.validUntil,
+      draft.discountId, draft.description, draft.identification, draft.courtesyAuthorId, "n", validity.validFrom, park, draft.serviceId);
+    return `(${Array.from({ length: 15 }, (_, column) => `$${index * 15 + column + 1}`).join(",")})`;
   });
-
-  const result = await client.query<{ idvoucher: number }>(
-    `
-      INSERT INTO voucher (
-        idcompra,
-        numvoucher,
-        idagenda,
-        tpvoucher,
-        vlunicompra,
-        fldesconto,
-        dtvalidade,
-        desconto_id,
-        descricao,
-        identificacao,
-        autorizado_por_id,
-        stusado
-      ) VALUES ${placeholders.join(", ")}
-      RETURNING idvoucher
-    `,
-    values,
-  );
-
-  return result.rows.map((row) => row.idvoucher);
+  return (await client.query<{ idvoucher: number }>(`INSERT INTO voucher (idcompra,numvoucher,idagenda,tpvoucher,vlunicompra,fldesconto,dtvalidade,desconto_id,descricao,identificacao,autorizado_por_id,stusado,dtinicio_validade,parque_operacional,servico_id)
+    VALUES ${placeholders.join(",")} RETURNING idvoucher`, values)).rows.map((row) => row.idvoucher);
 }
-
-async function insertPayments(
-  client: PoolClient,
-  purchaseId: number,
-  payments: NormalizedPayment[],
-) {
-  if (payments.length === 0) {
-    return;
-  }
-
-  const values: Array<string | number> = [];
+export async function assertCashSessionDate(client: PoolClient, date: string) {
+  const current = (await client.query<{ isCurrentCashDate: boolean }>(`SELECT (clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::date=$1::date AS "isCurrentCashDate"`, [date])).rows[0];
+  if (!current?.isCurrentCashDate) throw new CashSessionError("cash_date_not_today", "A data do caixa terminou. Atualize a tela antes de registrar outra operação.", 409);
+}
+export async function insertCashPurchasePayments(client: PoolClient, purchaseId: number, periodId: number, payments: CashPayment[]) {
+  if (!payments.length) return;
+  const values: (string | number)[] = [];
   const placeholders = payments.map((payment, index) => {
-    const offset = index * 3;
-
-    values.push(purchaseId, payment.method, formatMoney(payment.value));
-
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, CURRENT_TIMESTAMP)`;
+    values.push(purchaseId, payment.method, cashCentsValue(payment.amountCents), periodId);
+    const offset = index * 4; return `($${offset + 1},$${offset + 2},$${offset + 3},$${offset + 4},clock_timestamp(),(clock_timestamp() AT TIME ZONE 'America/Sao_Paulo'))`;
   });
-
-  await client.query(
-    `
-      INSERT INTO compra_pagamentos (
-        idcompra,
-        forma_pagamento,
-        valor,
-        created_at
-      ) VALUES ${placeholders.join(", ")}
-    `,
-    values,
-  );
+  await client.query(`INSERT INTO compra_pagamentos (idcompra,forma_pagamento,valor,periodo_id,recebido_em,created_at) VALUES ${placeholders.join(",")}`, values);
 }
-
-export async function createOperationalBoxOfficeSale(
-  input: CreateBoxOfficeSaleInput,
-): Promise<BoxOfficeSaleSuccess> {
-  const agendaId = Number(input.agendaId);
-
-  if (!Number.isInteger(agendaId) || agendaId <= 0) {
-    throw new BoxOfficeSaleError(
-      "invalid_box_office_payload",
-      "Informe uma agenda valida para a venda de bilheteria.",
-      400,
-    );
-  }
-
-  const items = normalizeItems(input.items);
-  const courtesies = normalizeCourtesies(input.courtesies);
-  const payments = normalizePayments(input.payments);
-  const idempotencyKey = normalizeIdempotencyKey(input.idempotencyKey);
-
-  if (items.length === 0 && courtesies.length === 0) {
-    throw new BoxOfficeSaleError(
-      "invalid_box_office_payload",
-      "Informe ao menos um ingresso ou cortesia.",
-      400,
-    );
-  }
-
-  const pool = getIngressoSistemaDbPool();
-  const client = await pool.connect();
-  let committedSale: CommittedBoxOfficeSale | null = null;
-
+export async function createOperationalBoxOfficeSale(input: CreateBoxOfficeSaleInput): Promise<BoxOfficeSaleSuccess> {
+  const agendaId = id(input.agendaId); const periodId = id(input.periodId);
+  if (typeof input.cpf !== "string" || !isValidCpf(input.cpf)) invalid("Informe um CPF válido para a venda.");
+  const cpf = sanitizeCpf(input.cpf);
+  const key = boundedText(input.idempotencyKey, 100); if (!/^[A-Za-z0-9._:-]{8,100}$/.test(key)) invalid("Informe uma chave de idempotência válida.");
+  const reason = boundedText(input.reason, 1000);
+  const items = list(input.items).map((item) => {
+    const aliases: Record<string, string> = { adulto: "norma", normal: "norma", passaporte: "norma", crianca: "infan", infantil: "infan", "passaporte infantil": "infan", isento: "isent" };
+    const type = aliases[item.type] ?? item.type;
+    if (!["norma", "infan", "isent"].includes(type)) invalid("Tipo de ingresso inválido.");
+    const discountId = item.discountId === null || item.discountId === undefined ? null : id(item.discountId);
+    if (type === "isent" && discountId !== null) invalid("Ingresso isento não aceita desconto.");
+    return { type, quantity: quantity(item.quantity), discountId, label: boundedText(item.label, 100) || (type === "norma" ? "Adulto" : type === "infan" ? "Infantil" : "Isento") };
+  });
+  const courtesies = list(input.courtesies).map((item) => ({ authorId: id(item.authorId ?? item.authorizedById), quantity: quantity(item.quantity), identification: boundedText(item.identification, 80), note: boundedText(item.note, 100) }));
+  const services = list(input.services).map((item) => {
+    if (Object.keys(item).some((key) => !["serviceId", "quantity"].includes(key))) invalid("Serviços não aceitam desconto ou cortesia.");
+    return { serviceId: id(item.serviceId, Number.MAX_SAFE_INTEGER), quantity: quantity(item.quantity) };
+  });
+  const units = [...items, ...courtesies, ...services].reduce((total, item) => total + item.quantity, 0);
+  if (units < 1 || units > 500) invalid("Selecione entre 1 e 500 unidades.");
+  const payments = readCashPayments(input.payments);
+  const actor = { name: boundedText(input.actor?.name, 120) || null, cpf: boundedText(input.actor?.cpf, 11) || null };
+  const client = await getOperationalCatalogPool().connect(); let discard = false; let created = false; let result: BoxOfficeSaleSuccess;
   try {
-    await client.query("BEGIN");
-
-    if (idempotencyKey) {
-      await ensureOpsAuditLogTable(client, "postgres");
-      await lockIdempotencyKey(client, idempotencyKey);
-      committedSale = await findIdempotentSale(
-        client,
-        idempotencyKey,
-        agendaId,
-      );
-    }
-
-    if (!committedSale) {
-    const cashPeriod = await getOrCreateOpenCashPeriod(client);
-
-    const agenda = await loadAgenda(client, agendaId);
-
-    if (!agenda) {
-      throw new BoxOfficeSaleError(
-        "agenda_not_found",
-        "Agenda indisponivel para venda de bilheteria.",
-        404,
-      );
-    }
-
-    const discountIds = Array.from(
-      new Set(items.map((item) => item.discountId).filter((id): id is number => id !== null)),
-    );
-    const courtesyAuthorIds = Array.from(
-      new Set(courtesies.map((courtesy) => courtesy.authorId)),
-    );
-    const discounts = await loadDiscounts(client, discountIds);
-    const courtesyAuthors = await loadCourtesyAuthors(client, courtesyAuthorIds);
-    const paidDrafts = buildPaidVoucherDrafts(agenda, items, discounts, true);
-    const totalDiscount = money(
-      items.reduce((total, item) => {
-        if (!item.discountId || item.type === "isent") {
-          return total;
+    await ensureOpsAuditLogTable(client, "postgres"); await client.query("BEGIN");
+    try {
+      result = await withCashSessionCommand(client, { action: "sale", key, periodId, payload: { agendaId, periodId, cpf, items, courtesies, services, payments, reason } }, async () => {
+        const session = await lockOpenCashSession(client, { periodId, expectedType: "sales" });
+        const agenda = (await client.query<AgendaRow>(`SELECT a.idagenda,a.dtagenda::text AS dtagenda,t.vlnormalbil::text AS vlnormalbil,t.vlinfantbil::text AS vlinfantbil,d.validade AS validity,d.tipos_ingresso AS "ticketTypes"
+          FROM agenda a JOIN tabpreco t ON t.idtabpreco=a.idtabpreco JOIN operacao_dias d ON d.parque=$2 AND d.data=a.dtagenda AND d.day_use_agenda_id=a.idagenda
+          WHERE a.idagenda=$1 AND a.dtagenda=$3::date AND a.tpagenda IN ('padra','promo') AND a.stagenda IN ('abe','lot') FOR SHARE OF a,t`, [agendaId, session.park, session.date])).rows[0];
+        if (!agenda) throw new BoxOfficeSaleError("agenda_not_found", "Agenda indisponível para venda neste caixa.", 409);
+        const discountIds = [...new Set(items.flatMap((item) => item.discountId === null ? [] : [item.discountId]))];
+        const discounts = discountIds.length ? (await client.query<Discount>("SELECT id,nome,tipo_aplicacao,valor::text AS valor FROM descontos WHERE id=ANY($1::int[]) FOR SHARE", [discountIds])).rows : [];
+        const authorIds = [...new Set(courtesies.map((item) => item.authorId))];
+        const authors = authorIds.length ? (await client.query<{ id: number; nome: string }>("SELECT id,nome FROM cortesias WHERE id=ANY($1::int[]) FOR SHARE", [authorIds])).rows : [];
+        const serviceIds = [...new Set(services.map((item) => item.serviceId))];
+        const catalog = serviceIds.length ? (await client.query<{ id: string; name: string; price: string }>(`SELECT s.id::text,s.nome AS name,s.preco_bilheteria::text AS price FROM servicos_adicionais s
+          JOIN servico_datas sd ON sd.parque=s.parque AND sd.servico_id=s.id WHERE s.parque=$1 AND sd.data=$2::date AND s.id=ANY($3::bigint[]) AND s.ativo=TRUE FOR SHARE OF s,sd`, [session.park, session.date, serviceIds])).rows : [];
+        const drafts: VoucherDraft[] = [];
+        for (const item of items) {
+          if (!agenda.ticketTypes.includes(item.type)) throw new BoxOfficeSaleError("ticket_type_disabled", "Este tipo de ingresso não está habilitado na data.", 409);
+          const base = item.type === "isent" ? 0 : readCashAmountCents(item.type === "norma" ? agenda.vlnormalbil : agenda.vlinfantbil);
+          const discount = discounts.find((entry) => entry.id === item.discountId);
+          if (item.discountId !== null && !discount) throw new BoxOfficeSaleError("discount_not_found", "Desconto informado não encontrado.", 409);
+          const amountCents = discountedPrice(base, discount);
+          const description = `${item.label}${discount?.nome ? ` - ${discount.nome}` : ""}`;
+          for (let i = 0; i < item.quantity; i++) drafts.push({ type: item.type, prefix: item.type === "infan" ? "C" : item.type === "isent" ? "I" : "A", amountCents, discountId: item.discountId, discountCents: base - amountCents, description, identification: null, courtesyAuthorId: null, serviceId: null });
         }
-
-        const discount = discounts.get(item.discountId) ?? null;
-
-        if (!discount) {
-          return total;
+        for (const item of courtesies) {
+          const author = authors.find((entry) => entry.id === item.authorId);
+          if (!author) throw new BoxOfficeSaleError("courtesy_author_not_found", "Autorizador de cortesia não encontrado.", 409);
+          const description = `Cortesia - ${author.nome}${item.identification ? ` - ${item.identification}` : ""}${item.note ? ` (${item.note})` : ""}`;
+          for (let i = 0; i < item.quantity; i++) drafts.push({ type: "corte", prefix: "A", amountCents: 0, discountId: null, discountCents: 0, description, identification: item.identification || null, courtesyAuthorId: item.authorId, serviceId: null });
         }
-
-        const basePrice =
-          item.type === "norma"
-            ? parseMoney(agenda.vlnormalbil) ?? 0
-            : parseMoney(agenda.vlinfantbil) ?? 0;
-        const discountedPrice = calculateDiscountedUnitPrice(basePrice, discount);
-        return total + money((basePrice - discountedPrice) * item.quantity);
-      }, 0),
-    );
-    const courtesyDrafts = buildCourtesyVoucherDrafts(courtesies, courtesyAuthors);
-    const voucherDrafts = [...paidDrafts, ...courtesyDrafts];
-    const totalValue = money(paidDrafts.reduce((total, draft) => total + draft.value, 0));
-    const paymentTotal = money(payments.reduce((total, payment) => total + payment.value, 0));
-
-    if (totalValue > 0 && payments.length === 0) {
-      throw new BoxOfficeSaleError(
-        "box_office_payment_required",
-        "Informe pagamento para venda com valor maior que zero.",
-        400,
-      );
-    }
-
-    if (Math.abs(totalValue - paymentTotal) > 0.01) {
-      throw new BoxOfficeSaleError(
-        "box_office_payment_mismatch",
-        "Total dos pagamentos nao confere com o total da venda.",
-        409,
-      );
-    }
-
-    const purchase = totalDiscount > 0
-      ? await client.query<PurchaseInsertRow>(
-          `
-            INSERT INTO compra (
-              cpf,
-              tpcompra,
-              dtcompra,
-              hrcompra,
-              formapag,
-              vltotcompra,
-              vltotdesc,
-              stcompra,
-              flenvio
-            ) VALUES ($1, 'bilhe', CURRENT_DATE, CURRENT_TIME, $2, $3, $4, 'conc', '')
-            RETURNING idcompra
-          `,
-          [
-            normalizeCpf(input.cpf),
-            payments[0]?.method ?? "corte",
-            formatMoney(totalValue),
-            formatMoney(totalDiscount),
-          ],
-        )
-      : await client.query<PurchaseInsertRow>(
-          `
-            INSERT INTO compra (
-              cpf,
-              tpcompra,
-              dtcompra,
-              hrcompra,
-              formapag,
-              vltotcompra,
-              stcompra,
-              flenvio
-            ) VALUES ($1, 'bilhe', CURRENT_DATE, CURRENT_TIME, $2, $3, 'conc', '')
-            RETURNING idcompra
-          `,
-          [
-            normalizeCpf(input.cpf),
-            payments[0]?.method ?? "corte",
-            formatMoney(totalValue),
-          ],
-        );
-    const purchaseId = purchase.rows[0]?.idcompra;
-
-    if (!purchaseId) {
-      throw new BoxOfficeSaleError(
-        "box_office_purchase_failed",
-        "Nao foi possivel criar a compra de bilheteria.",
-        502,
-      );
-    }
-
-    const voucherNumbers = await generateVoucherNumbers(client, voucherDrafts);
-    const voucherIds = await insertVouchers(
-      client,
-      purchaseId,
-      agendaId,
-      resolveVoucherValidityDate(agenda),
-      voucherDrafts,
-      voucherNumbers,
-    );
-
-    await insertPayments(client, purchaseId, payments);
-
-    const auditLogId = await registerOpsAuditLog(client, {
-      origem: "ops-box-office",
-      acao: "sale_create",
-      compraId: purchaseId,
-      periodoId: cashPeriod.id,
-      descricao: `Venda de bilheteria #${purchaseId} registrada no BFF.`,
-      motivo: normalizeText(input.reason) || "Venda presencial registrada no BFF",
-      usuarioNome: actorName(input.actor),
-      detalhes: {
-        agendaId,
-        totalValue: formatMoney(totalValue),
-        paymentMethods: payments.map((payment) => payment.method),
-        voucherCount: voucherIds.length,
-        voucherIds,
-        discountIds,
-        totalDiscount: totalDiscount > 0 ? formatMoney(totalDiscount) : "0.00",
-        courtesyAuthorIds,
-        idempotencyKey,
-      },
-    }, "postgres");
-
-    await client.query("COMMIT");
-    committedSale = {
-      purchaseId,
-      agendaId,
-      totalValue,
-      paymentMethods: payments.map((payment) => payment.method),
-      voucherIds,
-      auditLogId,
-      replayed: false,
-    };
-    } else {
+        for (const item of services) {
+          const service = catalog.find((entry) => Number(entry.id) === item.serviceId);
+          if (!service) throw new BoxOfficeSaleError("service_unavailable", "Serviço indisponível para esta data ou parque.", 409);
+          for (let i = 0; i < item.quantity; i++) drafts.push({ type: "espec", prefix: "S", amountCents: readCashAmountCents(service.price), discountId: null, discountCents: 0, description: service.name, identification: null, courtesyAuthorId: null, serviceId: item.serviceId });
+        }
+        if (drafts.some((draft) => draft.amountCents > 99999999)) throw new BoxOfficeSaleError("box_office_price_out_of_range", "O valor unitário excede o limite permitido para um voucher. Corrija o preço antes de vender.", 409);
+        const settlement = settleCashPayments(drafts.reduce((sum, draft) => sum + draft.amountCents, 0), payments);
+        const discountCents = drafts.reduce((sum, draft) => sum + draft.discountCents, 0);
+        if (!Number.isSafeInteger(discountCents) || discountCents > 9999999999) invalid("Total de descontos fora do intervalo permitido.");
+        await assertCashSessionDate(client, session.date);
+        const purchaseId = (await client.query<{ idcompra: number }>(`INSERT INTO compra (cpf,tpcompra,dtcompra,hrcompra,dtpagamento,hrpagamento,formapag,vltotcompra,vltotdesc,stcompra,flenvio,caixa_periodo_id)
+          VALUES ($1,'bilhe',(clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::date,(clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::time,
+            (clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::date,(clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::time,$2,$3,$4,'conc','',$5) RETURNING idcompra`,
+        [cpf, settlement.netPayments[0]?.method ?? "corte", cashCentsValue(settlement.totalCents), cashCentsValue(discountCents), periodId])).rows[0]?.idcompra;
+        if (!purchaseId) throw new BoxOfficeSaleError("box_office_purchase_failed", "Não foi possível criar a compra.", 502);
+        const voucherIds = await insertVouchers(client, purchaseId, agendaId, session.park, voucherValidityRange(session.date, agenda.validity), drafts, await generateVoucherNumbers(client, drafts));
+        await insertCashPurchasePayments(client, purchaseId, periodId, settlement.netPayments);
+        const auditLogId = await registerOpsAuditLog(client, { origem: "ops-box-office", acao: "sale_create", compraId: purchaseId, periodoId: periodId, descricao: `Venda de bilheteria #${purchaseId}.`, motivo: reason || "Venda presencial", usuarioNome: actor.name,
+          detalhes: { park: session.park, date: session.date, actorCpf: actor.cpf, agendaId, periodId, ...settlement, deliveredPayments: payments, discountCents, voucherIds, idempotencyKey: key } }, "postgres");
+        await assertCashSessionDate(client, session.date);
+        created = true;
+        return { periodId, response: { action: "create" as const, purchaseId, agendaId, periodId, totalValue: cashCentsValue(settlement.totalCents), ...settlement,
+          paymentMethods: settlement.netPayments.map((payment) => payment.method), voucherIds, voucherCount: voucherIds.length, auditLogId, warnings: [], message: "Venda de bilheteria registrada com sucesso." } };
+      });
       await client.query("COMMIT");
-    }
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-  }
-
-  const warnings: string[] = [];
-
-  if (committedSale.replayed) {
-    warnings.push("idempotent_replay");
-  }
-
-  try {
-    const ticketResult = await processConfirmedPurchaseTickets(
-      committedSale.purchaseId,
-    );
-
-    if (ticketResult.status === "skipped") {
-      warnings.push(ticketResult.skippedReason ?? "ticket_service_skipped");
-    }
-  } catch {
-    warnings.push("ticket_service_failed");
-  }
-
-  return {
-    action: "create",
-    purchaseId: committedSale.purchaseId,
-    agendaId: committedSale.agendaId,
-    totalValue: formatMoney(committedSale.totalValue),
-    paymentMethods: committedSale.paymentMethods,
-    voucherIds: committedSale.voucherIds,
-    voucherCount: committedSale.voucherIds.length,
-    auditLogId: committedSale.auditLogId,
-    warnings,
-    message: "Venda de bilheteria registrada com sucesso.",
-  };
+    } catch (error) { try { await client.query("ROLLBACK"); } catch { discard = true; } throw error; }
+  } finally { client.release(discard); }
+  if (created) await processConfirmedPurchaseTickets(result.purchaseId).catch(() => undefined);
+  return result;
 }

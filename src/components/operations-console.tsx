@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type {
   OperationsPermission,
   OperationsRole,
 } from "@/lib/ops-permissions";
-import type { PublicAgendaEvent } from "@/lib/agenda-contracts";
 
 type ApiSuccess = {
   ok: true;
@@ -293,12 +293,6 @@ type ClientEducationSummary = {
   classes: ClientClassItem[];
 };
 
-type BoxOfficePaymentRow = {
-  id: string;
-  method: string;
-  value: string;
-};
-
 export type OperationsConsoleSection =
   | "phase7"
   | "admin"
@@ -310,56 +304,6 @@ type OperationsConsoleProps = {
   embedded?: boolean;
   visibleSections?: OperationsConsoleSection[];
 };
-
-function createBoxOfficeIdempotencyKey() {
-  if (globalThis.crypto?.randomUUID) {
-    return globalThis.crypto.randomUUID();
-  }
-
-  return `box-office-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function parseCurrency(value: string | number | null | undefined) {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : 0;
-  }
-
-  const raw = String(value ?? "").trim().replace(/^R\$\s*/i, "");
-  const normalized =
-    raw.includes(",") && raw.includes(".")
-      ? raw.replace(/\./g, "").replace(",", ".")
-      : raw.includes(",")
-        ? raw.replace(",", ".")
-        : raw;
-  const parsed = Number(normalized);
-
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function money(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) {
-    return "-";
-  }
-
-  const [year, month, day] = value.slice(0, 10).split("-");
-
-  if (!year || !month || !day) {
-    return value;
-  }
-
-  return `${day}/${month}/${year}`;
-}
 
 function formatAdminValue(value: unknown) {
   if (value === null || value === undefined || value === "") {
@@ -475,43 +419,8 @@ function readSessionValue(key: string) {
   return window.sessionStorage.getItem(key) ?? "";
 }
 
-function parseCsvIds(value: string) {
-  return Array.from(
-    new Set(
-      value
-        .split(",")
-        .map((entry) => Number(entry.trim()))
-        .filter((entry) => Number.isInteger(entry) && entry > 0),
-    ),
-  );
-}
-
 function prettyJson(value: unknown) {
   return JSON.stringify(value, null, 2);
-}
-
-function parseJsonArray<T>(value: string, label: string) {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return [] as T[];
-  }
-
-  const parsed = JSON.parse(trimmed) as unknown;
-
-  if (!Array.isArray(parsed)) {
-    throw new Error(`${label} precisa ser um array JSON.`);
-  }
-
-  return parsed as T[];
-}
-
-function buildBoxOfficeAgendaPeriod() {
-  const now = new Date();
-  return {
-    month: String(now.getMonth() + 1),
-    year: String(now.getFullYear()),
-  };
 }
 
 function isApiSuccess(payload: ApiPayload): payload is ApiSuccess {
@@ -659,9 +568,6 @@ export function OperationsConsole({
   const [cashEditReason, setCashEditReason] = useState("");
   const [cashDeleteMovementId, setCashDeleteMovementId] = useState("");
   const [cashDeleteReason, setCashDeleteReason] = useState("");
-  const [cashCloseOperator, setCashCloseOperator] = useState(() =>
-    readSessionValue(storageKeys.actorName),
-  );
   const [cashCloseReason, setCashCloseReason] = useState("");
   const [cashAutoCloseReason, setCashAutoCloseReason] = useState("");
   const [paymentSyncRecentDays, setPaymentSyncRecentDays] = useState("7");
@@ -690,145 +596,7 @@ export function OperationsConsole({
   const [referenceDeleteId, setReferenceDeleteId] = useState("");
   const [referenceDeleteReason, setReferenceDeleteReason] = useState("");
 
-  const [voucherNumber, setVoucherNumber] = useState("");
-  const [voucherConfirm, setVoucherConfirm] = useState(false);
-  const [purchaseValidateId, setPurchaseValidateId] = useState("");
-  const [schoolId, setSchoolId] = useState("");
-  const [agendaId, setAgendaId] = useState("");
-  const [voucherAction, setVoucherAction] = useState<
-    "validate" | "unvalidate" | "invalidate"
-  >("validate");
-  const [voucherIdsCsv, setVoucherIdsCsv] = useState("");
-
-  const [cancelPurchaseId, setCancelPurchaseId] = useState("");
-  const [cancelReason, setCancelReason] = useState("");
-  const initialBoxOfficePeriod = buildBoxOfficeAgendaPeriod();
-  const [boxOfficeAgendaMonth, setBoxOfficeAgendaMonth] = useState(
-    initialBoxOfficePeriod.month,
-  );
-  const [boxOfficeAgendaYear, setBoxOfficeAgendaYear] = useState(
-    initialBoxOfficePeriod.year,
-  );
-  const [boxOfficeAgendas, setBoxOfficeAgendas] = useState<PublicAgendaEvent[]>(
-    [],
-  );
-  const [boxOfficeAgendaId, setBoxOfficeAgendaId] = useState("");
-  const [boxOfficeCpf, setBoxOfficeCpf] = useState("");
-  const [boxOfficeAdultQuantity, setBoxOfficeAdultQuantity] = useState("1");
-  const [boxOfficeAdultDiscountId, setBoxOfficeAdultDiscountId] = useState("");
-  const [boxOfficeChildQuantity, setBoxOfficeChildQuantity] = useState("0");
-  const [boxOfficeChildDiscountId, setBoxOfficeChildDiscountId] = useState("");
-  const [boxOfficeExemptQuantity, setBoxOfficeExemptQuantity] = useState("0");
-  const [boxOfficeCourtesyAuthorId, setBoxOfficeCourtesyAuthorId] =
-    useState("");
-  const [boxOfficeCourtesyQuantity, setBoxOfficeCourtesyQuantity] =
-    useState("0");
-  const [boxOfficeCourtesyIdentification, setBoxOfficeCourtesyIdentification] =
-    useState("");
-  const [boxOfficeCourtesyNote, setBoxOfficeCourtesyNote] = useState("");
-  const [boxOfficePaymentRows, setBoxOfficePaymentRows] = useState<
-    BoxOfficePaymentRow[]
-  >([
-    { id: "cash", method: "dinhe", value: "100,00" },
-    { id: "pix", method: "pix", value: "" },
-    { id: "card", method: "cart", value: "" },
-  ]);
-  const [boxOfficeItemsJson, setBoxOfficeItemsJson] = useState(
-    '[\n  { "type": "norma", "quantity": 1 }\n]',
-  );
-  const [boxOfficeCourtesiesJson, setBoxOfficeCourtesiesJson] = useState("[]");
-  const [boxOfficePaymentsJson, setBoxOfficePaymentsJson] = useState(
-    '[\n  { "method": "dinhe", "value": "100,00" }\n]',
-  );
-  const [boxOfficeReason, setBoxOfficeReason] = useState(
-    "Venda presencial na bilheteria",
-  );
-  const [boxOfficeIdempotencyKey, setBoxOfficeIdempotencyKey] = useState("");
-
-  const [updatePurchaseId, setUpdatePurchaseId] = useState("");
-  const [updateReason, setUpdateReason] = useState("");
-  const [updateDate, setUpdateDate] = useState("");
-  const [updateStatus, setUpdateStatus] = useState("conc");
-  const [updateCpf, setUpdateCpf] = useState("");
-  const [updateVouchersJson, setUpdateVouchersJson] = useState(
-    '[\n  { "id": 1, "status": "s", "discountId": 7 }\n]',
-  );
-  const [updatePaymentsJson, setUpdatePaymentsJson] = useState(
-    '[\n  { "method": "pix", "value": "150,00" }\n]',
-  );
   const isSessionAuthenticated = opsSession?.authenticated === true;
-  const selectedBoxOfficeAgenda =
-    boxOfficeAgendas.find(
-      (agenda) => String(agenda.id) === boxOfficeAgendaId.trim(),
-    ) ?? null;
-  const boxOfficeDiscounts = referenceData?.discounts ?? [];
-  const boxOfficeCourtesyAuthors = referenceData?.courtesyAuthors ?? [];
-  const boxOfficeAdultBasePrice = parseCurrency(
-    selectedBoxOfficeAgenda?.priceTable.gateNormal,
-  );
-  const boxOfficeChildBasePrice = parseCurrency(
-    selectedBoxOfficeAgenda?.priceTable.gateChild,
-  );
-  const boxOfficeAdultQuantityNumber = Math.max(
-    0,
-    Math.trunc(Number(boxOfficeAdultQuantity) || 0),
-  );
-  const boxOfficeChildQuantityNumber = Math.max(
-    0,
-    Math.trunc(Number(boxOfficeChildQuantity) || 0),
-  );
-  const boxOfficeExemptQuantityNumber = Math.max(
-    0,
-    Math.trunc(Number(boxOfficeExemptQuantity) || 0),
-  );
-  const boxOfficeCourtesyQuantityNumber = Math.max(
-    0,
-    Math.trunc(Number(boxOfficeCourtesyQuantity) || 0),
-  );
-
-  function discountUnitPrice(basePrice: number, discountId: string) {
-    const discount = boxOfficeDiscounts.find(
-      (item) => String(item.id) === discountId.trim(),
-    );
-
-    if (!discount) {
-      return basePrice;
-    }
-
-    const value = parseCurrency(discount.value);
-
-    if (discount.applicationType === "percentual") {
-      return Math.max(0, money(basePrice - basePrice * (value / 100)));
-    }
-
-    if (discount.applicationType === "valor_fixo") {
-      return Math.max(0, money(basePrice - Math.min(basePrice, value)));
-    }
-
-    return basePrice;
-  }
-
-  const boxOfficeAdultUnitPrice = discountUnitPrice(
-    boxOfficeAdultBasePrice,
-    boxOfficeAdultDiscountId,
-  );
-  const boxOfficeChildUnitPrice = discountUnitPrice(
-    boxOfficeChildBasePrice,
-    boxOfficeChildDiscountId,
-  );
-  const boxOfficeTotal = money(
-    boxOfficeAdultUnitPrice * boxOfficeAdultQuantityNumber +
-      boxOfficeChildUnitPrice * boxOfficeChildQuantityNumber,
-  );
-  const boxOfficePaymentTotal = money(
-    boxOfficePaymentRows.reduce(
-      (total, payment) => total + parseCurrency(payment.value),
-      0,
-    ),
-  );
-  const boxOfficePaymentDifference = money(
-    boxOfficePaymentTotal - boxOfficeTotal,
-  );
   const selectedAdminResourceDefinition =
     adminResourceCatalog.find(
       (resource) => resource.resource === selectedAdminResource,
@@ -989,7 +757,6 @@ export function OperationsConsole({
           setOpsSession(data);
           setActorName(data.actorName ?? "");
           setActorCpf(data.actorCpf ?? "");
-          setCashCloseOperator((current) => current.trim() ? current : (data.actorName ?? ""));
         } else {
           setOpsSession(null);
         }
@@ -1050,7 +817,6 @@ export function OperationsConsole({
         setOpsSession(data);
         setActorName(data.actorName ?? "");
         setActorCpf(data.actorCpf ?? "");
-        setCashCloseOperator((current) => current.trim() ? current : (data.actorName ?? ""));
         setTokenInput("");
       }
     } catch (error) {
@@ -1108,168 +874,6 @@ export function OperationsConsole({
             error instanceof Error
               ? error.message
               : "Falha ao encerrar a sessao operacional.",
-        },
-      });
-    } finally {
-      setPendingKey(null);
-    }
-  }
-
-  async function loadBoxOfficeAgendas() {
-    if (!ensureSessionPermission("Carregar agenda de bilheteria", "ops.read")) {
-      return;
-    }
-
-    setPendingKey("box-office-agendas");
-    setResponseTitle("Carregar agenda de bilheteria");
-
-    try {
-      const response = await fetch(
-        `/api/agenda/publica?mes=${encodeURIComponent(
-          boxOfficeAgendaMonth.trim(),
-        )}&ano=${encodeURIComponent(boxOfficeAgendaYear.trim())}`,
-        {
-          method: "GET",
-          credentials: "same-origin",
-        },
-      );
-      const payload = (await response.json().catch(() => null)) as ApiPayload;
-
-      setResponseStatus(response.status);
-      setResponseBody(payload);
-
-      if (response.ok && isApiSuccess(payload)) {
-        const data = payload.data as {
-          events: PublicAgendaEvent[];
-        };
-        setBoxOfficeAgendas(data.events);
-        setBoxOfficeAgendaId((current) =>
-          current.trim() ? current : String(data.events[0]?.id ?? ""),
-        );
-      }
-    } catch (error) {
-      setResponseStatus(0);
-      setResponseBody({
-        ok: false,
-        error: {
-          code: "network_error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Falha ao carregar a agenda de bilheteria.",
-        },
-      });
-    } finally {
-      setPendingKey(null);
-    }
-  }
-
-  function updateBoxOfficePaymentRow(
-    id: string,
-    patch: Partial<BoxOfficePaymentRow>,
-  ) {
-    setBoxOfficePaymentRows((rows) =>
-      rows.map((row) => (row.id === id ? { ...row, ...patch } : row)),
-    );
-  }
-
-  function buildStructuredBoxOfficePayload() {
-    const items = [
-      ...(boxOfficeAdultQuantityNumber > 0
-        ? [
-            {
-              type: "norma",
-              quantity: boxOfficeAdultQuantityNumber,
-              ...(boxOfficeAdultDiscountId.trim()
-                ? { discountId: Number(boxOfficeAdultDiscountId) }
-                : {}),
-            },
-          ]
-        : []),
-      ...(boxOfficeChildQuantityNumber > 0
-        ? [
-            {
-              type: "infan",
-              quantity: boxOfficeChildQuantityNumber,
-              ...(boxOfficeChildDiscountId.trim()
-                ? { discountId: Number(boxOfficeChildDiscountId) }
-                : {}),
-            },
-          ]
-        : []),
-      ...(boxOfficeExemptQuantityNumber > 0
-        ? [{ type: "isent", quantity: boxOfficeExemptQuantityNumber }]
-        : []),
-    ];
-    const courtesies =
-      boxOfficeCourtesyQuantityNumber > 0 &&
-      Number(boxOfficeCourtesyAuthorId) > 0
-        ? [
-            {
-              authorId: Number(boxOfficeCourtesyAuthorId),
-              quantity: boxOfficeCourtesyQuantityNumber,
-              identification: boxOfficeCourtesyIdentification,
-              note: boxOfficeCourtesyNote,
-            },
-          ]
-        : [];
-    const payments = boxOfficePaymentRows
-      .map((payment) => ({
-        method: payment.method.trim(),
-        value: payment.value.trim(),
-      }))
-      .filter((payment) => payment.method && parseCurrency(payment.value) > 0);
-
-    return { items, courtesies, payments };
-  }
-
-  async function sendRequest(
-    key: string,
-    title: string,
-    url: string,
-    body: Record<string, unknown>,
-    requiredPermission: OperationsPermission,
-  ) {
-    if (!ensureSessionPermission(title, requiredPermission)) {
-      return;
-    }
-
-    const actor =
-      actorName.trim() || actorCpf.trim()
-        ? {
-            name: actorName.trim() || undefined,
-            cpf: actorCpf.trim() || undefined,
-          }
-        : undefined;
-
-    setPendingKey(key);
-    setResponseTitle(title);
-
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        credentials: "same-origin",
-        body: JSON.stringify(
-          actor ? { ...body, actor } : body,
-        ),
-      });
-      const payload = (await response.json().catch(() => null)) as ApiPayload;
-
-      setResponseStatus(response.status);
-      setResponseBody(payload);
-    } catch (error) {
-      setResponseStatus(0);
-      setResponseBody({
-        ok: false,
-        error: {
-          code: "network_error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Falha ao executar a operacao.",
         },
       });
     } finally {
@@ -1495,14 +1099,6 @@ export function OperationsConsole({
       return;
     }
 
-    const actor =
-      actorName.trim() || actorCpf.trim()
-        ? {
-            name: actorName.trim() || undefined,
-            cpf: actorCpf.trim() || undefined,
-          }
-        : undefined;
-
     setPendingKey("cash-movement");
     setResponseTitle("Registrar lancamento de caixa");
 
@@ -1518,7 +1114,6 @@ export function OperationsConsole({
           responsible: cashResponsible,
           value: cashValue,
           reason: cashReason,
-          ...(actor ? { actor } : {}),
         }),
       });
       const payload = (await response.json().catch(() => null)) as ApiPayload;
@@ -1556,14 +1151,6 @@ export function OperationsConsole({
       return;
     }
 
-    const actor =
-      actorName.trim() || actorCpf.trim()
-        ? {
-            name: actorName.trim() || undefined,
-            cpf: actorCpf.trim() || undefined,
-          }
-        : undefined;
-
     setPendingKey("cash-movement-update");
     setResponseTitle("Editar lancamento de caixa");
 
@@ -1579,7 +1166,6 @@ export function OperationsConsole({
           responsible: cashEditResponsible,
           value: cashEditValue,
           reason: cashEditReason,
-          ...(actor ? { actor } : {}),
         }),
       });
       const payload = (await response.json().catch(() => null)) as ApiPayload;
@@ -1615,14 +1201,6 @@ export function OperationsConsole({
       return;
     }
 
-    const actor =
-      actorName.trim() || actorCpf.trim()
-        ? {
-            name: actorName.trim() || undefined,
-            cpf: actorCpf.trim() || undefined,
-          }
-        : undefined;
-
     setPendingKey("cash-movement-delete");
     setResponseTitle("Excluir lancamento de caixa");
 
@@ -1636,7 +1214,6 @@ export function OperationsConsole({
         body: JSON.stringify({
           movementId: Number(cashDeleteMovementId),
           reason: cashDeleteReason,
-          ...(actor ? { actor } : {}),
         }),
       });
       const payload = (await response.json().catch(() => null)) as ApiPayload;
@@ -1693,14 +1270,6 @@ export function OperationsConsole({
       return;
     }
 
-    const actor =
-      actorName.trim() || actorCpf.trim()
-        ? {
-            name: actorName.trim() || undefined,
-            cpf: actorCpf.trim() || undefined,
-          }
-        : undefined;
-
     setPendingKey("cash-close");
     setResponseTitle("Fechar caixa");
 
@@ -1712,9 +1281,7 @@ export function OperationsConsole({
         },
         credentials: "same-origin",
         body: JSON.stringify({
-          operatorName: cashCloseOperator,
           reason: cashCloseReason,
-          ...(actor ? { actor } : {}),
         }),
       });
       const payload = (await response.json().catch(() => null)) as ApiPayload;
@@ -1725,7 +1292,7 @@ export function OperationsConsole({
       if (response.ok && isApiSuccess(payload)) {
         const data = payload.data as {
           closure: CashClosureDetail;
-          currentSummary: CashSummary;
+          currentSummary: CashSummary | null;
         };
         setSelectedCashClosure(data.closure);
         setCashSummary(data.currentSummary);
@@ -1754,14 +1321,6 @@ export function OperationsConsole({
       return;
     }
 
-    const actor =
-      actorName.trim() || actorCpf.trim()
-        ? {
-            name: actorName.trim() || undefined,
-            cpf: actorCpf.trim() || undefined,
-          }
-        : undefined;
-
     setPendingKey("cash-auto-close");
     setResponseTitle("Fechar periodos anteriores");
 
@@ -1774,7 +1333,6 @@ export function OperationsConsole({
         credentials: "same-origin",
         body: JSON.stringify({
           reason: cashAutoCloseReason,
-          ...(actor ? { actor } : {}),
         }),
       });
       const payload = (await response.json().catch(() => null)) as ApiPayload;
@@ -1784,7 +1342,7 @@ export function OperationsConsole({
 
       if (response.ok && isApiSuccess(payload)) {
         const data = payload.data as {
-          currentSummary: CashSummary;
+          currentSummary: CashSummary | null;
         };
         setCashSummary(data.currentSummary);
         setCashAutoCloseReason("");
@@ -1902,7 +1460,7 @@ export function OperationsConsole({
 
       if (response.ok && isApiSuccess(payload)) {
         await loadCashClosures();
-        await loadCashSummary();
+        setCashSummary(null);
         await loadJobRuns();
         await loadJobHealth();
       }
@@ -3305,7 +2863,7 @@ export function OperationsConsole({
                 </h1>
                 <p className="mt-4 max-w-[64ch] text-[15px] leading-7 text-[#6f6558]">
                   Esta tela usa os endpoints operacionais do `apps/web` para
-                  validar vouchers, cancelar compra e editar venda sem depender
+                  consultar o histórico e reconciliar caixa legado sem depender
                   do painel Zend. A UI agora abre uma sessao operacional
                   dedicada via cookie HTTP-only antes de liberar os comandos.
                 </p>
@@ -4861,786 +4419,27 @@ export function OperationsConsole({
             ) : null}
 
             {isVisible("operations") ? (
-              <div className="grid gap-5 xl:grid-cols-[1.1fr_1.1fr_0.9fr]">
               <div className="grid gap-5">
-                <article className="rounded-[28px] border border-[#d7e5ef] bg-[#f8fcff] p-5 shadow-[0_12px_34px_rgba(31,67,98,0.08)]">
-                  <h2 className="legacy-condensed text-3xl text-[#205a7f]">
-                    Vouchers
-                  </h2>
-                  <div className="mt-5 grid gap-4">
-                    <div className="grid gap-3 rounded-[22px] border border-[#d9e7f1] bg-white p-4">
-                      <label className="text-sm font-semibold text-[#3c627a]">
-                        Validar por numero
-                      </label>
-                      <input
-                        value={voucherNumber}
-                        onChange={(event) => setVoucherNumber(event.target.value)}
-                        placeholder="A1234"
-                        className="rounded-2xl border border-[#c7d6e2] px-4 py-3 text-sm text-[#3a342d]"
-                      />
-                      <label className="flex items-center gap-2 text-sm text-[#6b6a67]">
-                        <input
-                          checked={voucherConfirm}
-                          onChange={(event) =>
-                            setVoucherConfirm(event.target.checked)
-                          }
-                          type="checkbox"
-                        />
-                        Confirmar uso fora da data quando aplicavel
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          sendRequest(
-                            "voucher-number",
-                            "Validar voucher por numero",
-                            "/api/ops/vouchers/validate",
-                            {
-                              voucherNumber,
-                              confirm: voucherConfirm,
-                            },
-                            "ops.vouchers",
-                          )
-                        }
-                        disabled={pendingKey !== null || !hasSessionPermission("ops.vouchers")}
-                        className="rounded-full bg-[#246b99] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                      >
-                        {pendingKey === "voucher-number"
-                          ? "Executando..."
-                          : "Validar voucher"}
-                      </button>
-                    </div>
-
-                    <div className="grid gap-3 rounded-[22px] border border-[#d9e7f1] bg-white p-4">
-                      <label className="text-sm font-semibold text-[#3c627a]">
-                        Validar por compra
-                      </label>
-                      <input
-                        value={purchaseValidateId}
-                        onChange={(event) =>
-                          setPurchaseValidateId(event.target.value)
-                        }
-                        placeholder="321"
-                        className="rounded-2xl border border-[#c7d6e2] px-4 py-3 text-sm text-[#3a342d]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          sendRequest(
-                            "voucher-purchase",
-                            "Validar vouchers por purchaseId",
-                            "/api/ops/vouchers/validate",
-                            {
-                              purchaseId: Number(purchaseValidateId),
-                              confirm: voucherConfirm,
-                            },
-                            "ops.vouchers",
-                          )
-                        }
-                        disabled={pendingKey !== null || !hasSessionPermission("ops.vouchers")}
-                        className="rounded-full bg-[#1f8a70] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                      >
-                        {pendingKey === "voucher-purchase"
-                          ? "Executando..."
-                          : "Validar compra"}
-                      </button>
-                    </div>
-
-                    <div className="grid gap-3 rounded-[22px] border border-[#d9e7f1] bg-white p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-                      <label className="flex flex-col gap-2 text-sm font-semibold text-[#3c627a]">
-                        School ID
-                        <input
-                          value={schoolId}
-                          onChange={(event) => setSchoolId(event.target.value)}
-                          placeholder="77"
-                          className="rounded-2xl border border-[#c7d6e2] px-4 py-3 text-sm text-[#3a342d]"
-                        />
-                      </label>
-                      <label className="flex flex-col gap-2 text-sm font-semibold text-[#3c627a]">
-                        Agenda ID
-                        <input
-                          value={agendaId}
-                          onChange={(event) => setAgendaId(event.target.value)}
-                          placeholder="88"
-                          className="rounded-2xl border border-[#c7d6e2] px-4 py-3 text-sm text-[#3a342d]"
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          sendRequest(
-                            "voucher-school",
-                            "Validar passeio escolar",
-                            "/api/ops/vouchers/validate",
-                            {
-                              schoolId: Number(schoolId),
-                              agendaId: Number(agendaId),
-                            },
-                            "ops.vouchers",
-                          )
-                        }
-                        disabled={pendingKey !== null || !hasSessionPermission("ops.vouchers")}
-                        className="rounded-full bg-[#5c7a2d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                      >
-                        {pendingKey === "voucher-school"
-                          ? "Executando..."
-                          : "Validar passeio"}
-                      </button>
-                    </div>
-
-                    <div className="grid gap-3 rounded-[22px] border border-[#d9e7f1] bg-white p-4">
-                      <label className="text-sm font-semibold text-[#3c627a]">
-                        Lote por `voucherIds`
-                      </label>
-                      <div className="grid gap-3 md:grid-cols-[180px_1fr_auto] md:items-end">
-                        <label className="flex flex-col gap-2 text-sm text-[#6b6a67]">
-                          Acao
-                          <select
-                            value={voucherAction}
-                            onChange={(event) =>
-                              setVoucherAction(
-                                event.target.value as
-                                  | "validate"
-                                  | "unvalidate"
-                                  | "invalidate",
-                              )
-                            }
-                            className="rounded-2xl border border-[#c7d6e2] px-4 py-3 text-sm text-[#3a342d]"
-                          >
-                            <option value="validate">validate</option>
-                            <option value="unvalidate">unvalidate</option>
-                            <option value="invalidate">invalidate</option>
-                          </select>
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm text-[#6b6a67]">
-                          IDs separados por virgula
-                          <input
-                            value={voucherIdsCsv}
-                            onChange={(event) =>
-                              setVoucherIdsCsv(event.target.value)
-                            }
-                            placeholder="101, 102, 103"
-                            className="rounded-2xl border border-[#c7d6e2] px-4 py-3 text-sm text-[#3a342d]"
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            sendRequest(
-                              "voucher-batch",
-                              `Executar ${voucherAction} em lote`,
-                              `/api/ops/vouchers/${voucherAction}`,
-                              {
-                                voucherIds: parseCsvIds(voucherIdsCsv),
-                              },
-                              "ops.vouchers",
-                            )
-                          }
-                          disabled={pendingKey !== null || !hasSessionPermission("ops.vouchers")}
-                          className="rounded-full bg-[#7b5f3b] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                        >
-                          {pendingKey === "voucher-batch"
-                            ? "Executando..."
-                            : "Executar lote"}
-                        </button>
-                      </div>
-                    </div>
+                <article className="rounded-[28px] border border-[#d7e5ef] bg-[#f8fcff] p-5">
+                  <h2 className="legacy-condensed text-3xl text-[#205a7f]">Vendas e entradas</h2>
+                  <p className="mt-3 text-sm leading-6 text-[#5f6d77]">
+                    Selecione o caixa do local e da data no painel para vender, receber reservas e validar entradas.
+                    Essas operações exigem uma sessão autenticada do painel.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Link href="/painel/caixas" className="rounded-full bg-[#246b99] px-5 py-3 text-sm font-semibold text-white">Ir para caixas</Link>
+                    <Link href="/painel/bilheteria/historico" className="rounded-full border border-[#c7d6e2] px-5 py-3 text-sm font-semibold text-[#205a7f]">Consultar histórico de vendas</Link>
                   </div>
                 </article>
-              </div>
-
-              <div className="grid gap-5">
-                <article className="rounded-[28px] border border-[#eadbc9] bg-[#fffaf5] p-5 shadow-[0_12px_34px_rgba(106,72,34,0.08)]">
-                  <h2 className="legacy-condensed text-3xl text-[#7b5f3b]">
-                    Compras
-                  </h2>
-
-                  <div className="mt-5 grid gap-4">
-                    <div className="grid gap-3 rounded-[22px] border border-[#ecdcc8] bg-white p-4">
-                      <div className="font-semibold text-[#6f5535]">
-                        Registrar venda de bilheteria
-                      </div>
-                      <div className="grid gap-3 md:grid-cols-[120px_140px_auto]">
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Mes
-                          <input
-                            value={boxOfficeAgendaMonth}
-                            onChange={(event) =>
-                              setBoxOfficeAgendaMonth(event.target.value)
-                            }
-                            className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Ano
-                          <input
-                            value={boxOfficeAgendaYear}
-                            onChange={(event) =>
-                              setBoxOfficeAgendaYear(event.target.value)
-                            }
-                            className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => void loadBoxOfficeAgendas()}
-                          disabled={pendingKey !== null || !hasSessionPermission("ops.read")}
-                          className="self-end rounded-full bg-[#246b99] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                        >
-                          {pendingKey === "box-office-agendas"
-                            ? "Carregando..."
-                            : "Carregar agenda"}
-                        </button>
-                      </div>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Data da agenda
-                          <select
-                            value={boxOfficeAgendaId}
-                            onChange={(event) =>
-                              setBoxOfficeAgendaId(event.target.value)
-                            }
-                            className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                          >
-                            <option value="">Selecione</option>
-                            {boxOfficeAgendas.map((agenda) => (
-                              <option key={agenda.id} value={agenda.id}>
-                                {formatDate(agenda.date)} - #{agenda.id} -{" "}
-                                {agenda.type === "promo" ? "Promocional" : "Padrao"}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          CPF opcional
-                          <input
-                            value={boxOfficeCpf}
-                            onChange={(event) => setBoxOfficeCpf(event.target.value)}
-                            placeholder="52998224725"
-                            className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                          />
-                        </label>
-                      </div>
-                      <div className="grid gap-3 rounded-[20px] border border-[#eadbc9] bg-[#fffaf5] p-4 text-sm text-[#6f5535] md:grid-cols-4">
-                        <div>
-                          <div className="font-semibold">Passaporte</div>
-                          <div>{formatCurrency(boxOfficeAdultBasePrice)}</div>
-                        </div>
-                        <div>
-                          <div className="font-semibold">Passaporte Infantil</div>
-                          <div>{formatCurrency(boxOfficeChildBasePrice)}</div>
-                        </div>
-                        <div>
-                          <div className="font-semibold">Total calculado</div>
-                          <div>{formatCurrency(boxOfficeTotal)}</div>
-                        </div>
-                        <div>
-                          <div className="font-semibold">Pagamentos</div>
-                          <div
-                            className={
-                              Math.abs(boxOfficePaymentDifference) > 0.01
-                                ? "text-[#a33a2f]"
-                                : "text-[#1f8a70]"
-                            }
-                          >
-                            {formatCurrency(boxOfficePaymentTotal)}
-                          </div>
-                        </div>
-                      </div>
-                      <textarea
-                        value={boxOfficeReason}
-                        onChange={(event) => setBoxOfficeReason(event.target.value)}
-                        rows={2}
-                        placeholder="Motivo ou observacao da venda"
-                        className="rounded-[22px] border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                      />
-                      <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Chave anti-duplicidade
-                          <input
-                            value={boxOfficeIdempotencyKey}
-                            onChange={(event) =>
-                              setBoxOfficeIdempotencyKey(event.target.value)
-                            }
-                            placeholder="Gerada automaticamente ao registrar"
-                            className="rounded-2xl border border-[#d9c8b6] px-4 py-3 font-mono text-xs text-[#3a342d]"
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setBoxOfficeIdempotencyKey(
-                              createBoxOfficeIdempotencyKey(),
-                            )
-                          }
-                          className="self-end rounded-full border border-[#d9c8b6] px-5 py-3 text-sm font-semibold text-[#6f5535]"
-                        >
-                          Nova chave
-                        </button>
-                      </div>
-                      <div className="grid gap-3 lg:grid-cols-3">
-                        <div className="grid gap-3 rounded-[20px] border border-[#ecdcc8] bg-[#fffdf9] p-4">
-                          <div className="font-semibold text-[#6f5535]">
-                            Ingressos
-                          </div>
-                          <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                            Passaportes
-                            <input
-                              value={boxOfficeAdultQuantity}
-                              onChange={(event) =>
-                                setBoxOfficeAdultQuantity(event.target.value)
-                              }
-                              className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                            />
-                          </label>
-                          <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                            Desconto passaporte
-                            <select
-                              value={boxOfficeAdultDiscountId}
-                              onChange={(event) =>
-                                setBoxOfficeAdultDiscountId(event.target.value)
-                              }
-                              className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                            >
-                              <option value="">Sem desconto</option>
-                              {boxOfficeDiscounts.map((discount) => (
-                                <option key={discount.id} value={discount.id}>
-                                  {discount.name} - {discount.value}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                            Passaportes infantis
-                            <input
-                              value={boxOfficeChildQuantity}
-                              onChange={(event) =>
-                                setBoxOfficeChildQuantity(event.target.value)
-                              }
-                              className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                            />
-                          </label>
-                          <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                            Desconto passaporte infantil
-                            <select
-                              value={boxOfficeChildDiscountId}
-                              onChange={(event) =>
-                                setBoxOfficeChildDiscountId(event.target.value)
-                              }
-                              className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                            >
-                              <option value="">Sem desconto</option>
-                              {boxOfficeDiscounts.map((discount) => (
-                                <option key={discount.id} value={discount.id}>
-                                  {discount.name} - {discount.value}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                            Isentos
-                            <input
-                              value={boxOfficeExemptQuantity}
-                              onChange={(event) =>
-                                setBoxOfficeExemptQuantity(event.target.value)
-                              }
-                              className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                            />
-                          </label>
-                        </div>
-                        <div className="grid gap-3 rounded-[20px] border border-[#ecdcc8] bg-[#fffdf9] p-4">
-                          <div className="font-semibold text-[#6f5535]">
-                            Cortesia
-                          </div>
-                          <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                            Autorizador
-                            <select
-                              value={boxOfficeCourtesyAuthorId}
-                              onChange={(event) =>
-                                setBoxOfficeCourtesyAuthorId(event.target.value)
-                              }
-                              className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                            >
-                              <option value="">Sem cortesia</option>
-                              {boxOfficeCourtesyAuthors.map((author) => (
-                                <option key={author.id} value={author.id}>
-                                  {author.name}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                            Quantidade
-                            <input
-                              value={boxOfficeCourtesyQuantity}
-                              onChange={(event) =>
-                                setBoxOfficeCourtesyQuantity(event.target.value)
-                              }
-                              className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                            />
-                          </label>
-                          <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                            Identificacao
-                            <input
-                              value={boxOfficeCourtesyIdentification}
-                              onChange={(event) =>
-                                setBoxOfficeCourtesyIdentification(event.target.value)
-                              }
-                              className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                            />
-                          </label>
-                          <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                            Observacao
-                            <input
-                              value={boxOfficeCourtesyNote}
-                              onChange={(event) =>
-                                setBoxOfficeCourtesyNote(event.target.value)
-                              }
-                              className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                            />
-                          </label>
-                        </div>
-                        <div className="grid gap-3 rounded-[20px] border border-[#ecdcc8] bg-[#fffdf9] p-4">
-                          <div className="font-semibold text-[#6f5535]">
-                            Pagamentos
-                          </div>
-                          {boxOfficePaymentRows.map((payment) => (
-                            <div key={payment.id} className="grid gap-2 md:grid-cols-2">
-                              <input
-                                value={payment.method}
-                                onChange={(event) =>
-                                  updateBoxOfficePaymentRow(payment.id, {
-                                    method: event.target.value,
-                                  })
-                                }
-                                className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                              />
-                              <input
-                                value={payment.value}
-                                onChange={(event) =>
-                                  updateBoxOfficePaymentRow(payment.id, {
-                                    value: event.target.value,
-                                  })
-                                }
-                                placeholder="0,00"
-                                className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                              />
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setBoxOfficePaymentRows((rows) => [
-                                ...rows,
-                                {
-                                  id: createBoxOfficeIdempotencyKey(),
-                                  method: "",
-                                  value: "",
-                                },
-                              ])
-                            }
-                            className="rounded-full border border-[#d9c8b6] px-4 py-2 text-sm font-semibold text-[#6f5535]"
-                          >
-                            Adicionar pagamento
-                          </button>
-                        </div>
-                      </div>
-                      <details className="rounded-[20px] border border-[#eadbc9] bg-white p-4">
-                        <summary className="cursor-pointer text-sm font-semibold text-[#6f5535]">
-                          Payload JSON tecnico
-                        </summary>
-                        <div className="mt-4 grid gap-3 lg:grid-cols-3">
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Ingressos JSON
-                          <textarea
-                            value={boxOfficeItemsJson}
-                            onChange={(event) =>
-                              setBoxOfficeItemsJson(event.target.value)
-                            }
-                            rows={8}
-                            className="rounded-[22px] border border-[#d9c8b6] px-4 py-3 font-mono text-xs leading-6 text-[#3a342d]"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Cortesias JSON
-                          <textarea
-                            value={boxOfficeCourtesiesJson}
-                            onChange={(event) =>
-                              setBoxOfficeCourtesiesJson(event.target.value)
-                            }
-                            rows={8}
-                            className="rounded-[22px] border border-[#d9c8b6] px-4 py-3 font-mono text-xs leading-6 text-[#3a342d]"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Pagamentos JSON
-                          <textarea
-                            value={boxOfficePaymentsJson}
-                            onChange={(event) =>
-                              setBoxOfficePaymentsJson(event.target.value)
-                            }
-                            rows={8}
-                            className="rounded-[22px] border border-[#d9c8b6] px-4 py-3 font-mono text-xs leading-6 text-[#3a342d]"
-                          />
-                        </label>
-                        </div>
-                      </details>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          try {
-                            const idempotencyKey =
-                              boxOfficeIdempotencyKey.trim() ||
-                              createBoxOfficeIdempotencyKey();
-
-                            if (!boxOfficeIdempotencyKey.trim()) {
-                              setBoxOfficeIdempotencyKey(idempotencyKey);
-                            }
-
-                            const structuredPayload =
-                              buildStructuredBoxOfficePayload();
-                            const fallbackPayload = {
-                              items: parseJsonArray(
-                                boxOfficeItemsJson,
-                                "Ingressos JSON",
-                              ),
-                              courtesies: parseJsonArray(
-                                boxOfficeCourtesiesJson,
-                                "Cortesias JSON",
-                              ),
-                              payments: parseJsonArray(
-                                boxOfficePaymentsJson,
-                                "Pagamentos JSON",
-                              ),
-                            };
-                            const shouldUseStructuredPayload =
-                              structuredPayload.items.length > 0 ||
-                              structuredPayload.courtesies.length > 0 ||
-                              structuredPayload.payments.length > 0;
-
-                            sendRequest(
-                              "box-office-sale",
-                              "Registrar venda de bilheteria",
-                              "/api/ops/box-office/sales",
-                              {
-                                agendaId: Number(boxOfficeAgendaId),
-                                cpf: boxOfficeCpf,
-                                ...(shouldUseStructuredPayload
-                                  ? structuredPayload
-                                  : fallbackPayload),
-                                reason: boxOfficeReason,
-                                idempotencyKey,
-                              },
-                              "ops.purchases",
-                            );
-                          } catch (error) {
-                            setResponseTitle("Registrar venda de bilheteria");
-                            setResponseStatus(0);
-                            setResponseBody({
-                              ok: false,
-                              error: {
-                                code: "invalid_json_payload",
-                                message:
-                                  error instanceof Error
-                                    ? error.message
-                                    : "Falha ao ler os arrays JSON.",
-                              },
-                            });
-                          }
-                        }}
-                        disabled={pendingKey !== null || !hasSessionPermission("ops.purchases")}
-                        className="rounded-full bg-[#1f8a70] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                      >
-                        {pendingKey === "box-office-sale"
-                          ? "Registrando..."
-                          : "Registrar venda"}
-                      </button>
-                    </div>
-
-                    <div className="grid gap-3 rounded-[22px] border border-[#ecdcc8] bg-white p-4">
-                      <label className="text-sm font-semibold text-[#6f5535]">
-                        Cancelar compra
-                      </label>
-                      <input
-                        value={cancelPurchaseId}
-                        onChange={(event) =>
-                          setCancelPurchaseId(event.target.value)
-                        }
-                        placeholder="321"
-                        className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                      />
-                      <textarea
-                        value={cancelReason}
-                        onChange={(event) => setCancelReason(event.target.value)}
-                        rows={3}
-                        placeholder="Motivo do cancelamento operacional"
-                        className="rounded-[22px] border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          sendRequest(
-                            "purchase-cancel",
-                            "Cancelar compra operacional",
-                            "/api/ops/purchases/cancel",
-                            {
-                              purchaseId: Number(cancelPurchaseId),
-                              reason: cancelReason,
-                            },
-                            "ops.purchases",
-                          )
-                        }
-                        disabled={pendingKey !== null || !hasSessionPermission("ops.purchases")}
-                        className="rounded-full bg-[#a14f44] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                      >
-                        {pendingKey === "purchase-cancel"
-                          ? "Executando..."
-                          : "Cancelar compra"}
-                      </button>
-                    </div>
-
-                    <div className="grid gap-3 rounded-[22px] border border-[#ecdcc8] bg-white p-4">
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Purchase ID
-                          <input
-                            value={updatePurchaseId}
-                            onChange={(event) =>
-                              setUpdatePurchaseId(event.target.value)
-                            }
-                            placeholder="321"
-                            className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Data da compra
-                          <input
-                            value={updateDate}
-                            onChange={(event) => setUpdateDate(event.target.value)}
-                            placeholder="2026-04-23"
-                            className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Status
-                          <select
-                            value={updateStatus}
-                            onChange={(event) => setUpdateStatus(event.target.value)}
-                            className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                          >
-                            <option value="conc">conc</option>
-                            <option value="pend">pend</option>
-                          </select>
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          CPF
-                          <input
-                            value={updateCpf}
-                            onChange={(event) => setUpdateCpf(event.target.value)}
-                            placeholder="52998224725"
-                            className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                          />
-                        </label>
-                      </div>
-
-                      <textarea
-                        value={updateReason}
-                        onChange={(event) => setUpdateReason(event.target.value)}
-                        rows={3}
-                        placeholder="Motivo da alteracao operacional"
-                        className="rounded-[22px] border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
-                      />
-
-                      <div className="grid gap-3 lg:grid-cols-2">
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Vouchers JSON
-                          <textarea
-                            value={updateVouchersJson}
-                            onChange={(event) =>
-                              setUpdateVouchersJson(event.target.value)
-                            }
-                            rows={9}
-                            className="rounded-[22px] border border-[#d9c8b6] px-4 py-3 font-mono text-xs leading-6 text-[#3a342d]"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
-                          Payments JSON
-                          <textarea
-                            value={updatePaymentsJson}
-                            onChange={(event) =>
-                              setUpdatePaymentsJson(event.target.value)
-                            }
-                            rows={9}
-                            className="rounded-[22px] border border-[#d9c8b6] px-4 py-3 font-mono text-xs leading-6 text-[#3a342d]"
-                          />
-                        </label>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          try {
-                            sendRequest(
-                              "purchase-update",
-                              "Editar compra operacional",
-                              "/api/ops/purchases/update",
-                              {
-                                purchaseId: Number(updatePurchaseId),
-                                reason: updateReason,
-                                purchaseDate: updateDate,
-                                status: updateStatus,
-                                cpf: updateCpf,
-                                vouchers: parseJsonArray(
-                                  updateVouchersJson,
-                                  "Vouchers JSON",
-                                ),
-                                payments: parseJsonArray(
-                                  updatePaymentsJson,
-                                  "Payments JSON",
-                                ),
-                              },
-                              "ops.purchases",
-                            );
-                          } catch (error) {
-                            setResponseTitle("Editar compra operacional");
-                            setResponseStatus(0);
-                            setResponseBody({
-                              ok: false,
-                              error: {
-                                code: "invalid_json_payload",
-                                message:
-                                  error instanceof Error
-                                    ? error.message
-                                    : "Falha ao ler os arrays JSON.",
-                              },
-                            });
-                          }
-                        }}
-                        disabled={pendingKey !== null || !hasSessionPermission("ops.purchases")}
-                        className="rounded-full bg-[#7b5f3b] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                      >
-                        {pendingKey === "purchase-update"
-                          ? "Executando..."
-                          : "Salvar alteracoes"}
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              </div>
-
               <aside className="grid gap-5">
                 <article className="rounded-[28px] border border-[#d7e5ef] bg-[#f6fbff] p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h2 className="legacy-condensed text-3xl text-[#205a7f]">
-                        Caixa
+                        Caixa legado
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-[#5f6d77]">
-                        Resumo do periodo aberto e lancamentos de fundo ou
-                        sangria no proprio BFF.
+                        Consulta e reconciliação do período legado aberto. Para os caixas por local e data, use o painel de caixas.
                       </p>
                     </div>
                     <button
@@ -5655,6 +4454,7 @@ export function OperationsConsole({
                     </button>
                   </div>
 
+                  {!cashSummary ? <p className="mt-4 text-sm text-[#5f6d77]">Nenhum caixa legado carregado. <Link href="/painel/caixas" className="underline">Selecionar caixa por local e data</Link>.</p> : null}
                   <div className="mt-4 grid gap-3 text-sm text-[#445864]">
                     <div className="rounded-[20px] border border-[#d8e4ec] bg-white p-4">
                       <div className="font-semibold text-[#205a7f]">
@@ -5664,8 +4464,8 @@ export function OperationsConsole({
                         aberto em {cashSummary?.period.openedAt ?? "-"}
                       </div>
                       <div className="text-xs leading-5 text-[#6f7f89]">
-                        dinheiro de vendas {cashSummary?.totals.cashSales ?? "0.00"} ·
-                        em caixa {cashSummary?.totals.cashInDrawer ?? "0.00"}
+                        dinheiro de vendas {cashSummary?.totals.cashSales ?? "—"} ·
+                        em caixa {cashSummary?.totals.cashInDrawer ?? "—"}
                       </div>
                     </div>
 
@@ -5720,7 +4520,7 @@ export function OperationsConsole({
                       <button
                         type="button"
                         onClick={() => void handleCashMovementSubmit()}
-                        disabled={pendingKey !== null || !hasSessionPermission("ops.cash")}
+                        disabled={pendingKey !== null || !cashSummary || !hasSessionPermission("ops.cash")}
                         className="rounded-full bg-[#1f8a70] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                       >
                         {pendingKey === "cash-movement"
@@ -5731,7 +4531,7 @@ export function OperationsConsole({
 
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="rounded-[20px] border border-[#d8e4ec] bg-white p-4">
-                        <strong>{cashSummary?.totals.fund ?? "0.00"}</strong> em
+                        <strong>{cashSummary?.totals.fund ?? "—"}</strong> em
                         fundos
                         <div className="mt-2 text-xs leading-5 text-[#6f7f89]">
                           {(cashSummary?.funds ?? []).slice(-3).map((item) => (
@@ -5759,7 +4559,7 @@ export function OperationsConsole({
                         </div>
                       </div>
                       <div className="rounded-[20px] border border-[#d8e4ec] bg-white p-4">
-                        <strong>{cashSummary?.totals.sangria ?? "0.00"}</strong> em
+                        <strong>{cashSummary?.totals.sangria ?? "—"}</strong> em
                         sangrias
                         <div className="mt-2 text-xs leading-5 text-[#6f7f89]">
                           {(cashSummary?.sangrias ?? []).slice(-3).map((item) => (
@@ -5840,7 +4640,7 @@ export function OperationsConsole({
                       <button
                         type="button"
                         onClick={() => void handleCashMovementUpdate()}
-                        disabled={pendingKey !== null || !hasSessionPermission("ops.cash")}
+                        disabled={pendingKey !== null || !cashSummary || !hasSessionPermission("ops.cash")}
                         className="rounded-full bg-[#246b99] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                       >
                         {pendingKey === "cash-movement-update"
@@ -5880,7 +4680,7 @@ export function OperationsConsole({
                       <button
                         type="button"
                         onClick={() => void handleCashMovementDelete()}
-                        disabled={pendingKey !== null || !hasSessionPermission("ops.cash")}
+                        disabled={pendingKey !== null || !cashSummary || !hasSessionPermission("ops.cash")}
                         className="rounded-full bg-[#a14f44] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                       >
                         {pendingKey === "cash-movement-delete"
@@ -5987,16 +4787,14 @@ export function OperationsConsole({
 
                     <div className="grid gap-3 rounded-[20px] border border-[#ecdcc8] bg-white p-4">
                       <div className="font-semibold text-[#7b5f3b]">
-                        Fechar periodo atual
+                        Reconciliar período legado
                       </div>
                       <div className="grid gap-3 md:grid-cols-2">
                         <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
                           Operador do fechamento
                           <input
-                            value={cashCloseOperator}
-                            onChange={(event) =>
-                              setCashCloseOperator(event.target.value)
-                            }
+                            value={opsSession?.actorName ?? opsSession?.actorCpf ?? ""}
+                            readOnly
                             placeholder="Nome do operador"
                             className="rounded-2xl border border-[#d9c8b6] px-4 py-3 text-sm text-[#3a342d]"
                           />
@@ -6016,7 +4814,7 @@ export function OperationsConsole({
                       <button
                         type="button"
                         onClick={() => void handleCashClose()}
-                        disabled={pendingKey !== null || !hasSessionPermission("ops.cash")}
+                        disabled={pendingKey !== null || !cashSummary || !hasSessionPermission("ops.cash")}
                         className="rounded-full bg-[#7b5f3b] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                       >
                         {pendingKey === "cash-close"
@@ -6030,8 +4828,7 @@ export function OperationsConsole({
                         Fechar periodos anteriores
                       </div>
                       <div className="text-xs leading-5 text-[#8c7357]">
-                        Fecha automaticamente periodos abertos em dias anteriores e
-                        reposiciona o caixa no periodo atual.
+                        Fecha caixas por local de dias anteriores. Um novo caixa deve ser aberto explicitamente no painel.
                       </div>
                       <label className="flex flex-col gap-2 text-sm font-semibold text-[#6f5535]">
                         Motivo
@@ -6088,7 +4885,7 @@ export function OperationsConsole({
                     </button>
                   </div>
 
-                    <div className="mt-4 grid gap-3 text-sm text-[#445864]">
+                  <div className="mt-4 grid gap-3 text-sm text-[#445864]">
                     <div className="rounded-[20px] border border-[#d8e4ec] bg-white p-4">
                       <strong>{referenceData?.discountTypes.length ?? 0}</strong>{" "}
                       tipos de desconto
@@ -6697,8 +5494,7 @@ export function OperationsConsole({
                       CPF do operador ficam preservados nesta aba para auditoria.
                     </li>
                     <li>
-                      A UI nao substitui permissao de backend: todos os
-                      endpoints continuam exigindo bearer token valido.
+                      Caixa e histórico exigem sessão do painel e permissão de bilheteria. Reconciliação exige gestor.
                     </li>
                     <li>
                       O update de compra agora cobre motivo obrigatorio,
@@ -6706,10 +5502,7 @@ export function OperationsConsole({
                       em `edicoes_log`.
                     </li>
                     <li>
-                      Caixa agora ja le o periodo aberto, registra, edita e
-                      exclui fundo ou sangria com auditoria minima; o historico e
-                      o fechamento manual ja saem do BFF, com pagina propria de
-                      impressao; rotinas automaticas ainda seguem pendentes.
+                      O fechamento encerra o período existente. Consulte o histórico para detalhes e impressão; abra novos caixas no painel de caixas.
                     </li>
                   </ul>
                 </article>

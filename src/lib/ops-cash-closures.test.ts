@@ -6,7 +6,8 @@ import {
   listOperationalCashClosures,
 } from "@/lib/ops-cash-closures";
 
-const { query, connect, release, registerOpsAuditLog, ensureOpsAuditLogTable } = vi.hoisted(() => ({
+const { query, connect, release, registerOpsAuditLog, ensureOpsAuditLogTable, autoCloseExpiredCashSessions } = vi.hoisted(() => ({
+  autoCloseExpiredCashSessions: vi.fn(),
   query: vi.fn(),
   connect: vi.fn(),
   release: vi.fn(),
@@ -28,6 +29,11 @@ vi.mock("@/lib/ops-audit-log", () => ({
   ensureOpsAuditLogTable,
 }));
 
+vi.mock("@/lib/operational-cash-session", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/operational-cash-session")>(),
+  autoCloseExpiredCashSessions,
+}));
+
 describe("ops-cash-closures", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -38,9 +44,11 @@ describe("ops-cash-closures", () => {
     registerOpsAuditLog.mockResolvedValue(981);
   });
 
-  it("lists recent cash closures", async () => {
+  it("lists recent cash closures without schema writes", async () => {
     query.mockImplementation(async (sql: string, values?: unknown[]) => {
+      expect(sql).toMatch(/^\s*SELECT/);
       if (sql.includes("SELECT COUNT(*)::text AS total")) {
+        expect(sql).toContain("fechamento.modelo_operacional = FALSE");
         expect(sql).toContain("COALESCE(periodo.fechamento_auto, FALSE)");
         expect(sql).toContain("COALESCE(fechamento.totals_geral, 0) = 0");
         return {
@@ -49,6 +57,7 @@ describe("ops-cash-closures", () => {
       }
 
       if (sql.includes("FROM caixa_fechamentos")) {
+        expect(sql).toContain("fechamento.modelo_operacional = FALSE");
         expect(sql).toContain("COALESCE(periodo.fechamento_auto, FALSE)");
         expect(sql).toContain("COALESCE(fechamento.totals_geral, 0) = 0");
         expect(values).toEqual([10, 0]);
@@ -160,7 +169,7 @@ describe("ops-cash-closures", () => {
     });
   });
 
-  it("closes the current cash period, opens the next one and links the closure", async () => {
+  it("closes only the existing legacy period and links its closure", async () => {
     let openPeriodId = 7;
     let closureCreated = false;
 
@@ -319,7 +328,7 @@ describe("ops-cash-closures", () => {
     ).resolves.toEqual({
       action: "close",
       periodId: 7,
-      nextPeriodId: 8,
+      nextPeriodId: null,
       closure: {
         id: 44,
         periodId: 7,
@@ -373,27 +382,12 @@ describe("ops-cash-closures", () => {
           cashInDrawer: "350.00",
         },
       },
-      currentSummary: {
-        period: {
-          id: 8,
-          openedAt: "2026-04-23 18:00:00+00",
-          closedAt: null,
-          operator: null,
-          closureSheetId: null,
-        },
-        funds: [],
-        sangrias: [],
-        totals: {
-          cashSales: "0.00",
-          fund: "0.00",
-          sangria: "0.00",
-          cashInDrawer: "0.00",
-        },
-      },
+      currentSummary: null,
       auditLogId: 981,
       message: "Caixa fechado com sucesso.",
     });
 
+    expect(query.mock.calls.some(([sql]) => /INSERT INTO caixa_periodos|UPDATE voucher/.test(sql))).toBe(false);
     expect(ensureOpsAuditLogTable).toHaveBeenCalled();
     expect(registerOpsAuditLog).toHaveBeenCalledWith(
       expect.anything(),
@@ -407,204 +401,41 @@ describe("ops-cash-closures", () => {
     );
   });
 
-  it("auto closes stale periods and leaves the current period open", async () => {
-    let staleClosed = false;
-    let currentOpenPeriodId = 9;
+  it("rejects a new operational closure ID without schema changes", async () => {
+    query.mockResolvedValue({ rows: [] });
+    await expect(getOperationalCashClosureDetail(99)).rejects.toMatchObject({ code: "cash_closure_not_found", status: 404 });
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][0]).toContain("fechamento.modelo_operacional = FALSE");
+    expect(query.mock.calls[0][0]).toContain("periodo.parque IS NULL");
+  });
 
-    query.mockImplementation(async (sql: string, values?: unknown[]) => {
-      if (sql === "BEGIN" || sql === "COMMIT") {
-        return { rows: [] };
-      }
-
-      if (
-        sql.includes("FROM caixa_periodos") &&
-        sql.includes("(aberto_em AT TIME ZONE 'America/Sao_Paulo')::date") &&
-        sql.includes("(NOW() AT TIME ZONE 'America/Sao_Paulo')::date")
-      ) {
-        if (staleClosed) {
-          return { rows: [] };
-        }
-
-        return {
-          rows: [
-            {
-              id: 6,
-              aberto_em: "2026-04-22 08:00:00+00",
-              fechado_em: null,
-              operador: null,
-              folha_id: null,
-            },
-          ],
-        };
-      }
-
-      if (sql.includes("date_trunc('day'")) {
-        expect(values).toEqual(["2026-04-22 08:00:00+00"]);
-
-        return {
-          rows: [{ closed_at: "2026-04-23 03:00:00+00" }],
-        };
-      }
-
-      if (sql.includes("FROM movimentacao_caixa") && values?.[0] === "fundo") {
-        return {
-          rows: [
-            {
-              id: 21,
-              tipo: "fundo",
-              responsavel: "Tesouraria",
-              valor: "40.00",
-              data_hora: "2026-04-22 09:00:00+00",
-            },
-          ],
-        };
-      }
-
-      if (sql.includes("FROM movimentacao_caixa") && values?.[0] === "sangria") {
-        return { rows: [] };
-      }
-
-      if (sql.includes("WITH voucher_totals AS")) {
-        if (values?.[0] === "2026-04-22 08:00:00+00") {
-          return {
-            rows: [{ total: "120.00" }],
-          };
-        }
-
-        return {
-          rows: [{ total: "0.00" }],
-        };
-      }
-
-      if (sql.includes("INSERT INTO caixa_fechamentos")) {
-        staleClosed = true;
-
-        expect(values?.[0]).toBe(6);
-        expect(sql).toContain("data_caixa");
-        expect(values?.[5]).toBe("2026-04-22 08:00:00+00");
-
-        return {
-          rows: [{ id: 55 }],
-        };
-      }
-
-      if (
-        sql.includes("UPDATE caixa_periodos") &&
-        sql.includes("fechado_em = $4") &&
-        values?.[0] === 6
-      ) {
-        expect(values).toEqual([6, null, 55, "2026-04-23 03:00:00+00", true]);
-        return { rows: [] };
-      }
-
-      if (sql.includes("UPDATE voucher v") || sql.includes("UPDATE edicoes_log")) {
-        return { rows: [] };
-      }
-
-      if (sql.includes("INSERT INTO caixa_periodos")) {
-        currentOpenPeriodId = 7;
-
-        expect(values).toEqual(["2026-04-23 03:00:00+00"]);
-
-        return {
-          rows: [{ id: 7 }],
-        };
-      }
-
-      if (
-        sql.includes("FROM caixa_periodos") &&
-        sql.includes("fechado_em IS NULL") &&
-        sql.includes("ORDER BY id DESC")
-      ) {
-        return {
-          rows: [
-            {
-              id: currentOpenPeriodId,
-              aberto_em: "2026-04-23 03:00:00+00",
-              fechado_em: null,
-              operador: null,
-              folha_id: null,
-            },
-          ],
-        };
-      }
-
-      if (sql.includes("WHERE fechamento.id = $1")) {
-        expect(values).toEqual([55]);
-
-        return {
-          rows: [
-            {
-              id: 55,
-              periodo_id: 6,
-              snapshot_json:
-                '{"period":{"ini":"2026-04-22 08:00:00+00","fim":"2026-04-23 03:00:00+00"},"fechamentoInfo":{"auto":true}}',
-              totals_dinheiro: "120.00",
-              totals_fundo: "40.00",
-              totals_geral: "160.00",
-              created_at: "2026-04-23 03:00:00+00",
-              periodo_aberto_em: "2026-04-22 08:00:00+00",
-              periodo_fechado_em: "2026-04-23 03:00:00+00",
-              periodo_operador: null,
-            },
-          ],
-        };
-      }
-
-      return { rows: [] };
+  it("preserves recorded legacy dates before snapshot dates, then falls back to opening date", async () => {
+    query.mockImplementation(async (sql: string) => {
+      if (/^\s*(CREATE|ALTER|UPDATE|INSERT|DELETE)/i.test(sql)) throw new Error("Read attempted mutation");
+      if (sql.includes("COUNT(*)")) return { rows: [{ total: "3" }] };
+      expect(sql).toContain("to_jsonb(fechamento)->>'data_caixa'");
+      return { rows: [
+        { id: 1, data_caixa: "2026-01-01", snapshot_json: { cashDate: "2026-01-02" }, fallback_data_caixa: "2026-01-03" },
+        { id: 2, snapshot_json: { cashDate: "2026-01-02" }, fallback_data_caixa: "2026-01-03" },
+        { id: 3, snapshot_json: null, fallback_data_caixa: "2026-01-03" },
+      ] };
     });
+    const result = await listOperationalCashClosures();
+    expect(result.items.map(item => item.cashDate)).toEqual(["2026-01-01", "2026-01-02", "2026-01-03"]);
+  });
 
-    await expect(
-      autoCloseOperationalCashClosures({
-        reason: "Virada do dia no BFF",
-        actor: {
-          name: "Sistema",
-        },
-      }),
-    ).resolves.toEqual({
-      action: "auto_close",
-      closedCount: 1,
-      closedPeriodIds: [6],
-      closureIds: [55],
-      currentSummary: {
-        period: {
-          id: 7,
-          openedAt: "2026-04-23 03:00:00+00",
-          closedAt: null,
-          operator: null,
-          closureSheetId: null,
-        },
-        funds: [
-          {
-            id: 21,
-            type: "fundo",
-            responsible: "Tesouraria",
-            value: "40.00",
-            createdAt: "2026-04-22 09:00:00+00",
-          },
-        ],
-        sangrias: [],
-        totals: {
-          cashSales: "0.00",
-          fund: "40.00",
-          sangria: "0.00",
-          cashInDrawer: "40.00",
-        },
-      },
-      auditLogIds: [981],
-      message: "1 periodo(s) anterior(es) fechados automaticamente.",
+  it("delegates expired sessions without opening successors or fabricating identifiers", async () => {
+    autoCloseExpiredCashSessions.mockResolvedValueOnce({ closedCount: 2, closedPeriodIds: [9, 10] })
+      .mockResolvedValueOnce({ closedCount: 0, closedPeriodIds: [] });
+    const input = { reason: "Rotina", actor: { name: "Job", cpf: null } };
+    expect(await autoCloseOperationalCashClosures(input)).toMatchObject({
+      action: "auto_close", closedCount: 2, closedPeriodIds: [9, 10], currentSummary: null,
     });
-
-    expect(ensureOpsAuditLogTable).toHaveBeenCalled();
-    expect(registerOpsAuditLog).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        origem: "caixa",
-        acao: "fechar_auto",
-        periodoId: 6,
-        folhaId: 55,
-      }),
-      "postgres",
-    );
+    const replay = await autoCloseOperationalCashClosures(input);
+    expect(replay.closedCount).toBe(0);
+    expect(replay).not.toHaveProperty("closureIds");
+    expect(replay).not.toHaveProperty("auditLogIds");
+    expect(autoCloseExpiredCashSessions).toHaveBeenCalledWith(input.actor);
+    expect(connect).not.toHaveBeenCalled();
   });
 });

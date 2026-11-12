@@ -17,7 +17,13 @@ export async function POST(request: Request) {
   const access = await requirePainelApiAccess(request, "vis_bilhet");
 
   if (!access.ok) {
+    access.response.headers.set("Cache-Control", "private, no-store");
     return access.response;
+  }
+
+  if (access.session.legacyRoleId !== 1) {
+    return NextResponse.json({ ok: false, error: { code: "manager_required", message: "Somente gestor pode reconciliar o caixa legado." } },
+      { status: 403, headers: { "Cache-Control": "private, no-store" } });
   }
 
   const payload = await readJsonPayload<CloseCashClosurePayload>(request);
@@ -25,8 +31,7 @@ export async function POST(request: Request) {
   try {
     const result = await closeOperationalCashClosure({
       reason: typeof payload?.reason === "string" ? payload.reason : "",
-      operatorName:
-        typeof payload?.operatorName === "string" ? payload.operatorName : "",
+      operatorName: access.session.actorName || access.session.actorCpf || "",
       actor: {
         name: access.session.actorName,
         cpf: access.session.actorCpf,
@@ -36,7 +41,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       data: result,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const operationError = asOperationalCashClosureError(error);
 
@@ -50,7 +55,7 @@ export async function POST(request: Request) {
           message: operationError.message,
         },
       },
-      { status: operationError.status },
+      { status: operationError.status, headers: { "Cache-Control": "private, no-store" } },
     );
   }
 }

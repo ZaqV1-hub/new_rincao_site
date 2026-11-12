@@ -1,4 +1,7 @@
-﻿import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getCashSession } from "@/lib/operational-cash-session";
+import { getSaoPauloToday } from "@/lib/operational-date";
+import type { Metadata } from "next";
 import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-header";
 import { PainelBilheteriaSaleFinalize } from "@/components/painel-bilheteria-sale-finalize";
 import { requirePainelAccess } from "@/lib/painel-session";
@@ -13,9 +16,14 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function PainelBilheteriaFinalizePage() {
+export default async function PainelBilheteriaFinalizePage({ searchParams }: { searchParams?: Promise<{ periodId?: string }> }) {
   const session = await requirePainelAccess("vis_bilhet", "/painel/bilheteria/finalizar");
 
+  const periodId = Number((await searchParams)?.periodId);
+  if (!Number.isSafeInteger(periodId) || periodId <= 0) redirect("/painel/caixas");
+  const cash = await getCashSession(periodId);
+  if (cash.type !== "sales") redirect(`/painel/caixas/${periodId}`);
+  const readOnly = Boolean(cash.closedAt) || cash.date !== getSaoPauloToday();
   return (
     <div className="grid gap-5">
       <PainelBilheteriaPageHeader
@@ -27,7 +35,7 @@ export default async function PainelBilheteriaFinalizePage() {
         actorName={session.actorName}
       />
 
-      <PainelBilheteriaSaleFinalize />
+      <PainelBilheteriaSaleFinalize periodId={periodId} readOnly={readOnly} />
     </div>
   );
 }

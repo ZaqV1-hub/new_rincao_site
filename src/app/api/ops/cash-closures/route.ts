@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import type { AuthErrorResponse } from "@/lib/auth-contracts";
-import { authenticateOperationsRequest } from "@/lib/ops-auth";
-import { authorizePainelApiAccess } from "@/lib/painel-api-auth";
+import { requirePainelApiAccess } from "@/lib/painel-api-auth";
 import {
   asOperationalCashClosureError,
-  closeOperationalCashClosure,
   listOperationalCashClosures,
 } from "@/lib/ops-cash-closures";
 
@@ -19,22 +17,15 @@ function errorResponse(code: string, message: string, status: number) {
         message,
       },
     },
-    { status },
+    { status, headers: { "Cache-Control": "private, no-store" } },
   );
 }
 
 export async function GET(request: Request) {
-  const auth = authenticateOperationsRequest(request, {
-    requiredPermission: "ops.read",
-  });
-
-  if (!auth.ok) {
-    return auth.response;
-  }
-
-  const painelAuth = await authorizePainelApiAccess(request, "vis_bilhet");
+  const painelAuth = await requirePainelApiAccess(request, "vis_bilhet");
 
   if (!painelAuth.ok) {
+    painelAuth.response.headers.set("Cache-Control", "private, no-store");
     return painelAuth.response;
   }
 
@@ -51,7 +42,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       data,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const operationError = asOperationalCashClosureError(error);
 
@@ -65,68 +56,4 @@ export async function GET(request: Request) {
   }
 }
 
-type CloseCashClosurePayload = {
-  reason?: unknown;
-  operatorName?: unknown;
-  actor?: {
-    name?: unknown;
-    cpf?: unknown;
-  } | null;
-};
-
-export async function POST(request: Request) {
-  const auth = authenticateOperationsRequest(request, {
-    requiredPermission: "ops.cash",
-  });
-
-  if (!auth.ok) {
-    return auth.response;
-  }
-
-  const painelAuth = await authorizePainelApiAccess(request, "vis_bilhet");
-
-  if (!painelAuth.ok) {
-    return painelAuth.response;
-  }
-
-  let payload: CloseCashClosurePayload | null = null;
-
-  try {
-    payload = (await request.json()) as CloseCashClosurePayload;
-  } catch {
-    payload = null;
-  }
-
-  try {
-    const result = await closeOperationalCashClosure({
-      reason: typeof payload?.reason === "string" ? payload.reason : "",
-      operatorName:
-        typeof payload?.operatorName === "string" ? payload.operatorName : "",
-      actor: {
-        name:
-          typeof payload?.actor?.name === "string"
-            ? payload.actor.name.trim()
-            : null,
-        cpf:
-          typeof payload?.actor?.cpf === "string"
-            ? payload.actor.cpf.trim()
-            : null,
-      },
-    });
-
-    return NextResponse.json({
-      ok: true,
-      data: result,
-    });
-  } catch (error) {
-    const operationError = asOperationalCashClosureError(error);
-
-    console.error("ops-cash-close-bff-failed", error);
-
-    return errorResponse(
-      operationError.code,
-      operationError.message,
-      operationError.status,
-    );
-  }
-}
+export { POST } from "@/app/api/painel/bilheteria/cash-closures/route";

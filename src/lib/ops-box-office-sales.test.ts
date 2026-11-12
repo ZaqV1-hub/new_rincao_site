@@ -1,535 +1,68 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createOperationalBoxOfficeSale } from "@/lib/ops-box-office-sales";
-
-const mocks = vi.hoisted(() => ({
-  clientQuery: vi.fn(),
-  release: vi.fn(),
-  ensureOpsAuditLogTable: vi.fn(),
-  registerOpsAuditLog: vi.fn(),
-  getOrCreateOpenCashPeriod: vi.fn(),
-  processConfirmedPurchaseTickets: vi.fn(),
-  randomInt: vi.fn(),
-}));
-
-vi.mock("node:crypto", () => ({
-  randomInt: mocks.randomInt,
-}));
-
-vi.mock("@/lib/ingresso-db", () => ({
-  getIngressoSistemaDbPool: () => ({
-    connect: async () => ({
-      query: mocks.clientQuery,
-      release: mocks.release,
-    }),
-  }),
-}));
-
-vi.mock("@/lib/ops-audit-log", () => ({
-  ensureOpsAuditLogTable: mocks.ensureOpsAuditLogTable,
-  registerOpsAuditLog: mocks.registerOpsAuditLog,
-}));
-
-vi.mock("@/lib/ops-cash-management", () => ({
-  getOrCreateOpenCashPeriod: mocks.getOrCreateOpenCashPeriod,
-}));
-
-vi.mock("@/lib/ticket-service", () => ({
-  processConfirmedPurchaseTickets: mocks.processConfirmedPurchaseTickets,
-}));
-
-describe("ops-box-office-sales", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    let randomIndex = 0;
-
-    mocks.randomInt.mockImplementation((minOrMax: number, max?: number) => {
-      const upperBound = max ?? minOrMax;
-      const next = randomIndex % upperBound;
-      randomIndex += 1;
-      return next;
-    });
-    mocks.getOrCreateOpenCashPeriod.mockResolvedValue({
-      id: 55,
-      aberto_em: "2026-04-23 08:00:00-03",
-      fechado_em: null,
-      operador: null,
-      folha_id: null,
-    });
-    mocks.registerOpsAuditLog.mockResolvedValue(9001);
-    mocks.ensureOpsAuditLogTable.mockResolvedValue(undefined);
-    mocks.processConfirmedPurchaseTickets.mockResolvedValue({
-      status: "sent",
-      purchaseId: 321,
-      sentVoucherIds: [9001],
-    });
+import { createOperationalBoxOfficeSale, readCashPayments, settleCashPayments } from "./ops-box-office-sales";
+const mock = vi.hoisted(() => ({ query: vi.fn(), release: vi.fn(), lock: vi.fn(), audit: vi.fn(), send: vi.fn(), command: vi.fn() }));
+vi.mock("@/lib/ingresso-db", () => ({ getIngressoSistemaDbPool: () => ({ connect: async () => ({ query: mock.query, release: mock.release }) }), getIngressoSistemaDbDialect: () => "postgres" }));
+vi.mock("@/lib/ops-audit-log", () => ({ ensureOpsAuditLogTable: async () => {}, registerOpsAuditLog: mock.audit }));
+vi.mock("@/lib/operational-cash-session", () => ({ lockOpenCashSession: mock.lock, withCashSessionCommand: mock.command, CashSessionError: class extends Error {} }));
+vi.mock("@/lib/ticket-service", () => ({ processConfirmedPurchaseTickets: mock.send }));
+const input = { agendaId: 88, periodId: 55, cpf: "52998224725", idempotencyKey: "sale-test-key", items: [{ type: "norma", quantity: 1 }], payments: [{ method: "dinhe", value: "100.00" }], actor: { name: "Operador", cpf: "52998224725" } };
+beforeEach(() => {
+  vi.clearAllMocks();
+  mock.command.mockImplementation(async (_client, _input, run) => (await run()).response);
+  mock.lock.mockResolvedValue({ id: 55, park: "rincao", date: "2099-01-01", type: "sales" });
+  mock.audit.mockResolvedValue(9001); mock.send.mockResolvedValue({ status: "sent" });
+  mock.query.mockImplementation(async (sql: string) => {
+      if (sql.includes('AS "isCurrentCashDate"')) return { rows: [{ isCurrentCashDate: true }] };
+    if (sql.includes("FROM agenda")) return { rows: [{ idagenda: 88, dtagenda: "2099-01-01", tpagenda: "padra", stagenda: "lot", vlnormalbil: "100.00", vlinfantbil: "70.00", validity: "7_days", ticketTypes: ["norma", "infan", "isent"] }] };
+    if (sql.includes("FROM cortesias")) return { rows: [{ id: 3, nome: "Diretoria" }] };
+    if (sql.includes("FROM descontos")) return { rows: [{ id: 7, nome: "Professor", tipo_aplicacao: "percentual", valor: "50.00" }] };
+    if (sql.includes("FROM servicos_adicionais")) return { rows: [{ id: "9", name: "Armário", price: "10.00" }] };
+    if (sql.includes("INSERT INTO compra (")) return { rows: [{ idcompra: 321 }] };
+    if (sql.includes("INSERT INTO voucher")) return { rows: [{ idvoucher: 9001 }] };
+    return { rows: [], rowCount: 0 };
   });
-
-  it("creates a sale with bulk voucher and payment writes", async () => {
-    mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
-      if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
-        return { rows: [] };
-      }
-
-      if (sql.includes("FROM agenda")) {
-        return {
-          rows: [
-            {
-              idagenda: 88,
-              dtagenda: "2026-07-25",
-              tpagenda: "padra",
-              stagenda: "abe",
-              vlnormalbil: "100.00",
-              vlinfantbil: "70.00",
-            },
-          ],
-        };
-      }
-
-      if (sql.includes("FROM descontos")) {
-        expect(values).toEqual([[7]]);
-        return {
-          rows: [
-            {
-              id: 7,
-              nome: "Professor",
-              tipo_aplicacao: "percentual",
-              valor: "50.00",
-            },
-          ],
-        };
-      }
-
-      if (sql.includes("FROM cortesias")) {
-        expect(values).toEqual([[3]]);
-        return {
-          rows: [{ id: 3, nome: "Diretoria" }],
-        };
-      }
-
-      if (sql.includes("INSERT INTO compra (")) {
-        expect(values).toEqual(["52998224725", "dinhe", "170.00", "100.00"]);
-        return { rows: [{ idcompra: 321 }] };
-      }
-
-      if (sql.includes("SELECT numvoucher")) {
-        expect(values).toHaveLength(1);
-        expect(Array.isArray(values?.[0])).toBe(true);
-        return { rows: [] };
-      }
-
-      if (sql.includes("INSERT INTO voucher")) {
-        expect(sql.match(/\(/g)?.length).toBeGreaterThanOrEqual(5);
-        expect(values).toEqual([
-          321,
-          expect.stringMatching(/^A/),
-          88,
-          "norma",
-          "50.00",
-          "s",
-          expect.any(String),
-          7,
-          "Adulto - Professor",
-          null,
-          null,
-          "n",
-          321,
-          expect.stringMatching(/^A/),
-          88,
-          "norma",
-          "50.00",
-          "s",
-          expect.any(String),
-          7,
-          "Adulto - Professor",
-          null,
-          null,
-          "n",
-          321,
-          expect.stringMatching(/^C/),
-          88,
-          "infan",
-          "70.00",
-          "n",
-          expect.any(String),
-          null,
-          "Infantil",
-          null,
-          null,
-          "n",
-          321,
-          expect.stringMatching(/^I/),
-          88,
-          "isent",
-          "0.00",
-          "n",
-          expect.any(String),
-          null,
-          "Isento",
-          null,
-          null,
-          "n",
-          321,
-          expect.stringMatching(/^A/),
-          88,
-          "corte",
-          "0.00",
-          "n",
-          expect.any(String),
-          null,
-          "Cortesia - Diretoria - Maria (Portaria)",
-          "Maria",
-          3,
-          "n",
-        ]);
-        return {
-          rows: [
-            { idvoucher: 9001 },
-            { idvoucher: 9002 },
-            { idvoucher: 9003 },
-            { idvoucher: 9004 },
-            { idvoucher: 9005 },
-          ],
-        };
-      }
-
-      if (sql.includes("INSERT INTO compra_pagamentos")) {
-        expect(values).toEqual([321, "dinhe", "100.00", 321, "pix", "70.00"]);
-        return { rows: [] };
-      }
-
-      return { rows: [] };
-    });
-
-    await expect(
-      createOperationalBoxOfficeSale({
-        agendaId: 88,
-        cpf: "529.982.247-25",
-        items: [
-          { type: "norma", quantity: 2, discountId: 7 },
-          { type: "infan", quantity: 1 },
-          { type: "isent", quantity: 1 },
-        ],
-        courtesies: [
-          {
-            authorId: 3,
-            quantity: 1,
-            identification: "Maria",
-            note: "Portaria",
-          },
-        ],
-        payments: [
-          { method: "dinhe", value: "100,00" },
-          { method: "pix", value: "70,00" },
-        ],
-        reason: "Venda presencial",
-        actor: {
-          name: "Operador",
-        },
-      }),
-    ).resolves.toMatchObject({
-      action: "create",
-      purchaseId: 321,
-      agendaId: 88,
-      totalValue: "170.00",
-      paymentMethods: ["dinhe", "pix"],
-      voucherIds: [9001, 9002, 9003, 9004, 9005],
-      voucherCount: 5,
-      auditLogId: 9001,
-    });
-    expect(mocks.registerOpsAuditLog).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        origem: "ops-box-office",
-        acao: "sale_create",
-        compraId: 321,
-        periodoId: 55,
-        motivo: "Venda presencial",
-        usuarioNome: "Operador",
-      }),
-      "postgres",
-    );
-    expect(mocks.clientQuery).toHaveBeenCalledWith("COMMIT");
-    expect(mocks.processConfirmedPurchaseTickets).toHaveBeenCalledWith(321);
-    expect(mocks.release).toHaveBeenCalled();
+});
+describe("cash payment arithmetic", () => {
+  it("uses exact cents, gives change only from cash, and accepts a free sale without fake payment", () => {
+    expect(settleCashPayments(10000, readCashPayments([{ method: "pix", value: "70,00" }, { method: "dinhe", value: "50.00" }]))).toEqual({ totalCents: 10000, receivedCents: 12000, changeCents: 2000, netPayments: [{ method: "pix", amountCents: 7000 }, { method: "dinhe", amountCents: 3000 }] });
+    expect(settleCashPayments(0, [])).toEqual({ totalCents: 0, receivedCents: 0, changeCents: 0, netPayments: [] });
+    expect(() => settleCashPayments(100, readCashPayments([{ method: "pix", value: "1.01" }]))).toThrow();
+    expect(() => settleCashPayments(100, readCashPayments([{ method: "dinhe", value: "0.99" }]))).toThrow();
   });
-
-  it("rejects paid sales when payment total differs from calculated total", async () => {
-    mocks.clientQuery.mockImplementation(async (sql: string) => {
-      if (sql === "BEGIN" || sql === "ROLLBACK") {
-        return { rows: [] };
-      }
-
-      if (sql.includes("FROM agenda")) {
-        return {
-          rows: [
-            {
-              idagenda: 88,
-              dtagenda: "2026-07-25",
-              tpagenda: "padra",
-              stagenda: "abe",
-              vlnormalbil: "100.00",
-              vlinfantbil: "70.00",
-            },
-          ],
-        };
-      }
-
-      return { rows: [] };
-    });
-
-    await expect(
-      createOperationalBoxOfficeSale({
-        agendaId: 88,
-        items: [{ type: "norma", quantity: 1 }],
-        payments: [{ method: "dinhe", value: "1,00" }],
-      }),
-    ).rejects.toMatchObject({
-      code: "box_office_payment_mismatch",
-      status: 409,
-    });
-    expect(mocks.clientQuery).toHaveBeenCalledWith("ROLLBACK");
-    expect(mocks.registerOpsAuditLog).not.toHaveBeenCalled();
+  it.each([{ method: "boleto", value: "1" }, { method: "pix", value: "0.001" }, { method: "pix", value: "1e3" }, { method: "dinhe", value: -1 }, { method: "pix", value: "1.2,34" }])("rejects unsupported or inexact payments", (payment) => { expect(() => readCashPayments([payment])).toThrow(); });
+});
+describe("scoped box office sale", () => {
+  it("requires an explicit period, idempotency key, valid CPF and bounded units", async () => {
+    for (const patch of [{ periodId: 0 }, { idempotencyKey: "" }, { cpf: "11111111111" }, { items: [{ type: "norma", quantity: 501 }] }, { services: [{ serviceId: 9, quantity: 1, discountId: 7 }] }]) await expect(createOperationalBoxOfficeSale({ ...input, ...patch })).rejects.toMatchObject({ status: 400 });
+    expect(mock.query).not.toHaveBeenCalled();
   });
-
-  it("allows zero-value courtesy-only sales without payment rows", async () => {
-    mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
-      if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
-        return { rows: [] };
-      }
-
-      if (sql.includes("FROM agenda")) {
-        return {
-          rows: [
-            {
-              idagenda: 88,
-              dtagenda: "2026-07-25",
-              tpagenda: "promo",
-              stagenda: "abe",
-              vlnormalbil: "100.00",
-              vlinfantbil: "70.00",
-            },
-          ],
-        };
-      }
-
-      if (sql.includes("FROM cortesias")) {
-        return { rows: [{ id: 3, nome: "Diretoria" }] };
-      }
-
-      if (sql.includes("INSERT INTO compra (")) {
-        expect(values).toEqual([null, "corte", "0.00"]);
-        return { rows: [{ idcompra: 322 }] };
-      }
-
-      if (sql.includes("SELECT numvoucher")) {
-        return { rows: [] };
-      }
-
-      if (sql.includes("INSERT INTO voucher")) {
-        expect(values).toContain("2026-07-25");
-        return { rows: [{ idvoucher: 9100 }] };
-      }
-
-      if (sql.includes("INSERT INTO compra_pagamentos")) {
-        throw new Error("payments_should_not_be_inserted");
-      }
-
-      return { rows: [] };
-    });
-
-    await expect(
-      createOperationalBoxOfficeSale({
-        agendaId: 88,
-        courtesies: [{ authorId: 3, authorizedById: 3, quantity: 1 }],
-      }),
-    ).resolves.toMatchObject({
-      purchaseId: 322,
-      totalValue: "0.00",
-      paymentMethods: [],
-      voucherIds: [9100],
-    });
+  it("locks the explicit sales session, preserves discounts, and saves interval and operational origin", async () => {
+    const result = await createOperationalBoxOfficeSale({ ...input, items: [{ type: "norma", quantity: 2, discountId: 7 }], payments: [{ method: "dinhe", value: "120.00" }] });
+    expect(mock.lock).toHaveBeenCalledWith(expect.anything(), { periodId: 55, expectedType: "sales" });
+    expect(result).toMatchObject({ totalCents: 10000, receivedCents: 12000, changeCents: 2000, periodId: 55 });
+    expect(mock.command.mock.invocationCallOrder[0]).toBeLessThan(mock.lock.mock.invocationCallOrder[0]);
+    const vouchers = mock.query.mock.calls.find(([sql]) => String(sql).includes("INSERT INTO voucher"))!;
+    expect(vouchers[0]).toContain("dtinicio_validade"); expect(vouchers[0]).toContain("parque_operacional");
+    expect(vouchers[1]).toContain("2099-01-01"); expect(vouchers[1]).toContain("2099-01-07"); expect(vouchers[1]).toContain("rincao");
+    const payments = mock.query.mock.calls.find(([sql]) => String(sql).includes("INSERT INTO compra_pagamentos"))!;
+    expect(payments[0]).toContain("periodo_id"); expect(payments[1]).toContain("100.00"); expect(payments[1]).toContain(55);
   });
-
-  it("keeps the committed sale when ticket service is skipped", async () => {
-    mocks.processConfirmedPurchaseTickets.mockResolvedValue({
-      status: "skipped",
-      purchaseId: 323,
-      sentVoucherIds: [],
-      skippedReason: "ticket_service_not_configured",
-    });
-    mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
-      if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
-        return { rows: [] };
-      }
-
-      if (sql.includes("FROM agenda")) {
-        return {
-          rows: [
-            {
-              idagenda: 88,
-              dtagenda: "2026-07-25",
-              tpagenda: "padra",
-              stagenda: "abe",
-              vlnormalbil: "100.00",
-              vlinfantbil: "70.00",
-            },
-          ],
-        };
-      }
-
-      if (sql.includes("INSERT INTO compra (")) {
-        expect(values).toEqual([null, "dinhe", "100.00"]);
-        return { rows: [{ idcompra: 323 }] };
-      }
-
-      if (sql.includes("SELECT numvoucher")) {
-        return { rows: [] };
-      }
-
-      if (sql.includes("INSERT INTO voucher")) {
-        return { rows: [{ idvoucher: 9200 }] };
-      }
-
-      if (sql.includes("INSERT INTO compra_pagamentos")) {
-        return { rows: [] };
-      }
-
-      return { rows: [] };
-    });
-
-    await expect(
-      createOperationalBoxOfficeSale({
-        agendaId: 88,
-        items: [{ type: "norma", quantity: 1 }],
-        payments: [{ method: "dinhe", value: "100.00" }],
-      }),
-    ).resolves.toMatchObject({
-      purchaseId: 323,
-      warnings: ["ticket_service_not_configured"],
-    });
-    expect(mocks.clientQuery).toHaveBeenCalledWith("COMMIT");
-    expect(mocks.clientQuery).not.toHaveBeenCalledWith("ROLLBACK");
+  it("allows free courtesy and service sales without payment rows", async () => {
+    await createOperationalBoxOfficeSale({ ...input, items: [], courtesies: [{ authorId: 3, quantity: 1 }], payments: [] });
+    expect(mock.query.mock.calls.some(([sql]) => String(sql).includes("INSERT INTO compra_pagamentos"))).toBe(false);
   });
-
-  it("keeps the committed sale when ticket dispatch fails after commit", async () => {
-    mocks.processConfirmedPurchaseTickets.mockRejectedValue(
-      new Error("ticket service unavailable"),
-    );
-    mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
-      if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
-        return { rows: [] };
-      }
-
-      if (sql.includes("FROM agenda")) {
-        return {
-          rows: [
-            {
-              idagenda: 88,
-              dtagenda: "2026-07-25",
-              tpagenda: "padra",
-              stagenda: "abe",
-              vlnormalbil: "100.00",
-              vlinfantbil: "70.00",
-            },
-          ],
-        };
-      }
-
-      if (sql.includes("INSERT INTO compra (")) {
-        expect(values).toEqual([null, "dinhe", "100.00"]);
-        return { rows: [{ idcompra: 324 }] };
-      }
-
-      if (sql.includes("SELECT numvoucher")) {
-        return { rows: [] };
-      }
-
-      if (sql.includes("INSERT INTO voucher")) {
-        return { rows: [{ idvoucher: 9300 }] };
-      }
-
-      if (sql.includes("INSERT INTO compra_pagamentos")) {
-        return { rows: [] };
-      }
-
-      return { rows: [] };
-    });
-
-    await expect(
-      createOperationalBoxOfficeSale({
-        agendaId: 88,
-        items: [{ type: "norma", quantity: 1 }],
-        payments: [{ method: "dinhe", value: "100.00" }],
-      }),
-    ).resolves.toMatchObject({
-      purchaseId: 324,
-      warnings: ["ticket_service_failed"],
-    });
-    expect(mocks.clientQuery).toHaveBeenCalledWith("COMMIT");
-    expect(mocks.clientQuery).not.toHaveBeenCalledWith("ROLLBACK");
+  it("does not apply admission discounts to services and rejects disabled ticket types", async () => {
+    const result = await createOperationalBoxOfficeSale({ ...input, items: [{ type: "norma", quantity: 1, discountId: 7 }], services: [{ serviceId: 9, quantity: 1 }], payments: [{ method: "pix", value: "60.00" }] });
+    expect(result.totalCents).toBe(6000);
+    const original = mock.query.getMockImplementation()!;
+    mock.query.mockImplementation(async (sql, ...args) => sql.includes("FROM agenda") ? { rows: [{ idagenda: 88, dtagenda: "2099-01-01", vlnormalbil: "100", vlinfantbil: "70", validity: "day", ticketTypes: ["infan"] }] } : original(sql, ...args));
+    await expect(createOperationalBoxOfficeSale(input)).rejects.toMatchObject({ status: 409 });
   });
-
-  it("reuses a committed sale when the same idempotency key is retried", async () => {
-    mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
-      if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
-        return { rows: [] };
-      }
-
-      if (sql.includes("pg_advisory_xact_lock")) {
-        expect(values).toEqual(["ops-box-office-sale:box-sale-abc123"]);
-        return { rows: [] };
-      }
-
-      if (sql.includes("FROM edicoes_log")) {
-        expect(values).toEqual(["box-sale-abc123"]);
-        return {
-          rows: [
-            {
-              audit_log_id: 9100,
-              purchase_id: 400,
-              total_value: "100.00",
-              payment_method: "dinhe",
-              voucher_ids: [9501, 9502],
-              detalhes_json: JSON.stringify({
-                agendaId: 88,
-                totalValue: "100.00",
-                paymentMethods: ["dinhe"],
-                voucherIds: [9501, 9502],
-                idempotencyKey: "box-sale-abc123",
-              }),
-            },
-          ],
-        };
-      }
-
-      if (sql.includes("INSERT INTO compra")) {
-        throw new Error("purchase_should_not_be_inserted_again");
-      }
-
-      return { rows: [] };
-    });
-
-    await expect(
-      createOperationalBoxOfficeSale({
-        agendaId: 88,
-        idempotencyKey: "box-sale-abc123",
-        items: [{ type: "norma", quantity: 1 }],
-        payments: [{ method: "dinhe", value: "100.00" }],
-      }),
-    ).resolves.toMatchObject({
-      purchaseId: 400,
-      agendaId: 88,
-      totalValue: "100.00",
-      paymentMethods: ["dinhe"],
-      voucherIds: [9501, 9502],
-      auditLogId: 9100,
-      warnings: ["idempotent_replay"],
-    });
-    expect(mocks.ensureOpsAuditLogTable).toHaveBeenCalledWith(
-      expect.anything(),
-      "postgres",
-    );
-    expect(mocks.getOrCreateOpenCashPeriod).not.toHaveBeenCalled();
-    expect(mocks.processConfirmedPurchaseTickets).toHaveBeenCalledWith(400);
+  it("retains a committed sale on delivery failure and never dispatches a replay", async () => {
+    mock.send.mockRejectedValueOnce(new Error("delivery down"));
+    const result = await createOperationalBoxOfficeSale(input);
+    expect(result.purchaseId).toBe(321); expect(mock.query.mock.calls.some(([sql]) => sql === "ROLLBACK")).toBe(false);
+    mock.send.mockClear(); mock.command.mockResolvedValueOnce(result);
+    expect(await createOperationalBoxOfficeSale(input)).toEqual(result); expect(mock.send).not.toHaveBeenCalled();
   });
 });

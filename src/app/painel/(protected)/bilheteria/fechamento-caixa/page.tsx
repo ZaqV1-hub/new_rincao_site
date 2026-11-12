@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { asOperationalCashError } from "@/lib/ops-cash-management";
 import { BilheteriaCashClosurePage } from "@/components/bilheteria-cash-closure-page";
 import { getBilheteriaCashClosureReport } from "@/lib/bilheteria-cash-data";
-import { buildBilheteriaCashClosureReportModel } from "@/lib/bilheteria-cash-view-model";
 import { requirePainelAccess } from "@/lib/painel-session";
 
 export const metadata: Metadata = {
@@ -22,6 +24,7 @@ export default async function PainelBilheteriaFechamentoCaixaPage({
   }>;
 }) {
   const session = await requirePainelAccess("vis_bilhet", "/painel/bilheteria/fechamento-caixa");
+  if (session.authSource !== "panel") redirect("/painel/login");
   const params = await searchParams;
   const closureId = Number(params.fechamento_id ?? 0);
   let data;
@@ -30,29 +33,17 @@ export default async function PainelBilheteriaFechamentoCaixaPage({
     data = await getBilheteriaCashClosureReport(
       Number.isInteger(closureId) && closureId > 0 ? closureId : null,
     );
-  } catch {
-    data = {
-      closureId: null,
-      isHistorical: false,
-      printHref: null,
-      report: buildBilheteriaCashClosureReportModel({
-        period: {
-          openedAt: null,
-          closedAt: null,
-        },
-        siteRows: [],
-        boxOfficeRows: [],
-        discountGroups: [],
-        courtesyRows: [],
-        funds: [],
-        sangrias: [],
-        forms: {},
-        formsDesc: {},
-        totalFund: 0,
-        totalSangria: 0,
-        cashInDrawer: 0,
-      }),
-    };
+  } catch (error) {
+    const needsSession = asOperationalCashError(error).code === "cash_session_required";
+    return (
+      <section role="status" className="rounded-[24px] border border-[#d7e5ef] bg-white p-6 text-[#205a7f]">
+        <h1 className="text-2xl font-semibold">Fechamento de caixa</h1>
+        <p className="mt-3">{needsSession
+          ? "Não há caixa legado aberto. Selecione um caixa por local e data para continuar."
+          : "Não foi possível carregar o fechamento do caixa agora. Tente novamente mais tarde."}</p>
+        <Link href="/painel/caixas" className="mt-4 inline-block font-semibold underline">Selecionar caixa</Link>
+      </section>
+    );
   }
 
   return (

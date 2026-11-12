@@ -1,11 +1,13 @@
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getVouchersByPurchaseId } from "@/lib/ops-voucher-validation-queries";
-import { VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, normalizeCpfDigits, registerVoucherOperationAuditLog, markVoucherInvalid, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
+import { requireVoucherPeriodId, lockVoucherCashContext, assertVoucherReversalAllowed, VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, normalizeCpfDigits, registerVoucherOperationAuditLog, markVoucherInvalid, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
 
 export async function invalidatePurchaseVouchers(
   purchaseId: number,
   actor?: VoucherOperationInputActor | null,
+  periodId?: number,
 ): Promise<VoucherOperationSuccess> {
+  requireVoucherPeriodId(periodId);
   if (!Number.isInteger(purchaseId) || purchaseId <= 0) {
     throw new VoucherOperationError(
       "invalid_purchase_id",
@@ -20,6 +22,7 @@ export async function invalidatePurchaseVouchers(
 
   try {
     await client.query("BEGIN");
+    const cash = await lockVoucherCashContext(client, periodId, date, { purchaseId });
     const vouchers = await getVouchersByPurchaseId(client, purchaseId);
 
     if (vouchers.length === 0) {
@@ -38,6 +41,7 @@ export async function invalidatePurchaseVouchers(
         continue;
       }
 
+      assertVoucherReversalAllowed(voucher, cash);
       await markVoucherInvalid(client, voucher.idvoucher, date, time);
       affectedVoucherIds.push(voucher.idvoucher);
 
@@ -59,6 +63,7 @@ export async function invalidatePurchaseVouchers(
     }
 
     const auditLogId = await registerVoucherOperationAuditLog(client, {
+      cash: cash.session,
       action: "invalidate",
       mode: "purchase",
       actor,

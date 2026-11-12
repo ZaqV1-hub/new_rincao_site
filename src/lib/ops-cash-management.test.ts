@@ -33,8 +33,44 @@ describe("ops-cash-management", () => {
     registerOpsAuditLog.mockResolvedValue(911);
   });
 
+  it("does not create a legacy period when none exists", async () => {
+    query.mockResolvedValue({ rows: [] });
+    await expect(getOperationalCashSummary()).rejects.toMatchObject({ code: "cash_session_required", status: 409 });
+    expect(query.mock.calls.every(([sql]) => /^\s*SELECT/i.test(sql))).toBe(true);
+    expect(query.mock.calls[0][0]).toContain("parque IS NULL");
+  });
+
+  it("rejects ambiguous legacy periods without writing", async () => {
+    query.mockResolvedValue({ rows: [{ id: 7 }, { id: 8 }] });
+    await expect(getOperationalCashSummary()).rejects.toMatchObject({ code: "legacy_cash_ambiguous", status: 409 });
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["update", "delete"])("blocks %s for a movement assigned to a new session", async (action) => {
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM caixa_periodos")) return { rows: [{ id: 7, aberto_em: "2026-04-23 08:00:00+00", fechado_em: null }] };
+      if (sql.includes("FROM movimentacao_caixa") && sql.includes("FOR UPDATE")) {
+        expect(sql).toContain("periodo_id IS NULL");
+        expect(sql).toContain("data_hora >= $2::timestamptz");
+        return { rows: [] }; // scoped SQL excludes an explicitly assigned movement
+      }
+      return { rows: [] };
+    });
+    const promise = action === "update"
+      ? updateOperationalCashMovement({ movementId: 90, responsible: "Tesouraria", value: 10, reason: "Correcao" })
+      : deleteOperationalCashMovement({ movementId: 90, reason: "Correcao" });
+    await expect(promise).rejects.toMatchObject({ code: "cash_movement_not_found", status: 404 });
+    const sql = query.mock.calls.map(([value]) => String(value));
+    expect(sql.some(value => /UPDATE movimentacao|DELETE FROM movimentacao/.test(value))).toBe(false);
+    expect(sql.findIndex(value => value.includes("pg_advisory_xact_lock"))).toBeLessThan(sql.findIndex(value => value.includes("FROM caixa_periodos")));
+    expect(sql.at(-1)).toBe("ROLLBACK");
+  });
+
   it("returns the current cash summary for the open period", async () => {
     query.mockImplementation(async (sql: string, values?: unknown[]) => {
+      expect(sql).toMatch(/^\s*(SELECT|WITH)/);
+      if (sql.includes("FROM movimentacao_caixa")) expect(sql).toContain("periodo_id IS NULL");
+      if (sql.includes("compra_pagamentos cp")) expect(sql).toContain("cp.periodo_id IS NULL");
       if (sql.includes("FROM caixa_periodos") && sql.includes("fechado_em IS NULL")) {
         return {
           rows: [

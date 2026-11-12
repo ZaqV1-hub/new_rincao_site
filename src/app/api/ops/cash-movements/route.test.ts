@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const authenticateOperationsRequest = vi.fn();
+const requirePainelApiAccess = vi.fn();
 const createOperationalCashMovement = vi.fn();
 const deleteOperationalCashMovement = vi.fn();
 const asOperationalCashError = vi.fn();
 const updateOperationalCashMovement = vi.fn();
 
-vi.mock("@/lib/ops-auth", () => ({
-  authenticateOperationsRequest,
+vi.mock("@/lib/painel-api-auth", () => ({
+  requirePainelApiAccess,
 }));
 
 vi.mock("@/lib/ops-cash-management", () => ({
@@ -20,8 +20,21 @@ vi.mock("@/lib/ops-cash-management", () => ({
 describe("ops/cash-movements BFF route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authenticateOperationsRequest.mockReturnValue({ ok: true });
+    requirePainelApiAccess.mockResolvedValue({ ok: true, session: { actorName: "Gestor Teste", actorCpf: null, legacyRoleId: 1 } });
     asOperationalCashError.mockImplementation((error: Error) => error);
+  });
+
+  it.each(["POST", "PATCH", "DELETE"] as const)("denies %s without a strict panel session", async (method) => {
+    requirePainelApiAccess.mockResolvedValue({ ok: false, response: new Response(null, { status: 401 }) });
+    const route = await import("@/app/api/ops/cash-movements/route");
+    const panel = await import("@/app/api/painel/bilheteria/cash-movements/route");
+    expect(route[method]).toBe(panel[method]);
+    const response = await route[method](new Request("https://example.com/api/ops/cash-movements", { method }));
+    expect(response.status).toBe(401);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(createOperationalCashMovement).not.toHaveBeenCalled();
+    expect(updateOperationalCashMovement).not.toHaveBeenCalled();
+    expect(deleteOperationalCashMovement).not.toHaveBeenCalled();
   });
 
   it("creates a fundo movement and returns the updated summary", async () => {
@@ -69,7 +82,7 @@ describe("ops/cash-movements BFF route", () => {
           value: "50,00",
           reason: "Reforco do caixa",
           actor: {
-            name: "Gestor Teste",
+            name: "Spoof",
           },
         }),
       }),
@@ -77,9 +90,10 @@ describe("ops/cash-movements BFF route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(authenticateOperationsRequest).toHaveBeenCalledWith(
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
-      { requiredPermission: "ops.cash" },
+      "vis_bilhet",
     );
     expect(createOperationalCashMovement).toHaveBeenCalledWith({
       type: "fundo",
@@ -212,13 +226,14 @@ describe("ops/cash-movements BFF route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(updateOperationalCashMovement).toHaveBeenCalledWith({
       movementId: 12,
       responsible: "Gerencia Central",
       value: "30,00",
       reason: "Correcao manual",
       actor: {
-        name: null,
+        name: "Gestor Teste",
         cpf: null,
       },
     });
@@ -299,11 +314,12 @@ describe("ops/cash-movements BFF route", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(deleteOperationalCashMovement).toHaveBeenCalledWith({
       movementId: 12,
       reason: "Lancamento duplicado",
       actor: {
-        name: null,
+        name: "Gestor Teste",
         cpf: null,
       },
     });

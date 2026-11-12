@@ -1,11 +1,13 @@
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getVouchersByPurchaseId } from "@/lib/ops-voucher-validation-queries";
-import { VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, normalizeCpfDigits, registerVoucherOperationAuditLog, markVoucherUnused, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
+import { requireVoucherPeriodId, lockVoucherCashContext, assertVoucherReversalAllowed, VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, normalizeCpfDigits, registerVoucherOperationAuditLog, markVoucherUnused, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
 
 export async function unvalidatePurchaseVouchers(
   purchaseId: number,
   actor?: VoucherOperationInputActor | null,
+  periodId?: number,
 ): Promise<VoucherOperationSuccess> {
+  requireVoucherPeriodId(periodId);
   if (!Number.isInteger(purchaseId) || purchaseId <= 0) {
     throw new VoucherOperationError(
       "invalid_purchase_id",
@@ -14,11 +16,13 @@ export async function unvalidatePurchaseVouchers(
     );
   }
 
+  const { date } = getSaoPauloDateParts();
   const pool = getIngressoSistemaDbPool();
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
+    const cash = await lockVoucherCashContext(client, periodId, date, { purchaseId });
     const vouchers = await getVouchersByPurchaseId(client, purchaseId);
 
     if (vouchers.length === 0) {
@@ -40,7 +44,8 @@ export async function unvalidatePurchaseVouchers(
         continue;
       }
 
-      await markVoucherUnused(client, voucher.idvoucher);
+      assertVoucherReversalAllowed(voucher, cash);
+      await markVoucherUnused(client, voucher.idvoucher, date);
       affectedVoucherIds.push(voucher.idvoucher);
 
       console.info("ops-purchase-unvalidate", {
@@ -61,6 +66,7 @@ export async function unvalidatePurchaseVouchers(
     }
 
     const auditLogId = await registerVoucherOperationAuditLog(client, {
+      cash: cash.session,
       action: "unvalidate",
       mode: "purchase",
       actor,

@@ -1,4 +1,7 @@
 import type { PoolClient } from "pg";
+import { getOperationalParkId } from "@/lib/operational-day-contract";
+import { lockOperationalDay } from "@/lib/operational-day-lock";
+import { getSaoPauloToday } from "@/lib/operational-date";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 
@@ -103,7 +106,7 @@ export type DeleteOperationalCashMovementSuccess = {
   message: string;
 };
 
-class OperationalCashError extends Error {
+export class OperationalCashError extends Error {
   code: string;
   status: number;
 
@@ -204,92 +207,33 @@ export function asOperationalCashError(error: unknown) {
   );
 }
 
-export async function ensureCashPeriodsTable(client: PoolClient) {
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS caixa_periodos (
-      id SERIAL PRIMARY KEY,
-      aberto_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      fechado_em TIMESTAMPTZ NULL,
-      operador VARCHAR(255) NULL,
-      fechamento_auto BOOLEAN NOT NULL DEFAULT FALSE,
-      folha_id INTEGER NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
+async function readLegacyOpenCashPeriod(client: PoolClient, lock: boolean) {
+  const result = await client.query<CashPeriodRow>(`
+    SELECT id, aberto_em::text AS aberto_em, fechado_em::text AS fechado_em,
+      operador, folha_id
+    FROM caixa_periodos
+    WHERE parque IS NULL AND fechado_em IS NULL
+    ORDER BY id DESC
+    LIMIT 2
+    ${lock ? "FOR UPDATE" : ""}
   `);
-  await client.query(
-    "CREATE INDEX IF NOT EXISTS idx_caixa_periodos_fechado_em ON caixa_periodos (fechado_em, id DESC)",
-  );
-}
-
-export async function ensureCashMovementsTable(client: PoolClient) {
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS movimentacao_caixa (
-      id SERIAL PRIMARY KEY,
-      tipo VARCHAR(20) NOT NULL,
-      responsavel VARCHAR(255) NOT NULL,
-      valor NUMERIC(12,2) NOT NULL,
-      data_hora TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-  await client.query(`
-    ALTER TABLE movimentacao_caixa
-    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ
-  `);
-  await client.query(`
-    UPDATE movimentacao_caixa
-    SET created_at = data_hora
-    WHERE created_at IS NULL
-  `);
-  await client.query(`
-    ALTER TABLE movimentacao_caixa
-    ALTER COLUMN created_at SET DEFAULT NOW()
-  `);
-  await client.query(
-    "CREATE INDEX IF NOT EXISTS idx_movimentacao_caixa_tipo_data_hora ON movimentacao_caixa (tipo, data_hora DESC)",
-  );
-}
-
-export async function getOrCreateOpenCashPeriod(client: PoolClient) {
-  await ensureCashPeriodsTable(client);
-
-  const openResult = await client.query<CashPeriodRow>(
-    `
-      SELECT
-        id,
-        aberto_em::text AS aberto_em,
-        fechado_em::text AS fechado_em,
-        operador,
-        folha_id
-      FROM caixa_periodos
-      WHERE fechado_em IS NULL
-      ORDER BY id DESC
-      LIMIT 1
-    `,
-  );
-
-  const existing = openResult.rows[0];
-
-  if (existing) {
-    return existing;
+  if (result.rows.length > 1) {
+    throw new OperationalCashError("legacy_cash_ambiguous", "Ha mais de um caixa legado aberto. Reconcilie os periodos antes de continuar.", 409);
   }
+  if (!result.rows[0]) {
+    throw new OperationalCashError("cash_session_required", "Selecione um caixa por local e data no painel.", 409);
+  }
+  return result.rows[0];
+}
 
-  const insertResult = await client.query<CashPeriodRow>(
-    `
-      INSERT INTO caixa_periodos (
-        aberto_em,
-        created_at
-      ) VALUES (NOW(), NOW())
-      RETURNING
-        id,
-        aberto_em::text AS aberto_em,
-        fechado_em::text AS fechado_em,
-        operador,
-        folha_id
-    `,
-  );
+export async function getLegacyOpenCashPeriod(client: PoolClient) {
+  return readLegacyOpenCashPeriod(client, false);
+}
 
-  return insertResult.rows[0];
+/** Caller owns the transaction. Coordinate reconciliation with explicit session opening. */
+export async function lockLegacyOpenCashPeriod(client: PoolClient) {
+  await lockOperationalDay(client, getOperationalParkId(), getSaoPauloToday());
+  return readLegacyOpenCashPeriod(client, true);
 }
 
 export async function listCashMovementsByType(
@@ -298,7 +242,6 @@ export async function listCashMovementsByType(
   openedAt: string | null,
   closedAt?: string | null,
 ) {
-  await ensureCashMovementsTable(client);
 
   const result = await client.query<CashMovementRow>(
     `
@@ -310,6 +253,7 @@ export async function listCashMovementsByType(
         data_hora::text AS data_hora
       FROM movimentacao_caixa
       WHERE tipo = $1
+        AND periodo_id IS NULL
         AND ($2::timestamptz IS NULL OR data_hora >= $2::timestamptz)
         AND data_hora <= COALESCE($3::timestamptz, CURRENT_TIMESTAMP)
       ORDER BY data_hora ASC, id ASC
@@ -320,8 +264,7 @@ export async function listCashMovementsByType(
   return result.rows.map(toOperationalCashMovement);
 }
 
-async function getCashMovementById(client: PoolClient, movementId: number) {
-  await ensureCashMovementsTable(client);
+async function getCashMovementById(client: PoolClient, movementId: number, openedAt: string | null) {
 
   const result = await client.query<CashMovementRow>(
     `
@@ -333,10 +276,13 @@ async function getCashMovementById(client: PoolClient, movementId: number) {
         data_hora::text AS data_hora
       FROM movimentacao_caixa
       WHERE id = $1
+        AND periodo_id IS NULL
+        AND data_hora >= $2::timestamptz
+        AND data_hora <= CURRENT_TIMESTAMP
       LIMIT 1
       FOR UPDATE
     `,
-    [movementId],
+    [movementId, openedAt],
   );
 
   return result.rows[0] ? toOperationalCashMovement(result.rows[0]) : null;
@@ -353,7 +299,7 @@ async function updateCashMovementRecord(
       UPDATE movimentacao_caixa
       SET responsavel = $2,
           valor = $3
-      WHERE id = $1
+      WHERE id = $1 AND periodo_id IS NULL
       RETURNING
         id,
         tipo,
@@ -368,7 +314,7 @@ async function updateCashMovementRecord(
 }
 
 async function deleteCashMovementRecord(client: PoolClient, movementId: number) {
-  await client.query("DELETE FROM movimentacao_caixa WHERE id = $1", [movementId]);
+  await client.query("DELETE FROM movimentacao_caixa WHERE id = $1 AND periodo_id IS NULL", [movementId]);
 }
 
 async function getCashSalesTotal(client: PoolClient, openedAt: string | null) {
@@ -388,7 +334,8 @@ async function getCashSalesTotal(client: PoolClient, openedAt: string | null) {
           ) AS total_vouchers
         FROM voucher v
         JOIN compra c ON c.idcompra = v.idcompra
-        WHERE c.tpcompra IN ('bilhe', 'reser')
+        WHERE c.caixa_periodo_id IS NULL
+          AND c.tpcompra IN ('bilhe', 'reser')
           AND c.stcompra = 'conc'
           AND c.formapag IS NOT NULL
           AND c.formapag <> 'N/A'
@@ -403,7 +350,8 @@ async function getCashSalesTotal(client: PoolClient, openedAt: string | null) {
           SUM(cp.valor) AS total_pagamento
         FROM compra_pagamentos cp
         JOIN compra c ON c.idcompra = cp.idcompra
-        WHERE c.tpcompra IN ('bilhe', 'reser')
+        WHERE cp.periodo_id IS NULL AND c.caixa_periodo_id IS NULL
+          AND c.tpcompra IN ('bilhe', 'reser')
           AND c.stcompra = 'conc'
           AND c.formapag IS NOT NULL
           AND c.formapag <> 'N/A'
@@ -433,7 +381,7 @@ async function getCashSalesTotal(client: PoolClient, openedAt: string | null) {
 }
 
 export async function buildOperationalCashSummary(client: PoolClient) {
-  const period = await getOrCreateOpenCashPeriod(client);
+  const period = await getLegacyOpenCashPeriod(client);
   const [funds, sangrias, cashSales] = await Promise.all([
     listCashMovementsByType(client, "fundo", period.aberto_em),
     listCashMovementsByType(client, "sangria", period.aberto_em),
@@ -533,6 +481,7 @@ export async function createOperationalCashMovement(
 
   try {
     await client.query("BEGIN");
+    await lockLegacyOpenCashPeriod(client);
 
     const { summary: beforeSummary, numericTotals, periodId } =
       await buildOperationalCashSummary(client);
@@ -545,7 +494,6 @@ export async function createOperationalCashMovement(
       );
     }
 
-    await ensureCashMovementsTable(client);
 
     const movementResult = await client.query<CashMovementRow>(
       `
@@ -659,10 +607,11 @@ export async function updateOperationalCashMovement(
 
   try {
     await client.query("BEGIN");
+    await lockLegacyOpenCashPeriod(client);
 
     const { summary: beforeSummary, numericTotals, periodId } =
       await buildOperationalCashSummary(client);
-    const currentMovement = await getCashMovementById(client, movementId);
+    const currentMovement = await getCashMovementById(client, movementId, beforeSummary.period.openedAt);
 
     if (!currentMovement) {
       throw new OperationalCashError(
@@ -788,9 +737,10 @@ export async function deleteOperationalCashMovement(
 
   try {
     await client.query("BEGIN");
+    await lockLegacyOpenCashPeriod(client);
 
     const { summary: beforeSummary, periodId } = await buildOperationalCashSummary(client);
-    const currentMovement = await getCashMovementById(client, movementId);
+    const currentMovement = await getCashMovementById(client, movementId, beforeSummary.period.openedAt);
 
     if (!currentMovement) {
       throw new OperationalCashError(

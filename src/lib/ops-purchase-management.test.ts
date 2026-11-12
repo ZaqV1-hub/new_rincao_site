@@ -48,6 +48,19 @@ describe("ops-purchase-management", () => {
     vi.useRealTimers();
   });
 
+  it.each(["update", "cancel"])("blocks %s for purchases linked to an operational session before any financial mutation", async (action) => {
+    query.mockImplementation(async (sql: string) => sql.includes("FROM compra") ? { rows: [{ idcompra: 321, tpcompra: "bilhe", stcompra: "conc", cash_linked: true }] } : { rows: [] });
+    const promise = action === "cancel" ? cancelOperationalPurchase(321, "Correção") : updateOperationalPurchase({ purchaseId: 321, purchaseDate: "2026-04-23", reason: "Correção" });
+    await expect(promise).rejects.toMatchObject({ code: "purchase_financial_adjustment_required", status: 409 });
+    expect(query.mock.calls.some(([sql]) => /^(UPDATE|DELETE|INSERT)/i.test(String(sql).trim()))).toBe(false);
+    const lockIndex = query.mock.calls.findIndex(([sql]) => String(sql).includes("FOR UPDATE"));
+    const readIndex = query.mock.calls.findIndex(([sql]) => String(sql).includes("AS cash_linked"));
+    expect(lockIndex).toBeLessThan(readIndex);
+    const read = query.mock.calls[readIndex][0];
+    expect(read).toContain("caixa_periodo_id"); expect(read).toContain("periodo_id IS NOT NULL"); expect(read).toContain("validacao_periodo_id");
+    expect(syncTicketValidation).not.toHaveBeenCalled();
+  });
+
   it("cancels a bilheteria purchase and invalidates its vouchers", async () => {
     query.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql === "BEGIN" || sql === "COMMIT") {

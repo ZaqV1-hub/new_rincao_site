@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   formatPainelBilheteriaCpf as formatCpf,
   formatPainelBilheteriaDate as formatDate,
@@ -12,10 +12,7 @@ import type {
   PainelBilheteriaPurchaseDetail,
 } from "@/lib/painel-bilheteria";
 
-type PaymentDraft = {
-  method: string;
-  value: string;
-};
+import { PainelBilheteriaReservationPayment } from "./painel-bilheteria-reservation-payment";
 
 type GatewayStatusState = {
   purchaseId: number;
@@ -34,6 +31,8 @@ type GatewayStatusState = {
 
 type PainelBilheteriaPurchaseDetailProps = {
   detail: PainelBilheteriaPurchaseDetail;
+  periodId?: number;
+  readOnly?: boolean;
   actorName: string | null;
   actorCpf: string | null;
   returnHref: string;
@@ -44,38 +43,6 @@ type PainelBilheteriaPurchaseDetailProps = {
   flashSuccess?: string | null;
   flashWarnings?: string[];
 };
-
-function getDefaultPayments(
-  detail: PainelBilheteriaPurchaseDetail,
-  paymentOptions: PainelBilheteriaPaymentMethodOption[],
-) {
-  const defaultMethod = paymentOptions[0]?.value ?? "dinhe";
-
-  return [
-    {
-      method: defaultMethod,
-      value: detail.totalValue,
-    },
-  ] satisfies PaymentDraft[];
-}
-
-function parseMoneyInput(value: string) {
-  const trimmed = value.trim().replace(/^R\$\s*/i, "");
-
-  if (!trimmed) {
-    return 0;
-  }
-
-  const normalized =
-    trimmed.includes(",") && trimmed.includes(".")
-      ? trimmed.replace(/\./g, "").replace(",", ".")
-      : trimmed.includes(",")
-        ? trimmed.replace(",", ".")
-        : trimmed;
-  const parsed = Number(normalized);
-
-  return Number.isFinite(parsed) ? parsed : 0;
-}
 
 async function readErrorPayload(response: Response, fallback: string) {
   try {
@@ -93,13 +60,14 @@ async function readErrorPayload(response: Response, fallback: string) {
 
 export function PainelBilheteriaPurchaseDetail({
   detail,
+  periodId,
+  readOnly = false,
   actorName,
   actorCpf,
   returnHref,
   editHref = null,
   mode,
   canManageHistory,
-  paymentOptions,
   flashSuccess = null,
   flashWarnings = [],
 }: PainelBilheteriaPurchaseDetailProps) {
@@ -109,12 +77,6 @@ export function PainelBilheteriaPurchaseDetail({
   const [cancelSuccess, setCancelSuccess] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
-  const [payments, setPayments] = useState<PaymentDraft[]>(() =>
-    getDefaultPayments(detail, paymentOptions),
-  );
-  const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
-  const [submittingPayment, setSubmittingPayment] = useState(false);
   const [gatewayStatus, setGatewayStatus] = useState<GatewayStatusState | null>(null);
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [consultingGateway, setConsultingGateway] = useState(false);
@@ -126,38 +88,6 @@ export function PainelBilheteriaPurchaseDetail({
   const [whatsappSuccess, setWhatsappSuccess] = useState<string | null>(null);
   const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
-  const paymentTotal = useMemo(
-    () =>
-      payments.reduce((sum, payment) => sum + parseMoneyInput(payment.value), 0),
-    [payments],
-  );
-
-  function updatePayment(index: number, patch: Partial<PaymentDraft>) {
-    setPayments((current) =>
-      current.map((payment, currentIndex) =>
-        currentIndex === index ? { ...payment, ...patch } : payment,
-      ),
-    );
-  }
-
-  function addPaymentRow() {
-    setPayments((current) => [
-      ...current,
-      {
-        method: paymentOptions[0]?.value ?? "dinhe",
-        value: "",
-      },
-    ]);
-  }
-
-  function removePaymentRow(index: number) {
-    setPayments((current) =>
-      current.length === 1
-        ? current
-        : current.filter((_, currentIndex) => currentIndex !== index),
-    );
-  }
-
   async function handleCancel() {
     const reason = cancelReason.trim();
 
@@ -180,10 +110,6 @@ export function PainelBilheteriaPurchaseDetail({
         body: JSON.stringify({
           purchaseId: detail.purchaseId,
           reason,
-          actor: {
-            name: actorName,
-            cpf: actorCpf,
-          },
         }),
       });
 
@@ -202,58 +128,6 @@ export function PainelBilheteriaPurchaseDetail({
       router.refresh();
     } finally {
       setCancelling(false);
-    }
-  }
-
-  async function handlePayReservation() {
-    setPaymentError(null);
-    setPaymentSuccess(null);
-    setSubmittingPayment(true);
-
-    try {
-      const response = await fetch(
-        `/api/painel/bilheteria/reservations/${detail.purchaseId}/pay`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            payments,
-            actor: {
-              name: actorName,
-              cpf: actorCpf,
-            },
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        setPaymentError(
-          await readErrorPayload(
-            response,
-            "Não foi possível registrar o pagamento da reserva.",
-          ),
-        );
-        return;
-      }
-
-      const payload = (await response.json()) as {
-        data?: {
-          message?: string;
-          alreadyPaid?: boolean;
-        };
-      };
-
-      setPaymentSuccess(
-        payload.data?.message ||
-          (payload.data?.alreadyPaid
-            ? "Reserva já estava paga."
-            : "Pagamento registrado com sucesso."),
-      );
-      router.refresh();
-    } finally {
-      setSubmittingPayment(false);
     }
   }
 
@@ -526,112 +400,7 @@ export function PainelBilheteriaPurchaseDetail({
       </section>
 
       <div className="grid gap-6">
-        {mode === "reservation" && detail.payableReservation ? (
-          <section className="rounded-[28px] border border-[#d7e5ef] bg-white p-6 shadow-[0_12px_34px_rgba(31,67,98,0.08)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#5d7282]">
-              Pagamento da reserva
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold text-[#205a7f]">Pagamento</h3>
-            <p className="mt-3 text-sm leading-6 text-[#5d7282]">
-              Distribua o valor da reserva entre as formas informadas.
-            </p>
-
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={addPaymentRow}
-                className="rounded-full border border-[#c9d8e3] px-4 py-2 text-sm font-semibold text-[#205a7f] hover:bg-[#edf5fa]"
-              >
-                + outra forma
-              </button>
-            </div>
-
-            <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-[20px] border border-[#d9e3eb] text-sm">
-                <thead className="bg-[#edf5fa] text-left text-[#345062]">
-                  <tr>
-                    <th className="px-4 py-3">Forma</th>
-                    <th className="px-4 py-3">Valor (R$)</th>
-                    <th className="w-[96px] px-4 py-3 text-right">Ação</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((payment, index) => (
-                    <tr
-                      key={`payment-row-${index}`}
-                      className="border-t border-[#e4edf4] bg-white"
-                    >
-                      <td className="px-4 py-3">
-                        <select
-                          value={payment.method}
-                          onChange={(event) =>
-                            updatePayment(index, { method: event.target.value })
-                          }
-                          className="w-full rounded-[14px] border border-[#c9d8e3] bg-white px-3 py-2 text-sm text-[#1b3447]"
-                        >
-                          {paymentOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={payment.value}
-                          onChange={(event) =>
-                            updatePayment(index, { value: event.target.value })
-                          }
-                          placeholder="0,00"
-                          className="w-full rounded-[14px] border border-[#c9d8e3] bg-white px-3 py-2 text-sm text-[#1b3447]"
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {payments.length > 1 ? (
-                          <button
-                            type="button"
-                            onClick={() => removePaymentRow(index)}
-                            className="rounded-full border border-[#d0dde7] px-3 py-2 text-xs font-semibold text-[#205a7f]"
-                          >
-                            Remover
-                          </button>
-                        ) : (
-                          <span className="text-xs text-[#8aa0b1]">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-4 text-sm leading-7 text-[#345062]">
-              Total informado: <strong className="text-[#205a7f]">{formatMoney(paymentTotal)}</strong>
-              <br />
-              Total da compra: <strong className="text-[#205a7f]">{formatMoney(detail.totalValue)}</strong>
-            </div>
-
-            {paymentError ? (
-              <div className="mt-4 rounded-[18px] border border-[#f0bbb1] bg-[#fff2ef] px-4 py-3 text-sm text-[#9f3d2f]">
-                {paymentError}
-              </div>
-            ) : null}
-            {paymentSuccess ? (
-              <div className="mt-4 rounded-[18px] border border-[#b9dec6] bg-[#eefaf2] px-4 py-3 text-sm text-[#286445]">
-                {paymentSuccess}
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={() => void handlePayReservation()}
-              disabled={submittingPayment}
-              className="mt-5 w-full rounded-full bg-[#246b99] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {submittingPayment ? "Confirmando..." : "Confirmar Pagamento"}
-            </button>
-          </section>
-        ) : null}
+        {mode === "reservation" ? <PainelBilheteriaReservationPayment detail={detail} periodId={periodId} readOnly={readOnly} /> : null}
 
         {mode === "reservation" &&
         !detail.payableReservation &&
