@@ -25,7 +25,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ci_test_only
-          POSTGRES_DB: chargeback_test
+          POSTGRES_DB: chargeback_test_painel
         ports:
           - 5432:5432
         options: >-
@@ -34,8 +34,8 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      CHARGEBACK_TEST_DATABASE_URL: postgres://postgres:ci_test_only@127.0.0.1:5432/chargeback_test
-      PANEL_TEST_DATABASE_URL: postgres://postgres:ci_test_only@127.0.0.1:5432/chargeback_test
+      CHARGEBACK_TEST_DATABASE_URL: postgres://postgres:ci_test_only@127.0.0.1:5432/chargeback_test_painel
+      PANEL_TEST_DATABASE_URL: postgres://postgres:ci_test_only@127.0.0.1:5432/chargeback_test_painel
     steps:
       - uses: actions/checkout@v7
         with:
