@@ -1,9 +1,13 @@
+import { assertOnlineCapacityReleased, OnlineCapacityError } from "@/lib/online-capacity";
 import { VoucherValidationRow, VoucherAgendaUsageResult, VoucherOperationError } from "@/lib/ops-voucher-validation-contract";
 export { VoucherOperationError } from "@/lib/ops-voucher-validation-contract";
 export type { VoucherValidationRow, SchoolTripVoucherRow, VoucherOperationMode, VoucherOperationSuccess, VoucherOperationInputActor, VoucherAgendaUsageResult } from "@/lib/ops-voucher-validation-contract";
 export { buildAuditActorName, normalizeCpfDigits, getAffectedVoucherRows, collectAffectedAgendaIds, resolveAuditPurchaseId, buildVoucherAuditDescription, buildVoucherAuditReason, registerVoucherOperationAuditLog } from "@/lib/ops-voucher-validation-audit";
 import { type PoolClient } from "pg";
 import { getSchoolPaymentHold } from "@/lib/school-payment-eligibility";
+import { lockOperationalDay } from "@/lib/operational-day-lock";
+import { getOperationalParkId } from "@/lib/operational-day-contract";
+import { isCivilDate } from "@/lib/operational-date";
 import { syncTicketValidation } from "@/lib/ticket-service";
 
 export function getSaoPauloDateParts(date = new Date()) {
@@ -80,7 +84,9 @@ export function addMonthsToDateString(value: string | null, months: number) {
 }
 
 export function isVoucherExpired(row: VoucherValidationRow, todayDate: string) {
-  const validUntil = addMonthsToDateString(row.dtcompra, 6);
+  const validUntil = row.dtinicio_validade != null
+    ? row.dtvalidade
+    : addMonthsToDateString(row.dtcompra, 6);
 
   return (
     String(row.stvoucher ?? "").trim() === "vencido" ||
@@ -136,9 +142,52 @@ export async function markVoucherUsed(
   date: string,
   time: string,
 ) {
-  const voucher = await client.query<{ idcompra: number }>("select idcompra from voucher where idvoucher=$1", [voucherId]);
-  const hold = voucher.rows[0] ? await getSchoolPaymentHold(client, voucher.rows[0].idcompra) : null;
+  const park = getOperationalParkId();
+  await lockOperationalDay(client, park, date);
+  await client.query("SELECT idcompra FROM compra WHERE idcompra IN (SELECT idcompra FROM voucher WHERE idvoucher=$1) FOR UPDATE", [voucherId]);
+  const voucher = await client.query<Pick<VoucherValidationRow,
+    "idcompra" | "dtinicio_validade" | "dtvalidade" | "parque_operacional" | "stusado" | "stvoucher"
+  >>(`select idcompra, dtinicio_validade::text, dtvalidade::text, parque_operacional, stusado, stvoucher
+      from voucher where idvoucher=$1 FOR UPDATE`, [voucherId]);
+  const row = voucher.rows[0];
+  if (row?.dtinicio_validade != null) {
+    if (row.parque_operacional !== park || !isCivilDate(row.dtinicio_validade) ||
+      !isCivilDate(row.dtvalidade) || row.dtinicio_validade > row.dtvalidade || !isCivilDate(date)) {
+      throw new VoucherOperationError("voucher_validity_invalid", "Validade do ingresso inconsistente. Procure o atendimento.", 409);
+    }
+    if (row.stusado !== "n") {
+      throw new VoucherOperationError("voucher_already_used", "Ingresso já utilizado ou indisponível para entrada.", 409);
+    }
+    if (String(row.stvoucher ?? "").trim() === "vencido" || date > row.dtvalidade) {
+      throw new VoucherOperationError("voucher_expired", `Ingresso vencido em ${formatDateBr(row.dtvalidade)}. A entrada não está autorizada.`, 409);
+    }
+    if (date < row.dtinicio_validade) {
+      throw new VoucherOperationError("voucher_not_yet_valid", `Ingresso válido a partir de ${formatDateBr(row.dtinicio_validade)}.`, 409);
+    }
+    const openDay = await client.query(`
+      SELECT agenda.idagenda FROM agenda
+      WHERE agenda.dtagenda = $2::date
+        AND agenda.tpagenda IN ('padra', 'promo') AND agenda.stagenda IN ('abe', 'lot')
+        AND NOT EXISTS (
+          SELECT 1 FROM operacao_dias WHERE parque = $1 AND data = $2::date AND estado = 'closed'
+        )
+      LIMIT 1 FOR SHARE OF agenda
+    `, [park, date]);
+    if (openDay.rows.length === 0) {
+      throw new VoucherOperationError("voucher_day_closed", "Não há day use aberto nesta data. Utilize o ingresso em um dia aberto dentro da validade.", 409);
+    }
+  }
+  const hold = row?.idcompra ? await getSchoolPaymentHold(client, row.idcompra) : null;
   if (hold && hold.status !== "released") throw new VoucherOperationError("school_payment_held", "Pagamento contabilizado; ingresso retido para análise do atendimento.", 409);
+  if (row?.idcompra) {
+    try { await assertOnlineCapacityReleased(client, row.idcompra); }
+    catch (error) {
+      if (error instanceof OnlineCapacityError && error.code === "online_capacity_delivery_hold") {
+        throw new VoucherOperationError(error.code, "Pagamento confirmado; ingresso retido para análise da capacidade pelo atendimento.", 409);
+      }
+      throw error;
+    }
+  }
   await client.query(
     `
       UPDATE voucher

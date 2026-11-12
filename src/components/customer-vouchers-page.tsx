@@ -128,7 +128,7 @@ function applyCanceledPurchase(purchase: UserVoucherPurchase) {
   };
 }
 
-function VoucherRow({
+export function VoucherRow({
   purchase,
   voucher,
   selected,
@@ -187,8 +187,9 @@ function VoucherRow({
           <div>
             <p className="text-[11px] uppercase tracking-[0.16em] text-[#719168]">Validade</p>
             <p className="mt-2 text-[16px] font-bold text-[#17351f]">
-              {formatDate(voucher.validUntil)}
+              {voucher.validFrom ? `${formatDate(voucher.validFrom)} a ` : ""}{formatDate(voucher.validUntil)}
             </p>
+            {voucher.validFrom ? <p className="mt-1 text-sm text-[#5b745f]">Uma entrada em qualquer dia com day use aberto nesse período, sem reagendamento.</p> : null}
           </div>
           <div>
             <p className="text-[11px] uppercase tracking-[0.16em] text-[#719168]">Valor</p>
@@ -203,6 +204,7 @@ function VoucherRow({
             </span>
           </div>
           <div className="flex flex-col items-start gap-2 md:items-end">
+            {voucher.deliveryHold ? <p className="text-sm text-[#9f3f36]">Pagamento recebido. Ingresso aguardando liberação pela equipe; não realize outro pagamento.</p> : null}
             {purchase.status === "conc" && !voucher.used && voucher.expiredForGeneration ? (
               <span className="inline-flex rounded-full bg-[#fff3f1] px-3 py-1 text-[12px] font-semibold text-[#9f3f36]">
                 Voucher vencido
@@ -244,6 +246,7 @@ function VoucherRow({
         </td>
         <td className="px-3 py-3 text-center">
           <strong>{formatDate(voucher.visitDate)}</strong>
+          {voucher.validFrom ? <p className="mt-1 text-sm">Validade: {formatDate(voucher.validFrom)} a {formatDate(voucher.validUntil)}. Uma entrada em qualquer dia com day use aberto, sem reagendamento.</p> : null}
         </td>
         <td className="px-3 py-3 text-center">
           <strong>{formatDate(voucher.useDate)}</strong>
@@ -255,6 +258,7 @@ function VoucherRow({
           </span>
         </td>
         <td className="px-3 py-3 text-right text-[13px]">
+          {voucher.deliveryHold ? <p>Pagamento recebido. Ingresso aguardando liberação pela equipe; não realize outro pagamento.</p> : null}
           {purchase.status === "conc" && !voucher.used && voucher.expiredForGeneration ? (
             <span className="inline-flex rounded-full bg-[#fff3f1] px-3 py-1 text-[#9f3f36]">
               Voucher vencido

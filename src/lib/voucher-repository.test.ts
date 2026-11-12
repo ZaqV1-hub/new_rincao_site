@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getUserVoucherExportData,
   getUserVouchersPage,
   getUserVoucherRescheduleData,
   ensureVoucherLifecycleSchema,
   resetVoucherLifecycleSchemaForTests,
+  expireUnusedVouchers,
+  rescheduleUserVoucher,
 } from "@/lib/voucher-repository";
 
 const dbQuery = vi.fn();
@@ -215,5 +217,51 @@ describe("voucher-repository", () => {
     expect(result?.isSchool).toBe(true);
     expect(result?.information).toBe("Levar autorização assinada.");
     expect(getSchoolVoucherInformation).toHaveBeenCalledOnce();
+  });
+});
+
+
+describe("operational voucher presentation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks(); resetVoucherLifecycleSchemaForTests();
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-04-27T01:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ["2026-04-20", "2026-04-26", false, false, false],
+    ["2026-04-20", "2026-04-26", false, false, true],
+    ["2026-04-20", "2026-04-25", true, false, false],
+    [null, "2026-04-25", false, true, false],
+  ])("preserves snapshot end and disables rescheduling (%s, %s)", async (start, end, expired, reschedule, held) => {
+    dbQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("SELECT COUNT")) return { rows: [{ total: "1" }] };
+      if (sql.includes("COUNT(voucher.idvoucher)")) return { rows: [{ idcompra: 77, tpcompra: "ponli", dtcompra: "2026-04-01", stcompra: "conc", status: 3, voucher_count: "1", unused_voucher_count: "1" }] };
+      if (sql.includes("voucher.descricao AS descricao")) return { rows: [{ idcompra: 77, idvoucher: 11, stusado: "n", stvoucher: "ativo", tpvoucher: "norma", dtagenda: "2026-04-20", tpagenda: "padra", dtinicio_validade: start, dtvalidade: end, parque_operacional: start ? "rincao" : null, delivery_hold: held }] };
+      return { rows: [], rowCount: 0 };
+    });
+    const page = await getUserVouchersPage("52998224725", 10, 0);
+    expect(page.purchases[0].vouchers[0]).toMatchObject({ validFrom: start, validUntil: start ? end : "2026-10-01", expiredForGeneration: expired, canReschedule: reschedule, deliveryHold: held, canSelectForVoucher: !expired && !held });
+    expect(page.purchases[0]).toMatchObject({ status: "conc", canGenerateVoucher: !expired && !held });
+  });
+});
+
+
+describe("voucher persistence policy boundaries", () => {
+  beforeEach(() => {
+    vi.clearAllMocks(); resetVoucherLifecycleSchemaForTests();
+    dbQuery.mockResolvedValue({ rows: [], rowCount: 0 });
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-04-27T01:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+  it("uses the Sao Paulo civil date and exact snapshot end in expiration", async () => {
+    await expireUnusedVouchers();
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("voucher.dtinicio_validade IS NOT NULL"), ["2026-04-26"]);
+    const expirationSql = dbQuery.mock.calls.find(([sql]) => String(sql).includes("UPDATE voucher"))?.[0];
+    expect(expirationSql).toContain("voucher.dtinicio_validade IS NULL");
+  });
+  it("guards direct rescheduling in the database mutation", async () => {
+    await rescheduleUserVoucher("52998224725", 11, 22);
+    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining("AND voucher.dtinicio_validade IS NULL"), [22, 11, "52998224725"]);
   });
 });

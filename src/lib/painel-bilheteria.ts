@@ -1,3 +1,4 @@
+import { assertOnlineCapacityReleased, OnlineCapacityError } from "@/lib/online-capacity";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getNativeCieloCheckoutStatus, isCieloEcommerceConfigured } from "@/lib/cielo-ecommerce";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
@@ -922,11 +923,13 @@ export async function sendPainelBilheteriaVoucherWhatsapp(
       );
     }
 
-    const voucherResult = await client.query<Pick<PurchaseVoucherRow, "idvoucher" | "stusado">>(
+    const voucherResult = await client.query<Pick<PurchaseVoucherRow, "idvoucher" | "stusado" | "dtinicio_validade" | "dtvalidade">>(
       `
         SELECT
           voucher.idvoucher,
-          voucher.stusado
+          voucher.stusado,
+          voucher.dtinicio_validade::text AS dtinicio_validade,
+          voucher.dtvalidade::text AS dtvalidade
         FROM voucher
         WHERE voucher.idcompra = $1
           AND voucher.idvoucher = $2
@@ -945,11 +948,21 @@ export async function sendPainelBilheteriaVoucherWhatsapp(
       );
     }
 
+    try { await assertOnlineCapacityReleased(client, input.purchaseId); }
+    catch (error) {
+      if (error instanceof OnlineCapacityError && error.code === "online_capacity_delivery_hold") {
+        throw new PainelBilheteriaError(error.code, "Pagamento confirmado; ingresso retido para análise da capacidade pelo atendimento.", 409);
+      }
+      throw error;
+    }
+
     const validUntil = new Date();
     validUntil.setDate(validUntil.getDate() + 1);
-    const validUntilText = validUntil.toISOString().slice(0, 10);
+    const validUntilText = voucher.dtinicio_validade != null
+      ? String(voucher.dtvalidade ?? "").slice(0, 10)
+      : validUntil.toISOString().slice(0, 10);
 
-    await client.query(
+    if (voucher.dtinicio_validade == null) await client.query(
       `
         UPDATE voucher
         SET dtvalidade = $2::date

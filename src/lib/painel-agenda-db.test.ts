@@ -136,4 +136,29 @@ describe("painel-agenda database routing", () => {
       "postgres",
     );
   });
+  it("refuses legacy range updates for managed days before writing", async () => {
+    systemClient.query.mockImplementation(async (sql: string) => ({
+      rows: sql.includes("FROM operacao_dias") ? [{ data: "2099-01-01" }] : [],
+    }));
+    const { upsertPainelAgendaRange } = await import("@/lib/painel-agenda");
+    await expect(upsertPainelAgendaRange({
+      startDate: "2099-01-01", endDate: "2099-01-01", priceTableId: 1,
+      informationId: 1, type: "padra", status: "abe", reason: "Alterar tabela",
+    })).rejects.toMatchObject({ code: "agenda_operational_day_managed" });
+    expect(systemClient.query).toHaveBeenCalledWith(expect.stringContaining("pg_advisory_xact_lock"), ["operational-day:rincao:2099-01-01"]);
+    expect(systemClient.query.mock.calls.some(([sql]) => /(?:INSERT INTO|UPDATE) agenda/.test(String(sql)))).toBe(false);
+    expect(systemClient.query).toHaveBeenCalledWith("ROLLBACK");
+  });
+
+  it("refuses legacy deletion of the day-use agenda linked to managed configuration", async () => {
+    systemClient.query.mockImplementation(async (sql: string) => ({
+      rows: sql.includes("FROM operacao_dias") ? [{ data: "2099-01-01" }]
+        : sql.includes("FROM agenda") ? [{ idagenda: 10, dtagenda: "2099-01-01", tpagenda: "padra" }] : [],
+    }));
+    const { deletePainelAgenda } = await import("@/lib/painel-agenda");
+    await expect(deletePainelAgenda(10, { reason: "Fechar dia" })).rejects.toMatchObject({ code: "agenda_operational_day_managed" });
+    expect(systemClient.query.mock.calls.some(([sql]) => String(sql).startsWith("DELETE"))).toBe(false);
+    expect(systemClient.query).toHaveBeenCalledWith("ROLLBACK");
+  });
+
 });

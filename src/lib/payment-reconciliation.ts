@@ -37,7 +37,7 @@ export async function reconcilePaymentFromGatewayPayload(
     client.release();
   }
 
-  if (result.purchaseStatus === "conc" && result.ledgerAction !== "unchanged") {
+  if (result.purchaseStatus === "conc" && result.ledgerAction !== "unchanged" && !result.deliveryHold) {
     await processConfirmedPurchaseTickets(result.purchaseId)
       .then(async (ticketResult) => {
         console.info("confirmed-purchase-ticket-processing-result", {

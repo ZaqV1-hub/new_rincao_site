@@ -90,8 +90,11 @@ describe("ops-payment-sync", () => {
         };
       }
 
+      if (sql.includes("AS attempt_started")) {
+        return { rows: [{ purchase_status: "pend", purchase_type: "ponli", payment_method: "pgseg", payment_id: null, has_payment: false, attempt_started: false, is_stale: true }] };
+      }
       if (sql.includes("UPDATE compra") && values?.[0] === 322) {
-        return { rows: [] };
+        return { rows: [], rowCount: 1 };
       }
 
       return { rows: [] };
@@ -263,4 +266,30 @@ describe("ops-payment-sync", () => {
 
     expect(query).toHaveBeenCalledWith(expect.any(String), [7, 2000, null, null, 250]);
   });
+  it.each([
+    { purchase_status: "pend", payment_id: "payment-arrived", has_payment: true, attempt_started: false },
+    { purchase_status: "pend", payment_id: null, has_payment: false, attempt_started: true },
+    { purchase_status: "conc", payment_id: "paid-arrived", has_payment: true, attempt_started: true },
+  ])("does not cancel a stale candidate whose locked state changed: %j", async (current) => {
+    isCieloEcommerceConfigured.mockReturnValue(true);
+    let gatewayReturned = false;
+    getNativeCieloCheckoutStatus.mockImplementation(async () => { gatewayReturned = true; return { status: "30" }; });
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("AS attempt_started")) {
+        expect(gatewayReturned).toBe(true);
+        return { rows: [{ ...current, is_stale: true, purchase_type: "ponli", payment_method: "pgseg" }] };
+      }
+      if (sql.includes("FROM online_capacity_reservations")) return { rows: [{ park: "rincao", date: "2099-07-20" }] };
+      if (sql.includes("LEFT JOIN LATERAL")) return { rows: [{ purchase_id: 322, purchase_date: "2020-01-01", purchase_status: "pend", payment_id: null, gateway_status: null }] };
+      return { rows: [], rowCount: 1 };
+    });
+    const result = await syncOperationalPaymentStatuses({ cancelAfterDays: 5 });
+    expect(result).toMatchObject({ cancelled: 0, skipped: 1, items: [{ result: "skipped", purchaseStatus: current.purchase_status, paymentId: current.payment_id }] });
+    const calls = query.mock.calls.map(([sql]) => sql);
+    expect(calls.some((sql) => sql.includes("UPDATE compra"))).toBe(false);
+    expect(calls.indexOf("BEGIN")).toBeLessThan(calls.findIndex((sql) => sql.includes("pg_advisory_xact_lock")));
+    expect(calls.findIndex((sql) => sql.includes("pg_advisory_xact_lock"))).toBeLessThan(calls.findIndex((sql) => sql.includes("FOR UPDATE OF compra")));
+    expect(query).toHaveBeenCalledWith("COMMIT");
+  });
+
 });

@@ -333,7 +333,7 @@ export function PainelBilheteriaPurchaseDetail({
 
       setWhatsappSuccess(
         payload.data?.validUntil
-          ? `${payload.data?.message || "Solicitacao enviada para o WhatsApp."} Validade atualizada para ${payload.data.validUntil}.`
+          ? `${payload.data?.message || "Solicitacao enviada para o WhatsApp."} Válido até ${formatDate(payload.data.validUntil)}.`
           : payload.data?.message || "Solicitacao enviada para o WhatsApp.",
       );
       setWhatsappModalOpen(false);

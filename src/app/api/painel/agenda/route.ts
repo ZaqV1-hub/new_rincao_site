@@ -6,7 +6,7 @@ import {
   type PainelAgendaMutationInput,
 } from "@/lib/painel-agenda";
 import { authenticateOperationsRequest } from "@/lib/ops-auth";
-import { authorizePainelApiAccess } from "@/lib/painel-api-auth";
+import { authorizePainelApiAccess, requirePainelApiAccess } from "@/lib/painel-api-auth";
 
 export const runtime = "nodejs";
 
@@ -152,16 +152,17 @@ export async function POST(request: Request) {
     return auth.response;
   }
 
-  const painelAuth = await authorizePainelApiAccess(request, "vis_agenda");
+  const painelAuth = await requirePainelApiAccess(request, "vis_agenda");
 
   if (!painelAuth.ok) {
     return painelAuth.response;
   }
 
+  if (painelAuth.session.legacyRoleId !== 1) return errorResponse("painel_forbidden", "Apenas gerentes podem alterar a programação.", 403);
   const payload = await readPayload(request);
 
   try {
-    const data = await upsertPainelAgendaRange(parseInput(payload));
+    const data = await upsertPainelAgendaRange({ ...parseInput(payload), actor: { name: painelAuth.session.actorName, cpf: painelAuth.session.actorCpf } });
 
     return NextResponse.json({
       ok: true,

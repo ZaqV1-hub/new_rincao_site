@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const authenticateOperationsRequest = vi.fn();
 const authorizePainelApiAccess = vi.fn();
+const requirePainelApiAccess = vi.fn();
 const upsertPainelAgendaRange = vi.fn();
 const getPainelAgendaDay = vi.fn();
 const asPainelAgendaError = vi.fn();
@@ -12,6 +13,7 @@ vi.mock("@/lib/ops-auth", () => ({
 
 vi.mock("@/lib/painel-api-auth", () => ({
   authorizePainelApiAccess,
+  requirePainelApiAccess,
 }));
 
 vi.mock("@/lib/painel-agenda", () => ({
@@ -25,6 +27,7 @@ describe("painel/agenda BFF route", () => {
     vi.clearAllMocks();
     authenticateOperationsRequest.mockReturnValue({ ok: true });
     authorizePainelApiAccess.mockResolvedValue({ ok: true, legacyResources: ["vis_agenda"] });
+    requirePainelApiAccess.mockResolvedValue({ ok: true, session: { legacyRoleId: 1, actorName: "Gerente autenticado", actorCpf: "00000000001" } });
     asPainelAgendaError.mockImplementation((error: unknown) => error);
   });
 
@@ -89,7 +92,7 @@ describe("painel/agenda BFF route", () => {
     );
     const body = await response.json();
 
-    expect(authorizePainelApiAccess).toHaveBeenCalledWith(
+    expect(requirePainelApiAccess).toHaveBeenCalledWith(
       expect.any(Request),
       "vis_agenda",
     );
@@ -102,6 +105,7 @@ describe("painel/agenda BFF route", () => {
         informationId: 3,
         type: "padra",
         status: "abe",
+        actor: { name: "Gerente autenticado", cpf: "00000000001" },
       }),
     );
     expect(response.status).toBe(200);
@@ -136,4 +140,12 @@ describe("painel/agenda BFF route", () => {
       },
     });
   });
+  it("refuses agenda writes by an employee", async () => {
+    requirePainelApiAccess.mockResolvedValueOnce({ ok: true, session: { legacyRoleId: 2 } });
+    const { POST } = await import("@/app/api/painel/agenda/route");
+    const response = await POST(new Request("https://example.com/api/painel/agenda", { method: "POST" }));
+    expect(response.status).toBe(403);
+    expect(upsertPainelAgendaRange).not.toHaveBeenCalled();
+  });
+
 });

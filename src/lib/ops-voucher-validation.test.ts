@@ -1,3 +1,5 @@
+import type { PoolClient } from "pg";
+import { markVoucherUsed } from "@/lib/ops-voucher-validation-shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   invalidateSelectedVouchers,
@@ -67,6 +69,23 @@ describe("ops-voucher-validation", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it.each([
+    ["number", () => validateVoucherByNumber("TESTE")],
+    ["selection", () => validateSelectedVouchers([1])],
+    ["purchase", () => validatePurchaseVouchers(1)],
+    ["school", () => validateSchoolTripVouchers(1, 1)],
+  ])("locks the day then purchases before vouchers: %s", async (_name, execute) => {
+    query.mockResolvedValue({ rows: [] });
+    await expect(execute()).rejects.toBeInstanceOf(Error);
+    const sql = query.mock.calls.map(([statement]) => String(statement));
+    const dayLock = sql.findIndex((statement) => statement.includes("pg_advisory_xact_lock"));
+    const purchaseLock = sql.findIndex((statement) => statement.includes("FOR UPDATE OF compra"));
+    const voucherLock = sql.findIndex((statement) => statement.includes("FOR UPDATE OF voucher"));
+    expect(dayLock).toBeGreaterThan(0);
+    expect(purchaseLock).toBeGreaterThan(dayLock);
+    expect(voucherLock).toBeGreaterThan(purchaseLock);
   });
 
   it("blocks an invalidated paid voucher without writing usage or syncing tickets", async () => {
@@ -446,7 +465,7 @@ describe("ops-voucher-validation", () => {
 
       if (sql.includes("WHERE voucher.idescola = $1")) {
         // PostgreSQL cannot lock the nullable payment/agenda sides of LEFT JOINs.
-        expect(sql).toContain("FOR UPDATE OF voucher, compra");
+        expect(sql).toContain(sql.includes("LEFT JOIN") ? "FOR UPDATE OF voucher" : "FOR UPDATE OF compra");
         expect(values).toEqual([77, 88]);
 
         return {
@@ -664,5 +683,115 @@ describe("ops-voucher-validation", () => {
       [{ purchaseId: 456, voucherId: 9001 }],
       "invalidate",
     );
+  });
+});
+
+
+describe("operational voucher validity", () => {
+  const snapshot = {
+    idvoucher: 9001, idcompra: 456, numvoucher: "A1234", stusado: "n",
+    stvoucher: "ativo", dtcompra: "2026-04-01", tpcompra: "ponli",
+    stcompra: "conc", payment_status: 3, dtagenda: "2026-04-20", tpagenda: "padra",
+    dtinicio_validade: "2026-04-20", dtvalidade: "2026-04-26", parque_operacional: "rincao",
+  };
+  let row: typeof snapshot;
+  let open: boolean;
+  const client = { query } as unknown as PoolClient;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("OPERATIONAL_PARK_ID", "rincao");
+    row = { ...snapshot };
+    open = true;
+    connect.mockResolvedValue({ query, release });
+    syncTicketValidation.mockResolvedValue({ status: "sent" });
+    query.mockImplementation(async (sql: string) => {
+      if (sql.includes("WHERE voucher.numvoucher = $1") || sql.includes("WHERE voucher.idvoucher = ANY") || sql.includes("WHERE voucher.idcompra = $1") || /select .*idcompra[\s\S]*from voucher where idvoucher/i.test(sql)) return { rows: [row] };
+      if (sql.includes("FROM agenda") && sql.includes("operacao_dias")) return { rows: open ? [{ idagenda: 44 }] : [] };
+      if (sql.includes("UPDATE voucher")) row.stusado = "s";
+      return { rows: [], rowCount: 0 };
+    });
+  });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
+
+  it.each(["2026-04-20", "2026-04-23", "2026-04-26"])("accepts an open day inside the inclusive snapshot: %s", async (date) => {
+    await markVoucherUsed(client, 9001, date, "12:00:00");
+    expect(row.stusado).toBe("s");
+    const lockIndex = query.mock.calls.findIndex(([sql]) => String(sql).includes("pg_advisory_xact_lock"));
+    const openIndex = query.mock.calls.findIndex(([sql]) => String(sql).includes("FROM agenda"));
+    expect(lockIndex).toBeGreaterThan(-1);
+    expect(openIndex).toBeGreaterThan(lockIndex);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE voucher"), [9001, date, "12:00:00"]);
+  });
+
+  it.each([
+    ["2026-04-19", "voucher_not_yet_valid"],
+    ["2026-04-27", "voucher_expired"],
+  ])("rejects outside the snapshot on %s", async (date, code) => {
+    await expect(markVoucherUsed(client, 9001, date, "12:00:00")).rejects.toMatchObject({ code });
+    expect(row.stusado).toBe("n");
+  });
+
+  it("rejects a closed day or a date without day use", async () => {
+    open = false;
+    await expect(markVoucherUsed(client, 9001, "2026-04-23", "12:00:00")).rejects.toMatchObject({ code: "voucher_day_closed" });
+    expect(row.stusado).toBe("n");
+  });
+
+  it.each([
+    { parque_operacional: "estancia" }, { dtvalidade: "" },
+    { dtinicio_validade: "2026-04-31" }, { dtvalidade: "2026-04-19" },
+  ])("rejects an invalid snapshot %j", async (change) => {
+    Object.assign(row, change);
+    await expect(markVoucherUsed(client, 9001, "2026-04-23", "12:00:00")).rejects.toMatchObject({ code: "voucher_validity_invalid" });
+    expect(row.stusado).toBe("n");
+  });
+
+  it("allows a snapshot voucher only once", async () => {
+    await markVoucherUsed(client, 9001, "2026-04-23", "12:00:00");
+    await expect(markVoucherUsed(client, 9001, "2026-04-23", "12:01:00")).rejects.toMatchObject({ code: "voucher_already_used" });
+  });
+
+  it.each([false, true])("never bypasses snapshot expiry with confirm=%s", async (confirm) => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-04-27T15:00:00Z"));
+    await expect(validateVoucherByNumber("A1234", confirm)).rejects.toMatchObject({ code: "voucher_expired" });
+    expect(row.stusado).toBe("n");
+    expect(syncTicketValidation).not.toHaveBeenCalled();
+  });
+
+  it.each(["selection", "purchase"])("protects paid reservations through %s validation", async (mode) => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-04-23T15:00:00Z"));
+    Object.assign(row, { tpcompra: "reser", formapag: "pix" }); open = false;
+    const operation = mode === "selection" ? validateSelectedVouchers([9001]) : validatePurchaseVouchers(456);
+    await expect(operation).rejects.toMatchObject({ code: "voucher_day_closed" });
+    expect(row.stusado).toBe("n");
+  });
+
+  it("does not admit a confirmed payment retained for online capacity", async () => {
+    const original = query.getMockImplementation()!;
+    query.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes("online_capacity_reservations")) return { rows: [{ deliveryHold: true }] };
+      return original(sql, ...args);
+    });
+    await expect(markVoucherUsed(client, 9001, "2026-04-23", "12:00:00")).rejects.toMatchObject({ code: "online_capacity_delivery_hold", status: 409 });
+    expect(row.stusado).toBe("n");
+  });
+
+  it("still refuses a payment held for school review", async () => {
+    const original = query.getMockImplementation()!;
+    query.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes("to_regclass")) return { rows: [{ regclass: "commerce_school_payment_hold" }] };
+      if (sql.includes("select status,source from commerce_school_payment_hold")) return { rows: [{ status: "held", source: "site" }] };
+      return original(sql, ...args);
+    });
+    await expect(markVoucherUsed(client, 9001, "2026-04-23", "12:00:00")).rejects.toMatchObject({ code: "school_payment_held" });
+    expect(row.stusado).toBe("n");
+  });
+
+  it("preserves the explicit expired legacy confirmation", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-01T15:00:00Z"));
+    Object.assign(row, { dtinicio_validade: null, parque_operacional: null });
+    await expect(validateVoucherByNumber("A1234")).rejects.toMatchObject({ code: "voucher_expired_confirmation_required" });
+    await expect(validateVoucherByNumber("A1234", true)).resolves.toMatchObject({ processedCount: 1 });
   });
 });

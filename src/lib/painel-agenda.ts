@@ -1,3 +1,5 @@
+import { lockOperationalDay } from "@/lib/operational-day-lock";
+import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { listOpsAdminMasterData } from "@/lib/ops-admin-master-data";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
@@ -380,7 +382,6 @@ export async function listPainelAgendaMonth(month: number, year: number) {
       LEFT JOIN informacao ON informacao.idinformacao = agenda.idinformacao
       WHERE EXTRACT(MONTH FROM agenda.dtagenda) = $1
         AND EXTRACT(YEAR FROM agenda.dtagenda) = $2
-        AND agenda.tpagenda IN ('padra', 'promo')
       ORDER BY agenda.dtagenda ASC, agenda.idagenda ASC
     `,
     [month, year],
@@ -463,7 +464,7 @@ export async function listPainelAgendaPriceTables() {
     nmtabpreco: string | null;
     sttabpreco: string | null;
   }>)
-    .filter((row) => String(row.sttabpreco ?? "ati").trim() !== "ina")
+    .filter((row) => !["ina", "inat"].includes(String(row.sttabpreco ?? "ativ").trim().toLowerCase()))
     .map((row) => ({
       id: Number(row.idtabpreco),
       label: String(row.nmtabpreco ?? "").trim() || `Tabela #${row.idtabpreco}`,
@@ -672,6 +673,13 @@ export async function upsertPainelAgendaRange(input: PainelAgendaMutationInput) 
 
   try {
     await client.query("BEGIN");
+    const park = getOperationalParkId();
+    for (const date of [...dates].sort()) await lockOperationalDay(client, park, date);
+    const managed = await client.query("SELECT data FROM operacao_dias WHERE parque=$1 AND data=ANY($2::date[]) LIMIT 1", [park, dates]);
+    if (managed.rows.length) {
+      throw new PainelAgendaError("agenda_operational_day_managed", "Esta data usa a programação do dia. Altere a tabela e a abertura pelo editor de day use.", 409);
+    }
+
 
     const existingResult = await client.query<{
       idagenda: number;
@@ -891,6 +899,17 @@ export async function deletePainelAgenda(
       );
     }
 
+
+    const park = getOperationalParkId();
+    await lockOperationalDay(client, park, agenda.dtagenda);
+    const current = await client.query<{ dtagenda: string }>("SELECT to_char(dtagenda, 'YYYY-MM-DD') AS dtagenda FROM agenda WHERE idagenda=$1 FOR UPDATE", [agendaId]);
+    if (current.rows[0]?.dtagenda !== agenda.dtagenda) {
+      throw new PainelAgendaError("agenda_changed", "A agenda mudou. Consulte a data novamente antes de excluir.", 409);
+    }
+    const managed = await client.query("SELECT data FROM operacao_dias WHERE parque=$1 AND day_use_agenda_id=$2 LIMIT 1", [park, agendaId]);
+    if (managed.rows.length) {
+      throw new PainelAgendaError("agenda_operational_day_managed", "Este day use pertence à programação do dia. Feche-o pelo editor de day use para preservar os ingressos vendidos.", 409);
+    }
     await client.query("DELETE FROM agenda_faixas WHERE idagenda = $1", [agendaId]);
 
     if (agenda.tpagenda === "escol") {

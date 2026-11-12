@@ -1,3 +1,4 @@
+import { lockOnlinePurchaseCapacity, reconcileOnlineCapacity } from "@/lib/online-capacity";
 import type { PaymentReconciliationRecord, PaymentReconciliationApplyResult, QueryClient } from "@/lib/payment-reconciliation-contract";
 import { mapGatewayStatusToPurchaseStatus } from "@/lib/payment-reconciliation-payload";
 import { lockSiteSchoolPayment, queueSiteSchoolPayment } from "@/lib/school-commerce-payment";
@@ -7,6 +8,7 @@ export async function applyPaymentReconciliationRecord(
   client: QueryClient,
   record: PaymentReconciliationRecord,
 ): Promise<PaymentReconciliationApplyResult> {
+  const capacity = await lockOnlinePurchaseCapacity(client, record.purchaseId);
   const schoolPayment = await lockSiteSchoolPayment(client, record.purchaseId);
   const purchase = await client.query(
     "SELECT idcompra, vltotcompra FROM compra WHERE idcompra = $1 FOR UPDATE",
@@ -183,6 +185,8 @@ export async function applyPaymentReconciliationRecord(
     );
   }
 
+  const deliveryHold = await reconcileOnlineCapacity(client, record.purchaseId, record.purchaseStatus, capacity);
+
   if (record.purchaseStatus === "conc") {
     await client.query(
       `
@@ -220,5 +224,6 @@ export async function applyPaymentReconciliationRecord(
     gatewayStatus: record.status,
     purchaseStatus: record.purchaseStatus,
     ledgerAction: existingPayment.rowCount === 0 ? "inserted" : "updated",
+    ...(deliveryHold ? { deliveryHold: true } : {}),
   };
 }

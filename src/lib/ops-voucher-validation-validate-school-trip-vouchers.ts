@@ -1,3 +1,5 @@
+import { lockOperationalDay } from "@/lib/operational-day-lock";
+import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { ensureVoucherLifecycleSchema } from "@/lib/voucher-repository";
 import { getSchoolTripVouchers } from "@/lib/ops-voucher-validation-queries";
@@ -28,6 +30,7 @@ export async function validateSchoolTripVouchers(
 
   try {
     await client.query("BEGIN");
+    await lockOperationalDay(client, getOperationalParkId(), date);
     const vouchers = await getSchoolTripVouchers(client, schoolId, agendaId);
 
     if (vouchers.length === 0) {

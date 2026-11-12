@@ -168,4 +168,18 @@ describe("payment-reconciliation side effects", () => {
       }),
     );
   });
+  it("commits a paid capacity hold without delivering tickets or confirmation email", async () => {
+    const legacyQuery = poolQuery.getMockImplementation()!;
+    poolQuery.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes("FROM online_capacity_reservations")) return { rowCount: 1, rows: [{ park: "rincao", date: "2099-07-20", quantity: 1, active: false, unexpired: false, deliveryHold: true, status: "conc" }] };
+      return legacyQuery(sql, ...args);
+    });
+    const { reconcilePaymentFromGatewayPayload } = await import("@/lib/payment-reconciliation");
+    await expect(reconcilePaymentFromGatewayPayload({ dados: { code: "payment-123", reference: "123", status: 3, grossAmount: "120.00" } }, 123))
+      .resolves.toMatchObject({ purchaseStatus: "conc", deliveryHold: true });
+    expect(poolQuery).toHaveBeenCalledWith("COMMIT");
+    expect(processConfirmedPurchaseTickets).not.toHaveBeenCalled();
+    expect(queuePurchaseConfirmationEmail).not.toHaveBeenCalled();
+  });
+
 });

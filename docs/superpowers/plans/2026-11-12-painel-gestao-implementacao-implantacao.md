@@ -6,7 +6,7 @@
 **Arquitetura:** evolução do Next.js existente, preservando compras, vouchers, clientes, tabelas de preço, autenticação e integração de ingressos. Novas regras financeiras ficam no servidor, com transações, auditoria, idempotência e snapshots de fechamento. App de contagem proposto como área web responsiva autenticada, com internet obrigatória, integrada ao mesmo domínio de passeios.
 **Stack verificada:** Next.js 16.4.5 no checkout principal, React 19.2.4, TypeScript, pg/mysql2, Vitest, React PDF e ExcelJS. `develop` ainda possui diferenças de versão/implementação que precisam ser reconciliadas antes de fixar a baseline.
 **Especificação:** `../specs/painel-gestao-referencias/painel-rincao-dev.md` e `../specs/painel-gestao-referencias/painel-rincao-prototipo.html`, cópias integrais dos anexos.
-**Estado:** baseline local integrada; cadastros E1 implementados e verificados localmente em 12/11/2026; E2 em preparação. Recomendações da seção 9 aprovadas; detalhes externos precisam de evidência, sem simular integrações existentes.
+**Estado:** baseline local integrada; cadastros E1 implementados e verificados localmente em 12/11/2026; E2 com agenda, validade e capacidade verificadas localmente; integração dos serviços à venda em andamento. Recomendações da seção 9 aprovadas; detalhes externos precisam de evidência, sem simular integrações existentes.
 
 ## 1. Decisões confirmadas e limites
 
@@ -383,3 +383,13 @@ Sem resposta, custos e resultado da Estância ficam indisponíveis; não apresen
 ### Validade — decisão de 12/11/2026
 
 O usuário escolheu permitir uma utilização em qualquer dia com day use aberto dentro da validade, sem reagendamento. Início na data da visita escolhida; intervalo precisa ser mostrado com início/fim explícitos no voucher. Limite de vendas online é separado da admissão em dia alternativo. Isentos continuam contabilizados como vaga de compra, conforme recomendação comunicada; não excluir silenciosamente categorias do limite. Datas efetivas de uso e da venda precisam permanecer distintas para apuração.
+
+### Marco local E2 — agenda, validade e capacidade (12/11/2026)
+
+- Configuração por data com versões, auditoria, tabelas em lote, ingresso/serviços habilitados, limite online e preservação das compras anteriores. Calendário inclui agendas de grupos e torna explícita a diferença entre agenda e quantidade de passeios.
+- Novos vouchers guardam início/fim da validade e parque: uma utilização em qualquer day use aberto dentro do intervalo, sem reagendamento; impressão, PDF, cliente e WhatsApp preservam esse intervalo. Legado não foi recalculado. Data esgotada para novas vendas continua permitindo o uso de ingressos válidos.
+- Reservas de capacidade com concorrência transacional, isentos contados, tentativa de pagamento durável, cancelamentos revalidados e confirmação tardia sem vaga mantendo pagamento confirmado e entrega retida. Portaria, recuperação e reenvio respeitam retenção.
+- Verificado: 1.207/1.207 testes em PostgreSQL 16.15 local; 21/21 testes dos scripts; lint sem erros (14 avisos anteriores), TypeScript e build aprovados. O aviso de rastreamento dinâmico de arquivos preexistente permanece. PostgreSQL 17.11 também passou durante recuperação do Docker.
+- Navegador com API/banco locais: criação do dia, intervalo, lote em data sem agenda, conflito de edição preservando rascunho e perda de resposta após gravação. Inspeção em desktop e celular; correções de contraste do mês e texto compacto no calendário.
+- Duas revisões independentes por escopo: capacidade/entrega e configuração/calendário. Achados corrigidos, com regressões de concorrência, status legado e grupos. O executor aplicou e reconheceu como já aplicadas as três migrações no banco local isolado.
+- Ainda pendente nesta etapa: oferta dos serviços e tipos habilitados na compra online, classificação histórica dos itens e compatibilidade do serviço externo de ingressos/scanners. Não publicado em develop/main e nenhuma migração remota executada. E3–E10 continuam pendentes.

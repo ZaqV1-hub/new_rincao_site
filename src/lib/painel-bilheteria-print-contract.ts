@@ -16,6 +16,8 @@ export type PurchaseVoucherRow = {
   descricao: string | null;
   agenda_data: string | null;
   dtvalidade: string | null;
+  dtinicio_validade?: string | null;
+  parque_operacional?: string | null;
   cpf?: string | null;
   tpcompra?: string | null;
   dtcompra?: string | null;
@@ -35,6 +37,7 @@ export type PainelBilheteriaVoucherPrintModel = {
   price: string;
   tpcompra: string | null;
   visitDate: string | null;
+  validFrom?: string | null;
   validUntil: string;
   qrCodeUrl: string | null;
 };

@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import { Buffer } from "node:buffer";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
@@ -176,8 +177,9 @@ export async function getPublicAgendaEventById(id: number) {
 
 export async function getPublicAgendaReservationById(
   id: number,
+  client?: Pick<PoolClient, "query">,
 ): Promise<PublicAgendaReservationDetail | null> {
-  const pool = getIngressoSistemaDbPool();
+  const pool = client ?? getIngressoSistemaDbPool();
   const result = await pool.query<AgendaReservationRow>(
     `
       SELECT

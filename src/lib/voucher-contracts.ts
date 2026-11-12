@@ -16,6 +16,8 @@ export type UserVoucher = {
   schoolName: string | null;
   participantName: string | null;
   sent: boolean;
+  deliveryHold?: boolean;
+  validFrom?: string | null;
   validUntil: string | null;
   canSelectForVoucher: boolean;
   canReschedule: boolean;

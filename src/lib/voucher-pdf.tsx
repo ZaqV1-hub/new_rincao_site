@@ -17,6 +17,8 @@ export type VoucherPdfVoucher = {
   number: string | null;
   typeLabel: string;
   visitDate: string | null;
+  validFrom?: string | null;
+  validUntil?: string | null;
   unitValue: string | null;
   schoolName: string | null;
   participantName: string | null;
@@ -221,7 +223,11 @@ function VoucherDocument({
                 <Text style={styles.primaryValue}>{voucher.typeLabel}</Text>
                 {input.isSchool ? null : (
                   <>
-                    <Text>Valido para a visita de {formatDate(voucher.visitDate)}.</Text>
+                    {voucher.validFrom && voucher.validUntil ? (
+                      <Text>Válido de {formatDate(voucher.validFrom)} a {formatDate(voucher.validUntil)}: uma utilização em qualquer dia com day use aberto, sem reagendamento.</Text>
+                    ) : (
+                      <Text>Valido para a visita de {formatDate(voucher.visitDate)}.</Text>
+                    )}
                     <Text>Valor unitario: {formatCurrency(voucher.unitValue)}.</Text>
                   </>
                 )}
@@ -284,7 +290,9 @@ function VoucherDocument({
             </View>
 
             <Text style={styles.footer}>
-              Apresente este voucher na entrada no dia da visita. Em caso de duvidas,
+              {voucher.validFrom && voucher.validUntil
+                ? "Apresente este voucher na entrada em um dia aberto dentro da validade."
+                : "Apresente este voucher na entrada no dia da visita."} Em caso de duvidas,
               utilize os canais oficiais do Rincao.
             </Text>
           </View>

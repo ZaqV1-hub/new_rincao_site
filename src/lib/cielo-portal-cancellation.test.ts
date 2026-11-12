@@ -51,4 +51,17 @@ describe("Cielo portal cancellation", () => {
     expect(query).toHaveBeenCalledWith("ROLLBACK");
     expect(syncTicketValidation).not.toHaveBeenCalled();
   });
+  it("locks the original sales day before purchase and voucher cancellation", async () => {
+    const legacyQuery = query.getMockImplementation()!;
+    query.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes("FROM online_capacity_reservations")) return { rows: [{ park: "rincao", date: "2099-07-20", quantity: 2, status: "conc", active: true, deliveryHold: false }] };
+      return legacyQuery(sql, ...args);
+    });
+    await markCieloPortalCancelled(input);
+    const calls = query.mock.calls.map(([sql]) => sql);
+    expect(calls.findIndex((sql) => sql.includes("pg_advisory_xact_lock"))).toBeLessThan(calls.findIndex((sql) => sql.includes("FOR UPDATE OF compra")));
+    expect(calls.findIndex((sql) => sql.includes("FOR UPDATE OF compra"))).toBeLessThan(calls.findIndex((sql) => sql.includes("FROM voucher")));
+    expect(calls.some((sql) => sql.includes("DELETE FROM online_capacity_reservations"))).toBe(false);
+  });
+
 });

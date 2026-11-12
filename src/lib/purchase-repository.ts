@@ -1,3 +1,6 @@
+import type { PoolClient } from "pg";
+import { lockOnlineCapacityDay, reserveOnlineCapacity, validateOnlineCapacitySelection, OnlineCapacityError } from "@/lib/online-capacity";
+import { voucherValidityRange } from "@/lib/operational-date";
 import {
   getPublicAgendaReservationById,
   isAgendaDateExpired,
@@ -99,8 +102,8 @@ function labelForPricingMode(mode: PurchasePricing["mode"], name?: string) {
 async function resolveDiscountedPricing(cpf: string, visitDate: string, pricing: {
   standardNormal: number;
   standardChild: number;
-}) {
-  const pool = getIngressoSistemaDbPool();
+}, client?: Pick<PoolClient, "query">) {
+  const pool = client ?? getIngressoSistemaDbPool();
   const convenios = await pool.query<ConvenioRow>(
     `
       SELECT
@@ -226,8 +229,9 @@ async function resolveDiscountedPricing(cpf: string, visitDate: string, pricing:
 export async function getPurchaseAgendaContext(
   cpf: string,
   agendaId: number,
+  client?: Pick<PoolClient, "query">,
 ): Promise<PurchaseAgendaDetail | null> {
-  const agenda = await getPublicAgendaReservationById(agendaId);
+  const agenda = await getPublicAgendaReservationById(agendaId, client);
 
   if (!agenda) {
     return null;
@@ -243,7 +247,7 @@ export async function getPurchaseAgendaContext(
   const discounted = await resolveDiscountedPricing(cpf, agenda.date, {
     standardNormal,
     standardChild,
-  });
+  }, client);
 
   return {
     ...agenda,
@@ -361,103 +365,122 @@ export async function createOnlinePurchase(
   selection: CreatePurchaseSelection,
   codindicaInput?: string,
 ) {
-  const agenda = await getPurchaseAgendaContext(cpf, agendaId);
+  const client = await getIngressoSistemaDbPool().connect();
+  try {
+    await client.query("BEGIN");
+    const operationalDay = await lockOnlineCapacityDay(client, agendaId);
+    const agenda = await getPurchaseAgendaContext(cpf, agendaId, client);
 
-  if (!agenda) {
-    throw new PurchaseCreationError(
-      "agenda_not_found",
-      "Data de visita indisponivel para compra online.",
-      404,
-    );
-  }
-
-  if (isAgendaDateExpired(agenda.date)) {
-    throw new PurchaseCreationError(
-      "agenda_expired",
-      "Esta data nao esta mais disponivel.",
-      409,
-    );
-  }
-
-  if (isB2cLineItemSelection(selection)) {
-    const cart = buildAgendaCartSummary(agenda, selection.lineItems);
-    const pool = getIngressoSistemaDbPool();
-    const codindica = normalizeCodindica(codindicaInput);
-    let cartCodindicaTotals: ReturnType<typeof calculateCodindicaCartTotals> | null = null;
-    let cartCodindicaPricing:
-      | ReturnType<typeof buildCartCodindicaPricing>
-      | null = null;
-
-    if (codindica) {
-      const [codindicaResult, parametroResult] = await Promise.all([
-        pool.query<CodindicaQueryRow>(
-          `
-            SELECT
-              codindica,
-              stcodindica,
-              validade::text AS validade,
-              nmrepresentante,
-              tpdesconto,
-              flpromocional,
-              vldescnormal::text AS vldescnormal,
-              vldescinfant::text AS vldescinfant,
-              vldescpromonormal::text AS vldescpromonormal,
-              vldescpromoinfant::text AS vldescpromoinfant,
-              vlvendanormal::text AS vlvendanormal,
-              vlvendainfant::text AS vlvendainfant,
-              vlcashback::text AS vlcashback,
-              vlcashbacknormal::text AS vlcashbacknormal,
-              vlcashbackinfant::text AS vlcashbackinfant
-            FROM codindica
-            WHERE codindica = $1
-            LIMIT 1
-          `,
-          [codindica],
-        ),
-        pool.query<CodindicaParametroRow>(
-          `
-            SELECT idparametro, vlparametro
-            FROM parametro
-            WHERE idparametro IN ('codine', 'codven', 'codval')
-          `,
-        ),
-      ]);
-
-      try {
-        cartCodindicaTotals = calculateCodindicaCartTotals({
-          code: codindica,
-          record: codindicaResult.rows[0] ?? null,
-          parameters: parametroResult.rows,
-          agendaType: agenda.type,
-          normalUnitPrice: Number(
-            cart.lines.find((line) => line.productId === "ingresso-adulto")?.unitPrice ?? 0,
-          ),
-          childUnitPrice: Number(
-            cart.lines.find((line) => line.productId === "ingresso-crianca")?.unitPrice ?? 0,
-          ),
-          normalQuantity:
-            cart.lines.find((line) => line.productId === "ingresso-adulto")?.quantity ?? 0,
-          childQuantity:
-            cart.lines.find((line) => line.productId === "ingresso-crianca")?.quantity ?? 0,
-        });
-        cartCodindicaPricing = buildCartCodindicaPricing({
-          cart,
-          codindicaTotals: cartCodindicaTotals,
-        });
-      } catch (error) {
-        if (error instanceof CodindicaValidationError) {
-          throw new PurchaseCreationError("invalid_codindica", error.message, 409);
-        }
-
-        throw error;
-      }
+    if (!agenda) {
+      throw new PurchaseCreationError(
+        "agenda_not_found",
+        "Data de visita indisponivel para compra online.",
+        404,
+      );
     }
 
-    const validityDate = resolveVoucherValidityDate(agenda);
-    const client = await pool.connect();
+    if (isAgendaDateExpired(agenda.date)) {
+      throw new PurchaseCreationError(
+        "agenda_expired",
+        "Esta data nao esta mais disponivel.",
+        409,
+      );
+    }
 
-    try {
-      await client.query("BEGIN");
+    if (operationalDay && (operationalDay.date !== agenda.date || operationalDay.priceTableId !== agenda.priceTable.id)) {
+      throw new PurchaseCreationError("agenda_changed", "A programação mudou. Atualize os dados e tente novamente.", 409);
+    }
+    const capacityTypes = isB2cLineItemSelection(selection)
+      ? selection.lineItems.map((line) => ({
+          type: line.productId === "ingresso-adulto" ? "norma" : line.productId === "ingresso-crianca" ? "infan" : line.productId === "ingresso-isento" ? "isent" : "",
+          quantity: line.quantity,
+        }))
+      : [
+          { type: "norma", quantity: selection.normal + selection.discountedNormal },
+          { type: "infan", quantity: selection.child + selection.discountedChild },
+          { type: "isent", quantity: selection.exempt },
+        ];
+    await validateOnlineCapacitySelection(client, operationalDay, capacityTypes);
+
+    if (isB2cLineItemSelection(selection)) {
+      const cart = buildAgendaCartSummary(agenda, selection.lineItems);
+
+      const codindica = normalizeCodindica(codindicaInput);
+      let cartCodindicaTotals: ReturnType<typeof calculateCodindicaCartTotals> | null = null;
+      let cartCodindicaPricing:
+        | ReturnType<typeof buildCartCodindicaPricing>
+        | null = null;
+
+      if (codindica) {
+        const [codindicaResult, parametroResult] = await Promise.all([
+          client.query<CodindicaQueryRow>(
+            `
+              SELECT
+                codindica,
+                stcodindica,
+                validade::text AS validade,
+                nmrepresentante,
+                tpdesconto,
+                flpromocional,
+                vldescnormal::text AS vldescnormal,
+                vldescinfant::text AS vldescinfant,
+                vldescpromonormal::text AS vldescpromonormal,
+                vldescpromoinfant::text AS vldescpromoinfant,
+                vlvendanormal::text AS vlvendanormal,
+                vlvendainfant::text AS vlvendainfant,
+                vlcashback::text AS vlcashback,
+                vlcashbacknormal::text AS vlcashbacknormal,
+                vlcashbackinfant::text AS vlcashbackinfant
+              FROM codindica
+              WHERE codindica = $1
+              LIMIT 1
+            `,
+            [codindica],
+          ),
+          client.query<CodindicaParametroRow>(
+            `
+              SELECT idparametro, vlparametro
+              FROM parametro
+              WHERE idparametro IN ('codine', 'codven', 'codval')
+            `,
+          ),
+        ]);
+
+        try {
+          cartCodindicaTotals = calculateCodindicaCartTotals({
+            code: codindica,
+            record: codindicaResult.rows[0] ?? null,
+            parameters: parametroResult.rows,
+            agendaType: agenda.type,
+            normalUnitPrice: Number(
+              cart.lines.find((line) => line.productId === "ingresso-adulto")?.unitPrice ?? 0,
+            ),
+            childUnitPrice: Number(
+              cart.lines.find((line) => line.productId === "ingresso-crianca")?.unitPrice ?? 0,
+            ),
+            normalQuantity:
+              cart.lines.find((line) => line.productId === "ingresso-adulto")?.quantity ?? 0,
+            childQuantity:
+              cart.lines.find((line) => line.productId === "ingresso-crianca")?.quantity ?? 0,
+          });
+          cartCodindicaPricing = buildCartCodindicaPricing({
+            cart,
+            codindicaTotals: cartCodindicaTotals,
+          });
+        } catch (error) {
+          if (error instanceof CodindicaValidationError) {
+            throw new PurchaseCreationError("invalid_codindica", error.message, 409);
+          }
+
+          throw error;
+        }
+      }
+
+      const validity = operationalDay ? voucherValidityRange(agenda.date, operationalDay.validity) : null;
+      const validityDate = validity?.validUntil ?? resolveVoucherValidityDate(agenda);
+      if (Number(cartCodindicaPricing?.totalValue ?? cart.totalValue) <= 0) {
+        throw new PurchaseCreationError("invalid_purchase", "Selecione pelo menos um ingresso pago para continuar.", 400);
+      }
 
       const purchaseResult = await client.query<PurchaseInsertRow>(
         `
@@ -506,6 +529,7 @@ export async function createOnlinePurchase(
         throw new Error("purchase_insert_failed");
       }
 
+      await reserveOnlineCapacity(client, operationalDay, purchaseId, cart.voucherCount);
       for (const line of cart.lines) {
         const codindicaLine =
           cartCodindicaPricing?.lines.find((item) => item.productId === line.productId) ??
@@ -530,9 +554,11 @@ export async function createOnlinePurchase(
                 stusado,
                 fldesconto,
                 dtvalidade,
-                descricao
+                descricao,
+                dtinicio_validade,
+                parque_operacional
               )
-              VALUES ($1, $2, $3, $4, $5, $6, $7, 'n', 'n', $8, $9)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, 'n', 'n', $8, $9, $10, $11)
             `,
             [
               purchaseId,
@@ -544,6 +570,8 @@ export async function createOnlinePurchase(
               cartCodindicaTotals?.code ?? null,
               validityDate,
               line.description,
+              validity?.validFrom ?? null,
+              operationalDay?.park ?? null,
             ],
           );
         }
@@ -557,109 +585,103 @@ export async function createOnlinePurchase(
         totalValue: cartCodindicaPricing?.totalValue ?? cart.totalValue,
         voucherCount: cart.voucherCount,
       };
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
-  const quantities = selection;
-
-  validateQuantities(agenda.pricing, quantities);
-
-  const discountedNormal = Number(agenda.pricing.discountedNormal);
-  const discountedChild = Number(agenda.pricing.discountedChild);
-  const standardNormal = Number(agenda.pricing.standardNormal);
-  const standardChild = Number(agenda.pricing.standardChild);
-  const baseTotalValue = normalizeMoney(
-    quantities.discountedNormal * discountedNormal +
-      quantities.discountedChild * discountedChild +
-      quantities.normal * standardNormal +
-      quantities.child * standardChild,
-  );
-  const voucherCount =
-    quantities.discountedNormal +
-    quantities.discountedChild +
-    quantities.normal +
-    quantities.child +
-    quantities.exempt;
-  const validityDate = resolveVoucherValidityDate(agenda);
-  const pool = getIngressoSistemaDbPool();
-  const codindica = normalizeCodindica(codindicaInput);
-  let codindicaTotals: ReturnType<typeof calculateCodindicaTotals> | null = null;
-
-  if (codindica) {
-    if (agenda.pricing.mode !== "dia") {
-      throw new PurchaseCreationError(
-        "codindica_unavailable",
-        "Codigo de indicacao nao pode ser combinado com tarifa especial nesta conta.",
-        409,
-      );
     }
 
-    const [codindicaResult, parametroResult] = await Promise.all([
-      pool.query<CodindicaQueryRow>(
-        `
-          SELECT
-            codindica,
-            stcodindica,
-            validade::text AS validade,
-            nmrepresentante,
-            tpdesconto,
-            flpromocional,
-            vldescnormal::text AS vldescnormal,
-            vldescinfant::text AS vldescinfant,
-            vldescpromonormal::text AS vldescpromonormal,
-            vldescpromoinfant::text AS vldescpromoinfant,
-            vlvendanormal::text AS vlvendanormal,
-            vlvendainfant::text AS vlvendainfant,
-            vlcashback::text AS vlcashback,
-            vlcashbacknormal::text AS vlcashbacknormal,
-            vlcashbackinfant::text AS vlcashbackinfant
-          FROM codindica
-          WHERE codindica = $1
-          LIMIT 1
-        `,
-        [codindica],
-      ),
-      pool.query<CodindicaParametroRow>(
-        `
-          SELECT idparametro, vlparametro
-          FROM parametro
-          WHERE idparametro IN ('codine', 'codven', 'codval')
-        `,
-      ),
-    ]);
+    const quantities = selection;
 
-    try {
-      codindicaTotals = calculateCodindicaTotals({
-        code: codindica,
-        record: codindicaResult.rows[0] ?? null,
-        parameters: parametroResult.rows,
-        agendaType: agenda.type,
-        normalUnitPrice: standardNormal,
-        childUnitPrice: standardChild,
-        normalQuantity: quantities.normal,
-        childQuantity: quantities.child,
-      });
-    } catch (error) {
-      if (error instanceof CodindicaValidationError) {
-        throw new PurchaseCreationError("invalid_codindica", error.message, 409);
+    validateQuantities(agenda.pricing, quantities);
+
+    const discountedNormal = Number(agenda.pricing.discountedNormal);
+    const discountedChild = Number(agenda.pricing.discountedChild);
+    const standardNormal = Number(agenda.pricing.standardNormal);
+    const standardChild = Number(agenda.pricing.standardChild);
+    const baseTotalValue = normalizeMoney(
+      quantities.discountedNormal * discountedNormal +
+        quantities.discountedChild * discountedChild +
+        quantities.normal * standardNormal +
+        quantities.child * standardChild,
+    );
+    const voucherCount =
+      quantities.discountedNormal +
+      quantities.discountedChild +
+      quantities.normal +
+      quantities.child +
+      quantities.exempt;
+    const validity = operationalDay ? voucherValidityRange(agenda.date, operationalDay.validity) : null;
+    const validityDate = validity?.validUntil ?? resolveVoucherValidityDate(agenda);
+
+    const codindica = normalizeCodindica(codindicaInput);
+    let codindicaTotals: ReturnType<typeof calculateCodindicaTotals> | null = null;
+
+    if (codindica) {
+      if (agenda.pricing.mode !== "dia") {
+        throw new PurchaseCreationError(
+          "codindica_unavailable",
+          "Codigo de indicacao nao pode ser combinado com tarifa especial nesta conta.",
+          409,
+        );
       }
 
-      throw error;
+      const [codindicaResult, parametroResult] = await Promise.all([
+        client.query<CodindicaQueryRow>(
+          `
+            SELECT
+              codindica,
+              stcodindica,
+              validade::text AS validade,
+              nmrepresentante,
+              tpdesconto,
+              flpromocional,
+              vldescnormal::text AS vldescnormal,
+              vldescinfant::text AS vldescinfant,
+              vldescpromonormal::text AS vldescpromonormal,
+              vldescpromoinfant::text AS vldescpromoinfant,
+              vlvendanormal::text AS vlvendanormal,
+              vlvendainfant::text AS vlvendainfant,
+              vlcashback::text AS vlcashback,
+              vlcashbacknormal::text AS vlcashbacknormal,
+              vlcashbackinfant::text AS vlcashbackinfant
+            FROM codindica
+            WHERE codindica = $1
+            LIMIT 1
+          `,
+          [codindica],
+        ),
+        client.query<CodindicaParametroRow>(
+          `
+            SELECT idparametro, vlparametro
+            FROM parametro
+            WHERE idparametro IN ('codine', 'codven', 'codval')
+          `,
+        ),
+      ]);
+
+      try {
+        codindicaTotals = calculateCodindicaTotals({
+          code: codindica,
+          record: codindicaResult.rows[0] ?? null,
+          parameters: parametroResult.rows,
+          agendaType: agenda.type,
+          normalUnitPrice: standardNormal,
+          childUnitPrice: standardChild,
+          normalQuantity: quantities.normal,
+          childQuantity: quantities.child,
+        });
+      } catch (error) {
+        if (error instanceof CodindicaValidationError) {
+          throw new PurchaseCreationError("invalid_codindica", error.message, 409);
+        }
+
+        throw error;
+      }
     }
-  }
 
-  const totalValue = codindicaTotals
-    ? normalizeMoney(codindicaTotals.totalPaid)
-    : baseTotalValue;
-  const client = await pool.connect();
-
-  try {
-    await client.query("BEGIN");
+    const totalValue = codindicaTotals
+      ? normalizeMoney(codindicaTotals.totalPaid)
+      : baseTotalValue;
+    if (Number(totalValue) <= 0) {
+      throw new PurchaseCreationError("invalid_purchase", "Selecione pelo menos um ingresso pago para continuar.", 400);
+    }
 
     const purchaseResult = await client.query<PurchaseInsertRow>(
       `
@@ -706,6 +728,7 @@ export async function createOnlinePurchase(
       throw new Error("purchase_insert_failed");
     }
 
+    await reserveOnlineCapacity(client, operationalDay, purchaseId, voucherCount);
     for (let index = 0; index < quantities.discountedNormal; index += 1) {
       const voucherNumber = await generateUniqueVoucherNumber(client, "A");
 
@@ -721,9 +744,11 @@ export async function createOnlinePurchase(
             codindica,
             stusado,
             fldesconto,
-            dtvalidade
+            dtvalidade,
+            dtinicio_validade,
+            parque_operacional
           )
-          VALUES ($1, $2, $3, 'norma', $4, NULL, NULL, 'n', 's', $5)
+          VALUES ($1, $2, $3, 'norma', $4, NULL, NULL, 'n', 's', $5, $6, $7)
         `,
         [
           purchaseId,
@@ -731,7 +756,8 @@ export async function createOnlinePurchase(
           agendaId,
           normalizeMoney(discountedNormal),
           validityDate,
-        ],
+          validity?.validFrom ?? null,
+          operationalDay?.park ?? null,        ],
       );
     }
 
@@ -750,9 +776,11 @@ export async function createOnlinePurchase(
             codindica,
             stusado,
             fldesconto,
-            dtvalidade
+            dtvalidade,
+            dtinicio_validade,
+            parque_operacional
           )
-          VALUES ($1, $2, $3, 'infan', $4, NULL, NULL, 'n', 's', $5)
+          VALUES ($1, $2, $3, 'infan', $4, NULL, NULL, 'n', 's', $5, $6, $7)
         `,
         [
           purchaseId,
@@ -760,7 +788,8 @@ export async function createOnlinePurchase(
           agendaId,
           normalizeMoney(discountedChild),
           validityDate,
-        ],
+          validity?.validFrom ?? null,
+          operationalDay?.park ?? null,        ],
       );
     }
 
@@ -787,9 +816,11 @@ export async function createOnlinePurchase(
             codindica,
             stusado,
             fldesconto,
-            dtvalidade
+            dtvalidade,
+            dtinicio_validade,
+            parque_operacional
           )
-          VALUES ($1, $2, $3, 'norma', $4, $5, $6, 'n', 'n', $7)
+          VALUES ($1, $2, $3, 'norma', $4, $5, $6, 'n', 'n', $7, $8, $9)
         `,
         [
           purchaseId,
@@ -799,7 +830,8 @@ export async function createOnlinePurchase(
           normalVoucherDiscount,
           codindicaTotals?.code ?? null,
           validityDate,
-        ],
+          validity?.validFrom ?? null,
+          operationalDay?.park ?? null,        ],
       );
     }
 
@@ -826,9 +858,11 @@ export async function createOnlinePurchase(
             codindica,
             stusado,
             fldesconto,
-            dtvalidade
+            dtvalidade,
+            dtinicio_validade,
+            parque_operacional
           )
-          VALUES ($1, $2, $3, 'infan', $4, $5, $6, 'n', 'n', $7)
+          VALUES ($1, $2, $3, 'infan', $4, $5, $6, 'n', 'n', $7, $8, $9)
         `,
         [
           purchaseId,
@@ -838,7 +872,8 @@ export async function createOnlinePurchase(
           childVoucherDiscount,
           codindicaTotals?.code ?? null,
           validityDate,
-        ],
+          validity?.validFrom ?? null,
+          operationalDay?.park ?? null,        ],
       );
     }
 
@@ -855,11 +890,13 @@ export async function createOnlinePurchase(
             vlunicompra,
             codindica,
             stusado,
-            dtvalidade
+            dtvalidade,
+            dtinicio_validade,
+            parque_operacional
           )
-          VALUES ($1, $2, $3, 'isent', '0.00', $4, 'n', $5)
+          VALUES ($1, $2, $3, 'isent', '0.00', $4, 'n', $5, $6, $7)
         `,
-        [purchaseId, voucherNumber, agendaId, codindicaTotals?.code ?? null, validityDate],
+        [purchaseId, voucherNumber, agendaId, codindicaTotals?.code ?? null, validityDate, validity?.validFrom ?? null, operationalDay?.park ?? null],
       );
     }
 
@@ -873,6 +910,7 @@ export async function createOnlinePurchase(
     };
   } catch (error) {
     await client.query("ROLLBACK");
+    if (error instanceof OnlineCapacityError) throw new PurchaseCreationError(error.code, error.message, error.status);
     throw error;
   } finally {
     client.release();

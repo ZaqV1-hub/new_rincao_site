@@ -989,4 +989,33 @@ describe("ticket-service", () => {
       }),
     );
   });
+  it("excludes capacity-held paid purchases from direct fulfillment and purchase WhatsApp", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    dbQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM compra")) {
+        expect(sql).toMatch(/NOT EXISTS\s*\(SELECT 1 FROM online_capacity_reservations\s+\w+\s+WHERE \w+\.idcompra=compra\.idcompra\s+AND \w+\.delivery_hold\)/);
+      }
+      return { rows: [] };
+    });
+    await expect(processConfirmedPurchaseTickets(456)).resolves.toMatchObject({ status: "skipped", sentVoucherIds: [] });
+    await expect(sendPurchaseTicketsWhatsApp(456, [9001], "(51) 99999-9999")).resolves.toMatchObject({ status: "skipped", sentVoucherIds: [] });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(dbQuery.mock.calls.filter(([sql]) => sql.includes("FROM compra"))).toHaveLength(2);
+  });
+
+  it("excludes capacity-held purchases before selecting the recovery batch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    dbQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("COUNT(*)::text AS pending_vouchers")) {
+        expect(sql).toMatch(/NOT EXISTS\s*\(SELECT 1 FROM online_capacity_reservations\s+\w+\s+WHERE \w+\.idcompra=compra\.idcompra\s+AND \w+\.delivery_hold\)/);
+        expect(sql.indexOf("online_capacity_reservations")).toBeLessThan(sql.indexOf("LIMIT $2"));
+      }
+      return { rows: [] };
+    });
+    await expect(recoverPendingTicketDeliveries()).resolves.toMatchObject({ candidates: 0, processed: 0, recovered: 0 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
 });

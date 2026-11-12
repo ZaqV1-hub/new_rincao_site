@@ -3,9 +3,11 @@ import {
   getPainelBilheteriaPurchaseDetail,
   getPainelBilheteriaVoucherPrintModel,
   payPainelBilheteriaReservation,
+  sendPainelBilheteriaVoucherWhatsapp,
 } from "@/lib/painel-bilheteria";
 
-const { query, connect, clientQuery, release, generateVoucherQrcodes, registerOpsAuditLog, queuePurchaseConfirmationEmail } = vi.hoisted(() => ({
+const { sendPurchaseTicketsWhatsApp, query, connect, clientQuery, release, generateVoucherQrcodes, registerOpsAuditLog, queuePurchaseConfirmationEmail } = vi.hoisted(() => ({
+  sendPurchaseTicketsWhatsApp: vi.fn(),
   query: vi.fn(),
   connect: vi.fn(),
   clientQuery: vi.fn(),
@@ -47,6 +49,8 @@ vi.mock("@/lib/ops-audit-log", () => ({
 vi.mock("@/lib/purchase-confirmation-email", () => ({
   queuePurchaseConfirmationEmail,
 }));
+
+vi.mock("@/lib/ticket-service", () => ({ sendPurchaseTicketsWhatsApp }));
 
 describe("painel-bilheteria", () => {
   beforeEach(() => {
@@ -405,5 +409,42 @@ describe("painel-bilheteria", () => {
     );
     consoleErrorSpy.mockRestore();
     expect(release).toHaveBeenCalled();
+  });
+});
+
+
+describe("operational voucher reissue", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    connect.mockResolvedValue({ query: clientQuery, release });
+    generateVoucherQrcodes.mockResolvedValue({ 12: "https://qr.example/12.png" });
+    sendPurchaseTicketsWhatsApp.mockResolvedValue({ status: "sent" });
+    clientQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("FROM voucher")) return { rows: [{ idvoucher: 12, idcompra: 321, idagenda: 44, numvoucher: "A1234", tpvoucher: "norma", stusado: "n", dtvalidade: "2026-05-07", dtinicio_validade: "2026-05-01", parque_operacional: "rincao", vlunicompra: "49.90", descricao: "Adulto", cpf: "52998224725", tpcompra: "ponli", dtcompra: "2026-04-20" }] };
+      if (sql.includes("FROM compra")) return { rows: [{ idcompra: 321, stcompra: "conc" }] };
+      if (sql.includes("FROM agenda")) return { rows: [{ dtagenda: "2026-05-01" }] };
+      return { rows: [] };
+    });
+  });
+  it.each(["print", "whatsapp"])("blocks %s when a paid purchase is retained for capacity", async (operation) => {
+    const original = clientQuery.getMockImplementation()!;
+    clientQuery.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes("online_capacity_reservations")) return { rows: [{ deliveryHold: true }] };
+      return original(sql, ...args);
+    });
+    const action = operation === "print" ? getPainelBilheteriaVoucherPrintModel(12)
+      : sendPainelBilheteriaVoucherWhatsapp({ purchaseId: 321, voucherId: 12, phoneNumber: "51999999999" });
+    await expect(action).rejects.toMatchObject({ code: "online_capacity_delivery_hold", status: 409 });
+    expect(generateVoucherQrcodes).not.toHaveBeenCalled();
+    expect(sendPurchaseTicketsWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it("prints the saved interval without rewriting its validity", async () => {
+    await expect(getPainelBilheteriaVoucherPrintModel(12)).resolves.toMatchObject({ validFrom: "2026-05-01", validUntil: "2026-05-07" });
+    expect(clientQuery.mock.calls.some(([sql]) => String(sql).includes("SET dtvalidade"))).toBe(false);
+  });
+  it("re-sends without rewriting the saved interval", async () => {
+    await expect(sendPainelBilheteriaVoucherWhatsapp({ purchaseId: 321, voucherId: 12, phoneNumber: "51999999999" })).resolves.toMatchObject({ validUntil: "2026-05-07" });
+    expect(clientQuery.mock.calls.some(([sql]) => String(sql).includes("SET dtvalidade"))).toBe(false);
   });
 });

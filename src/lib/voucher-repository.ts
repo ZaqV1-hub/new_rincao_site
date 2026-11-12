@@ -1,3 +1,5 @@
+import { getSaoPauloToday, isCivilDate } from "@/lib/operational-date";
+import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { purchaseDisplayStatusSql } from "@/lib/purchase-display-status";
 import { Buffer } from "node:buffer";
 import {
@@ -38,6 +40,9 @@ type VoucherRow = {
   dtuso: string | null;
   voucherenviado: string | null;
   dtvalidade: string | null;
+  dtinicio_validade?: string | null;
+  parque_operacional?: string | null;
+  delivery_hold?: boolean;
   dtagenda: string | null;
   tpagenda: string | null;
   idescola: number | null;
@@ -57,6 +62,8 @@ export type UserVouchersPage = {
 };
 
 export type VoucherExportVoucher = {
+  validFrom?: string | null;
+  validUntil?: string | null;
   id: number;
   number: string | null;
   type: string | null;
@@ -214,10 +221,13 @@ export async function expireUnusedVouchers() {
         SET voucher.stvoucher = 'vencido'
         WHERE voucher.stusado = 'n'
           AND COALESCE(voucher.stvoucher, 'ativo') <> 'vencido'
-          AND compra.dtcompra IS NOT NULL
-          AND CURRENT_DATE > GREATEST(
-            DATE_ADD(DATE(compra.dtcompra), INTERVAL 6 MONTH),
-            COALESCE(voucher.dtvalidade, DATE_ADD(DATE(compra.dtcompra), INTERVAL 6 MONTH))
+          AND (
+            (voucher.dtinicio_validade IS NOT NULL AND $1 > voucher.dtvalidade)
+            OR (voucher.dtinicio_validade IS NULL AND compra.dtcompra IS NOT NULL
+              AND CURRENT_DATE > GREATEST(
+                DATE_ADD(DATE(compra.dtcompra), INTERVAL 6 MONTH),
+                COALESCE(voucher.dtvalidade, DATE_ADD(DATE(compra.dtcompra), INTERVAL 6 MONTH))
+              ))
           )
       `
       : `
@@ -227,13 +237,17 @@ export async function expireUnusedVouchers() {
         WHERE compra.idcompra = voucher.idcompra
           AND voucher.stusado = 'n'
           AND COALESCE(voucher.stvoucher, 'ativo') <> 'vencido'
-          AND compra.dtcompra IS NOT NULL
-          AND CURRENT_DATE > GREATEST(
-            (compra.dtcompra::date + INTERVAL '6 months')::date,
-            COALESCE(voucher.dtvalidade::date, (compra.dtcompra::date + INTERVAL '6 months')::date)
+          AND (
+            (voucher.dtinicio_validade IS NOT NULL AND $1::date > voucher.dtvalidade::date)
+            OR (voucher.dtinicio_validade IS NULL AND compra.dtcompra IS NOT NULL
+              AND CURRENT_DATE > GREATEST(
+                (compra.dtcompra::date + INTERVAL '6 months')::date,
+                COALESCE(voucher.dtvalidade::date, (compra.dtcompra::date + INTERVAL '6 months')::date)
+              ))
           )
         RETURNING voucher.idvoucher
       `,
+    [getSaoPauloToday()],
   );
 
   return {
@@ -245,13 +259,23 @@ export async function expireUnusedVouchers() {
 function mapVoucher(row: VoucherRow, purchase: PurchaseRow, today: Date): UserVoucher {
   const visitDiffDays = daysBetweenDates(today, row.dtagenda);
   const used = row.stusado === "s";
-  const validUntil = voucherValidUntil(purchase.dtcompra, row.dtvalidade);
+  const hasOperationalValidity = row.dtinicio_validade != null;
+  const validFrom = normalizeDate(row.dtinicio_validade ?? null);
+  const validUntil = hasOperationalValidity
+    ? normalizeDate(row.dtvalidade)
+    : voucherValidUntil(purchase.dtcompra, row.dtvalidade);
+  const invalidSnapshot = hasOperationalValidity && (
+    !isCivilDate(validFrom) || !isCivilDate(validUntil) || validFrom > validUntil ||
+    row.parque_operacional !== getOperationalParkId()
+  );
   const expiredForGeneration =
     String(row.stvoucher ?? "").trim() === "vencido" ||
     !validUntil ||
-    daysBetweenDates(today, validUntil) < 0;
+    invalidSnapshot ||
+    (hasOperationalValidity ? getSaoPauloToday(today) > validUntil : daysBetweenDates(today, validUntil) < 0);
   const alreadyRescheduled = String(row.flreagendado ?? "").trim() === "s";
-  const canSelectForVoucher = purchase.stcompra === "conc" && row.stusado === "n" && !expiredForGeneration;
+  const deliveryHold = Boolean(row.delivery_hold);
+  const canSelectForVoucher = !deliveryHold && purchase.stcompra === "conc" && row.stusado === "n" && !expiredForGeneration;
 
   return {
     id: row.idvoucher,
@@ -270,9 +294,13 @@ function mapVoucher(row: VoucherRow, purchase: PurchaseRow, today: Date): UserVo
     schoolName: row.nmescola,
     participantName: row.nomealuno || row.nomeeducador || null,
     sent: row.voucherenviado?.trim() === "s",
+    deliveryHold,
+    validFrom,
     validUntil,
     canSelectForVoucher,
     canReschedule:
+      !hasOperationalValidity &&
+      !deliveryHold &&
       purchase.stcompra === "conc" &&
       row.tpagenda === "padra" &&
       row.stusado === "n" &&
@@ -286,6 +314,8 @@ function mapVoucher(row: VoucherRow, purchase: PurchaseRow, today: Date): UserVo
 
 function mapVoucherExport(row: VoucherRow): VoucherExportVoucher {
   return {
+    validFrom: normalizeDate(row.dtinicio_validade ?? null),
+    validUntil: row.dtinicio_validade != null ? normalizeDate(row.dtvalidade) : null,
     id: row.idvoucher,
     number: row.numvoucher,
     type: row.tpvoucher,
@@ -471,6 +501,10 @@ async function getVouchersByPurchaseIds(purchaseIds: number[]) {
         to_char(voucher.dtuso, 'YYYY-MM-DD') AS dtuso,
         voucher.voucherenviado,
         to_char(voucher.dtvalidade, 'YYYY-MM-DD') AS dtvalidade,
+        to_char(voucher.dtinicio_validade, 'YYYY-MM-DD') AS dtinicio_validade,
+        voucher.parque_operacional,
+        EXISTS (SELECT 1 FROM online_capacity_reservations
+          WHERE idcompra = voucher.idcompra AND delivery_hold) AS delivery_hold,
         to_char(agenda.dtagenda, 'YYYY-MM-DD') AS dtagenda,
         agenda.tpagenda,
         voucher.idescola,
@@ -698,6 +732,10 @@ export async function getUserVoucherRescheduleData(
         to_char(voucher.dtuso, 'YYYY-MM-DD') AS dtuso,
         voucher.voucherenviado,
         to_char(voucher.dtvalidade, 'YYYY-MM-DD') AS dtvalidade,
+        to_char(voucher.dtinicio_validade, 'YYYY-MM-DD') AS dtinicio_validade,
+        voucher.parque_operacional,
+        EXISTS (SELECT 1 FROM online_capacity_reservations
+          WHERE idcompra = voucher.idcompra AND delivery_hold) AS delivery_hold,
         to_char(agenda.dtagenda, 'YYYY-MM-DD') AS dtagenda,
         agenda.tpagenda,
         voucher.idescola,
@@ -742,7 +780,7 @@ export async function getUserVoucherRescheduleData(
   return {
     purchaseId: row.idcompra,
     agendaId: Number(row.idagenda),
-    validUntil: addMonthsToDateString(row.dtcompra, 6),
+    validUntil: row.dtinicio_validade != null ? normalizeDate(row.dtvalidade) : addMonthsToDateString(row.dtcompra, 6),
     voucher: mapVoucher(row, purchaseRow, new Date()),
   };
 }
@@ -772,6 +810,7 @@ export async function rescheduleUserVoucher(
         AND compra.cpf = $3
         AND compra.stcompra = 'conc'
         AND voucher.stusado = 'n'
+        AND voucher.dtinicio_validade IS NULL
         AND COALESCE(voucher.stvoucher, 'ativo') <> 'vencido'
         AND COALESCE(voucher.flreagendado, 'n') <> 's'
         AND target_agenda.tpagenda = 'padra'

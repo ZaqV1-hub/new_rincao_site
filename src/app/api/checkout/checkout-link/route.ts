@@ -1,3 +1,4 @@
+import { beginOnlinePaymentAttempt, OnlineCapacityError } from "@/lib/online-capacity";
 import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import type { AuthErrorResponse } from "@/lib/auth-contracts";
@@ -151,6 +152,7 @@ async function createNativeCheckoutResponse(
       latestPurchaseStatus === "pend" &&
       latestLedger.idpagseguro
     ) {
+      await beginOnlinePaymentAttempt(client, purchase.id);
       const previousPixStatus = await getNativeCieloCheckoutStatus({
         paymentId: latestLedger.idpagseguro,
         reference: String(purchase.id),
@@ -236,6 +238,7 @@ async function createNativeCheckoutResponse(
       await saveCheckoutInstallmentQuote(client, { purchaseId: purchase.id, ...quote });
     }
 
+    await beginOnlinePaymentAttempt(client, purchase.id);
     const checkout = await createNativeCieloCheckout({
       purchaseId: purchase.id,
       amount: (quote.chargedCents / 100).toFixed(2),
@@ -339,6 +342,7 @@ export async function POST(request: Request) {
       totalValue: purchase.totalValue,
     });
   } catch (error) {
+    if (error instanceof OnlineCapacityError) return errorResponse(error.code, error.message, error.status);
     console.error("checkout-link-native-failed", error);
 
     if (error instanceof Error && ["invalid_installments", "unsupported_installment_brand", "invalid_payment_type"].includes(error.message)) {

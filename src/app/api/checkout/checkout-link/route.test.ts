@@ -500,4 +500,43 @@ describe("checkout-link BFF route", () => {
     expect(response.status).toBe(410);
     expect(createNativeCieloCheckout).not.toHaveBeenCalled();
   });
+  it("commits capacity intent before contacting Cielo and keeps unknown attempts reserved", async () => {
+    const legacyQuery = dbQuery.getMockImplementation()!;
+    dbQuery.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes("FROM online_capacity_reservations")) return { rows: [{ park: "rincao", date: "2099-07-20", quantity: 1, active: true, unexpired: true, deliveryHold: false, status: "pend" }] };
+      return legacyQuery(sql, ...args);
+    });
+    createNativeCieloCheckout.mockImplementation(async () => {
+      const calls = dbQuery.mock.calls.map(([sql]) => sql);
+      expect(calls.findIndex((sql) => sql.includes("attempt_started_at ="))).toBeLessThan(calls.indexOf("COMMIT"));
+      throw new Error("Gateway timeout after sending");
+    });
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const { POST } = await import("@/app/api/checkout/checkout-link/route");
+      const response = await POST(new Request("https://example.test/api/checkout/checkout-link", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idcompra: 456, payment: { type: "Pix" } }),
+      }));
+      expect(response.status).toBe(502);
+      expect(createNativeCieloCheckout).toHaveBeenCalledOnce();
+      expect(dbQuery).toHaveBeenCalledWith("COMMIT");
+      expect(dbQuery.mock.calls.some(([sql]) => sql.includes("attempt_started_at=NULL"))).toBe(false);
+    } finally { error.mockRestore(); }
+  });
+  it("refuses an expired managed reservation before any Cielo request", async () => {
+    const legacyQuery = dbQuery.getMockImplementation()!;
+    dbQuery.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes("FROM online_capacity_reservations")) return { rows: [{ park: "rincao", date: "2099-07-20", quantity: 1, active: false, unexpired: false, deliveryHold: false, status: "pend" }] };
+      return legacyQuery(sql, ...args);
+    });
+    const { POST } = await import("@/app/api/checkout/checkout-link/route");
+    const response = await POST(new Request("https://example.test/api/checkout/checkout-link", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idcompra: 456, payment: { type: "Pix" } }),
+    }));
+    expect(response.status).toBe(409);
+    expect((await response.json()).error.code).toBe("online_capacity_expired");
+    expect(createNativeCieloCheckout).not.toHaveBeenCalled();
+    expect(getNativeCieloCheckoutStatus).not.toHaveBeenCalled();
+  });
+
 });

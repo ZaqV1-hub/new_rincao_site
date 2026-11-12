@@ -4,6 +4,9 @@ export type VoucherValidationRow = {
   numvoucher: string | null;
   stusado: string | null;
   stvoucher: string | null;
+  dtinicio_validade?: string | null;
+  dtvalidade?: string | null;
+  parque_operacional?: string | null;
   dtuso: string | null;
   hruso: string | null;
   idcompra: number | null;

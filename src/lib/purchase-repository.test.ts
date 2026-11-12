@@ -68,7 +68,7 @@ describe("purchase-repository", () => {
     const voucherInserts: Array<{ sql: string; values?: unknown[] }> = [];
 
     mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
-      if (sql === "BEGIN" || sql === "COMMIT") {
+      if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
         return { rows: [] };
       }
 
@@ -84,7 +84,7 @@ describe("purchase-repository", () => {
         return { rows: [] };
       }
 
-      throw new Error(`Unexpected query: ${sql}`);
+      return mocks.systemQuery(sql, values);
     });
 
     await expect(
@@ -109,7 +109,7 @@ describe("purchase-repository", () => {
     expect(voucherInserts.map((insert) => insert.sql)).toEqual(
       expect.arrayContaining([expect.stringContaining("descricao")]),
     );
-    expect(voucherInserts.map((insert) => insert.values?.at(-1))).toEqual([
+    expect(voucherInserts.map((insert) => insert.values?.[8])).toEqual([
       "Adulto",
       "Adulto",
       "Criança",
@@ -150,7 +150,7 @@ describe("purchase-repository", () => {
     });
 
     mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
-      if (sql === "BEGIN" || sql === "COMMIT") {
+      if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
         return { rows: [] };
       }
 
@@ -164,7 +164,7 @@ describe("purchase-repository", () => {
         return { rows: [] };
       }
 
-      throw new Error(`Unexpected query: ${sql}`);
+      return mocks.systemQuery(sql, values);
     });
 
     await expect(
@@ -196,6 +196,7 @@ describe("purchase-repository", () => {
       "ISAQUE",
       expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       "Adulto",
+      null, null,
     ]);
     expect(voucherInserts[1]).toEqual([
       902,
@@ -207,6 +208,72 @@ describe("purchase-repository", () => {
       "ISAQUE",
       expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       "Criança",
+      null, null,
     ]);
   });
+});
+
+describe("transactional day-use purchase", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getPublicAgendaReservationById.mockResolvedValue({ id: 123, date: "2099-07-20", type: "padra", priceTable: { id: 1, normal: "100.00", child: "70.00" } });
+    mocks.isAgendaDateExpired.mockReturnValue(false);
+    mocks.systemQuery.mockResolvedValue({ rows: [] });
+    mocks.generateUniqueVoucherNumber.mockResolvedValue("A-0001");
+    mocks.clientQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes("SELECT dtagenda")) return { rows: [{ date: "2099-07-20" }] };
+      if (sql.includes("FROM operacao_dias")) return { rows: [{ park: "rincao", date: "2099-07-20", agendaId: 123, priceTableId: 1, validity: "7_days", ticketTypes: ["norma", "infan", "isent"], onlineLimit: 4, closed: false }] };
+      if (sql.includes("SUM(")) return { rows: [{ occupied: "0" }] };
+      if (sql.includes("INSERT INTO compra")) return { rows: [{ idcompra: 901 }] };
+      return { rows: [] };
+    });
+  });
+  it.each([
+    { lineItems: [{ productId: "ingresso-adulto", quantity: 1 }, { productId: "ingresso-isento", quantity: 3 }] },
+    { normal: 1, child: 0, exempt: 3, discountedNormal: 0, discountedChild: 0 },
+  ])("reserves all people and snapshots validity after transactional pricing: %j", async (selection) => {
+    await createOnlinePurchase("52998224725", 123, selection);
+    expect(mocks.systemQuery).not.toHaveBeenCalled();
+    expect(mocks.getPublicAgendaReservationById).toHaveBeenCalledWith(123, expect.objectContaining({ query: mocks.clientQuery }));
+    const queries = mocks.clientQuery.mock.calls;
+    expect(queries.find(([sql]) => sql.includes("INSERT INTO online_capacity_reservations"))?.[1]).toEqual([901, "rincao", "2099-07-20", 4]);
+    const inserts = queries.filter(([sql]) => sql.includes("INSERT INTO voucher"));
+    expect(inserts).toHaveLength(4);
+    for (const [sql, values] of inserts) {
+      expect(sql).toContain("dtinicio_validade");
+      expect(values).toEqual(expect.arrayContaining(["2099-07-20", "2099-07-26", "rincao"]));
+    }
+  });
+  it.each([
+    { lineItems: [{ productId: "ingresso-isento", quantity: 1 }] },
+    { normal: 0, child: 0, exempt: 1, discountedNormal: 0, discountedChild: 0 },
+  ])("rejects an exclusively free purchase without orphan rows: %j", async (selection) => {
+    await expect(createOnlinePurchase("52998224725", 123, selection)).rejects.toMatchObject({ code: "invalid_purchase" });
+    expect(mocks.clientQuery.mock.calls.some(([sql]) => sql.includes("INSERT INTO"))).toBe(false);
+    expect(mocks.clientQuery).toHaveBeenCalledWith("ROLLBACK");
+  });
+  it("rejects changed configuration and disabled types before inserting anything", async () => {
+    const normalQuery = mocks.clientQuery.getMockImplementation()!;
+    mocks.clientQuery.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes("FROM operacao_dias")) return { rows: [{ park: "rincao", date: "2099-07-20", agendaId: 123, priceTableId: 2, validity: "7_days", ticketTypes: ["norma"], onlineLimit: 4 }] };
+      return normalQuery(sql, ...args);
+    });
+    await expect(createOnlinePurchase("52998224725", 123, { lineItems: [{ productId: "ingresso-adulto", quantity: 1 }] })).rejects.toMatchObject({ code: "agenda_changed" });
+    expect(mocks.clientQuery.mock.calls.some(([sql]) => sql.includes("INSERT INTO"))).toBe(false);
+    mocks.clientQuery.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes("FROM operacao_dias")) return { rows: [{ park: "rincao", date: "2099-07-20", agendaId: 123, priceTableId: 1, validity: "7_days", ticketTypes: ["norma"], onlineLimit: 4 }] };
+      return normalQuery(sql, ...args);
+    });
+    await expect(createOnlinePurchase("52998224725", 123, { normal: 1, child: 0, exempt: 1, discountedNormal: 0, discountedChild: 0 })).rejects.toMatchObject({ code: "ticket_type_unavailable" });
+    expect(mocks.clientQuery.mock.calls.some(([sql]) => sql.includes("INSERT INTO"))).toBe(false);
+  });
+  it.each([
+    { lineItems: [{ productId: "ingresso-adulto", quantity: 1 }] },
+    { normal: 1, child: 0, exempt: 0, discountedNormal: 0, discountedChild: 0 },
+  ])("refuses a zero priced paid ticket in both selection shapes: %j", async (selection) => {
+    mocks.getPublicAgendaReservationById.mockResolvedValue({ id: 123, date: "2099-07-20", type: "padra", priceTable: { id: 1, normal: "0.00", child: "70.00" } });
+    await expect(createOnlinePurchase("52998224725", 123, selection)).rejects.toMatchObject({ code: "invalid_purchase" });
+    expect(mocks.clientQuery.mock.calls.some(([sql]) => sql.includes("INSERT INTO"))).toBe(false);
+  });
+
 });

@@ -1,3 +1,4 @@
+import { lockOnlinePurchaseCapacity } from "@/lib/online-capacity";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import {
   getNativeCieloCheckoutStatus,
@@ -179,20 +180,37 @@ async function listPaymentSyncCandidates(
   }
 }
 
-async function cancelStalePendingPurchase(purchaseId: number) {
-  const pool = getIngressoSistemaDbPool();
-  const client = await pool.connect();
-
+async function cancelStalePendingPurchase(purchaseId: number, cancelAfterDays: number) {
+  const client = await getIngressoSistemaDbPool().connect();
   try {
-    await client.query(
-      `
-        UPDATE compra
-        SET stcompra = 'canc'
-        WHERE idcompra = $1
-          AND stcompra = 'pend'
-      `,
-      [purchaseId],
-    );
+    await client.query("BEGIN");
+    await lockOnlinePurchaseCapacity(client, purchaseId);
+    const result = await client.query<{
+      purchase_status: string; purchase_type: string; payment_method: string;
+      payment_id: string | null; has_payment: boolean; attempt_started: boolean; is_stale: boolean;
+    }>(`
+      SELECT compra.stcompra AS purchase_status, compra.tpcompra AS purchase_type,
+        compra.formapag AS payment_method,
+        (SELECT idpagseguro FROM pagpagseguro WHERE idcompra=compra.idcompra
+          ORDER BY date DESC NULLS LAST, idpagseguro DESC LIMIT 1) AS payment_id,
+        EXISTS (SELECT 1 FROM pagpagseguro WHERE idcompra=compra.idcompra) AS has_payment,
+        capacity.attempt_started_at IS NOT NULL AS attempt_started,
+        compra.dtcompra < CURRENT_DATE - $2::integer AS is_stale
+      FROM compra LEFT JOIN online_capacity_reservations capacity ON capacity.idcompra=compra.idcompra
+      WHERE compra.idcompra=$1 FOR UPDATE OF compra`, [purchaseId, cancelAfterDays]);
+    const current = result.rows[0];
+    let cancelled = false;
+    // A missing gateway result is not proof that an already-started attempt failed.
+    if (current?.purchase_status === "pend" && current.purchase_type === "ponli" &&
+        current.payment_method === "pgseg" && current.is_stale && !current.has_payment && !current.attempt_started) {
+      const updated = await client.query("UPDATE compra SET stcompra = 'canc' WHERE idcompra = $1 AND stcompra = 'pend'", [purchaseId]);
+      cancelled = updated.rowCount === 1;
+    }
+    await client.query("COMMIT");
+    return { cancelled, purchaseStatus: cancelled ? "canc" : current?.purchase_status ?? null, paymentId: current?.payment_id ?? null };
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
   } finally {
     client.release();
   }
@@ -296,8 +314,13 @@ export async function syncOperationalPaymentStatuses(
         candidate.purchase_status === "pend" &&
         isOlderThanDays(candidate.purchase_date, cancelAfterDays)
       ) {
-        await cancelStalePendingPurchase(candidate.purchase_id);
-
+        const cancellation = await cancelStalePendingPurchase(candidate.purchase_id, cancelAfterDays);
+        if (!cancellation.cancelled) {
+          items.push({ purchaseId: candidate.purchase_id, paymentId: cancellation.paymentId,
+            result: "skipped", purchaseStatus: cancellation.purchaseStatus, gatewayStatus: null,
+            note: "Cancelamento ignorado após conferir o estado atual e as tentativas de pagamento." });
+          continue;
+        }
         cancelled += 1;
         items.push({
           purchaseId: candidate.purchase_id,

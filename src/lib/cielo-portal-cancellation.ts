@@ -1,3 +1,4 @@
+import { lockOnlinePurchaseCapacity } from "@/lib/online-capacity";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { syncTicketValidation } from "@/lib/ticket-service";
@@ -44,6 +45,7 @@ export async function markCieloPortalCancelled(input: {
   let auditLogId: number | null = null;
   try {
     await client.query("BEGIN");
+    await lockOnlinePurchaseCapacity(client, input.purchaseId);
     const purchase = (await client.query<PurchaseRow>(
       "SELECT idcompra, stcompra, tpcompra, formapag, vltotcompra::text FROM compra WHERE idcompra = $1 FOR UPDATE",
       [input.purchaseId],

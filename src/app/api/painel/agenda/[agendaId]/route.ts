@@ -4,7 +4,7 @@ import {
   deletePainelAgenda,
 } from "@/lib/painel-agenda";
 import { authenticateOperationsRequest } from "@/lib/ops-auth";
-import { authorizePainelApiAccess } from "@/lib/painel-api-auth";
+import { requirePainelApiAccess } from "@/lib/painel-api-auth";
 
 export const runtime = "nodejs";
 
@@ -49,28 +49,20 @@ export async function DELETE(
     return auth.response;
   }
 
-  const painelAuth = await authorizePainelApiAccess(request, "vis_agenda");
+  const painelAuth = await requirePainelApiAccess(request, "vis_agenda");
 
   if (!painelAuth.ok) {
     return painelAuth.response;
   }
 
+  if (painelAuth.session.legacyRoleId !== 1) return errorResponse("painel_forbidden", "Apenas gerentes podem alterar a programação.", 403);
   const payload = await readPayload(request);
   const { agendaId } = await context.params;
 
   try {
     const data = await deletePainelAgenda(Number(agendaId), {
       reason: typeof payload?.reason === "string" ? payload.reason : "",
-      actor: {
-        name:
-          typeof payload?.actor?.name === "string"
-            ? payload.actor.name.trim()
-            : null,
-        cpf:
-          typeof payload?.actor?.cpf === "string"
-            ? payload.actor.cpf.trim()
-            : null,
-      },
+      actor: { name: painelAuth.session.actorName, cpf: painelAuth.session.actorCpf },
     });
 
     return NextResponse.json({

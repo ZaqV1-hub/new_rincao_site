@@ -72,7 +72,8 @@ function PainelBilheteriaPrintTicketItem({
           <p>Compra: {formatPainelBilheteriaDate(voucher.purchaseDate)}</p>
           <p>Visita: {formatPainelBilheteriaDate(voucher.visitDate)}</p>
           <p>Valor: {formatPainelBilheteriaMoney(voucher.price)}</p>
-          <p>Validade: {formatPainelBilheteriaDate(voucher.validUntil)}</p>
+          <p>Validade: {voucher.validFrom ? `${formatPainelBilheteriaDate(voucher.validFrom)} a ` : ""}{formatPainelBilheteriaDate(voucher.validUntil)}</p>
+          {voucher.validFrom ? <p>Uma entrada em qualquer dia com day use aberto dentro da validade, sem reagendamento.</p> : null}
         </div>
       </div>
     </article>

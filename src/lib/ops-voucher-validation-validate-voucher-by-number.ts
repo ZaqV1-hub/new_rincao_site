@@ -1,3 +1,5 @@
+import { lockOperationalDay } from "@/lib/operational-day-lock";
+import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { ensureVoucherLifecycleSchema } from "@/lib/voucher-repository";
 import { getVoucherByNumber } from "@/lib/ops-voucher-validation-queries";
@@ -25,6 +27,7 @@ export async function validateVoucherByNumber(
 
   try {
     await client.query("BEGIN");
+    await lockOperationalDay(client, getOperationalParkId(), date);
     const voucher = await getVoucherByNumber(client, voucherNumber);
 
     if (!voucher) {
@@ -51,6 +54,14 @@ export async function validateVoucherByNumber(
       throw new VoucherOperationError(
         "voucher_already_used",
         buildAlreadyUsedMessage(voucher),
+        409,
+      );
+    }
+
+    if (voucher.dtinicio_validade != null && isVoucherExpired(voucher, date)) {
+      throw new VoucherOperationError(
+        "voucher_expired",
+        `Ingresso vencido em ${formatDateBr(voucher.dtvalidade ?? null)}. A entrada não está autorizada.`,
         409,
       );
     }

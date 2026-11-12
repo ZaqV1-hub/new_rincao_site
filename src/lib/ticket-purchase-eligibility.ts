@@ -33,6 +33,7 @@ export async function loadConfirmedPurchase(purchaseId: number) {
       LEFT JOIN usuario ON usuario.cpf = compra.cpf
       WHERE compra.idcompra = $1
         AND compra.stcompra = 'conc'
+        AND NOT EXISTS (SELECT 1 FROM online_capacity_reservations capacity WHERE capacity.idcompra=compra.idcompra AND capacity.delivery_hold)
       LIMIT 1
     `,
     [purchaseId],
@@ -59,6 +60,7 @@ export async function listPendingTicketDeliveryPurchases(
       FROM compra
       JOIN voucher ON voucher.idcompra = compra.idcompra
       WHERE compra.stcompra = 'conc'
+        AND NOT EXISTS (SELECT 1 FROM online_capacity_reservations capacity WHERE capacity.idcompra=compra.idcompra AND capacity.delivery_hold)
         AND voucher.stusado NOT IN ('s', 'inv')
         AND COALESCE(voucher.voucherenviado, 'n') <> 's'
         AND COALESCE(compra.dtpagamento, compra.dtcompra) >= CURRENT_DATE - $1::integer

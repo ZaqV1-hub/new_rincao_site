@@ -1,3 +1,5 @@
+import { lockOperationalDay } from "@/lib/operational-day-lock";
+import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { ensureVoucherLifecycleSchema } from "@/lib/voucher-repository";
 import { getVouchersByIds } from "@/lib/ops-voucher-validation-queries";
@@ -24,6 +26,7 @@ export async function validateSelectedVouchers(
 
   try {
     await client.query("BEGIN");
+    await lockOperationalDay(client, getOperationalParkId(), date);
     const vouchers = await getVouchersByIds(client, voucherIds);
     const vouchersById = new Map(vouchers.map((voucher) => [voucher.idvoucher, voucher]));
     const affectedVoucherIds: number[] = [];

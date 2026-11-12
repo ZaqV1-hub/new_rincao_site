@@ -157,6 +157,7 @@ function formatCurrency(value: string | null) {
 }
 
 function voucherStatusBadge(voucher: UserVoucher) {
+  if (voucher.deliveryHold) return "Aguardando liberação";
   if (voucher.used) {
     return "Usado";
   }
@@ -169,6 +170,7 @@ function voucherStatusBadge(voucher: UserVoucher) {
 }
 
 function voucherStatusClasses(voucher: UserVoucher) {
+  if (voucher.deliveryHold) return "bg-[#f4e8c8] text-[#7c6737]";
   if (voucher.used) {
     return "bg-[#f4e8c8] text-[#7c6737]";
   }
@@ -634,10 +636,12 @@ function VoucherCardContent({
             Validade
           </dt>
           <dd className="mt-1 text-sm text-[#284a60]">
-            {formatDate(voucher.validUntil)}
+            {voucher.validFrom ? `${formatDate(voucher.validFrom)} a ` : ""}{formatDate(voucher.validUntil)}
           </dd>
         </div>
       </dl>
+      {voucher.validFrom ? <p className="mt-3 text-sm text-[#39586d]">Uma entrada em qualquer dia com day use aberto dentro da validade, sem reagendamento.</p> : null}
+      {voucher.deliveryHold ? <p className="mt-3 text-sm text-[#7c6737]">Pagamento recebido. Ingresso aguardando liberação pela equipe; não realize outro pagamento.</p> : null}
 
       <div className="mt-4 flex flex-wrap gap-2 text-[12px] text-[#39586d]">
         {voucher.schoolName ? (

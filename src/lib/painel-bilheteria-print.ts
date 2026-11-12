@@ -1,3 +1,4 @@
+import { assertOnlineCapacityReleased, OnlineCapacityError } from "@/lib/online-capacity";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import { generateVoucherQrcodes, TicketApiError } from "@/lib/ticket-api";
@@ -43,6 +44,8 @@ async function getPainelBilheteriaVoucherPrintModel(
           voucher.desconto_id,
           voucher.descricao,
           voucher.dtvalidade::text AS dtvalidade,
+          voucher.dtinicio_validade::text AS dtinicio_validade,
+          voucher.parque_operacional,
           compra.cpf,
           compra.tpcompra,
           compra.dtcompra::text AS dtcompra
@@ -70,6 +73,14 @@ async function getPainelBilheteriaVoucherPrintModel(
         "Pagamento contabilizado; ingresso retido para análise do atendimento.", 409);
     }
 
+    try { await assertOnlineCapacityReleased(client, voucher.idcompra); }
+    catch (error) {
+      if (error instanceof OnlineCapacityError && error.code === "online_capacity_delivery_hold") {
+        throw new PainelBilheteriaError(error.code, "Pagamento confirmado; ingresso retido para análise da capacidade pelo atendimento.", 409);
+      }
+      throw error;
+    }
+
     let agendaDate: string | null = null;
 
     if (voucher.idagenda && Number(voucher.idagenda) > 0) {
@@ -87,9 +98,11 @@ async function getPainelBilheteriaVoucherPrintModel(
 
     const validUntil = new Date();
     validUntil.setDate(validUntil.getDate() + 1);
-    const validUntilText = validUntil.toISOString().slice(0, 10);
+    const validUntilText = voucher.dtinicio_validade != null
+      ? String(voucher.dtvalidade ?? "").slice(0, 10)
+      : validUntil.toISOString().slice(0, 10);
 
-    await client.query(
+    if (voucher.dtinicio_validade == null) await client.query(
       `
         UPDATE voucher
         SET dtvalidade = $2::date
@@ -152,6 +165,7 @@ async function getPainelBilheteriaVoucherPrintModel(
       price: formatMoney(voucher.vlunicompra),
       tpcompra: voucher.tpcompra ?? null,
       visitDate: agendaDate ? agendaDate.slice(0, 10) : null,
+      validFrom: voucher.dtinicio_validade?.slice(0, 10) ?? null,
       validUntil: validUntilText,
       qrCodeUrl,
     };
