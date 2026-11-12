@@ -21,6 +21,7 @@ class Field {
 
 function checkout(brand: string) {
   let submitted: Record<string, unknown> | undefined;
+  let requestCount = 0;
   const fields = new Map<string, Field>();
   const find = (selector: string) => {
     if (!fields.has(selector)) fields.set(selector, new Field());
@@ -32,6 +33,7 @@ function checkout(brand: string) {
       Deferred: () => ({ resolve() {} }),
       trim: (value: string) => value.trim(),
       ajax: (options: { data: string }) => {
+        requestCount++;
         submitted = JSON.parse(options.data);
         return { done: () => ({ fail() {} }) };
       },
@@ -57,7 +59,7 @@ function checkout(brand: string) {
   widget.$modal = { find };
   find("#cieloCardBrand").val(brand);
   find('input[name="cieloPaymentType"]:checked').val("CreditCard");
-  return { widget, find, submitted: () => submitted };
+  return { widget, find, submitted: () => submitted, requestCount: () => requestCount };
 }
 
 describe("checkout widget installment totals", () => {
@@ -96,8 +98,8 @@ describe("checkout widget installment totals", () => {
     expect(find("#cieloInstallments").options).toHaveLength(1);
   });
 
-  it("submits the displayed total and explains a stale-quote rejection", () => {
-    const { widget, find, submitted } = checkout("Visa");
+  it("refreshes stale totals in place, preserves card input and waits for another payment click", () => {
+    const { widget, find, submitted, requestCount } = checkout("Visa");
     let feedback = "";
     widget._setFeedback = (message) => { feedback = message; };
     find("#cieloCardNumber").val("4111111111111111");
@@ -107,10 +109,35 @@ describe("checkout widget installment totals", () => {
     find("#cieloCardCvv").val("123");
     widget.current.installments = 6;
     widget._updateSummary();
+    widget.current.chargedValor = 358.24;
     widget._submit();
-    expect(submitted()).toMatchObject({ expectedAmountCents: 39089, payment: { installments: 6 } });
-    widget._handleFail({ responseText: JSON.stringify({ error: { code: "checkout_quote_changed" } }) });
-    expect(feedback).toContain("Atualize a página");
+    expect(submitted()).toMatchObject({ expectedAmountCents: 35824, payment: { installments: 6 } });
+    const installmentQuotes = Object.fromEntries(Object.keys(CIELO_INSTALLMENT_RATES_BPS).map(brand => [
+      brand, Object.fromEntries(Array.from({ length: 6 }, (_, i) => [i + 1, quoteCieloInstallments("400.00", i + 1, brand)])),
+    ]));
+    widget._handleFail({ responseText: JSON.stringify({ error: { code: "checkout_quote_changed" }, installmentQuotes }) });
+    expect(find("#cieloResumoValor").content).toBe("R$ 400,00");
+    expect(find("#cieloResumoTotal").content).toBe("R$ 446,73");
+    expect(find("#cieloInstallments").options[5]).toContain("total R$ 446,73");
+    expect(find("#cieloCardNumber").val()).toBe("4111111111111111");
+    expect(find("#cieloCardHolder").val()).toBe("Cliente Teste");
+    expect(find("#cieloCardCvv").val()).toBe("123");
+    expect(find("#cieloInstallments").val()).toBe("6");
+    expect(find("#cieloPrimaryAction").content).not.toContain("Processando");
+    expect(feedback).toContain("Confira o novo total");
+    expect(feedback).not.toContain("Atualize a página");
+    expect(requestCount()).toBe(1);
+    widget._submit();
+    expect(requestCount()).toBe(2);
+    expect(submitted()).toMatchObject({ expectedAmountCents: 44673, payment: { installments: 6 } });
+    find("#cieloCardBrand").val("Elo");
+    widget._renderInstallments();
+    widget._updateSummary();
+    expect(find("#cieloResumoTotal").content).toBe("R$ 451,78");
+    find("#cieloCardBrand").val("Diners");
+    widget._renderInstallments();
+    widget._updateSummary();
+    expect(find("#cieloResumoTotal").content).toBe("R$ 400,00");
     widget._handleFail({ responseText: "<html>Bad Gateway</html>" });
     expect(feedback).toContain("Falha ao comunicar");
   });

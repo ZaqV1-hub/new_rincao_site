@@ -365,7 +365,7 @@ export function CustomerCheckoutPage({
             />
             {jqueryReady ? (
               <Script
-                src="/vendor/checkout/cielo-checkout.js?v=20261112-rates"
+                src="/vendor/checkout/cielo-checkout.js?v=20261112-rates-refresh"
                 strategy="afterInteractive"
                 onLoad={() => setCheckoutScriptReady(true)}
               />

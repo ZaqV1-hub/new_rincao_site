@@ -1321,15 +1321,27 @@
     CieloCheckout.prototype._handleFail = function (xhr) {
         this.current.isProcessing = false;
         this.$modal.find('#cieloPrimaryAction').prop('disabled', false);
-        var error;
+        this._setPrimaryButtonLabel(this._getSelectedPaymentType());
+        var response;
         try {
-            error = JSON.parse(xhr && xhr.responseText || '{}').error;
+            response = JSON.parse(xhr && xhr.responseText || '{}');
         } catch (_) {
             // O proxy pode retornar HTML em falhas de rede.
         }
-        this._setFeedback(error && error.code === 'checkout_quote_changed'
-            ? 'O valor do parcelamento foi atualizado. Atualize a página e confira o total antes de pagar.'
-            : 'Falha ao comunicar com a Cielo. Tente novamente.');
+        if (response && response.error && response.error.code === 'checkout_quote_changed' &&
+            response.installmentQuotes && response.installmentQuotes.Visa) {
+            var quotes = response.installmentQuotes;
+            this.current.valor = (quotes.Visa[1].baseCents / 100).toFixed(2);
+            this.config.maxInstallments = Object.keys(quotes.Visa).length;
+            this.config.quoteInstallments = function (count, brand) {
+                return (quotes[brand] || quotes.Visa)[count];
+            };
+            this._renderInstallments();
+            this._updateSummary();
+            this._setFeedback('Atualizamos o valor do parcelamento. Confira o novo total e clique em pagar para continuar.');
+            return;
+        }
+        this._setFeedback('Falha ao comunicar com a Cielo. Tente novamente.');
     };
 
     CieloCheckout.prototype._renderPixResult = function (resp) {
