@@ -73,6 +73,15 @@ describe.skipIf(!connectionString)("day program PostgreSQL transactions", () => 
     expect(values.map((v) => v.version)).toEqual([1,1]);
     expect((await pool.query("SELECT count(*)::integer AS n FROM edicoes_log")).rows[0].n).toBe(1);
   });
+  it('does not remove a waiting vehicle that already has counting history', async () => {
+    await createDayProgram(date,{},actor); const program = await saveDayProgram(date,{ version: 1,groups: [group] },actor);
+    await pool.query('ALTER TABLE passeio_veiculos ADD COLUMN current_count_id uuid');
+    try {
+      await pool.query("UPDATE passeio_veiculos SET current_count_id='11111111-1111-1111-1111-111111111111' WHERE id=1");
+      await expect(saveDayProgram(date,{ version: program.version,groups: [{ ...group,buses: 0 }] },actor)).rejects.toMatchObject({ code: 'vehicle_started' });
+      expect((await pool.query('SELECT count(*) FROM passeio_veiculos')).rows[0].count).toBe('2');
+    } finally { await pool.query('ALTER TABLE passeio_veiculos DROP COLUMN current_count_id'); }
+  });
   it("serializes competing autosaves and retains the winner without overwriting its draft", async () => {
     await createDayProgram(date, {}, actor);
     const attempts = await Promise.allSettled([saveDayProgram(date, { version: 1, observations: "A" }, actor), saveDayProgram(date, { version: 1, observations: "B" }, actor)]);

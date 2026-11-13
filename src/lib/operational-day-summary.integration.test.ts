@@ -32,14 +32,14 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
       CREATE TABLE voucher (idvoucher SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,idagenda INTEGER REFERENCES agenda,
         tpvoucher VARCHAR(5),vlunicompra NUMERIC,stusado VARCHAR(3) DEFAULT 'n',dtuso DATE,idescola INTEGER,item_id INTEGER,vldesc NUMERIC,dtvalidade DATE);
     `);
-    for (const migration of ["2026-11-12-operational-panel-foundation.sql", "2026-11-12-operational-voucher-validity.sql", "2026-11-12-operational-service-vouchers.sql"]) {
+    for (const migration of ["2026-11-12-operational-panel-foundation.sql", "2026-11-12-operational-voucher-validity.sql", "2026-11-12-operational-service-vouchers.sql", "2026-11-12-day-program.sql", "2026-11-13-trip-counting.sql"]) {
       await pool.query(await readFile(new URL(`../../docs/sql/${migration}`, import.meta.url), "utf8"));
     }
   });
   afterAll(async () => { try { await pool?.end(); if (created) await admin.query(`DROP SCHEMA ${schema} CASCADE`); } finally { await admin?.end(); } });
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao");
-    await pool.query("TRUNCATE caixa_periodos,voucher,compra_pagamentos,compra,agenda_extras,operacao_dias,servico_datas,servicos_adicionais,agenda RESTART IDENTITY");
+    await pool.query("TRUNCATE caixa_periodos,voucher,compra_pagamentos,compra,agenda_extras,operacao_dias,servico_datas,servicos_adicionais,agenda RESTART IDENTITY CASCADE");
     await pool.query("INSERT INTO agenda VALUES (1,1,'2099-11-15','padra','abe')");
   });
   afterEach(() => vi.unstubAllEnvs());
@@ -49,10 +49,26 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     expect(summary).toMatchObject({ park: "rincao", date, configurationRevision: null, groupCount: 0,
       revenue: { siteNetCents: { status: "available", value: 0 }, knownSubtotalCents: 0,
         totalCents: { status: "unavailable", value: null }, finalizedTripsNetCents: { status: "unavailable", value: null } },
-      attendance: { dayUseAdmitted: { status: "available", value: 0 }, totalAdmitted: { status: "unavailable", value: null } },
+      attendance: { dayUseAdmitted: { status: "available", value: 0 }, totalAdmitted: { status: "available", value: 0 } },
       cash: { status: "available", value: 0 }, receipts: { status: "unavailable", value: null }, expenses: { status: "unavailable", value: null } });
     expect((await pool.query("SELECT * FROM caixa_periodos")).rowCount).toBe(0);
     expect((await pool.query("SELECT tablename FROM pg_tables WHERE schemaname=$1 AND tablename='edicoes_log'", [schema])).rowCount).toBe(0);
+  });
+  it("counts only completed current revisions, without duplicating school vouchers", async () => {
+    await pool.query(`INSERT INTO agenda VALUES (2,1,'2099-11-15','escol','abe');
+      INSERT INTO agenda_extras VALUES(2,10),(2,20);
+      INSERT INTO passeio_operacao(parque,agenda_id,cliente_id,planned_people) VALUES('rincao',2,10,30),('rincao',2,20,5);
+      INSERT INTO passeio_veiculos(parque,agenda_id,cliente_id,tipo) VALUES('rincao',2,10,'bus'),('rincao',2,20,'van');
+      INSERT INTO passeio_contagens(id,parque,vehicle_id,catalog_version,status,owner_cpf,counts,responsible_name,responsible_phone,contact_confirmed,completed_at,created_by)
+      VALUES('11111111-1111-1111-1111-111111111111','rincao',1,1,'completed','52998224725','{"adult":10,"child":20,"coordinator":0,"pcdChild":0,"pcdAdult":0,"pcdCompanion":0,"teacherChild":0,"exempt":0}', 'Maria','5511987654321',true,now(),'52998224725');
+      UPDATE passeio_veiculos SET estado='completed',current_count_id='11111111-1111-1111-1111-111111111111',last_completed_count_id='11111111-1111-1111-1111-111111111111' WHERE id=1;
+      INSERT INTO compra VALUES(1,'ponli','conc','pix',10,0);
+      INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,idescola,stusado,dtuso) VALUES(1,2,'escol',10,10,'s','2099-11-15');`);
+    const summary = await getOperationalDaySummary(date);
+    expect(summary.attendance).toMatchObject({ dayUseAdmitted: { value: 0 }, completedVehiclePeople: { value: 30 }, totalAdmitted: { status: "unavailable" } });
+    expect(summary.forecast.plannedGroupPeople).toMatchObject({ status: "available", value: 35 });
+    await pool.query("UPDATE passeio_veiculos SET estado='counting' WHERE id=1");
+    expect((await getOperationalDaySummary(date)).attendance.completedVehiclePeople).toMatchObject({ value: 0 });
   });
   it("counts only explicit sessions for this park and date without treating opening cash as revenue", async () => {
     await pool.query(`INSERT INTO caixa_periodos(parque,data_operacional,local_id,fechado_em,troco_inicial) VALUES

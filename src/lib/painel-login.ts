@@ -12,6 +12,10 @@ const painelLoginErrorMessages: Record<string, string> = {
 };
 
 export function sanitizePainelRedirect(value: string | undefined) {
+  if (value && /^\/contagem(?:\/|\?|#|$)/.test(value) && !/[\\\u0000-\u0020]/.test(value)) {
+    const url = new URL(value,"https://local.invalid");
+    if (url.origin === "https://local.invalid" && (url.pathname === "/contagem" || url.pathname.startsWith("/contagem/"))) return url.pathname+url.search+url.hash;
+  }
   if (value === "/contrato") {
     return value;
   }

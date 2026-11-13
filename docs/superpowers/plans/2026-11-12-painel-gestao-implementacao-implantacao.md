@@ -205,12 +205,12 @@ Cada entrega termina com diff revisado, testes do domínio e contratos, teste de
 ### E7 — App web de contagem com internet
 
 **Criar:** área `/contagem` com login/sessão própria no sentido de permissões, aproveitando infraestrutura de autenticação existente; `src/lib/trip-counting.ts`, `.test.ts`, componentes móveis e APIs autenticadas de veículos/contagens. Antes disso, apresentar desenho das telas; o HTML do painel não é especificação completa deste app.
-- [ ] M5; lista dos passeios do dia → veículos → contagem por modalidade → responsável/WhatsApp/assinatura → revisão e concluir.
-- [ ] Mostrar previstos, status, contador, categorias e deficiência quando pertinente, observações; adicionar ônibus/van registra “a mais no dia” e ator.
-- [ ] Bloqueio por versão/posse de contagem evita dois operadores sobrescreverem o veículo. Servidor é fonte da verdade; toda gravação confirmada antes de mostrar sucesso.
-- [ ] Sem rede: manter campos ainda visíveis, bloquear conclusão, avisar que alterações não estão salvas; confirmar estado do servidor antes de reenviar. Nenhuma garantia de persistência offline.
-- [ ] Proposta de atualização no painel: polling autenticado de 5 s enquanto visível, atualização imediata após ação, pausa em aba oculta e indicação de última atualização. Aceite em rede normal: mudança confirmada visível em até 10 s. Se a operação exigir latência menor, avaliar SSE com o proxy existente.
-- [ ] Assinatura armazenada em área privada persistente, com limite de tamanho/tipo e acesso auditado; recontagem não altera assinatura anterior.
+- [x] M5; lista dos passeios do dia → veículos → contagem por modalidade → responsável/WhatsApp/assinatura → revisão e concluir.
+- [x] Mostrar previstos, status, contador, categorias e deficiência quando pertinente, observações; adicionar ônibus/van registra “a mais no dia” e ator.
+- [x] Bloqueio por versão/posse de contagem evita dois operadores sobrescreverem o veículo. Servidor é fonte da verdade; toda gravação confirmada antes de mostrar sucesso.
+- [x] Sem rede: manter campos ainda visíveis, bloquear conclusão, avisar que alterações não estão salvas; confirmar estado do servidor antes de reenviar. Nenhuma garantia de persistência offline.
+- [x] Proposta de atualização no painel: polling autenticado de 5 s enquanto visível, atualização imediata após ação, pausa em aba oculta e indicação de última atualização. Aceite em rede normal: mudança confirmada visível em até 10 s. Se a operação exigir latência menor, avaliar SSE com o proxy existente.
+- [x] Assinatura armazenada em área privada persistente, com limite de tamanho/tipo e acesso auditado; recontagem não altera assinatura anterior.
 **Testes:** rede perdida antes/depois do commit, evento duplicado, versão antiga, operador sem acesso, soma por modalidade, duas pessoas no mesmo veículo e painel recebendo atualização real.
 
 ### E8 — Passeios, recebimentos e recibo
@@ -453,3 +453,14 @@ Verificação final do marco E2/E3: 1.284/1.284 testes em PostgreSQL16.15, sem i
 - O protocolo de capacidade agora detecta mudança de data entre descoberta e lock e desfaz a tentativa de pagamento. Sessão expirada/negada e conflito de chave preservam comandos sem confirmação no navegador. Coluna opcional de checkout escolar lida sem exigir sua existência nas bases legadas; comprovado contra a base local e em duas regressões.
 - Verificação: 1.911 testes/348 arquivos com PG16, nenhum skip; 21 testes de scripts; lint sem erros e 12 avisos anteriores; build/tipos passaram. Um erro de tipo na fixture de validade sem data foi corrigido, seguido de 30 testes afetados e novo build completo. Browser móvel 390 px comprovou prévia, mudança de duas compras, lista/histórico atualizados e recuperação da mesma chave após commit real com resposta perdida, sem duplicação. Nenhum envio externo.
 - Migração local `2026-11-13-purchase-batches.sql`, checksum `51208e3998d92006941174c7941e1157e71f1bac7691f91471eed913f0733e39`. Revisão manual do coordenador; revisão independente adicional indisponível por quota já registrada. Compatibilidade do receptor externo de vouchers, restauração/arquivos e homologação Windows seguem gates anteriores. Sem push/deploy/atualização do PO neste checkpoint.
+
+
+### E7 — checkpoint local em 13/11/2026
+
+- App online em `/contagem`, com sessão do painel e recurso `vis_contagem` (gerente por padrão, demais papéis provisionados explicitamente). Dia → passeio → veículo → categorias → responsável/WhatsApp → assinatura → revisão. Idades atuais: adulto 10+, criança 4–9, isento até 3. Campos não preenchidos não viram zero.
+- Veículos canônicos do E4, posse, versão, liberação, transferência gerencial com motivo, recontagem revisionada e preservação das assinaturas. Alterações fora de hoje exigem gerente e motivo como controle operacional; dia fechado ou passeio financeiramente finalizado impede nova contagem. Este controle de data é decisão de implementação, não uma instrução literal do anexo.
+- Assinatura PNG validada/normalizada por Sharp, limite 256 KiB/1 MP, BYTEA privado e acesso auditado; somente gerente ou contador da revisão pode consultar. Conclusão/assinatura/auditoria/comando na mesma transação, com imutabilidade de revisões concluídas. Sem assinatura ou dados pessoais em sessionStorage.
+- Polling de 5 s apenas na aba visível, bloqueio por conflito sem apagar rascunho, aviso de saída e recuperação da mesma tentativa após resposta perdida. Sem rede, campos permanecem e conclusão é bloqueada. Não há persistência offline de rascunho/assinatura.
+- Painel recebe resumo somente leitura com ACL de programação; presença diária soma day use admitido e revisões atuais concluídas, sem duplicar vouchers escolares. Contagens incompletas deixam o total geral indisponível, preservando o subtotal comprovado.
+- Verificação: 1.956 testes/354 arquivos, sem skip, PostgreSQL 16; 21 testes de scripts; lint sem erros/12 avisos anteriores; build e tipos passaram. Browser comprovou 390 px sem overflow, perda de resposta após commit, reload e reconciliação sem duplicação, assinatura privada PNG e offline mantendo 7 passageiros no rascunho. Painel desktop exibiu 30 pessoas da conclusão real local. Erro de HMR durante edição de dependências desapareceu após reload, sem alteração necessária em produção.
+- Migração local `2026-11-13-trip-counting.sql`, checksum `fb453a3d2c11a86fabb6ba7e4bf6bdd40db2fb937829dbac396611d5b10db40b`. Revisão de fonte e visual pelo coordenador; revisão independente adicional indisponível por quota previamente registrada. Sem migração remota, publicação ou atualização do PO. E8–E10 e gates de homologação continuam pendentes; despesas da Estância dependem do Isaque.

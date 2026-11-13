@@ -12,6 +12,11 @@ describe("painel-login helpers", () => {
     expect(sanitizePainelRedirect("/agenda")).toBe("/painel");
     expect(sanitizePainelRedirect("//evil.example.com")).toBe("/painel");
   });
+  it('returns to the counting app after login without accepting lookalike or external paths', () => {
+    expect(sanitizePainelRedirect('/contagem')).toBe('/contagem');
+    expect(sanitizePainelRedirect('/contagem/veiculos/1')).toBe('/contagem/veiculos/1');
+    for (const value of ['/contagem-evil','//contagem','/contagem\\evil','/contagem/../../outside']) expect(sanitizePainelRedirect(value)).toBe('/painel');
+  });
 
   it("maps known login errors to user-facing messages", () => {
     expect(mapPainelLoginErrorCode("invalid_credentials")).toBe(

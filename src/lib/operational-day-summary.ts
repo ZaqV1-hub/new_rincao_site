@@ -108,7 +108,7 @@ export async function readOperationalDaySummary(client: QueryClient, date: strin
   const site = safeInteger(row.site);
   const gate = safeInteger(row.gate);
   const services = safeInteger(row.services);
-  const metadata = await client.query<{ generatedAt: Date; previousDate: string | null; nextDate: string | null; groupCount: string; cashCount: string }>(`
+  const metadata = await client.query<{ generatedAt: Date; previousDate: string | null; nextDate: string | null; groupCount: string; cashCount: string; countedPeople: string; incompleteGroups: string; plannedPeople: string; missingPlans: string }>(`
     WITH movement AS (
       SELECT DISTINCT a.dtagenda AS date FROM agenda a
       WHERE (a.tpagenda IN ('padra','promo') AND a.stagenda IN ('abe','lot') AND NOT EXISTS (
@@ -122,12 +122,23 @@ export async function readOperationalDaySummary(client: QueryClient, date: strin
       (SELECT MAX(date)::text FROM movement WHERE date<$1::date) AS "previousDate",
       (SELECT MIN(date)::text FROM movement WHERE date>$1::date) AS "nextDate",
       (SELECT COUNT(*)::text FROM agenda_extras ae JOIN agenda a ON a.idagenda=ae.idagenda WHERE a.dtagenda=$1::date) AS "groupCount",
-      (SELECT COUNT(*)::text FROM caixa_periodos WHERE parque=$2 AND data_operacional=$1::date AND local_id IS NOT NULL) AS "cashCount"`, [date, park]);
+      (SELECT COUNT(*)::text FROM caixa_periodos WHERE parque=$2 AND data_operacional=$1::date AND local_id IS NOT NULL) AS "cashCount",
+      (SELECT COALESCE(SUM((SELECT SUM(value::bigint) FROM jsonb_each_text(n.counts))),0)::text
+        FROM passeio_veiculos v JOIN agenda a ON a.idagenda=v.agenda_id JOIN passeio_contagens n ON n.id=v.current_count_id AND n.parque=v.parque
+        WHERE v.parque=$2 AND a.dtagenda=$1::date AND v.estado='completed' AND n.status='completed') AS "countedPeople",
+      (SELECT COUNT(*)::text FROM agenda_extras ae JOIN agenda a ON a.idagenda=ae.idagenda WHERE a.dtagenda=$1::date AND
+        (NOT EXISTS(SELECT 1 FROM passeio_veiculos v WHERE v.parque=$2 AND v.agenda_id=ae.idagenda AND v.cliente_id=ae.idcliente) OR
+         EXISTS(SELECT 1 FROM passeio_veiculos v LEFT JOIN passeio_contagens n ON n.id=v.current_count_id AND n.parque=v.parque
+           WHERE v.parque=$2 AND v.agenda_id=ae.idagenda AND v.cliente_id=ae.idcliente AND (v.estado<>'completed' OR n.status IS DISTINCT FROM 'completed')))) AS "incompleteGroups",
+      (SELECT COALESCE(SUM(o.planned_people),0)::text FROM agenda_extras ae JOIN agenda a ON a.idagenda=ae.idagenda
+        LEFT JOIN passeio_operacao o ON o.parque=$2 AND o.agenda_id=ae.idagenda AND o.cliente_id=ae.idcliente WHERE a.dtagenda=$1::date) AS "plannedPeople",
+      (SELECT COUNT(*)::text FROM agenda_extras ae JOIN agenda a ON a.idagenda=ae.idagenda
+        LEFT JOIN passeio_operacao o ON o.parque=$2 AND o.agenda_id=ae.idagenda AND o.cliente_id=ae.idcliente WHERE a.dtagenda=$1::date AND o.planned_people IS NULL) AS "missingPlans"`, [date, park]);
   const meta = metadata.rows[0];
   const warnings = [
     { code: "revenue_incomplete", message: "Subtotal das fontes disponíveis. Finalização de passeios e total diário ainda indisponíveis." },
-    { code: "attendance_incomplete", message: "Público de day use por entrada real; contagem de veículos ainda indisponível." },
   ];
+  if (safeInteger(meta.incompleteGroups) > 0) warnings.push({ code: "attendance_incomplete", message: "Há grupos sem contagem concluída. O subtotal considera apenas as entradas de day use e os veículos concluídos." });
   if (configuration === null) warnings.push({ code: "configuration_ambiguous", message: "A data possui agendas de day use sem vínculo único. O resumo financeiro permanece disponível; revise a configuração antes de editar." });
   if (safeInteger(row.unclassifiedCount) > 0) warnings.push({ code: "unclassified_sales", message: "Há itens vendidos sem classificação comprovada. Esses valores ficam fora do subtotal conhecido." });
   if (safeInteger(row.invalidatedPaid) > 0) warnings.push({ code: "paid_invalidated_vouchers", message: "Há vouchers invalidados de compras confirmadas. Invalidação não comprova devolução; confira os ajustes financeiros." });
@@ -147,12 +158,12 @@ export async function readOperationalDaySummary(client: QueryClient, date: strin
     },
     attendance: {
       basis: "actual_use_date", dayUseAdmitted: available(safeInteger(row.admitted), "voucher:actual_admission_date"),
-      completedVehiclePeople: unavailable("vehicle_counting", "Contagem de veículos concluídos ainda não integrada."),
-      totalAdmitted: unavailable("daily_attendance", "O total depende da contagem dos grupos sem duplicar vouchers escolares."),
+      completedVehiclePeople: available(safeInteger(meta.countedPeople), "vehicle_counting:current_completed_revision"),
+      totalAdmitted: safeInteger(meta.incompleteGroups) > 0 ? unavailable("daily_attendance", "Há grupos sem contagem concluída.") : available(safeInteger(safeInteger(row.admitted)+safeInteger(meta.countedPeople)), "day_use_admissions_and_completed_vehicles"),
     },
     forecast: {
       ticketsForSelectedDate: available(safeInteger(row.tickets), "voucher:paid_admission_selected_date"),
-      plannedGroupPeople: unavailable("trip_planning", "Previsão operacional dos grupos ainda não cadastrada."),
+      plannedGroupPeople: safeInteger(meta.missingPlans) > 0 ? unavailable("trip_planning", "Há grupos sem previsão cadastrada.") : available(safeInteger(meta.plannedPeople), "trip_planning:canonical_groups"),
     },
     groupCount: safeInteger(meta.groupCount),
     receipts: unavailable("payment_receipts", "Recebimentos por data e passeio ainda não integrados ao resumo."),

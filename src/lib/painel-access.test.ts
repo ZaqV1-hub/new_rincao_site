@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { getDefaultPainelPath } from "@/lib/painel-access";
+import { getDefaultPainelPath, getLegacyPanelResources, normalizeLegacyPanelResource } from "@/lib/painel-access";
 
 describe("painel-access", () => {
   it("routes manager sessions to the painel home by default", () => {
     expect(getDefaultPainelPath(1)).toBe("/painel");
+  });
+  it('recognizes counting access and grants it by default only to managers', () => {
+    expect(normalizeLegacyPanelResource('vis_contagem')).toBe('vis_contagem');
+    expect(getLegacyPanelResources(1)).toContain('vis_contagem');
+    for (const role of [2,3,4,5] as const) expect(getLegacyPanelResources(role)).not.toContain('vis_contagem');
   });
 
   it("routes operator sessions to the painel home by default", () => {

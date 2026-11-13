@@ -222,10 +222,12 @@ export async function createDayProgram(date: string, input: unknown, actor: Cata
 async function reconcileVehicles(client: PoolClient, park: OperationalParkId, date: string, g: DayProgramGroupInput, actor: CatalogActor) {
   if (g.buses === null || g.vans === null) return;
   for (const [type, desired] of [["bus", g.buses], ["van", g.vans]] as const) {
-    const rows = (await client.query<{ id: string; state: string }>(`SELECT id::text,estado AS state FROM passeio_veiculos WHERE parque=$1 AND agenda_id=$2 AND cliente_id=$3 AND tipo=$4 ORDER BY id FOR UPDATE`, [park, g.agendaId, g.clientId, type])).rows;
+    const rows = (await client.query<{ id: string; state: string; hasHistory: boolean }>(`SELECT id::text,estado AS state,
+      (to_jsonb(passeio_veiculos)->>'current_count_id' IS NOT NULL OR to_jsonb(passeio_veiculos)->>'last_completed_count_id' IS NOT NULL) AS "hasHistory"
+      FROM passeio_veiculos WHERE parque=$1 AND agenda_id=$2 AND cliente_id=$3 AND tipo=$4 ORDER BY id FOR UPDATE`, [park, g.agendaId, g.clientId, type])).rows;
     const remove = rows.length - desired;
     if (remove > 0) {
-      const waiting = rows.filter((v) => v.state === "waiting").reverse();
+      const waiting = rows.filter((v) => v.state === "waiting" && !v.hasHistory).reverse();
       if (waiting.length < remove) throw new DayProgramError("vehicle_started", "A quantidade não pode remover veículos com contagem iniciada.");
       await client.query("DELETE FROM passeio_veiculos WHERE parque=$1 AND id=ANY($2::bigint[]) AND estado='waiting'", [park, waiting.slice(0, remove).map((v) => v.id)]);
     } else if (remove < 0) {

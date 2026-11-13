@@ -56,6 +56,7 @@ const navItems: PainelNavItem[] = [
     roles: [1, 2],
     resources: ["vis_agenda"],
   },
+  { href: "/contagem",label: "Contagem",icon: "users",roles: [1,2,3,4],resources: ["vis_contagem"] },
   {
     href: "/painel/clientes",
     label: "Clientes",
