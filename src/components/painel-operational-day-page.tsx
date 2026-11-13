@@ -6,6 +6,7 @@ import type { DayProgram } from "@/lib/day-program";
 import type { OperationalDaySummary, SummarySourceValue } from "@/lib/operational-day-summary";
 import { purchaseDetailHref, purchaseListHref, readPurchaseListContext, type PurchaseListContext } from "@/lib/operational-purchase-navigation";
 import type { OperationalDayList } from "@/lib/operational-day-lists";
+import { PainelPurchaseBatch } from "@/components/painel-purchase-batch";
 
 const button = "inline-flex min-h-11 items-center justify-center rounded-lg border border-[#b8cbdc] bg-white px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#236699] disabled:opacity-50";
 const panel = "min-w-0 rounded-xl border border-[#d4dfeb] bg-white p-4 sm:p-6";
@@ -32,17 +33,20 @@ function SourceValue({ label, source, currency = false, maximum }: { label: stri
   </div>;
 }
 
-function DayListPanel({ date, kind, context, onContextChange }: { date: string; kind: DayList["kind"]; context: PurchaseListContext; onContextChange: (context: PurchaseListContext) => void }) {
+function DayListPanel({ date, kind, context, onContextChange, canOperate }: { date: string; kind: DayList["kind"]; context: PurchaseListContext; onContextChange: (context: PurchaseListContext) => void; canOperate: boolean }) {
   const [groupPage, setGroupPage] = useState(1);
   const [search, setSearch] = useState(context.filters.query);
   const page = kind === "purchases" ? context.page : groupPage;
   const { filters } = context;
-  function setPage(next: number) { if (kind === "purchases") onContextChange({ ...context, page: next }); else setGroupPage(next); }
-  function applyFilters(next: typeof filters) { onContextChange({ ...context, page: 1, filters: next }); }
+  function setPage(next: number) { setSelection({ key: "",ids: [] }); if (kind === "purchases") onContextChange({ ...context, page: next }); else setGroupPage(next); }
+  function applyFilters(next: typeof filters) { setSelection({ key: "",ids: [] }); onContextChange({ ...context, page: 1, filters: next }); }
   const query = new URLSearchParams({ kind, page: String(page), ...(kind === "purchases" ? filters : {}) }).toString();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ key: string; data?: DayList; error?: string } | null>(null);
   const key = `${date}:${query}:${attempt}`;
+  const [selection,setSelection] = useState<{ key: string; ids: number[] }>({ key: "",ids: [] });
+  const [batchBusy,setBatchBusy] = useState(false);
+  const selected = selection.key === key ? selection.ids : [];
   useEffect(() => {
     const controller = new AbortController();
     fetch(`/api/painel/dias/${date}/listas?${query}`, { cache: "no-store", signal: controller.signal })
@@ -80,11 +84,13 @@ function DayListPanel({ date, kind, context, onContextChange }: { date: string; 
     {data && <>
       <p role="status" className="text-sm text-[#45647f]">{number(data.total)} registro(s) · Página {data.page} de {Math.max(1, data.pageCount)}</p>
       {data.items.length === 0 ? <p>Nenhum registro encontrado nesta data.</p> : <ul className="divide-y divide-[#d4dfeb]">{data.items.map((item) => "purchaseId" in item ? <li key={item.purchaseId} className="flex flex-wrap items-start justify-between gap-3 py-4">
+        {canOperate && item.batchSelectable && <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" aria-label={`Selecionar compra ${item.purchaseId} para alterar data ou validade`} disabled={batchBusy} checked={selected.includes(item.purchaseId)} onChange={event => setSelection({ key,ids: event.target.checked ? [...selected,item.purchaseId] : selected.filter(id => id !== item.purchaseId) })} />Selecionar</label>}
         <div className="min-w-0"><Link className="inline-flex min-h-11 items-center font-semibold underline" href={purchaseDetailHref(item.purchaseId, context)}>Compra #{item.purchaseId} · {item.buyerName || "Cliente não informado"}</Link><p className="text-sm text-[#45647f]">{labels[item.status] ?? (item.status || "Situação não informada")} · {labels[item.channel] ?? (item.channel || "Canal não informado")} · {number(item.itemCount)} item(ns) da data</p></div>
         <p className="font-semibold tabular-nums">{money(item.dateAmountCents)}</p>
       </li> : <li key={`${item.agendaId}:${item.clientId}`} className="py-4"><Link className="inline-flex min-h-11 items-center font-semibold underline" href={`/painel/clientes/passeios/${item.agendaId}/alunos?clientId=${item.clientId}`}>{item.clientName || "Cliente não informado"}</Link><p className="text-sm text-[#45647f]">{labels[item.agendaType] ?? item.agendaType} · {labels[item.status] ?? (item.status || "Situação não informada")} · {number(item.paidOnlinePeople)} pessoa(s) paga(s) online</p></li>)}</ul>}
       <nav aria-label="Paginação da lista" className="flex flex-wrap gap-2"><button type="button" className={button} disabled={page <= 1} onClick={() => setPage(page - 1)}>Página anterior</button><button type="button" className={button} disabled={page >= data.pageCount} onClick={() => setPage(page + 1)}>Próxima página</button></nav>
     </>}
+    {kind === "purchases" && canOperate && <PainelPurchaseBatch purchaseIds={selected} onBusyChange={setBatchBusy} onComplete={() => setAttempt(value => value+1)} />}
   </div>;
 }
 
@@ -154,7 +160,7 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessCash = f
         </div>
         {summary.warnings.length > 0 && <aside className={`${panel} bg-[#f4f8fc]`} aria-labelledby="day-warnings"><h2 id="day-warnings" className="font-bold">Pendências da apuração</h2><ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-[#45647f]">{summary.warnings.map((warning) => <li key={warning.code}>{warning.message}</li>)}</ul></aside>}
       </>}
-      {(tab === "passeios" || tab === "compras") && <DayListPanel key={`${summary.date}:${tab}`} date={summary.date} kind={tab === "passeios" ? "groups" : "purchases"} context={purchaseContext} onContextChange={updatePurchaseContext} />}
+      {(tab === "passeios" || tab === "compras") && <DayListPanel key={`${summary.date}:${tab}`} date={summary.date} kind={tab === "passeios" ? "groups" : "purchases"} context={purchaseContext} onContextChange={updatePurchaseContext} canOperate={canAccessCash} />}
       {tab === "caixas" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Caixas</h2><dl><SourceValue label="Sessões de caixa" source={summary.cash} /></dl><p>Caixas abertos e fechados por local nesta data. O saldo em caixa não compõe a receita da visita.</p>{canAccessCash ? <Link className="inline-flex min-h-11 items-center underline" href={`/painel/caixas?date=${summary.date}`}>Abrir caixas da data</Link> : <p>Seu perfil não permite acessar os caixas.</p>}</div>}
       {tab === "fechamento" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Fechamento do dia</h2><p>{summary.closure.reason}</p><p className="text-sm text-[#45647f]">O subtotal disponível no resumo é parcial e não constitui um fechamento.</p></div>}
     </section>

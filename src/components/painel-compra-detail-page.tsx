@@ -5,6 +5,7 @@ import { SchoolPaymentReview } from "@/components/school-payment-review";
 import Link from "next/link";
 import { PainelCompraContestacoes } from "@/components/painel-compra-contestacoes";
 import { PainelCompraDetailActions } from "@/components/painel-compra-detail-actions";
+import { PainelPurchaseBatch } from "@/components/painel-purchase-batch";
 import {
   formatPainelBilheteriaCpf as formatCpf,
 } from "@/lib/painel-bilheteria-format";
@@ -297,6 +298,8 @@ export function PainelCompraDetailPage({
           onBusyChange={setActionsBusy}
           onOperationComplete={() => setSelection([])}
         />
+        {canOperateVouchers && detail.operational.vouchers.every(v => v.schoolId === null) &&
+          <PainelPurchaseBatch purchaseIds={[detail.purchaseId]} onComplete={() => setSelection([])} />}
       </aside>
     </section>
   );

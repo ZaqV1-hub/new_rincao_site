@@ -197,9 +197,9 @@ Cada entrega termina com diff revisado, testes do domínio e contratos, teste de
 
 **Modificar:** `painel-compras.ts`, `voucher-repository.ts`, `ops-voucher-validation.ts`, `painel-compra-detail-page.tsx`, componentes de lista e APIs de vouchers já existentes.
 - [x] Lista com filtros/contadores, detalhe como página, retorno à data/filtro, itens, pagamentos divididos, histórico, link ao cadastro e ações selecionadas.
-- [ ] Reagendamento/validade em lote com prévia de elegíveis e rejeitados, nova data aberta, motivo e auditoria; preservar preço pago, identidade do voucher e vínculo correto à compra.
-- [ ] Validar usado/cancelado/expirado, capacidade e dia fechado. Não chamar rotina de autosserviço do cliente como autorização administrativa.
-- [ ] E-mail/WhatsApp via mecanismos existentes, com estado pendente/enviado/falhou e repetição sem duplicar. Destino informado precisa autorização e registro, sem expor telefone no log.
+- [x] Reagendamento/validade em lote com prévia de elegíveis e rejeitados, nova data aberta, motivo e auditoria; preservar preço pago, identidade do voucher e vínculo correto à compra.
+- [x] Validar usado/cancelado/expirado, capacidade e dia fechado. Não chamar rotina de autosserviço do cliente como autorização administrativa.
+- [x] E-mail/WhatsApp via mecanismos existentes, com estado pendente/enviado/falhou e repetição sem duplicar. Destino informado precisa autorização e registro, sem expor telefone no log. Entrega externa e compatibilidade do receptor continuam gates de homologação; aceite não é entrega.
 **Testes:** IDs de outra compra/parque, concorrência com validação, falha parcial do lote, reenvio, compra com vários ingressos/serviços e movimentação entre dia aberto e fechado.
 
 ### E7 — App web de contagem com internet
@@ -443,3 +443,13 @@ Verificação final do marco E2/E3: 1.284/1.284 testes em PostgreSQL16.15, sem i
 - Revisões independentes de lista/detalhe/UI/WhatsApp concluídas. Revisão independente final dos escritores legados e da correção do limite de corpo foi interrompida por limite de uso do agente; coordenador concluiu a leitura desses escopos e registrou essa limitação. Não declarar revisão independente final completa.
 - Ainda pendentes nesta etapa: mudança de data/validade em lote, aviso por e-mail e integração das pendências de ajuste após fechamento. O protótipo restringe o lote a compras inteiras de day use; compras escolares não são selecionáveis. Não há reagendamento automático por previsão de chuva.
 - Custos e resultado da Estância permanecem indisponíveis até confirmação do usuário com Isaque; essa pendência não bloqueia as demais etapas autorizadas.
+
+### E6 — lote e avisos: checkpoint local em 13/11/2026
+
+- Prévia e confirmação de até 100 compras/1.000 vouchers, somente day use inteiro. Uma transação preserva preços/IDs, revalida a prévia e transfere somente reservas online existentes. Isentos ocupam vagas; serviços não. Compras não confirmadas, usadas, canceladas, vencidas, retidas ou escolares são rejeitadas com motivo.
+- “Manter data final atual” conserva o vencimento absoluto; nova visita posterior a ele exige escolher outra validade. Não se inventa uma duração histórica. Alteração de validade sem mudança de visita mantém agenda e reserva de vagas.
+- Histórico fechado gera `purchase_adjustments` pendente sem mudar vouchers, vagas ou recibos. A resolução dessas pendências integra E9; não considerar a criação da pendência como alteração já aplicada.
+- Avisos usam a configuração SMTP existente e uma fila privada transacional, separada do consumidor legado que pode repetir envios. Claims são confirmados antes do SMTP, com cinco envios por requisição, sem retry de resultado incerto. UI processa os avisos autorizados e permite consultar/retomar os lotes do operador. Aceite SMTP não equivale a entrega; ausência de configuração deixa pendente.
+- O protocolo de capacidade agora detecta mudança de data entre descoberta e lock e desfaz a tentativa de pagamento. Sessão expirada/negada e conflito de chave preservam comandos sem confirmação no navegador. Coluna opcional de checkout escolar lida sem exigir sua existência nas bases legadas; comprovado contra a base local e em duas regressões.
+- Verificação: 1.911 testes/348 arquivos com PG16, nenhum skip; 21 testes de scripts; lint sem erros e 12 avisos anteriores; build/tipos passaram. Um erro de tipo na fixture de validade sem data foi corrigido, seguido de 30 testes afetados e novo build completo. Browser móvel 390 px comprovou prévia, mudança de duas compras, lista/histórico atualizados e recuperação da mesma chave após commit real com resposta perdida, sem duplicação. Nenhum envio externo.
+- Migração local `2026-11-13-purchase-batches.sql`, checksum `51208e3998d92006941174c7941e1157e71f1bac7691f91471eed913f0733e39`. Revisão manual do coordenador; revisão independente adicional indisponível por quota já registrada. Compatibilidade do receptor externo de vouchers, restauração/arquivos e homologação Windows seguem gates anteriores. Sem push/deploy/atualização do PO neste checkpoint.

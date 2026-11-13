@@ -59,7 +59,7 @@ type VoucherRow = { idvoucher: string | number; idcompra: string | number; parqu
 async function preflight(client: PoolClient, purchaseId: number, voucherIds: number[], park: string) {
   // Separate statements ensure holds are read freshly after a concurrent parent writer releases its lock.
   const purchase = (await client.query<{ stcompra: string | null; checkout_school_site_context: unknown }>(
-    "SELECT stcompra,checkout_school_site_context FROM compra WHERE idcompra=$1 FOR UPDATE", [purchaseId])).rows[0];
+    "SELECT stcompra,to_jsonb(compra)->'checkout_school_site_context' AS checkout_school_site_context FROM compra WHERE idcompra=$1 FOR UPDATE", [purchaseId])).rows[0];
   if (!purchase) throw new OperationalVoucherWhatsappError("purchase_not_found", "Compra não encontrada.", 404);
   if (purchase.stcompra?.trim() !== "conc") throw new OperationalVoucherWhatsappError("purchase_not_confirmed", "A compra precisa estar confirmada para solicitar o envio.");
   const vouchers = (await client.query<VoucherRow>(`SELECT idvoucher,idcompra,parque_operacional,stusado,idagenda,

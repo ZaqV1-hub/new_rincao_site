@@ -68,6 +68,8 @@ describe.skipIf(!connectionString)("day lists PostgreSQL", () => {
       origin: { all: 8, site: 4, gate: 3 }, type: { all: 8, dayuse: 3, group: 4 },
     } });
     expect(all.items[0]).toMatchObject({ purchaseId: 8, itemCount: 3, dateAmountCents: 6000 });
+    expect(all.items[0]).toMatchObject({ batchSelectable: false });
+    expect(all.items.find(row => "purchaseId" in row && row.purchaseId === 1)).toMatchObject({ batchSelectable: true });
     expect(all.items.find(row => "purchaseId" in row && row.purchaseId === 7)).toMatchObject({ channel: "other" });
     const filtered = await readOperationalDayList(pool,"2099-11-15","purchases",1,{ origin: "site", type: "group" });
     expect(filtered).toMatchObject({ total: 2, filters: { origin: "site", type: "group", query: "" }, counters: {

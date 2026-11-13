@@ -56,9 +56,28 @@ function getLegacyEmailConfig() {
   };
 }
 
-function isSmtpConfigured() {
+export function isSmtpConfigured() {
   const config = getLegacyEmailConfig();
   return Boolean(config.host && config.username && config.password);
+}
+
+/** Outbox caller owns the durable claim. SMTP acceptance is not mailbox delivery; never retry here. */
+export async function sendLegacyEmailOnce(input: QueueLegacyEmailInput & { messageId: string }): Promise<"accepted" | "failed" | "unknown"> {
+  if (!isSmtpConfigured()) return "failed";
+  const config = getLegacyEmailConfig();
+  const nodemailer = await import("nodemailer");
+  const transporter = nodemailer.createTransport({ host: config.host,port: config.port,secure: config.secure,requireTLS: !config.secure,
+    auth: { user: config.username,pass: config.password },connectionTimeout: 10000,greetingTimeout: 10000,socketTimeout: 20000 });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const sending = transporter.sendMail({ from: { name: config.fromName,address: config.fromEmail },to: { name: input.toName ?? "",address: input.to },
+      envelope: { from: config.fromEmail,to: [input.to] },replyTo: config.replyToEmail,subject: input.subject,html: input.html,messageId: input.messageId });
+    const result = await Promise.race([sending,new Promise<null>(resolve => { timer = setTimeout(() => resolve(null),25000); })]);
+    if (!result) return "unknown";
+    if (result.accepted.some(address => typeof address === "string" && address.toLowerCase() === input.to.toLowerCase())) return "accepted";
+    return result.accepted.length === 0 && result.rejected.length > 0 ? "failed" : "unknown";
+  } catch { return "unknown"; }
+  finally { if (timer) clearTimeout(timer); transporter.close(); }
 }
 
 async function sendQueuedEmail(idemail: number, input: QueueLegacyEmailInput) {

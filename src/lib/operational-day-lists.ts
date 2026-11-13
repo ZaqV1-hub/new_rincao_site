@@ -3,7 +3,7 @@ import { isCivilDate } from "@/lib/operational-date";
 import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { getOperationalCatalogPool } from "@/lib/painel-operational-catalog";
 
-export type DayPurchaseRow = { purchaseId: number; buyerName: string; status: string; channel: string; itemCount: number; dateAmountCents: number };
+export type DayPurchaseRow = { purchaseId: number; buyerName: string; status: string; channel: string; itemCount: number; dateAmountCents: number; batchSelectable?: boolean };
 export type DayGroupRow = { agendaId: number; clientId: number; clientName: string; agendaType: string; status: string; paidOnlinePeople: number };
 export type DayPurchaseFilters = {
   origin: "all" | "site" | "gate";
@@ -89,7 +89,7 @@ async function readPurchases(client: Pick<PoolClient, "query">, date: string, pa
     ), matching AS (
       SELECT * FROM searched WHERE ${originMatches} AND ${typeMatches}
     ), paged AS (
-      SELECT "purchaseId", "buyerName", status, channel, "itemCount", "dateAmountCents", invalid
+      SELECT "purchaseId", "buyerName", status, channel, "itemCount", "dateAmountCents", invalid, (dayuse AND NOT group_items) AS "batchSelectable"
       FROM matching ORDER BY "purchaseId" DESC LIMIT 20 OFFSET $3
     ), counters AS (
       SELECT jsonb_build_object(
@@ -116,7 +116,7 @@ async function readPurchases(client: Pick<PoolClient, "query">, date: string, pa
     items: result.items.map(row => {
       if (integer(row.invalid) > 0) throw new OperationalDayListError("invalid_data", "Há itens com valores ausentes ou inválidos nesta data.");
       return { purchaseId: integer(row.purchaseId), buyerName: String(row.buyerName), status: String(row.status), channel: String(row.channel),
-        itemCount: integer(row.itemCount), dateAmountCents: integer(row.dateAmountCents) };
+        itemCount: integer(row.itemCount), dateAmountCents: integer(row.dateAmountCents), batchSelectable: row.batchSelectable === true };
     }),
   };
 }

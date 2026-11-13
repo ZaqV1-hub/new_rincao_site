@@ -1475,6 +1475,8 @@ const detailHistoryEvents: Record<string, string> = {
   "voucher:desvalidar": "Validação de vouchers desfeita",
   "voucher:invalidar": "Vouchers invalidados",
   "voucher:whatsapp_request": "Envio de vouchers solicitado",
+  "voucher:reschedule_batch": "Data ou validade alterada em lote",
+  "voucher:adjustment_pending": "Ajuste de data ou validade pendente",
   "voucher:imprimir": "Vouchers impressos",
   "ops-box-office:sale_create": "Venda de bilheteria registrada",
 };

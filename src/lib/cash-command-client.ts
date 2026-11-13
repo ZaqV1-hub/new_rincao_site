@@ -49,9 +49,12 @@ export async function submitCashCommand<T>({ storageKey, url, payload }: {
       sessionStorage.removeItem(storageKey);
       return { ok: true, data: result.data as T };
     }
-    const definitive = response.status >= 400 && response.status < 500 && result?.ok === false && typeof result.error?.message === "string";
+    // An auth failure or key conflict cannot establish whether an earlier attempt committed.
+    const definitive = response.status >= 400 && response.status < 500 && ![401,403].includes(response.status) &&
+      !String(result?.error?.code ?? "").endsWith("idempotency_conflict") && result?.ok === false && typeof result.error?.message === "string";
     if (definitive) sessionStorage.removeItem(storageKey);
-    return { ok: false, uncertain: !definitive, message: definitive ? result.error.message : pendingMessage };
+    return { ok: false, uncertain: !definitive, message: definitive ? result.error.message :
+      [401,403].includes(response.status) ? "Entre novamente com o operador original para conferir esta mesma tentativa." : pendingMessage };
   } catch {
     return { ok: false, message: pendingMessage, uncertain: true };
   }

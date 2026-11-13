@@ -102,6 +102,31 @@ describe.skipIf(!connectionString)("online capacity with PostgreSQL", () => {
     expect(await getOnlineCapacityOccupied(pool, "rincao", date)).toBe(1);
   });
 
+  it("rejects a capacity date changed between discovery and locking without marking a payment attempt", async () => {
+    const purchase = await createOnlinePurchase("11111111111", 1, adult);
+    await pool.query(`INSERT INTO operacao_dias (parque,data,tabela_preco_id,validade,limite_online)
+      VALUES ('rincao','2099-07-21',1,'7_days',2)`);
+    const client = await pool.connect();
+    const query = client.query.bind(client);
+    let moved = false;
+    client.query = (async (...args: Parameters<typeof query>) => {
+      const result = await query(...args);
+      if (!moved && String(args[0]).startsWith('SELECT parque AS park, data::text AS date FROM online_capacity_reservations')) {
+        moved = true;
+        await transaction(async writer => {
+          await lockOperationalDay(writer, 'rincao', date);
+          await lockOperationalDay(writer, 'rincao', '2099-07-21');
+          await writer.query("UPDATE online_capacity_reservations SET data='2099-07-21' WHERE idcompra=$1", [purchase.purchaseId]);
+        });
+      }
+      return result;
+    }) as typeof client.query;
+    try {
+      await expect(beginOnlinePaymentAttempt(client, purchase.purchaseId)).rejects.toMatchObject({ code: 'online_capacity_context_changed' });
+      expect((await pool.query('SELECT attempt_started_at FROM online_capacity_reservations WHERE idcompra=$1', [purchase.purchaseId])).rows[0].attempt_started_at).toBeNull();
+    } finally { client.query = query as typeof client.query; client.release(); }
+  });
+
   it("counts exempt tickets, stores a civil validity snapshot, and rolls back an unavailable type", async () => {
     await pool.query("UPDATE operacao_dias SET limite_online=2");
     const purchase = await createOnlinePurchase("11111111111", 1, { normal: 1, child: 0, discountedNormal: 0, discountedChild: 0, exempt: 1 });

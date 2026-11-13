@@ -37,6 +37,18 @@ describe("cash command immutable client attempts", () => {
     expect(await submitCashCommand({ storageKey: "sale", url: "/sale" })).toEqual({ ok: false, uncertain: false, message: "Caixa fechado" });
     expect(prepareStoredCashCommand("sale", { periodId: 5 }).idempotencyKey).not.toBe(first.idempotencyKey);
   });
+  it.each([401,403])("preserves an unconfirmed attempt through an authentication rejection %s", async status => {
+    const original = prepareStoredCashCommand('batch',{ purchaseIds: [1] });
+    fetchMock.mockResolvedValue(Response.json({ ok: false,error: { message: 'Entre novamente' } },{ status }));
+    expect(await submitCashCommand({ storageKey: 'batch',url: '/batch' })).toMatchObject({ ok: false,uncertain: true });
+    expect(readStoredCashCommand('batch')).toEqual(original);
+  });
+  it('preserves a key conflict for operational review', async () => {
+    const original = prepareStoredCashCommand('batch',{ purchaseIds: [1] });
+    fetchMock.mockResolvedValue(Response.json({ ok: false,error: { code: 'batch_idempotency_conflict',message: 'Confira o conteúdo' } },{ status: 409 }));
+    expect(await submitCashCommand({ storageKey: 'batch',url: '/batch' })).toMatchObject({ uncertain: true });
+    expect(readStoredCashCommand('batch')).toEqual(original);
+  });
   it("fails closed on corrupt or inaccessible storage", async () => {
     memory.set("sale", "bad JSON");
     expect(() => readStoredCashCommand("sale")).toThrow();

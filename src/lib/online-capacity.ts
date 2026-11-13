@@ -77,7 +77,7 @@ export async function reserveOnlineCapacity(client: QueryClient, day: OnlineCapa
     VALUES ($1,$2,$3::date,$4,NOW()+INTERVAL '12 hours')`, [purchaseId, day.park, day.date, quantity]);
 }
 
-// Context identity is immutable; acquire the day before any purchase/voucher row lock.
+// Discover the day before parent locks; a concurrent reschedule requires a fresh transaction.
 export async function lockOnlinePurchaseCapacity(client: QueryClient, purchaseId: number): Promise<CapacityContext | null> {
   const identity = await client.query<{ park: OperationalParkId; date: string }>(
     'SELECT parque AS park, data::text AS date FROM online_capacity_reservations WHERE idcompra=$1', [purchaseId]);
@@ -88,7 +88,11 @@ export async function lockOnlinePurchaseCapacity(client: QueryClient, purchaseId
     reservation.expires_at > NOW() AS unexpired, (${eligible}) AS active
     FROM online_capacity_reservations reservation JOIN compra USING (idcompra)
     WHERE reservation.idcompra=$1 FOR UPDATE OF compra, reservation`, [purchaseId]);
-  return result.rows[0] ?? null;
+  const context = result.rows[0];
+  if (!context || context.park !== identity.rows[0].park || context.date !== identity.rows[0].date) {
+    throw new OnlineCapacityError("online_capacity_context_changed", "A data da compra mudou. Confira os dados antes de tentar novamente.");
+  }
+  return context;
 }
 
 export async function assertOnlineCapacityReleased(client: QueryClient, purchaseId: number) {

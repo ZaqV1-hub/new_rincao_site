@@ -169,6 +169,11 @@ describe.skipIf(!connectionString)("durable WhatsApp PostgreSQL", () => {
     await expect(sendOperationalVoucherWhatsapp(1,input(),actor)).rejects.toMatchObject({ code: "voucher_delivery_held" });
     expect(await count()).toBe(0); expect(mock.send).not.toHaveBeenCalled();
   });
+  it('accepts a legacy schema without the optional school checkout context column', async () => {
+    await pool.query('ALTER TABLE compra DROP COLUMN checkout_school_site_context');
+    try { expect((await sendOperationalVoucherWhatsapp(1,input(),actor)).status).toBe('accepted'); }
+    finally { await pool.query('ALTER TABLE compra ADD COLUMN checkout_school_site_context jsonb'); }
+  });
   it("does not bypass a managed school purchase with a missing hold", async () => {
     await pool.query("UPDATE compra SET checkout_school_site_context='{}' WHERE idcompra=1");
     await expect(sendOperationalVoucherWhatsapp(1,input(),actor)).rejects.toMatchObject({ code: "voucher_delivery_held" });

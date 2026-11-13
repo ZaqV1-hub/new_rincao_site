@@ -1,15 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { queueLegacyEmail } from "@/lib/legacy-email";
+import { queueLegacyEmail, sendLegacyEmailOnce } from "@/lib/legacy-email";
 
 const mocks = vi.hoisted(() => ({
   legacyQuery: vi.fn(),
   sendMail: vi.fn(),
+  close: vi.fn(),
   systemQuery: vi.fn(),
 }));
 
 vi.mock("nodemailer", () => ({
   createTransport: vi.fn(() => ({
     sendMail: mocks.sendMail,
+    close: mocks.close,
   })),
 }));
 
@@ -53,6 +55,16 @@ describe("legacy-email queue", () => {
       expect.arrayContaining(["cliente@example.com", "Cliente", "Teste"]),
     );
     expect(mocks.legacyQuery).not.toHaveBeenCalled();
+  });
+  it('sends an outbox notice once and distinguishes SMTP acceptance from delivery', async () => {
+    mocks.sendMail.mockResolvedValue({ accepted: ['cliente@example.com'],rejected: [] });
+    expect(await sendLegacyEmailOnce({ to: 'cliente@example.com',toName: null,subject: 'Alteração',html: '<p>Nova data</p>',messageId: '<notice@rincao.local>' })).toBe('accepted');
+    expect(mocks.sendMail).toHaveBeenCalledOnce(); expect(mocks.systemQuery).not.toHaveBeenCalled(); expect(mocks.close).toHaveBeenCalledOnce();
+  });
+  it.each(['ECONNECTION','ETIMEDOUT','EENVELOPE'])('does not retry an uncertain notice after %s', async code => {
+    mocks.sendMail.mockRejectedValue(Object.assign(new Error('private SMTP detail'),{ code }));
+    expect(await sendLegacyEmailOnce({ to: 'cliente@example.com',toName: null,subject: 'Alteração',html: '<p>Nova data</p>',messageId: '<notice@rincao.local>' })).toBe('unknown');
+    expect(mocks.sendMail).toHaveBeenCalledOnce(); expect(mocks.systemQuery).not.toHaveBeenCalled();
   });
 
   it("sends queued email synchronously when PASSWORD_RESET_SEND_SYNC is true", async () => {
