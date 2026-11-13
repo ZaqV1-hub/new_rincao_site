@@ -37,7 +37,7 @@ export function OwnerDashboardPage({data,name,allowedParks,error}:{data:OwnerDas
     {park==='estancia'&&<p className={styles.caption}>Despesas e resultado aguardam confirmação com o Isaque.</p>}
     {period.mode==='day'&&days[0]&&<details><summary>Origem dos números</summary><dl className={styles.sources}>
      <div><dt>Ingressos no site</dt><dd>{money(days[0].revenueSources.site)}</dd></div><div><dt>Ingressos nos caixas</dt><dd>{money(days[0].revenueSources.gate)}</dd></div><div><dt>Passeios</dt><dd>{money(days[0].revenueSources.trips)}</dd></div><div><dt>Serviços adicionais</dt><dd>{money(days[0].revenueSources.services)}</dd></div><div><dt>Entradas de day use</dt><dd>{number(days[0].dayUseAttendance)}</dd></div><div><dt>Pessoas nos passeios</dt><dd>{number(days[0].tripAttendance)}</dd></div>
-    </dl><p className={styles.caption}>{days[0].source}</p></details>}
+    </dl><p className={styles.caption}>{days[0].source==='unavailable'?'Fonte indisponível':days[0].source}</p></details>}
    </section>;
   })}</div>
   <section className={styles.panel}><h2>{period.mode==='day'?'Público dos últimos 7 dias':period.mode==='year'?'Evolução mês a mês':'Evolução dia a dia'}</h2><p className={styles.legend}>{parks.map(park=><span key={park}><i style={{background:OWNER_PARKS[park].color}}/>{OWNER_PARKS[park].name}</span>)}<span>∅ indica informação incompleta</span></p>

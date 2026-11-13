@@ -51,3 +51,19 @@ Contas reais dos donos e fonte completa de recebimentos finais/contagem escolar 
 - A configuração Cielo existente do HML aponta o endpoint de produção. Não executar compra/cobrança real durante os testes; provas financeiras usam banco local isolado. Nenhuma credencial ou configuração Cielo foi alterada.
 
 Rollback: o deploy Next mantém release anterior e reverte em falha de saúde. Migrações são aditivas e preservam o legado. Antes de voltar ao painel antigo depois de haver novas operações, conferir sessões/fechamentos e compatibilidade; não apagar o flag nem liberar novamente escrita canônica da API automaticamente. O backup do front controller permite restauração controlada. Dados históricos e snapshots não devem ser apagados para voltar código.
+
+## Resultado da primeira ativação
+
+Site `e4d58ef` ativado com sucesso pelo workflow [43476018203](https://github.com/ZaqV1-hub/new_rincao_site/actions/runs/43476018203). O artefato Windows passou no renderizador PNG antes da troca. Foram executadas 25 verificações HTTP autenticadas/negativas, com igualdade entre resumo e donos, exportações reais e revogação. O usuário sintético de teste e sua autorização foram removidos. PDF de três páginas A4 e XLSX de cinco abas/três imagens íntegros. Previsão MET Norway disponível, consulta real `2026-11-13T17:54:50.101Z`.
+
+Proteção PHP ativada e API HML em `sync-only`, com confirmação HTTP: redirecionamentos 302, gravações antigas 409 e caminho direto inexistente 404. A validação antiga da API foi recusada 409 e o voucher permaneceu exatamente igual. Evidências remotas `hml-smoke-verification.json`, `cutover-activation.json`, `cutover-smoke-verification.json`; nenhum pagamento ou mensagem externa.
+
+A primeira tentativa de ativar a proteção ocorreu durante o aquecimento e parou na checagem de saúde antes de alterar configurações. A segunda ocorreu após `robots.txt` responder 200. O primeiro teste do caminho direto esperava 409, mas o IIS corretamente retorna 404 antes do PHP; a expectativa foi corrigida, sem mudar a aplicação.
+
+A validação de negócio no HML usou sessões técnicas assinadas apenas dentro da VM e um dono sintético temporário; não testou as credenciais nem concedeu acesso às contas reais. Login/browser público, autenticação e regras de negócio também possuem as provas locais descritas no plano. Não declarar aceite da equipe, restauração sobre pagamentos posteriores ou promoção para produção.
+
+## Texto preparado para o Product Owner
+
+A implementação do painel do Rincão foi disponibilizada em homologação pela branch develop. Inclui agenda e preços por data, serviços, programação com previsão do tempo e materiais, caixas por local, gestão de compras/vouchers, app online de contagem com assinatura, recebimentos e fechamento dos passeios, fechamento diário com histórico e relatórios, e consulta separada dos donos. As faixas etárias seguem o sistema atual; vouchers podem ser usados em qualquer dia aberto dentro da validade; passeios só finalizam com recebimento integral confirmado.
+
+Testes automatizados, migrações, restauração de backup e verificações na VM foram realizados. Despesas e resultado da Estância permanecem pendentes da regra com o Isaque. O consolidado escolar da Estância ainda depende de comprovar a fonte de recebimento final e contagem completa. Falta identificar as contas reais dos donos e obter o aceite operacional da equipe. Produção/main permanece sem esta entrega. O checkout de homologação conserva a configuração anterior da Cielo de produção; não testar com cartão real.

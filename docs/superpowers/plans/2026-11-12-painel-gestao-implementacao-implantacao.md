@@ -140,36 +140,36 @@ Cada entrega termina com diff revisado, testes do domínio e contratos, teste de
 ### E0 — Baseline e segurança de implantação
 
 **Arquivos:** `.github/workflows/deploy-vm.yml`, `docs/DEPLOY_VM.md`, testes legados afetados pela integração de branches.
-- [ ] Inventariar diferenças main/develop e escritores externos (legado PHP, microserviço de ingressos, jobs e app de leitura). Escolher integração explícita sem reset e sem publicar automaticamente a reconciliação.
-- [ ] Reproduzir e corrigir as falhas conhecidas (15 em develop antes da integração; 14 históricas em main); registrar suite completa de develop e main no commit integrado. Não remover asserts para obter verde.
-- [ ] Registrar bancos/dialetos/versões por ambiente e parque, IDs reais de agenda/passeio, volume, capacidade de disco e cópias de segurança; não versionar credenciais.
-- [ ] Acrescentar validação de lint/tipos/testes antes da etapa que publica; smoke de negócio complementa `/robots.txt`.
+- [x] Inventariar diferenças main/develop e escritores externos (legado PHP, microserviço de ingressos, jobs e app de leitura). Escolher integração explícita sem reset e sem publicar automaticamente a reconciliação.
+- [x] Reproduzir e corrigir as falhas conhecidas (15 em develop antes da integração; 14 históricas em main); registrar suite completa de develop e main no commit integrado. Não remover asserts para obter verde.
+- [x] Registrar bancos/dialetos/versões por ambiente e parque, IDs reais de agenda/passeio, volume, capacidade de disco e cópias de segurança; não versionar credenciais.
+- [x] Acrescentar validação de lint/tipos/testes antes da etapa que publica; smoke de negócio complementa `/robots.txt`.
 **Aceite:** baseline única de desenvolvimento com regras preservadas, suíte verde, inventário de fontes, restauração ensaiada e relação de responsáveis operacionais.
 
 ### E1 — Contratos, permissões e catálogo
 
 **Reusar:** `painel-api-auth.ts`, `ops-permissions.ts`, `painel-acl.ts`, `ops-audit-log.ts`, `painel-shell.tsx`.
 **Criar conforme lacunas:** `src/lib/operational-day-contract.ts`, `src/lib/painel-services.ts`, `src/lib/painel-cash-locations.ts`; páginas `/painel/servicos` e `/painel/locais-caixa` e APIs sob `/api/painel/`.
-- [ ] Executar M1/M2 e primeira parte de M3; definir IDs e permissões antes de conectar telas.
-- [ ] Cadastro ativo/inativo, preços por canal, serviço só bilheteria e inclusão opcional em datas abertas com resumo do alcance.
-- [ ] Preservar preços/nomes dos itens históricos; recusar desconto sobre serviço no servidor.
+- [x] Executar M1/M2 e primeira parte de M3; definir IDs e permissões antes de conectar telas.
+- [x] Cadastro ativo/inativo, preços por canal, serviço só bilheteria e inclusão opcional em datas abertas com resumo do alcance.
+- [x] Preservar preços/nomes dos itens históricos; recusar desconto sobre serviço no servidor.
 **Testes:** autorização 401/403, isolamento de parque, preço nulo versus zero, inativação sem perda histórica e duas alterações concorrentes.
 
 ### E2 — Agenda e day use
 
 **Modificar:** `painel-agenda.ts`, `agenda-repository.ts`, `painel-agenda-manager.tsx`, `painel-agenda-editor.tsx`, página inicial protegida e API de agenda. Mapear consumidores do preço no checkout e na bilheteria antes de editar.
-- [ ] Calendário, filtros, selos, seleção futura e atualização em lote com auditoria e validação de todas as datas.
-- [ ] Day use com tabela, validade, ingressos, serviços e limite exclusivamente online. Fechar data retira oferta do site sem invalidar venda anterior.
-- [ ] Persistir tabela para data ainda sem agenda day use; reutilizá-la ao abrir.
-- [ ] Capacidade online considera reservas pendentes com expiração e compras confirmadas; reservar vagas atomicamente e liberar cancelamentos. Documentar contabilização de isentos antes de ativar.
+- [x] Calendário, filtros, selos, seleção futura e atualização em lote com auditoria e validação de todas as datas.
+- [x] Day use com tabela, validade, ingressos, serviços e limite exclusivamente online. Fechar data retira oferta do site sem invalidar venda anterior.
+- [x] Persistir tabela para data ainda sem agenda day use; reutilizá-la ao abrir.
+- [x] Capacidade online considera reservas pendentes com expiração e compras confirmadas; reservar vagas atomicamente e liberar cancelamentos. Documentar contabilização de isentos antes de ativar.
 **Testes:** data passada, virada do mês/ano, limite sob concorrência, liberação de reserva expirada, venda no caixa acima do limite, preço correto por canal e preservação de pedido já confirmado.
 
 ### E3 — Página da data e apuração comum
 
 **Criar:** `src/lib/operational-day-summary.ts` e `.test.ts`; `src/components/painel-operational-day-page.tsx`. Evoluir `/painel/agenda/[date]` preservando links existentes.
-- [ ] Cabeçalho e abas; navegação só para datas com movimento; carregar abas sob demanda e paginar listas no servidor.
-- [ ] Uma função de apuração consumida pelo resumo, fechamento, exportações e agregado dos donos. Contrato distingue receita da visita, recebimentos, caixa, público e pendências.
-- [ ] Implementar fontes disponíveis; fontes futuras explicitamente indisponíveis até E8/E9, sem totais simulados.
+- [x] Cabeçalho e abas; navegação só para datas com movimento; carregar abas sob demanda e paginar listas no servidor.
+- [x] Uma função de apuração consumida pelo resumo, fechamento, exportações e agregado dos donos. Contrato distingue receita da visita, recebimentos, caixa, público e pendências.
+- [x] Implementar fontes disponíveis; fontes futuras explicitamente indisponíveis até E8/E9, sem totais simulados.
 **Testes:** receita online escolar contada uma vez, adicionais não duplicados, desconto aplicado uma vez, sangria sem reduzir receita e público sem somar voucher escolar já contado no ônibus.
 
 ### E4 — Programação do dia seguinte
@@ -290,9 +290,9 @@ O workflow atual publica automaticamente em push de develop/main. Planejar PRs e
 
 - [ ] Responsáveis nomeados: gerente valida operação, financeiro valida números, responsável técnico aprova migrations/releases e donos validam consolidado.
 - [ ] Bancos, filas, credenciais Cielo/ticket API e canais de mensagens separados; em HML destinos controlados, sem cobranças ou mensagens reais acidentais.
-- [ ] Backup de banco consistente, assinaturas/uploads/configuração persistente e inventário dos jobs; restauração ensaiada e espaço suficiente para release anterior + nova + backup.
-- [ ] Introduzir chave de ativação por parque/data de corte se coexistência for necessária. A chave deve proteger backend e escritores, não apenas menu.
-- [ ] Ensaiar migrations em dados representativos; comparar contagens de linhas e somas de dinheiro antes/depois. Corrigir órfãos via plano específico, nunca apagar para passar validação.
+- [x] Backup de banco consistente, assinaturas/uploads/configuração persistente e inventário dos jobs; restauração ensaiada e espaço suficiente para release anterior + nova + backup.
+- [x] Introduzir chave de ativação por parque/data de corte se coexistência for necessária. A chave deve proteger backend e escritores, não apenas menu.
+- [x] Ensaiar migrations em dados representativos; comparar contagens de linhas e somas de dinheiro antes/depois. Corrigir órfãos via plano específico, nunca apagar para passar validação.
 
 ### Publicação em HML
 
@@ -508,3 +508,12 @@ Verificação final do marco E2/E3: 1.284/1.284 testes em PostgreSQL16.15, sem i
 - Verificações locais: 2.059 testes site, 45 API com PostgreSQL, 21 scripts, nenhum skip; lint sem erros e 12 avisos legados. Homologação Windows, escritores/corte e publicação `develop` ainda pendentes neste registro. Despesas da Estância continuam pendentes de Isaque.
 
 - Preparação HML posterior: API `e7ff830` implantada pelo CI; 14 migrações aplicadas no HML com contagens/somas preservadas; três leitores restritos configurados e sem contas reais liberadas. Proteção do PHP legado preparada e validada em sete casos, aguardando ativação com o novo site. Cópia temporária removida após reconferir o dump; backup preservado. Detalhes e rollback no runbook do ensaio.
+
+### Homologação publicada — 13/11/2026
+
+- Primeiro rollout completo do site `e4d58ef`, CI [43476018203](https://github.com/ZaqV1-hub/new_rincao_site/actions/runs/43476018203) verde: 2.059 testes PostgreSQL, 21 scripts, lint/tipos/build e renderizador PNG no artefato Linux e Windows. API `e7ff830` ativa em modo test. Produção/main não promovida.
+- 25 verificações HTTP na VM: catálogos, caixas, resumo, programação, passeios, contagem e fechamento; donos dia/mês/ano com valores iguais ao resumo; PDF/XLSX; respostas privadas, isolamento de sessão, recusa de escrita/origem externa e revogação imediata. Conta temporária removida. Previsão real MET Norway consultada e armazenada.
+- PHP HML cortado: GET redireciona, POST antigo retorna 409; acesso direto alternativo é 404 no IIS. API HML em `sync-only`; tentativa de leitura antiga para validar voucher recusada 409 com dados canônicos intactos. Callbacks de pagamentos preservados e verificados em sete testes isolados de roteamento, sem executar cobrança/retorno real.
+- Navegador público 390px: login operacional, login dos donos e proteção de `/contagem`, sem overflow. PDF Windows A4 com três páginas inspecionado; XLSX íntegro com cinco abas e três imagens. Rótulo técnico de origem indisponível traduzido após inspeção visual.
+- Pendências humanas: despesas/resultado Estância com Isaque; fonte integral do fechamento/contagem escolar da Estância; identificação das contas reais dos donos; validação da equipe e primeiro fechamento real após futura promoção autorizada. HML mantém configuração Cielo prévia apontando produção: não foi realizada cobrança e testes com cartão real não fazem parte desta homologação.
+- Atualização do PO preparada no runbook do ensaio para encaminhamento. Não houve contato externo. Revisão independente adicional continua indisponível por quota; revisão manual e verificações registradas não substituem o aceite operacional.
