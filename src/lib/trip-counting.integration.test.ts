@@ -134,6 +134,10 @@ describe.skipIf(!connectionString)('vehicle counting with PostgreSQL', () => {
     await expect(command('start',1,{ actorCpf: manager.cpf,manager: true })).rejects.toMatchObject({ code: 'count_invalid_input' });
     expect((await pool.query('SELECT count(*) FROM passeio_contagens')).rows[0].count).toBe('0');
   });
+  it.each(['can','canc','ina','inat'])('rejects actual legacy cancellation/inactivation code %s',async status => {
+    await pool.query('UPDATE agenda_extras SET stagenda_cli=$1 WHERE idagenda=1 AND idcliente=10',[status]);
+    await expect(command('start',1)).rejects.toMatchObject({ code: 'count_trip_cancelled' });
+  });
   it('keeps the same per-type vehicle limit as programming', async () => {
     await pool.query("INSERT INTO passeio_veiculos(parque,agenda_id,cliente_id,tipo) SELECT 'rincao',1,10,'bus' FROM generate_series(1,99)");
     const input = { agendaId: 1,clientId: 10,type: 'bus',plannedPeople: null,reason: '',idempotencyKey: 'extra-bus' };

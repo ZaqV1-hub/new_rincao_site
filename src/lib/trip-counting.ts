@@ -74,7 +74,7 @@ async function lockTrip(client: PoolClient,agendaId: number,clientId: number,act
   const fresh = (await client.query<{ date: string; status: string; clientStatus: string | null }>(`SELECT a.dtagenda::text AS date,a.stagenda AS status,to_jsonb(ae)->>'stagenda_cli' AS "clientStatus"
     FROM agenda a JOIN agenda_extras ae ON ae.idagenda=a.idagenda WHERE ae.idagenda=$1 AND ae.idcliente=$2 FOR SHARE OF a,ae`,[agendaId,clientId])).rows[0];
   if (!fresh || fresh.date !== initial.date) return denied('count_context_changed','A data do passeio mudou. Consulte o estado atual.');
-  if ([fresh.status,fresh.clientStatus].some(value => value && ['canc','inat'].includes(value.trim()))) return denied('count_trip_cancelled','Este passeio está cancelado ou inativo.');
+  if ([fresh.status,fresh.clientStatus].some(value => value && ['can','canc','ina','inat'].includes(value.trim()))) return denied('count_trip_cancelled','Este passeio está cancelado ou inativo.');
   await assertEditable(client,initial.date,actor,reason);
   await client.query('INSERT INTO passeio_operacao(parque,agenda_id,cliente_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[park,agendaId,clientId]);
   const trip = (await client.query<{ receipt: string | null }>(`SELECT to_jsonb(o)->>'finalized_receipt_id' AS receipt FROM passeio_operacao o WHERE parque=$1 AND agenda_id=$2 AND cliente_id=$3 FOR UPDATE`,[park,agendaId,clientId])).rows[0];
