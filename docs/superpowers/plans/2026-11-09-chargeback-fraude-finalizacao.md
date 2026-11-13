@@ -182,3 +182,25 @@ Comparação com `origin/main` em `7d9d4e0`: o coletor já reúne pedido, pagame
 Decisão: manter a política e os envios desligados; o e-mail não fundamenta remover o bloqueio de fraude. Antes de ampliar a cobertura, mapear fontes persistidas e correlação segura das evidências auxiliares recomendadas, distinguir ausência de contestação conhecida de legitimidade comprovada e só acrescentar fatos verificáveis. Casos sem vínculo suficiente continuarão como exceção, mesmo após a ativação técnica. Não há promessa de cobertura integral de fraude com os dados históricos já examinados.
 
 A busca de e-mails também mostrou a conversa técnica ainda com seis mensagens e último retorno de 09/11 às 16:36, contendo a previsão de 11/11. Não foi localizada nova confirmação efetiva de liberação nessa conversa. Nenhum código, configuração da VM, agendador ou envio real foi alterado nesta avaliação. A autorização condicionada de ativação permanece vigente; a data transcorrida não satisfaz a confirmação. Nenhum novo e-mail foi enviado. Próximas ações: avaliar fontes auxiliares disponíveis e critérios de vínculo, concluir os ajustes justificáveis e confirmar liberação técnica antes da ativação e validação operacional.
+
+### Evidências auxiliares implementadas e validadas — 13/11/2026
+
+O responsável autorizou verificar as evidências adicionais, implementar os ajustes, conferir a VM e publicar no remoto, **mantendo os envios desligados**. A alteração se limita ao coletor, PDF e testes existentes; não modifica checkout, política de elegibilidade, banco, credenciais ou agendador.
+
+Inventário em produção com PostgreSQL somente leitura e inspeção dos produtores de dados:
+
+| Evidência | Fonte disponível | Tratamento |
+| --- | --- | --- |
+| Cadastro e último login | `usuario` e, quando existente, `usuario_site_conta`, ligados pelo CPF exato da compra | Incluídos com origem e ressalva de metadados atuais. Último login é sobrescrito, não representa histórico nem prova da sessão na compra. |
+| Compras anteriores | `compra`, mesmo CPF de 11 dígitos; data estritamente anterior à compra e à transação contestadas | Resumo por situação local e primeira/última data. Exclui a própria compra, outro CPF e registros do mesmo dia. Sem cronologia ou vínculo disponível, mostra indisponível; distingue zero confirmado. |
+| Comunicações de entrega | Fila e `edicoes_log` de `ticket-delivery` | Já coletadas; representam processamento/retorno do serviço, sem comprovar leitura ou diálogo com comprador. |
+| IP, dispositivo, geolocalização e sessões | Não localizados como histórico correlacionável à compra nas fontes examinadas | Não acrescentados nem inferidos. Registros de outros fluxos, como contratos/inscrição de grupos, não foram reaproveitados sem vínculo. |
+| Identidade do visitante / vínculo com titular | Uso do voucher é registro operacional; não comprova identidade física | Continua explicitamente não comprovado. Nenhuma declaração de fraude, autorização ou legitimidade. |
+
+O histórico pelo mesmo CPF não é chamado de “sem contestação” nem comprova o mesmo cartão ou pagamento. Tabelas de chargeback vazias não demonstram ausência de disputa no banco. Dados de outras cobranças e CPF completo não entram no resumo. Campos novos são opcionais para preservar snapshots antigos; mudanças de metadados participam da comparação existente antes do envio, sem alterar a política `service-provision-v1`.
+
+Validação: 34 testes de base; cinco novos testes falharam antes da implementação e passaram depois. A revisão independente identificou que data de compra ausente poderia produzir falso zero; regressão reproduzida e corrigida. Suíte principal: 152 testes aprovados; após a correção, 49 testes afetados aprovados, mais seis testes do runner. Lint, build e TypeScript aprovados. O build manteve o aviso preexistente de tracing amplo em `rincao-content-store.ts`. Suíte global com falhas preexistentes não repetida. Revisão da correção confirmou o achado resolvido.
+
+Sonda real isolada, usando a lista protegida de 44 casos DONE de 01/09–09/11: 43 vinculados, 43 com cadastro, 41 com último login e 28 com compras anteriores, sem erros. Foram 607 consultas SQL somente leitura e 43 GETs E-commerce. Nenhum caso elegível. Após a correção, três casos representativos foram revalidados (49 consultas e três GETs), incluindo cinco asserts SQL com CTE sintética, sem escrita, para CPF diferente/inválido, mesma data, ambos os limites cronológicos e histórico vazio. Três PDFs, três páginas cada, foram inspecionados visualmente. Amostras permanecem fora do Git, em área protegida; nenhum documento foi enviado à Cielo.
+
+VM antes do deploy: release `7d9d4e0`, flag false, tarefa `RincaoChargebackSync-prod` Disabled/Enabled=false, ACL protegida e quatro tabelas da automação vazias. Publicação e conferência pós-deploy ainda pendentes neste registro. O objetivo integral permanece incompleto: não ampliar fraude nem ativar nesta entrega.

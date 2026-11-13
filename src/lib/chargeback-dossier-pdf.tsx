@@ -118,6 +118,21 @@ function Dossier({ evidence }: { evidence: ChargebackEvidence }) {
         <Line>Registro atual da compra · Data {display(purchase?.date)} · Situação {display(purchase?.status)} · Total {money(purchase?.totalCents)}</Line>
         <Line>Cadastro consultado na coleta · Nome {display(purchase?.buyerName)} · E-mail {display(purchase?.buyerEmail)}</Line>
 
+        <Heading>Relacionamento cadastral — contexto auxiliar</Heading>
+        {!evidence.customerHistory && <Line>Não coletado neste dossiê</Line>}
+        {evidence.customerHistory && evidence.customerHistory.accounts.length === 0 && <Line>Metadados de conta indisponíveis para o CPF associado à compra</Line>}
+        {evidence.customerHistory?.accounts.map((account) => (
+          <Line key={account.source}>Fonte {account.source} · Cadastro registrado em {display(account.registeredOn)} · Último login registrado {display(account.lastLoginAt)}</Line>
+        ))}
+        <Text style={styles.note}>Metadados atuais consultados pelo CPF associado à compra. O último login é sobrescrito: não é histórico de sessões nem prova de login no momento da compra. Pode ser posterior à transação. Cadastro não comprova identidade do portador.</Text>
+        {evidence.customerHistory?.previousPurchases ? (
+          <View wrap={false}>
+            <Line>{evidence.customerHistory.previousPurchases.total} registros anteriores de compra pelo mesmo CPF · De {display(evidence.customerHistory.previousPurchases.firstDate)} a {display(evidence.customerHistory.previousPurchases.lastDate)}</Line>
+            <Line>Situação local na coleta · Concluídos {evidence.customerHistory.previousPurchases.completed} · Cancelados/estornados {evidence.customerHistory.previousPurchases.cancelled} · Outros {evidence.customerHistory.previousPurchases.other}</Line>
+          </View>
+        ) : <Line>Histórico de compras anteriores indisponível</Line>}
+        <Text style={styles.note}>Somente registros com data anterior à compra e à transação contestadas; compras do mesmo dia ficam fora por falta de horário. A associação pelo CPF não comprova mesmo cartão, legitimidade ou ausência de contestação. Situação local concluída não substitui confirmação de pagamento. IP, dispositivo, geolocalização e histórico de sessões não estão disponíveis neste dossiê.</Text>
+
         <Heading>Registros de pagamento — conciliação armazenada</Heading>
         {evidence.paymentAttempts.length === 0 && <Line>Indisponíveis</Line>}
         {evidence.paymentAttempts.map((payment, index) => !("id" in payment) || payment.id !== evidence.paymentId ? (

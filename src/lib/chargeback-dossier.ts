@@ -74,6 +74,10 @@ type AuditEvent = {
 
 export type ChargebackEvidence = {
   case: CieloChargebackCase;
+  customerHistory?: {
+    accounts: { source: "usuario" | "usuario_site_conta"; registeredOn: string; lastLoginAt: string | null }[];
+    previousPurchases: { total: number; completed: number; cancelled: number; other: number; firstDate: string; lastDate: string } | null;
+  };
   purchaseId: number | null;
   paymentId: string | null;
   capturedAt: string;
@@ -397,6 +401,42 @@ async function collectSystemEvidence(
     status: text(purchase.status),
     buyerName: text(purchase.buyer_name),
     buyerEmail: text(purchase.buyer_email),
+  };
+
+  // Only current account metadata exists; it is not a session or cardholder-authentication history.
+  const cpfCondition = `c.cpf ${mysql ? "REGEXP" : "~"} '^[0-9]{11}$'`;
+  const siteAccountTable = await system.query<{ regclass: string | null }>("SELECT to_regclass('usuario_site_conta') AS regclass");
+  const accountSources: ("usuario" | "usuario_site_conta")[] = ["usuario"];
+  if (siteAccountTable.rows[0]?.regclass) accountSources.push("usuario_site_conta");
+  const accounts: NonNullable<ChargebackEvidence["customerHistory"]>["accounts"] = [];
+  for (const source of accountSources) {
+    const rows = await system.query<{ registered_on: string | null; last_login_date: string | null; last_login_time: string | null }>(
+      `SELECT ${textColumn("u.dtcadastro")} AS registered_on,
+              ${textColumn("u.dtulogin")} AS last_login_date, ${textColumn("u.hrulogin")} AS last_login_time
+       FROM compra c JOIN ${source} u ON u.cpf = c.cpf WHERE c.idcompra = $1 AND ${cpfCondition}`, [purchaseId],
+    );
+    if (rows.rows.length === 1) accounts.push({
+      source,
+      registeredOn: datePart(text(rows.rows[0].registered_on)),
+      lastLoginAt: localVoucherTime(rows.rows[0].last_login_date, rows.rows[0].last_login_time),
+    });
+  }
+  const previous = transactionDate && evidence.purchase?.date ? (await system.query<{
+    previous_purchase_count: string; completed: string; cancelled: string; other: string; first_date: string | null; last_date: string | null;
+  }>(`SELECT COUNT(p.idcompra) AS previous_purchase_count,
+        SUM(CASE WHEN LOWER(p.stcompra) = 'conc' THEN 1 ELSE 0 END) AS completed,
+        SUM(CASE WHEN LOWER(p.stcompra) IN ('canc', 'esto') THEN 1 ELSE 0 END) AS cancelled,
+        SUM(CASE WHEN p.idcompra IS NOT NULL AND (p.stcompra IS NULL OR LOWER(p.stcompra) NOT IN ('conc', 'canc', 'esto')) THEN 1 ELSE 0 END) AS other,
+        ${textColumn("MIN(p.dtcompra)")} AS first_date, ${textColumn("MAX(p.dtcompra)")} AS last_date
+      FROM compra c LEFT JOIN compra p ON p.cpf = c.cpf AND p.idcompra <> c.idcompra
+        AND p.dtcompra < c.dtcompra AND p.dtcompra < $2
+      WHERE c.idcompra = $1 AND ${cpfCondition} GROUP BY c.idcompra`, [purchaseId, transactionDate])).rows[0] : undefined;
+  evidence.customerHistory = {
+    accounts,
+    previousPurchases: previous ? {
+      total: Number(previous.previous_purchase_count), completed: Number(previous.completed), cancelled: Number(previous.cancelled), other: Number(previous.other),
+      firstDate: datePart(text(previous.first_date)), lastDate: datePart(text(previous.last_date)),
+    } : null,
   };
 
   evidence.paymentAttempts = attemptResult.rows.map((attempt) => {

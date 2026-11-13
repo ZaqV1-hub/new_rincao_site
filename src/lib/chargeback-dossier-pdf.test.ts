@@ -97,6 +97,22 @@ describe("chargeback dossier PDF", () => {
     expect(text.indexOf("Entrega — registros")).toBeLessThan(text.indexOf("Ingressos — estado atual"));
   });
 
+  it("labels current account metadata and previous purchases without claiming uncontested transactions", async () => {
+    await renderChargebackDossierPdf({ ...evidence, customerHistory: {
+      accounts: [{ source: "usuario_site_conta", registeredOn: "2025-01-01", lastLoginAt: "2026-11-12 10:00:00" }],
+      previousPurchases: { total: 3, completed: 1, cancelled: 1, other: 1, firstDate: "2025-04-01", lastDate: "2026-10-08" },
+    } });
+    const text = lastDocumentText();
+    expect(text).toContain("Relacionamento cadastral — contexto auxiliar");
+    expect(text).toContain("usuario_site_conta");
+    expect(text).toContain("2026-11-12 10:00:00");
+    expect(text).toContain("não é histórico de sessões nem prova de login no momento da compra");
+    expect(text).toContain("3 registros anteriores");
+    expect(text).toContain("Concluídos 1 · Cancelados/estornados 1 · Outros 1");
+    expect(text).toContain("não comprova mesmo cartão, legitimidade ou ausência de contestação");
+    expect(text).not.toContain("compras anteriores sem contestação");
+  });
+
   it("renders old evidence without making missing fields into negative authentication results", async () => {
     await renderChargebackDossierPdf(evidence);
     const text = lastDocumentText();
