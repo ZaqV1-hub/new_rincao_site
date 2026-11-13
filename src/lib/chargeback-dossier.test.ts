@@ -83,6 +83,10 @@ describe("chargeback evidence", () => {
   let attempts: ReturnType<typeof payment>[];
   let vouchers: (typeof usedVoucher)[];
   let auditRows: Record<string, unknown>[];
+  let accounts: Record<string, unknown>[];
+  let previousPurchases: Record<string, unknown>[];
+  let siteAccountsPresent: boolean;
+  let purchaseDate: string | null;
 
   beforeEach(() => {
     configured.mockReset().mockReturnValue(false);
@@ -91,14 +95,21 @@ describe("chargeback evidence", () => {
     attempts = [payment()];
     vouchers = [usedVoucher];
     auditRows = [];
+    accounts = [{ source: "usuario", registered_on: "2025-03-01", last_login_date: "2026-11-12", last_login_time: "14:15:16" }];
+    previousPurchases = [{ previous_purchase_count: "3", completed: "1", cancelled: "1", other: "1", first_date: "2025-04-01", last_date: "2026-10-08" }];
+    siteAccountsPresent = true;
+    purchaseDate = "2026-10-09";
     systemQuery.mockReset().mockImplementation(async (sql: string) => {
       if (/^(BEGIN|COMMIT|ROLLBACK)/.test(sql)) return { rows: [] };
+      if (sql.includes("to_regclass('usuario_site_conta')")) return { rows: [{ regclass: siteAccountsPresent ? "usuario_site_conta" : null }] };
+      if (sql.includes("AS registered_on")) return { rows: accounts.filter((a) => a.source === (sql.includes("JOIN usuario_site_conta") ? "usuario_site_conta" : "usuario")) };
+      if (sql.includes("AS previous_purchase_count")) return { rows: previousPurchases };
       if (sql.includes("to_regclass")) return { rows: [{ regclass: "edicoes_log" }] };
       if (sql.includes('AS payload')) {
         return { rows: sql.includes("WHERE idcompra") ? attempts : candidates };
       }
       if (sql.includes("FROM compra")) return { rows: [{
-        purchase_date: "2026-10-09",
+        purchase_date: purchaseDate,
         total: "100.00",
         status: "conc",
         buyer_name: "Cadastro atual",
@@ -118,6 +129,50 @@ describe("chargeback evidence", () => {
       }] };
       throw new Error(sql);
     });
+  });
+
+  it("adds account and prior-purchase context without calling it cardholder proof", async () => {
+    accounts.push({ source: "usuario_site_conta", registered_on: "2026-05-01", last_login_date: "2026-11-13", last_login_time: "10:00:00" });
+    const evidence = await collectChargebackEvidence(chargeback);
+    expect(evidence.customerHistory).toEqual({
+      accounts: [
+        { source: "usuario", registeredOn: "2025-03-01", lastLoginAt: "2026-11-12 14:15:16" },
+        { source: "usuario_site_conta", registeredOn: "2026-05-01", lastLoginAt: "2026-11-13 10:00:00" },
+      ],
+      previousPurchases: { total: 3, completed: 1, cancelled: 1, other: 1, firstDate: "2025-04-01", lastDate: "2026-10-08" },
+    });
+    expect(JSON.stringify(evidence.customerHistory)).not.toMatch(/cpf|senha|ip|authenticated|uncontested|cardholder/i);
+  });
+
+  it("supports an absent site-account table and unavailable relationship records", async () => {
+    siteAccountsPresent = false;
+    accounts = [];
+    previousPurchases = [];
+    expect((await collectChargebackEvidence(chargeback)).customerHistory).toEqual({ accounts: [], previousPurchases: null });
+  });
+
+  it("distinguishes no previous purchases from unavailable history and keeps missing login unknown", async () => {
+    accounts = [{ source: "usuario", registered_on: null, last_login_date: "2026-11-12", last_login_time: null }];
+    previousPurchases = [{ previous_purchase_count: "0", completed: "0", cancelled: "0", other: "0", first_date: null, last_date: null }];
+    const history = (await collectChargebackEvidence(chargeback)).customerHistory;
+    expect(history?.accounts).toEqual([{ source: "usuario", registeredOn: "", lastLoginAt: null }]);
+    expect(history?.previousPurchases).toEqual({ total: 0, completed: 0, cancelled: 0, other: 0, firstDate: "", lastDate: "" });
+  });
+
+  it("keeps previous history unavailable when purchase chronology is missing", async () => {
+    purchaseDate = null;
+    previousPurchases = [{ previous_purchase_count: "0", completed: "0", cancelled: "0", other: "0", first_date: null, last_date: null }];
+    expect((await collectChargebackEvidence(chargeback)).customerHistory?.previousPurchases).toBeNull();
+  });
+
+  it("does not make history look successful when its query fails", async () => {
+    const original = systemQuery.getMockImplementation()!;
+    systemQuery.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes("AS previous_purchase_count")) throw new Error("history_query_failed");
+      return original(sql, ...args);
+    });
+    await expect(collectChargebackEvidence(chargeback)).rejects.toThrow("history_query_failed");
+    expect(release).toHaveBeenCalled();
   });
 
   it("provides readable exception descriptions without echoing unknown upstream codes", () => {
