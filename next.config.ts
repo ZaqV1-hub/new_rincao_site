@@ -36,6 +36,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["nodemailer"],
   // The Windows sharp addon needs DLLs that static tracing does not discover.
   outputFileTracingIncludes: {
+    "/api/contagem/**/*": ["./node_modules/@img/sharp-win32-*/lib/*.dll", "./public/fonts/rubik-*.ttf"],
     "/api/painel/dias/*/programacao/export": ["./node_modules/@img/sharp-win32-*/lib/*.dll"],
   },
   async headers() {

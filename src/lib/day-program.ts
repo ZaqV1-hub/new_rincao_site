@@ -9,14 +9,15 @@ import { catalogId, getOperationalCatalogPool, withOperationalCatalogTransaction
 import { getCachedWeatherForecasts, type WeatherForecastDTO } from "@/lib/weather-forecast";
 
 type QueryClient = Pick<PoolClient, "query">;
-export type DayProgramVehicle = { id: number; type: "bus" | "van"; plannedPeople: number | null; state: "waiting" | "counting" | "completed"; version: number; addedOnDay: boolean };
+export type DayProgramVehicle = { id: number; type: "bus" | "van"; plannedPeople: number | null; state: "waiting" | "counting" | "completed";
+  version: number; addedOnDay: boolean; isExtra: boolean; ordinal: number; transportName: string | null };
 export type DayProgramCarrier = { id: number; name: string; contact: string | null; phone: string | null };
 export type DayProgramGroup = {
   agendaId: number; clientId: number; clientName: string; address: string | null; representative: string | null;
   contact: string | null; phone: string | null; plannedPeople: number | null;
-  transportMode: "unset" | "client" | "carrier"; carrierId: number | null; carrierContact: string | null; carrierPhone: string | null; boardingTime: string | null; observations: string | null;
+  transportMode: "unset" | "client" | "carrier"; carrierId: number | null; carrierContact: string | null; carrierPhone: string | null; boardingTime: string | null; observations: string | null; foodNotes: string | null;
   origins: { address: "client" | "contract" | null; representative: "contract" | null; contact: "operational" | "contract" | null; phone: "operational" | "contract" | null; observations: "operational" | "contract" | null };
-  buses: number | null; vans: number | null; vehicles: DayProgramVehicle[];
+  buses: number | null; vans: number | null; extraBuses: number; extraVans: number; vehicles: DayProgramVehicle[];
 };
 export type DayProgram = {
   park: OperationalParkId; date: string; version: number | null; exportedRevision: number | null; exportedAt: string | null;
@@ -31,7 +32,7 @@ export type DayProgramEditOptions = { allowPast?: boolean; reason?: string };
 export type DayProgramGroupInput = {
   agendaId: number; clientId: number; plannedPeople: number | null; contact: string | null; phone: string | null;
   transportMode: "unset" | "client" | "carrier"; carrierId: number | null; carrierContact: string | null; carrierPhone: string | null;
-  carrier?: Omit<DayProgramCarrier, "id">; boardingTime: string | null; observations: string | null;
+  carrier?: Omit<DayProgramCarrier, "id">; boardingTime: string | null; observations: string | null; foodNotes?: string | null;
   buses: number | null; vans: number | null;
 };
 export type DayProgramInput = DayProgramEditOptions & {
@@ -70,7 +71,7 @@ function editInput(input: unknown): DayProgramInput {
   if (data.groups !== undefined) {
     if (!Array.isArray(data.groups) || data.groups.length > 200) invalid();
     groups = data.groups.map((entry) => {
-      const g = record(entry, ["agendaId", "clientId", "plannedPeople", "contact", "phone", "transportMode", "carrierId", "carrierContact", "carrierPhone", "carrier", "boardingTime", "observations", "buses", "vans"]);
+      const g = record(entry, ["agendaId", "clientId", "plannedPeople", "contact", "phone", "transportMode", "carrierId", "carrierContact", "carrierPhone", "carrier", "boardingTime", "observations", "foodNotes", "buses", "vans"]);
       if (!["unset", "client", "carrier"].includes(String(g.transportMode))) invalid();
       const carrierId = g.carrierId === null ? null : integer(g.carrierId, Number.MAX_SAFE_INTEGER);
       let carrier: DayProgramGroupInput["carrier"];
@@ -88,7 +89,8 @@ function editInput(input: unknown): DayProgramInput {
       if (boardingTime !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(boardingTime)) invalid("Informe o embarque em HH:mm.");
       return { agendaId: integer(g.agendaId), clientId: integer(g.clientId), plannedPeople: g.plannedPeople === null ? null : integer(g.plannedPeople, 100000, 0),
         contact: text(g.contact, 160), phone: text(g.phone, 40), transportMode: g.transportMode as DayProgramGroupInput["transportMode"], carrierId, carrierContact, carrierPhone, ...(carrier ? { carrier } : {}),
-        boardingTime, observations: text(g.observations, 2000), buses: g.buses === null ? null : integer(g.buses, 100, 0), vans: g.vans === null ? null : integer(g.vans, 100, 0) };
+        boardingTime, observations: text(g.observations, 2000), ...(g.foodNotes === undefined ? {} : { foodNotes: text(g.foodNotes, 2000) }),
+        buses: g.buses === null ? null : integer(g.buses, 100, 0), vans: g.vans === null ? null : integer(g.vans, 100, 0) };
     });
     if (new Set(groups.map((g) => `${g.agendaId}:${g.clientId}`)).size !== groups.length) invalid("Não repita grupos.");
   }
@@ -121,7 +123,7 @@ async function readPrograms(client: QueryClient, park: OperationalParkId, dates:
       CASE WHEN o.transport_mode='carrier' THEN CASE WHEN o.carrier_contact_override THEN o.carrier_phone ELSE carrier.telefone END END AS "carrierPhone",
       o.planned_people AS "plannedPeople", COALESCE(o.transport_mode,'unset') AS "transportMode", o.carrier_id::text AS "carrierId", o.boarding_time AS "boardingTime",
       CASE WHEN o.agenda_id IS NOT NULL THEN o.observacoes ELSE NULLIF(trim(ct.observacao),'') END AS observations,
-      o.vehicle_plan_defined AS "vehiclePlanDefined",
+      o.vehicle_plan_defined AS "vehiclePlanDefined",o.food_notes AS "foodNotes",
       json_build_object('address',CASE WHEN NULLIF(trim(to_jsonb(c)->>'endereco'),'') IS NOT NULL THEN 'client' WHEN NULLIF(trim(ct.escola_endereco),'') IS NOT NULL THEN 'contract' END,
         'representative',CASE WHEN NULLIF(trim(ct.representante_nome),'') IS NOT NULL THEN 'contract' END,
         'contact',CASE WHEN o.agenda_id IS NOT NULL THEN 'operational' WHEN NULLIF(trim(ct.responsavel_nome),'') IS NOT NULL THEN 'contract' END,
@@ -135,7 +137,12 @@ async function readPrograms(client: QueryClient, park: OperationalParkId, dates:
       ORDER BY confirmado_em DESC NULLS LAST,idcontrato DESC LIMIT 1` : `SELECT NULL::text AS escola_endereco,NULL::text AS representante_nome,NULL::text AS responsavel_nome,NULL::text AS responsavel_telefone,NULL::text AS observacao`}) ct ON TRUE
     WHERE a.dtagenda=ANY($2::date[]) ORDER BY c.nome,a.idagenda,c.idcliente`, [park, dates])).rows;
   const vehicles = (await client.query<DayProgramVehicle & { agendaId: number; clientId: number }>(`SELECT v.id::text, v.agenda_id AS "agendaId",v.cliente_id AS "clientId",v.tipo AS type,
-    v.planned_people AS "plannedPeople",v.estado AS state,v.versao AS version,v.added_on_day AS "addedOnDay" FROM passeio_veiculos v JOIN agenda a ON a.idagenda=v.agenda_id
+    v.planned_people AS "plannedPeople",v.estado AS state,v.versao AS version,v.added_on_day AS "addedOnDay",v.is_extra AS "isExtra",v.ordinal,
+    COALESCE(vehicle_carrier.nome,CASE WHEN o.transport_mode='client' THEN 'Transporte do cliente' ELSE carrier.nome END) AS "transportName"
+    FROM passeio_veiculos v JOIN agenda a ON a.idagenda=v.agenda_id
+    JOIN passeio_operacao o ON o.parque=v.parque AND o.agenda_id=v.agenda_id AND o.cliente_id=v.cliente_id
+    LEFT JOIN transportadores carrier ON carrier.parque=o.parque AND carrier.id=o.carrier_id
+    LEFT JOIN transportadores vehicle_carrier ON vehicle_carrier.parque=v.parque AND vehicle_carrier.id=v.carrier_id
     WHERE v.parque=$1 AND a.dtagenda=ANY($2::date[]) ORDER BY v.id`, [park, dates])).rows;
   const carriers = (await client.query<DayProgramCarrier>(`SELECT id::text,nome AS name,contato AS contact,telefone AS phone FROM transportadores WHERE parque=$1 ORDER BY nome,id`, [park])).rows;
   const hiringItems = (await client.query<{ date: string; id: string; name: string; value: string | null }>(`SELECT dates.date::text, c.id::text,c.nome AS name,v.valor AS value FROM programacao_contratacao_catalogo c CROSS JOIN unnest($2::date[]) AS dates(date)
@@ -161,10 +168,16 @@ async function readPrograms(client: QueryClient, park: OperationalParkId, dates:
       readOnly: past || closed, closed, observations: row?.observations ?? null,
       groups: groups.flatMap(({ date: groupDate, vehiclePlanDefined, ...g }) => {
         if (groupDate !== date) return [];
-        const tripVehicles = vehicles.filter((v) => v.agendaId === g.agendaId && v.clientId === g.clientId).map((v) => ({ id: catalogId(String(v.id)), type: v.type, plannedPeople: v.plannedPeople, state: v.state, version: v.version, addedOnDay: v.addedOnDay }));
+        const tripVehicles = vehicles.filter((v) => v.agendaId === g.agendaId && v.clientId === g.clientId).map((v) => ({
+          id: catalogId(String(v.id)), type: v.type, plannedPeople: v.plannedPeople, state: v.state, version: v.version,
+          addedOnDay: v.addedOnDay, isExtra: v.isExtra, ordinal: v.ordinal, transportName: v.transportName,
+        }));
+        const planned = tripVehicles.filter((v) => !v.isExtra);
         return [{ ...g, carrierId: g.carrierId === null ? null : catalogId(String(g.carrierId)), vehicles: tripVehicles,
-          buses: vehiclePlanDefined || tripVehicles.length ? tripVehicles.filter((v) => v.type === "bus").length : null,
-          vans: vehiclePlanDefined || tripVehicles.length ? tripVehicles.filter((v) => v.type === "van").length : null }];
+          buses: vehiclePlanDefined || planned.length ? planned.filter((v) => v.type === "bus").length : null,
+          vans: vehiclePlanDefined || planned.length ? planned.filter((v) => v.type === "van").length : null,
+          extraBuses: tripVehicles.filter((v) => v.isExtra && v.type === "bus").length,
+          extraVans: tripVehicles.filter((v) => v.isExtra && v.type === "van").length }];
       }), carriers: carriers.map((c) => ({ ...c, id: catalogId(String(c.id)) })), hiringItems: hiringItems.flatMap(({ date: itemDate, ...item }) => itemDate === date ? [{ ...item, id: catalogId(item.id) }] : []),
       weather: weather[date] };
     program.sourceFingerprint = createHash("sha256").update(JSON.stringify({ park, date, observations: program.observations, groups: program.groups,
@@ -222,15 +235,17 @@ export async function createDayProgram(date: string, input: unknown, actor: Cata
 async function reconcileVehicles(client: PoolClient, park: OperationalParkId, date: string, g: DayProgramGroupInput, actor: CatalogActor) {
   if (g.buses === null || g.vans === null) return;
   for (const [type, desired] of [["bus", g.buses], ["van", g.vans]] as const) {
-    const rows = (await client.query<{ id: string; state: string; hasHistory: boolean }>(`SELECT id::text,estado AS state,
+    const rows = (await client.query<{ id: string; state: string; hasHistory: boolean; isExtra: boolean }>(`SELECT id::text,estado AS state,is_extra AS "isExtra",
       (to_jsonb(passeio_veiculos)->>'current_count_id' IS NOT NULL OR to_jsonb(passeio_veiculos)->>'last_completed_count_id' IS NOT NULL) AS "hasHistory"
       FROM passeio_veiculos WHERE parque=$1 AND agenda_id=$2 AND cliente_id=$3 AND tipo=$4 ORDER BY id FOR UPDATE`, [park, g.agendaId, g.clientId, type])).rows;
-    const remove = rows.length - desired;
+    const planned = rows.filter((v) => !v.isExtra);
+    const remove = planned.length - desired;
     if (remove > 0) {
-      const waiting = rows.filter((v) => v.state === "waiting" && !v.hasHistory).reverse();
+      const waiting = planned.filter((v) => v.state === "waiting" && !v.hasHistory).reverse();
       if (waiting.length < remove) throw new DayProgramError("vehicle_started", "A quantidade não pode remover veículos com contagem iniciada.");
       await client.query("DELETE FROM passeio_veiculos WHERE parque=$1 AND id=ANY($2::bigint[]) AND estado='waiting'", [park, waiting.slice(0, remove).map((v) => v.id)]);
     } else if (remove < 0) {
+      if (rows.length - remove > 100) invalid("O passeio pode ter até 100 veículos de cada tipo, incluindo os extras.");
       await client.query(`INSERT INTO passeio_veiculos (parque,agenda_id,cliente_id,tipo,added_on_day,created_by)
         SELECT $1,$2,$3,$4,$5,$6 FROM generate_series(1,$7::integer)`, [park, g.agendaId, g.clientId, type, date === getSaoPauloToday(), actor.cpf, -remove]);
     }
@@ -254,11 +269,12 @@ export async function saveDayProgram(date: string, input: unknown, actor: Catalo
         if (!carrier) invalid("Transportador indisponível neste parque.");
         carrierId = catalogId(carrier.id);
       } else if (carrierId !== null && !(await client.query("SELECT id FROM transportadores WHERE parque=$1 AND id=$2 FOR SHARE", [park, carrierId])).rowCount) invalid("Transportador indisponível neste parque.");
-      await client.query(`INSERT INTO passeio_operacao (parque,agenda_id,cliente_id,planned_people,contato,telefone,transport_mode,carrier_id,boarding_time,observacoes,vehicle_plan_defined,updated_by,carrier_contact,carrier_phone,carrier_contact_override)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$12,$11,$13,$14,TRUE) ON CONFLICT (parque,agenda_id,cliente_id) DO UPDATE SET
+      await client.query(`INSERT INTO passeio_operacao (parque,agenda_id,cliente_id,planned_people,contato,telefone,transport_mode,carrier_id,boarding_time,observacoes,vehicle_plan_defined,updated_by,carrier_contact,carrier_phone,carrier_contact_override,food_notes)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$12,$11,$13,$14,TRUE,$15) ON CONFLICT (parque,agenda_id,cliente_id) DO UPDATE SET
         planned_people=EXCLUDED.planned_people,contato=EXCLUDED.contato,telefone=EXCLUDED.telefone,transport_mode=EXCLUDED.transport_mode,carrier_id=EXCLUDED.carrier_id,
-        boarding_time=EXCLUDED.boarding_time,observacoes=EXCLUDED.observacoes,carrier_contact=EXCLUDED.carrier_contact,carrier_phone=EXCLUDED.carrier_phone,carrier_contact_override=TRUE,vehicle_plan_defined=passeio_operacao.vehicle_plan_defined OR EXCLUDED.vehicle_plan_defined,updated_by=EXCLUDED.updated_by,updated_at=now()`,
-      [park, g.agendaId, g.clientId, g.plannedPeople, g.contact, g.phone, g.transportMode, carrierId, g.boardingTime, g.observations, actor.cpf, g.buses !== null, g.carrierContact, g.carrierPhone]);
+        boarding_time=EXCLUDED.boarding_time,observacoes=EXCLUDED.observacoes,food_notes=CASE WHEN $16 THEN EXCLUDED.food_notes ELSE passeio_operacao.food_notes END,
+        carrier_contact=EXCLUDED.carrier_contact,carrier_phone=EXCLUDED.carrier_phone,carrier_contact_override=TRUE,vehicle_plan_defined=passeio_operacao.vehicle_plan_defined OR EXCLUDED.vehicle_plan_defined,updated_by=EXCLUDED.updated_by,updated_at=now()`,
+      [park, g.agendaId, g.clientId, g.plannedPeople, g.contact, g.phone, g.transportMode, carrierId, g.boardingTime, g.observations, actor.cpf, g.buses !== null, g.carrierContact, g.carrierPhone,g.foodNotes ?? null,g.foodNotes !== undefined]);
       await reconcileVehicles(client, park, date, g, actor);
     }
     for (const item of data.hiringItems ?? []) {

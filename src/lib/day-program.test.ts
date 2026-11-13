@@ -20,7 +20,7 @@ describe("day program input boundary", () => {
   it.each([{ groups: Array(201).fill({}) }, { observations: "x".repeat(2001) }, { hiringItems: Array(101).fill({}) }])("bounds payloads", async (extra) => {
     await expect(saveDayProgram("2099-01-01", { version: 1, ...extra }, actor)).rejects.toMatchObject({ code: "invalid_input" });
   });
-  it.each([{ buses: -1 }, { vans: 101 }, { boardingTime: "24:00" }, { plannedPeople: 0.5 }, { phone: "x".repeat(41) }, { carrierContact: "x".repeat(161) }, { carrierPhone: "x".repeat(41) },
+  it.each([{ buses: -1 }, { vans: 101 }, { boardingTime: "24:00" }, { plannedPeople: 0.5 }, { phone: "x".repeat(41) }, { carrierContact: "x".repeat(161) }, { carrierPhone: "x".repeat(41) }, { foodNotes: "x".repeat(2001) },
     { transportMode: "carrier" }, { transportMode: "client", carrierId: 1 }, { carrier: { name: " ", contact: null, phone: null } }])("rejects invalid operational group fields", async (extra) => {
     await expect(saveDayProgram("2099-01-01", { version: 1, groups: [{ ...group, ...extra }] }, actor)).rejects.toMatchObject({ code: "invalid_input" });
   });

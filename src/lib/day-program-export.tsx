@@ -34,15 +34,18 @@ export function buildDayProgramExportDocuments(program: DayProgram): ExportDocum
   const blocks: ExportBlock[] = [{ text: "Resumo do dia", heading: true },
     field("Público previsto dos grupos", total(program.groups, "plannedPeople")), field("Day use vendido", program.dayUseSold),
     field("Total de pessoas (previsto + vendido)", total(program.groups, "plannedPeople", program.dayUseSold)),
-    field("Ônibus", total(program.groups, "buses")), field("Vans", total(program.groups, "vans")),
+    field("Ônibus previstos", total(program.groups, "buses")), field("Vans previstas", total(program.groups, "vans")),
     { text: "Grupos do dia", heading: true }];
   if (!program.groups.length) blocks.push({ text: "Nenhum grupo nesta data." });
   for (const [index, group] of program.groups.entries()) {
     const carrier = group.carrierId === null ? undefined : carrierById.get(group.carrierId);
     blocks.push({ text: `${index + 1}. ${group.clientName}`, heading: true }, field("Representante", group.representative),
       field("Contato", group.contact), field("Telefone", group.phone), field("Endereço", group.address),
-      field("Público previsto", group.plannedPeople), field("Ônibus", group.buses), field("Vans", group.vans),
+      field("Público previsto", group.plannedPeople), field("Ônibus previstos", group.buses), field("Vans previstas", group.vans),
       field("Transportador", group.transportMode === "client" ? "Transporte do cliente" : group.transportMode === "carrier" ? carrier?.name ?? null : null));
+    for (const vehicle of group.vehicles.filter(vehicle => vehicle.isExtra)) {
+      blocks.push(field(`${vehicle.type === "bus" ? "Ônibus" : "Van"} ${vehicle.ordinal} extra`, vehicle.transportName));
+    }
     if (group.transportMode === "carrier" && carrier) blocks.push(field("Contato do transportador", group.carrierContact), field("Telefone do transportador", group.carrierPhone));
     if (group.transportMode === "unset" || (group.transportMode === "carrier" && !carrier)) blocks.push({ text: "Sem ficha: transportador a preencher." });
     blocks.push(field("Embarque", group.boardingTime), field("Observações", group.observations));

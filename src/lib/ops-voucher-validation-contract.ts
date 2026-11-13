@@ -68,7 +68,7 @@ export type VoucherAgendaUsageResult =
 export class VoucherOperationError extends Error {
   code: string;
   status: number;
-  details?: { validation: { periodId: number | null; locationName: string | null; validatedAt: string | null; date: string | null; time: string | null } };
+  details?: { validation: { periodId: number | null; actorName?: string | null; locationName: string | null; validatedAt: string | null; date: string | null; time: string | null } };
 
   constructor(code: string, message: string, status: number) {
     super(message);

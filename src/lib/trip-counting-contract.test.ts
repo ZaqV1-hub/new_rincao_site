@@ -13,9 +13,33 @@ describe('counting input and existing ages', () => {
     draft.counts.adult = 20; draft.counts.pcdChild = 2;
     draft.responsible = { name: 'Maria',phone: '(11) 98765-4321',confirmed: true };
     expect(() => normalizeCountDraft(draft,true)).toThrow();
-    draft.pcdDetails = [{ category: 'pcdChild',description: 'Mobilidade reduzida',quantity: 2 }];
+    draft.pcdDetails = [{ category: 'pcdChild',description: 'Física',quantity: 2 }];
     expect(normalizeCountDraft(draft,true).responsible.phone).toBe('5511987654321');
     expect(() => normalizeCountDraft({ ...draft,responsible: { ...draft.responsible,confirmed: false } },true)).toThrow();
+  });
+  it('accepts the seven fixed PCD types and aggregates repeated entries in a new draft', () => {
+    const draft = emptyCountDraft();
+    draft.counts.pcdChild = 8;
+    draft.pcdDetails = ['Física','Visual','Auditiva','Intelectual','TEA (autismo)','Múltipla','Outra','Física']
+      .map(description => ({ category: 'pcdChild',description,quantity: 1 }));
+    const saved = normalizeCountDraft(draft,false);
+    expect(saved.pcdDetails).toHaveLength(7);
+    expect(saved.pcdDetails[0]).toEqual({ category: 'pcdChild',description: 'Física',quantity: 2 });
+    expect(() => normalizeCountDraft({ ...draft,counts: { ...draft.counts,pcdChild: 7 } },false)).toThrow();
+  });
+  it('preserves legacy PCD descriptions on read and requires fixed choices for a new completion', () => {
+    const draft = emptyCountDraft(); for (const key of Object.keys(draft.counts) as (keyof typeof draft.counts)[]) draft.counts[key] = 0;
+    draft.counts.pcdAdult = 1;
+    draft.pcdDetails = [{ category: 'pcdAdult',description: 'Mobilidade reduzida',quantity: 1 }];
+    draft.responsible = { name: 'Maria',phone: '5511987654321',confirmed: true };
+    expect(normalizeCountDraft(draft,true,{ catalogVersion: 1,reading: true })).toEqual(draft);
+    expect(() => normalizeCountDraft(draft,true)).toThrow();
+  });
+  it('rejects a new completion with zero people while preserving historical zero reads', () => {
+    const draft = emptyCountDraft(); for (const key of Object.keys(draft.counts) as (keyof typeof draft.counts)[]) draft.counts[key] = 0;
+    draft.responsible = { name: 'Maria',phone: '5511987654321',confirmed: true };
+    expect(() => normalizeCountDraft(draft,true)).toThrow('ao menos uma pessoa');
+    expect(normalizeCountDraft(draft,true,{ catalogVersion: 1,reading: true })).toEqual(draft);
   });
   it.each([-1,1.1,100001,NaN,Infinity,'2'])('rejects invalid count %s', value => {
     expect(() => normalizeCountDraft({ ...emptyCountDraft(),counts: { ...emptyCountDraft().counts,adult: value } },false)).toThrow();

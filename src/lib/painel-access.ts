@@ -33,6 +33,7 @@ export type LegacyPanelResource =
   | "vis_bilhet"
   | "vis_contra"
   | "vis_contagem"
+  | "vis_portaria"
   | "vis_enfermaria";
 
 const allLegacyPanelResources: LegacyPanelResource[] = [
@@ -55,6 +56,7 @@ const allLegacyPanelResources: LegacyPanelResource[] = [
   "vis_bilhet",
   "vis_contra",
   "vis_contagem",
+  "vis_portaria",
   "vis_enfermaria",
 ];
 
@@ -79,6 +81,7 @@ const legacyPanelResources: Record<LegacyPanelRoleId, LegacyPanelResource[]> = {
     "vis_bilhet",
     "vis_contra",
     "vis_contagem",
+  "vis_portaria",
     "vis_enfermaria",
   ],
   2: [

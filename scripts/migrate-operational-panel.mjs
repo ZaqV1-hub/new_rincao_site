@@ -19,6 +19,11 @@ const migrations = [
   "2026-11-13-day-closure.sql",
   "2026-11-13-owner-access.sql",
   "2026-11-13-summary-date-indexes.sql",
+  "2026-11-13-counting-app-details.sql",
+  "2026-11-13-counting-admissions.sql",
+  "2026-11-13-counting-day-revisions.sql",
+  "2026-11-13-counting-manual-shares.sql",
+  "2026-11-13-counting-access.sql",
 ];
 
 export function migrationSql(contents) {

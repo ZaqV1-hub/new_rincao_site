@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { expireUnusedVouchers, rescheduleUserVoucher, resetVoucherLifecycleSchemaForTests } from "@/lib/voucher-repository";
 import { lockVoucherCashContext } from "@/lib/ops-voucher-validation-cash";
 import { validateVoucherByNumber, validateSelectedVouchers, validateSchoolTripVouchers, unvalidateSelectedVouchers, invalidateSelectedVouchers } from "@/lib/ops-voucher-validation";
+import { admitCountingVoucher } from "./counting-admission";
 import { markVoucherUsed } from "@/lib/ops-voucher-validation-shared";
 
 const mock = vi.hoisted(() => ({ pool: null as Pool | null }));
@@ -41,6 +42,8 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
       CREATE TABLE movimentacao_caixa(id SERIAL PRIMARY KEY,tipo TEXT);
       CREATE TABLE edicoes_log(id SERIAL PRIMARY KEY,origem VARCHAR(30),acao VARCHAR(30),compra_id INTEGER,movimentacao_id INTEGER,movimentacao_tipo VARCHAR(20),periodo_id INTEGER,folha_id INTEGER,descricao TEXT,motivo TEXT,usuario_nome TEXT,detalhes_json TEXT,created_at TIMESTAMPTZ DEFAULT now());
       CREATE TABLE online_capacity_reservations (idcompra INT PRIMARY KEY, delivery_hold BOOLEAN DEFAULT false);
+      CREATE TABLE agenda_extras(idagenda integer,idcliente integer);
+      CREATE TABLE contagem_entradas(parque text,idempotency_key text,actor_cpf text,request_hash text,result jsonb,PRIMARY KEY(parque,idempotency_key));
       CREATE TABLE passeio_operacao(parque text,agenda_id integer,cliente_id integer,finalized_receipt_id uuid);
       CREATE TABLE operacao_dias (parque TEXT, data DATE, estado TEXT, PRIMARY KEY (parque,data));
     `);
@@ -53,7 +56,7 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
   });
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao"); resetVoucherLifecycleSchemaForTests();
-    await pool.query("TRUNCATE voucher, compra, agenda, operacao_dias, online_capacity_reservations,pagpagseguro,edicoes_log,caixa_operacoes,caixa_periodos,caixa_locais,caixa_fechamentos,compra_pagamentos RESTART IDENTITY CASCADE");
+    await pool.query("TRUNCATE contagem_entradas,agenda_extras,voucher, compra, agenda, operacao_dias, online_capacity_reservations,pagpagseguro,edicoes_log,caixa_operacoes,caixa_periodos,caixa_locais,caixa_fechamentos,compra_pagamentos RESTART IDENTITY CASCADE");
     await pool.query(`INSERT INTO compra (idcompra,cpf,dtcompra,stcompra) VALUES (1,'52998224725',$1::date-10,'conc');
       `, [today]);
     await pool.query("INSERT INTO pagpagseguro VALUES(1,3); INSERT INTO caixa_locais(parque,nome,tipo) VALUES('rincao','Portaria','sales'),('rincao','Piscina','sales')");
@@ -63,6 +66,81 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
     await pool.query(`INSERT INTO voucher (idvoucher,idcompra,idagenda,dtinicio_validade,dtvalidade,parque_operacional)
       VALUES (1,1,1,$1::date-5,$1,'rincao'), (2,1,1,$1::date-5,$1::date-1,'rincao'),(3,1,1,NULL,$1::date-1,NULL)`, [today]);
     await pool.query("UPDATE voucher SET numvoucher='TICKET-'||idvoucher");
+  });
+
+  it("admits at the gate without any cash session and reconciles the same attempt", async () => {
+    await pool.query('DELETE FROM caixa_periodos');
+    const actor = { name: 'Monitora', cpf: '52998224725' };
+    const input = { date:today, code: '1-1', idempotencyKey: 'gate-1' };
+    const result = await admitCountingVoucher(input,actor);
+    expect(result).toMatchObject({ voucherId: 1, admitted: true });
+    expect(await admitCountingVoucher(input,actor)).toMatchObject({voucherId:result.voucherId,replayed:true,date:today});
+    const row = (await pool.query('SELECT validacao_periodo_id,validado_por_nome,stusado FROM voucher WHERE idvoucher=1')).rows[0];
+    expect(row).toEqual({ validacao_periodo_id:null,validado_por_nome:'Monitora',stusado:'s' });
+    expect((await pool.query('SELECT count(*) FROM caixa_periodos')).rows[0].count).toBe('0');
+    await expect(admitCountingVoucher({ ...input,idempotencyKey:'gate-other' },actor)).rejects.toMatchObject({ code:'voucher_already_used',details:{validation:{actorName:'Monitora'}} });
+  });
+  it("admits once when two gate readers race and rejects wrong purchase or services", async () => {
+    const actor = { name:'A',cpf:'52998224725' };
+    await expect(admitCountingVoucher({date:today,code:'9-1',idempotencyKey:'wrong'},actor)).rejects.toMatchObject({ code:'voucher_purchase_mismatch' });
+    await pool.query("UPDATE voucher SET tpvoucher='espec' WHERE idvoucher=1");
+    await expect(admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'service'},actor)).rejects.toMatchObject({code:'gate_admission_only'});
+    await pool.query("UPDATE voucher SET tpvoucher='norma' WHERE idvoucher=1");
+    const results=await Promise.allSettled([admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'race-a'},actor),admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'race-b'},{name:'B',cpf:'11144477735'})]);
+    expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);
+    expect((await pool.query('SELECT count(*) FROM contagem_entradas')).rows[0].count).toBe('1');
+  });
+  it("gate rejects expired, unpaid, wrong-park and closed-day admissions", async () => {
+    const actor={name:'A',cpf:'52998224725'};
+    await expect(admitCountingVoucher({date:today,code:'1-2',idempotencyKey:'expired'},actor)).rejects.toMatchObject({code:'voucher_expired'});
+    await pool.query("UPDATE compra SET stcompra='pend'");
+    await expect(admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'unpaid'},actor)).rejects.toMatchObject({code:'voucher_payment_pending'});
+    await pool.query("UPDATE compra SET stcompra='conc'; UPDATE voucher SET parque_operacional='estancia' WHERE idvoucher=1");
+    await expect(admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'park'},actor)).rejects.toMatchObject({code:'voucher_park_mismatch'});
+    await pool.query("UPDATE voucher SET parque_operacional='rincao'; UPDATE agenda SET stagenda='fec' WHERE idagenda=2");
+    await expect(admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'closed'},actor)).rejects.toMatchObject({code:'voucher_day_closed'});
+  });
+
+
+  it("does not turn an expired attempt into a fresh admission and accepts paid reservations",async()=>{
+    const actor={name:'A',cpf:'52998224725'};
+    await expect(admitCountingVoucher({date:'2000-01-01',code:'1-1',idempotencyKey:'old'},actor)).rejects.toMatchObject({code:'gate_date_changed'});
+    await pool.query("UPDATE compra SET tpcompra='reser',formapag='N/A'");
+    await expect(admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'reserve'},actor)).rejects.toMatchObject({code:'voucher_payment_pending'});
+    await pool.query("UPDATE compra SET formapag='PIX'");
+    expect(await admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'reserve-paid'},actor)).toMatchObject({admitted:true,replayed:false});
+  });
+  it("blocks gate admission after the financial day closes while agenda remains open",async()=>{
+    await pool.query("INSERT INTO operacao_dias VALUES('rincao',$1,'closed')",[today]);
+    await expect(admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'financial-closed'},{name:'A',cpf:'52998224725'})).rejects.toMatchObject({code:'voucher_day_closed'});
+  });
+
+
+  it("prevents a concurrent financial close from freezing a pre-admission snapshot",async()=>{
+    await pool.query("INSERT INTO operacao_dias VALUES('rincao',$1,'open')",[today]);
+    const closing=await pool.connect(),gate=await pool.connect(),original=gate.query.bind(gate);
+    let releaseGate!:()=>void,gateReady!:()=>void;
+    const ready=new Promise<void>(resolve=>{gateReady=resolve;}),release=new Promise<void>(resolve=>{releaseGate=resolve;});
+    const query=vi.spyOn(gate,'query').mockImplementation((async (text:string,values?:unknown[])=>{
+      if(text.startsWith('INSERT INTO contagem_entradas')){gateReady();await release;}
+      return original(text,values);
+    }) as typeof gate.query);
+    vi.spyOn(pool,'connect').mockImplementationOnce((()=>Promise.resolve(gate)) as typeof pool.connect);
+    const admission=admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'concurrent-close'},{name:'A',cpf:'52998224725'});
+    try{
+      await ready;
+      await closing.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
+      await closing.query('SELECT estado FROM operacao_dias WHERE parque=$1 AND data=$2',['rincao',today]);
+      const close=(async()=>{
+        await closing.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`operational-day:rincao:${today}`]);
+        await closing.query('SELECT stusado FROM voucher WHERE idvoucher=1');
+        await closing.query("UPDATE operacao_dias SET estado='closed' WHERE parque='rincao'");
+        await closing.query('COMMIT');
+      })();
+      releaseGate();
+      expect(await admission).toMatchObject({admitted:true});
+      await expect(close).rejects.toMatchObject({code:'40001'});
+    }finally{releaseGate();query.mockRestore();vi.restoreAllMocks();await closing.query('ROLLBACK');closing.release();}
   });
 
   it("expires snapshots at their exact end while preserving legacy six month validity", async () => {

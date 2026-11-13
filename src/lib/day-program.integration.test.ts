@@ -37,11 +37,14 @@ describe.skipIf(!connectionString)("day program PostgreSQL transactions", () => 
     await pool.query(await readFile(new URL("../../docs/sql/2026-11-12-day-program.sql", import.meta.url), "utf8"));
     await pool.query(await readFile(new URL("../../docs/sql/2026-11-12-day-program.sql", import.meta.url), "utf8"));
     await pool.query(await readFile(new URL("../../docs/sql/2026-11-12-weather-forecast.sql", import.meta.url), "utf8"));
+    await pool.query(await readFile(new URL("../../docs/sql/2026-11-13-trip-counting.sql", import.meta.url), "utf8"));
+    await pool.query(await readFile(new URL("../../docs/sql/2026-11-13-counting-app-details.sql", import.meta.url), "utf8"));
+    await pool.query(await readFile(new URL("../../docs/sql/2026-11-13-counting-day-revisions.sql", import.meta.url), "utf8"));
   });
   afterAll(async () => { try { await pool?.end(); if (created) await admin.query(`DROP SCHEMA ${schema} CASCADE`); } finally { await admin?.end(); } });
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao");
-    await pool.query(`TRUNCATE weather_forecast_days, weather_forecast_cache, programacao_exportacoes, compra, voucher, programacao_contratacoes, passeio_veiculos, passeio_operacao, transportadores, programacoes_dia, operacao_dias, agenda_extras, clientes, agenda, contrato_escolar_agendamento, edicoes_log RESTART IDENTITY;
+    await pool.query(`TRUNCATE weather_forecast_days, weather_forecast_cache, programacao_exportacoes, compra, voucher, programacao_contratacoes, passeio_veiculos, passeio_operacao, transportadores, programacoes_dia, operacao_dias, agenda_extras, clientes, agenda, contrato_escolar_agendamento, edicoes_log RESTART IDENTITY CASCADE;
       DELETE FROM programacao_contratacao_catalogo WHERE ordem=100;
       INSERT INTO agenda (idagenda,dtagenda) VALUES (1,'2099-01-01'),(2,'2099-01-02'),(3,'2000-01-01');
       INSERT INTO clientes VALUES (1,'Escola A','Cadastro A'),(2,'Escola B',NULL);
@@ -75,12 +78,11 @@ describe.skipIf(!connectionString)("day program PostgreSQL transactions", () => 
   });
   it('does not remove a waiting vehicle that already has counting history', async () => {
     await createDayProgram(date,{},actor); const program = await saveDayProgram(date,{ version: 1,groups: [group] },actor);
-    await pool.query('ALTER TABLE passeio_veiculos ADD COLUMN current_count_id uuid');
-    try {
-      await pool.query("UPDATE passeio_veiculos SET current_count_id='11111111-1111-1111-1111-111111111111' WHERE id=1");
-      await expect(saveDayProgram(date,{ version: program.version,groups: [{ ...group,buses: 0 }] },actor)).rejects.toMatchObject({ code: 'vehicle_started' });
-      expect((await pool.query('SELECT count(*) FROM passeio_veiculos')).rows[0].count).toBe('2');
-    } finally { await pool.query('ALTER TABLE passeio_veiculos DROP COLUMN current_count_id'); }
+    await pool.query(`INSERT INTO passeio_contagens(id,parque,vehicle_id,catalog_version,status,counts,created_by)
+      VALUES('11111111-1111-1111-1111-111111111111','rincao',1,1,'draft','{}','00000000001');
+      UPDATE passeio_veiculos SET current_count_id='11111111-1111-1111-1111-111111111111' WHERE id=1`);
+    await expect(saveDayProgram(date,{ version: program.version,groups: [{ ...group,buses: 0 }] },actor)).rejects.toMatchObject({ code: 'vehicle_started' });
+    expect((await pool.query('SELECT count(*) FROM passeio_veiculos')).rows[0].count).toBe('2');
   });
   it("serializes competing autosaves and retains the winner without overwriting its draft", async () => {
     await createDayProgram(date, {}, actor);
@@ -109,6 +111,20 @@ describe.skipIf(!connectionString)("day program PostgreSQL transactions", () => 
     const saved = await saveDayProgram(date, { version: 1, groups: [{ ...group, buses: null, vans: null }] }, actor);
     expect(saved.groups[0]).toMatchObject({ contact: "Responsável", buses: null, vans: null, vehicles: [] });
     await expect(saveDayProgram(date, { version: 2, groups: [{ ...group, buses: null }] }, actor)).rejects.toMatchObject({ code: "invalid_input" });
+  });
+  it('keeps extra vehicles separate when planned quantities and food notes change', async () => {
+    await createDayProgram(date,{},actor);
+    await saveDayProgram(date,{ version: 1,groups: [group] },actor);
+    const extra = (await pool.query(`INSERT INTO passeio_veiculos(parque,agenda_id,cliente_id,tipo,is_extra)
+      VALUES('rincao',1,1,'bus',true) RETURNING id::int AS id`)).rows[0].id;
+    const saved = await saveDayProgram(date,{ version: 2,groups: [{ ...group,buses: 1,foodNotes: 'Sem lactose' }] },actor);
+    expect(saved.groups[0]).toMatchObject({ buses: 1,extraBuses: 1,foodNotes: 'Sem lactose',vehicles: [
+      { id: 1,ordinal: 1,isExtra: false },{ id: extra,ordinal: 3,isExtra: true },
+    ] });
+    const next = await saveDayProgram(date,{ version: 3,groups: [{ ...group,buses: 2 }] },actor);
+    expect(next.groups[0]).toMatchObject({ buses: 2,extraBuses: 1,foodNotes: 'Sem lactose',vehicles: [
+      { ordinal: 1 },{ id: extra,ordinal: 3 },{ ordinal: 4,isExtra: false },
+    ] });
   });
   it("persists carriers and extra hiring catalog items for later dates without carrying assignments", async () => {
     await createDayProgram(date, {}, actor);

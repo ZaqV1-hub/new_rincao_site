@@ -6,6 +6,9 @@ describe("painel-access", () => {
     expect(getDefaultPainelPath(1)).toBe("/painel");
   });
   it('recognizes counting access and grants it by default only to managers', () => {
+    expect(normalizeLegacyPanelResource('vis_portaria')).toBe('vis_portaria');
+    expect(getLegacyPanelResources(1)).toContain('vis_portaria');
+    for(const role of [2,3,4,5] as const)expect(getLegacyPanelResources(role)).not.toContain('vis_portaria');
     expect(normalizeLegacyPanelResource('vis_contagem')).toBe('vis_contagem');
     expect(getLegacyPanelResources(1)).toContain('vis_contagem');
     for (const role of [2,3,4,5] as const) expect(getLegacyPanelResources(role)).not.toContain('vis_contagem');

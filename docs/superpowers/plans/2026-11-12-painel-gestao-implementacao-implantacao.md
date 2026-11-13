@@ -1,5 +1,7 @@
 # Painel de gestão Rincão — plano de implementação e implantação
 
+> **Complemento de escopo em 13/11/2026:** os arquivos próprios do app de contagem foram recebidos depois da implementação E7. Os checks de E7 abaixo registram a base entregue, não a aderência integral ao novo protótipo. Ver [análise de aderência](../specs/2026-11-13-app-contagem-analise-de-aderencia.md) e [plano complementar do app](2026-11-13-app-contagem-adequacao-implementacao.md). As novas regras de monitor assumir/recontar, encerramento separado do financeiro e entrada QR sem caixa foram confirmadas pelo usuário; adequação funcional ainda não iniciada.
+
 > **Execução autorizada em 12/11/2026:** usuário aprovou todas as recomendações e a implementação. Trabalhar localmente por entregas verificáveis, com revisão; atualizar o Product Owner e enviar para `develop` somente ao final. Não há autorização nova para promover este painel à `main`.
 
 **Objetivo:** colocar em operação a gestão por data, programação do dia seguinte, caixas por local, passeios, contagem, fechamento diário e visão dos donos para Rincão e Estância.

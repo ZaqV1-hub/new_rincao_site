@@ -7,7 +7,7 @@ import { buildDayProgramExportDocuments, renderDayProgramBundle } from "@/lib/da
 function group(clientId: number, carrierId: number | null, extra: Partial<DayProgramGroup> = {}): DayProgramGroup {
   return { agendaId: 20, clientId, clientName: `Escola ${clientId}`, address: `Rua ${clientId}`, representative: "Representante", contact: `Contato ${clientId}`, phone: `Telefone ${clientId}`, plannedPeople: 30,
     carrierContact: carrierId === 8 ? "Contato A" : "Contato B", carrierPhone: carrierId === 8 ? "1111" : "9999",
-    transportMode: carrierId === null ? "unset" : "carrier", carrierId, boardingTime: "07:30", observations: null, buses: 1, vans: 0, vehicles: [],
+    transportMode: carrierId === null ? "unset" : "carrier", carrierId, boardingTime: "07:30", observations: null, foodNotes: null, buses: 1, vans: 0, extraBuses: 0, extraVans: 0, vehicles: [],
     origins: { address: "client", representative: "contract", contact: "operational", phone: "operational", observations: null }, ...extra };
 }
 function fixture(): DayProgram {
@@ -19,6 +19,14 @@ function fixture(): DayProgram {
 }
 
 describe("day program export", () => {
+  it('shows the extra vehicle and its own transport in the general program', () => {
+    const input = fixture();
+    input.groups[0].extraBuses = 1;
+    input.groups[0].vehicles = [{ id: 92,type: 'bus',plannedPeople: null,state: 'waiting',version: 1,addedOnDay: true,isExtra: true,ordinal: 2,transportName: 'Viagens do Extra' }];
+    const [program,carrier] = buildDayProgramExportDocuments(input);
+    expect(program.blocks.map(block => block.text)).toContain('Ônibus 2 extra: Viagens do Extra');
+    expect(carrier.blocks.map(block => block.text)).not.toContain('Ônibus 2 extra: Viagens do Extra');
+  });
   it("groups stops by ID and shares only each carrier's operational stops", () => {
     const documents = buildDayProgramExportDocuments(fixture());
     expect(documents.map((document) => document.filename)).toEqual(["programacao", "transportador-8", "transportador-9"]);

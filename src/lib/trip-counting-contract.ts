@@ -12,6 +12,9 @@ export const COUNT_CATEGORIES = {
 } as const satisfies Record<keyof TripSettlementCounts,{ label: string; group: string }>;
 export type CountCategory = keyof typeof COUNT_CATEGORIES;
 export const countCategories = Object.keys(COUNT_CATEGORIES) as CountCategory[];
+export const PCD_TYPES = ['Física','Visual','Auditiva','Intelectual','TEA (autismo)','Múltipla','Outra'] as const;
+export type PcdType = (typeof PCD_TYPES)[number];
+export const COUNT_CATALOG_VERSION = 2;
 export type CountDraft = {
   counts: Record<CountCategory,number | null>;
   pcdDetails: { category: 'pcdChild' | 'pcdAdult'; description: string; quantity: number }[];
@@ -40,7 +43,8 @@ export function countId(value: unknown): number {
 export function emptyCountDraft(): CountDraft {
   return { counts: Object.fromEntries(countCategories.map(key => [key,null])) as CountDraft['counts'],pcdDetails: [],notes: '',responsible: { name: '',phone: '',confirmed: false } };
 }
-export function normalizeCountDraft(value: unknown, complete: boolean): CountDraft {
+export function normalizeCountDraft(value: unknown, complete: boolean, context?: { catalogVersion: number; reading: true }): CountDraft {
+  const legacy = context?.catalogVersion === 1;
   const data = countRecord(value,['counts','pcdDetails','notes','responsible']);
   const raw = countRecord(data.counts,countCategories), counts = emptyCountDraft().counts;
   for (const key of countCategories) {
@@ -49,17 +53,23 @@ export function normalizeCountDraft(value: unknown, complete: boolean): CountDra
     if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 100000) return invalidCount('Informe todas as quantidades, inclusive zeros, antes de concluir.');
     counts[key] = value;
   }
-  if (Object.values(counts).reduce<number>((sum,n) => sum+(n ?? 0),0) > 100000) return invalidCount('A contagem ultrapassa o limite de registro.');
+  const total = Object.values(counts).reduce<number>((sum,n) => sum+(n ?? 0),0);
+  if (total > 100000) return invalidCount('A contagem ultrapassa o limite de registro.');
+  if (complete && !legacy && total === 0) return invalidCount('Conte ao menos uma pessoa antes de concluir.');
   if (!Array.isArray(data.pcdDetails) || data.pcdDetails.length > 40) return invalidCount();
-  const pcdDetails = data.pcdDetails.map((value): CountDraft['pcdDetails'][number] => {
+  const pcdDetails: CountDraft['pcdDetails'] = [];
+  for (const value of data.pcdDetails) {
     const entry = countRecord(value,['category','description','quantity']);
     if (entry.category !== 'pcdChild' && entry.category !== 'pcdAdult') return invalidCount();
     const description = countText(entry.description,120), quantity = countId(entry.quantity);
     if (!description || quantity > 100000) return invalidCount();
-    return { category: entry.category,description,quantity };
-  });
-  if (complete) for (const key of ['pcdChild','pcdAdult'] as const) {
-    if (pcdDetails.filter(item => item.category === key).reduce((sum,item) => sum+item.quantity,0) !== counts[key]) return invalidCount('Os detalhes de PCD devem corresponder à quantidade contada.');
+    if (!legacy && !PCD_TYPES.some(type => type === description)) return invalidCount('Selecione um dos tipos de PCD disponíveis.');
+    const existing = !legacy && pcdDetails.find(item => item.category === entry.category && item.description === description);
+    if (existing) existing.quantity += quantity;
+    else pcdDetails.push({ category: entry.category,description,quantity });
+  }
+  if (complete || !legacy) for (const key of ['pcdChild','pcdAdult'] as const) {
+    if (pcdDetails.filter(item => item.category === key).reduce((sum,item) => sum+item.quantity,0) !== (counts[key] ?? 0)) return invalidCount('Os detalhes de PCD devem corresponder à quantidade contada.');
   }
   const responsible = countRecord(data.responsible,['name','phone','confirmed']);
   const name = countText(responsible.name,160), rawPhone = countText(responsible.phone,40);

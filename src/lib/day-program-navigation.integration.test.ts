@@ -23,11 +23,11 @@ describe.skipIf(!connectionString)("program navigation PostgreSQL", () => {
       CREATE TABLE voucher(id INTEGER PRIMARY KEY,idcompra INTEGER,idagenda INTEGER,dtinicio_validade DATE,parque_operacional TEXT,tpvoucher TEXT,idescola INTEGER,servico_id INTEGER,stusado TEXT);
       CREATE TABLE edicoes_log(id SERIAL PRIMARY KEY,origem VARCHAR(30),acao VARCHAR(30),compra_id INTEGER,movimentacao_id INTEGER,
         movimentacao_tipo VARCHAR(20),periodo_id INTEGER,folha_id INTEGER,descricao TEXT,motivo TEXT,usuario_nome VARCHAR(255),detalhes_json TEXT,created_at TIMESTAMPTZ DEFAULT now());`);
-    for (const migration of ["2026-11-12-day-program.sql", "2026-11-12-weather-forecast.sql"]) await pool.query(await readFile(new URL(`../../docs/sql/${migration}`, import.meta.url), "utf8"));
+    for (const migration of ["2026-11-12-day-program.sql", "2026-11-12-weather-forecast.sql", "2026-11-13-trip-counting.sql", "2026-11-13-counting-app-details.sql", "2026-11-13-counting-day-revisions.sql"]) await pool.query(await readFile(new URL(`../../docs/sql/${migration}`, import.meta.url), "utf8"));
   });
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao");
-    await pool.query(`TRUNCATE programacao_exportacoes, programacao_contratacoes, passeio_veiculos, passeio_operacao, transportadores, programacoes_dia, operacao_dias, agenda_extras, clientes, agenda, compra, voucher, edicoes_log RESTART IDENTITY;
+    await pool.query(`TRUNCATE programacao_exportacoes, programacao_contratacoes, passeio_veiculos, passeio_operacao, transportadores, programacoes_dia, operacao_dias, agenda_extras, clientes, agenda, compra, voucher, edicoes_log RESTART IDENTITY CASCADE;
       INSERT INTO agenda VALUES (1,'2099-10-30','padra','abe'),(2,'2099-11-01','padra','fec'),(3,'2099-11-02','escol','fec'),(4,'2099-11-10','padra','lot'),(5,'2099-11-11','padra','abe');
       INSERT INTO clientes VALUES (1,'Escola privada','Endereço privado'); INSERT INTO agenda_extras VALUES (3,1);
       INSERT INTO operacao_dias VALUES ('rincao','2099-11-11','closed');

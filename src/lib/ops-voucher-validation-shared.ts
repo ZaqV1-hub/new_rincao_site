@@ -5,8 +5,9 @@ export type { VoucherValidationRow, SchoolTripVoucherRow, VoucherOperationMode, 
 export { buildAuditActorName, normalizeCpfDigits, getAffectedVoucherRows, collectAffectedAgendaIds, resolveAuditPurchaseId, buildVoucherAuditDescription, buildVoucherAuditReason, registerVoucherOperationAuditLog } from "@/lib/ops-voucher-validation-audit";
 import { type PoolClient } from "pg";
 import { getSchoolPaymentHold } from "@/lib/school-payment-eligibility";
+import { lockOperationalDay } from "@/lib/operational-day-lock";
 import { getOperationalParkId } from "@/lib/operational-day-contract";
-import { isCivilDate } from "@/lib/operational-date";
+import { getSaoPauloToday, isCivilDate } from "@/lib/operational-date";
 import { syncTicketValidation } from "@/lib/ticket-service";
 import { CashSessionError } from "@/lib/operational-cash-session";
 import { assertVoucherCashDate, type VoucherCashContext } from "@/lib/ops-voucher-validation-cash";
@@ -117,7 +118,7 @@ export function buildAlreadyUsedMessage(row: VoucherValidationRow) {
 
 export function alreadyUsedError(row: VoucherValidationRow) {
   const error = new VoucherOperationError("voucher_already_used", buildAlreadyUsedMessage(row), 409);
-  error.details = { validation: { periodId: row.validacao_periodo_id ?? null, locationName: row.validacao_local_nome ?? null,
+  error.details = { validation: { periodId: row.validacao_periodo_id ?? null, locationName: row.validacao_local_nome ?? null, actorName: row.validado_por_nome ?? null,
     validatedAt: row.validado_em ?? null, date: row.dtuso, time: row.hruso } };
   return error;
 }
@@ -146,16 +147,28 @@ export function evaluateAgendaUsage(
   };
 }
 
+export type VoucherAdmissionContext = VoucherCashContext | { kind: 'gate'; park: string; date: string };
+function assertAdmissionDate(context: VoucherAdmissionContext, date: string) {
+  if ('kind' in context) {
+    if (context.park !== getOperationalParkId() || context.date !== date || date !== getSaoPauloToday()) throw new VoucherOperationError('gate_date_invalid','A data de entrada mudou. Confira novamente.',409);
+  } else assertVoucherCashDate(context,date);
+}
 export async function markVoucherUsed(
   client: PoolClient,
   voucherId: number,
   date: string,
   time: string,
-  context: VoucherCashContext,
+  context: VoucherAdmissionContext,
   actor?: VoucherOperationInputActor | null,
 ) {
   const park = getOperationalParkId();
-  assertVoucherCashDate(context, date);
+  assertAdmissionDate(context, date);
+  if ('kind' in context) {
+    await lockOperationalDay(client, getOperationalParkId(), date);
+    const open = await client.query(`SELECT a.idagenda FROM agenda a WHERE a.dtagenda=$2::date AND a.tpagenda IN ('padra','promo') AND a.stagenda IN ('abe','lot')
+      AND NOT EXISTS(SELECT 1 FROM operacao_dias WHERE parque=$1 AND data=$2::date AND estado='closed') LIMIT 1 FOR SHARE OF a`,[park,date]);
+    if (!open.rowCount) throw new VoucherOperationError('voucher_day_closed','Não há day use aberto nesta data.',409);
+  }
   await client.query("SELECT idcompra FROM compra WHERE idcompra IN (SELECT idcompra FROM voucher WHERE idvoucher=$1) FOR UPDATE", [voucherId]);
   const voucher = await client.query<Pick<VoucherValidationRow,
     "idcompra" | "dtinicio_validade" | "dtvalidade" | "parque_operacional" | "stusado" | "stvoucher" | "tpvoucher" | "servico_id"
@@ -202,7 +215,7 @@ export async function markVoucherUsed(
       throw error;
     }
   }
-  assertVoucherCashDate(context, date);
+  assertAdmissionDate(context, date);
   const updated = await client.query(
     `
       UPDATE voucher
@@ -216,7 +229,7 @@ export async function markVoucherUsed(
       WHERE idvoucher = $1 AND stusado = 'n'
         AND $2::date = (clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::date
     `,
-    [voucherId, date, time, context.session.id, actor?.name?.trim() || null, String(actor?.cpf ?? "").replace(/\D/g, "") || null],
+    [voucherId, date, time, 'kind' in context ? null : context.session.id, actor?.name?.trim() || null, String(actor?.cpf ?? "").replace(/\D/g, "") || null],
   );
   if (updated.rowCount === 0) throw new VoucherOperationError("cash_date_not_today", "A data do caixa terminou. Atualize a tela.", 409);
 }

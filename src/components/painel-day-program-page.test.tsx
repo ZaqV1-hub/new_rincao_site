@@ -8,7 +8,7 @@ function fixture(): DayProgram {
   return { park: "rincao", date: "2099-01-02", version: 1, exportedRevision: null, exportedAt: null, status: "created", sourceFingerprint: "source-one", exportedFingerprint: null, exportId: null,
     dayUseSold: 7, readOnly: false, closed: false, observations: null,
     groups: [{ agendaId: 10, clientId: 20, clientName: "Escola de teste", representative: null, address: "Rua do cadastro", contact: "Contato do contrato", phone: null,
-      plannedPeople: null, buses: null, vans: null, transportMode: "unset", carrierId: null, carrierContact: null, carrierPhone: null, boardingTime: null, observations: null, vehicles: [],
+      plannedPeople: null, buses: null, vans: null, extraBuses: 0, extraVans: 0, transportMode: "unset", carrierId: null, carrierContact: null, carrierPhone: null, boardingTime: null, observations: null, foodNotes: null, vehicles: [],
       origins: { address: "client", contact: "contract", phone: null, representative: null, observations: null } }],
     carriers: [{ id: 1, name: "Transportadora cadastrada", contact: "Contato", phone: "111" }], hiringItems: [{ id: 1, name: "Portaria", value: "Pessoa registrada" }, { id: 2, name: "Enfermaria", value: null }],
     weather: { status: "unavailable", summary: "Previsão indisponível", reason: "Previsão ainda não consultada.", stale: false, source: null, sourceUrl: null, license: null, licenseUrl: null, queriedAt: null, forecastAt: null, modelUpdatedAt: null, nextRefreshAt: null, temperatureC: null, condition: null, coordinates: null } };
@@ -61,6 +61,16 @@ describe("program editor acknowledgement", () => {
 });
 
 describe("day program UI", () => {
+  it('shows extra vehicles separately from planned quantities and exposes only explicit food notes to the kitchen field', () => {
+    const program = fixture();
+    Object.assign(program.groups[0], { buses: 2,vans: 0,extraBuses: 1,foodNotes: 'Sem lactose' });
+    const html = render(program);
+    expect(html).toContain('Ônibus: 2 · Vans: 0');
+    expect(html).toContain('Extras · Ônibus: 1 · Vans: 0');
+    expect(html).toContain('Restrições alimentares para a cozinha');
+    expect(html).toContain('Sem lactose');
+    expect(html).toContain('3 veículos');
+  });
   it("distinguishes real day use counts from unknown group forecasts and unavailable weather", () => {
     const html = render();
     expect(html).toContain("Ônibus: A preencher · Vans: A preencher");

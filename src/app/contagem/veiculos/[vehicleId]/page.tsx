@@ -5,5 +5,5 @@ export default async function Page({ params }: { params: Promise<{ vehicleId: st
   const { vehicleId } = await params;
   if (!/^[1-9]\d*$/.test(vehicleId) || !Number.isSafeInteger(Number(vehicleId))) notFound();
   const session = await requirePainelAccess('vis_contagem',`/contagem/veiculos/${vehicleId}`);
-  return <CountingVehiclePage id={Number(vehicleId)} manager={session.legacyRoleId === 1} actorCpf={session.actorCpf ?? ''}/>;
+  return <CountingVehiclePage key={vehicleId} id={Number(vehicleId)} manager={session.legacyRoleId === 1} actorCpf={session.actorCpf ?? ''}/>;
 }
