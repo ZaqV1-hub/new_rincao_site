@@ -8,15 +8,17 @@ import { isCivilDate } from "@/lib/operational-date";
 import { getDayProgram, type DayProgram } from "@/lib/day-program";
 import { hasLegacyPanelResource } from "@/lib/painel-access";
 import { requirePainelAccess } from "@/lib/painel-session";
+import { readPurchaseListContext, type PurchaseNavigationQuery } from "@/lib/operational-purchase-navigation";
 
 export const metadata: Metadata = { title: "Resumo da data | Painel Rincão", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
-export default async function PainelAgendaDayPage({ params }: { params: Promise<{ date: string }> }) {
+export default async function PainelAgendaDayPage({ params, searchParams }: { params: Promise<{ date: string }>; searchParams?: Promise<PurchaseNavigationQuery> }) {
   const session = await requirePainelAccess("vis_agenda", "/painel/agenda");
   if (session.authSource !== "panel") redirect("/painel/login?redirect=%2Fpainel%2Fagenda");
   const { date } = await params;
   if (!isCivilDate(date)) notFound();
+  const query = await searchParams ?? {};
   const canAccessProgram = hasLegacyPanelResource(session.legacyResources, "vis_agenda")
     && hasLegacyPanelResource(session.legacyResources, ["vis_clientes", "vis_escola"]);
   const canAccessCash = hasLegacyPanelResource(session.legacyResources, "vis_bilhet");
@@ -35,5 +37,6 @@ export default async function PainelAgendaDayPage({ params }: { params: Promise<
     catch { programError = "Programação do dia indisponível. Atualize a página para tentar novamente."; }
   }
   return <PainelOperationalDayPage key={date} summary={summary} canManage={session.legacyRoleId === 1}
-    canAccessCash={canAccessCash} canAccessProgram={canAccessProgram} programStatus={programStatus} programError={programError} />;
+    canAccessCash={canAccessCash} canAccessProgram={canAccessProgram} programStatus={programStatus} programError={programError}
+    initialTab={typeof query.tab === "string" ? query.tab : undefined} initialPurchaseContext={readPurchaseListContext(date, query)} />;
 }

@@ -10,6 +10,8 @@ import {
 } from "@/lib/voucher-repository";
 
 const dbQuery = vi.fn();
+const { guard } = vi.hoisted(() => ({ guard: vi.fn() }));
+vi.mock("@/lib/legacy-voucher-mutation-guard", async (original) => ({ ...await original<object>(), lockLegacyVoucherMutation: guard }));
 const { getSchoolVoucherInformation } = vi.hoisted(() => ({
   getSchoolVoucherInformation: vi.fn(),
 }));
@@ -18,6 +20,7 @@ vi.mock("@/lib/ingresso-db", () => ({
   getIngressoSistemaDbDialect: () => "postgres",
   getIngressoSistemaDbPool: () => ({
     query: dbQuery,
+    connect: async () => ({ query: dbQuery, release: vi.fn() }),
   }),
 }));
 
@@ -28,6 +31,7 @@ vi.mock("@/lib/school-voucher-information", () => ({
 describe("voucher-repository", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    guard.mockResolvedValue(77);
     getSchoolVoucherInformation.mockResolvedValue("");
     resetVoucherLifecycleSchemaForTests();
   });
@@ -223,7 +227,8 @@ describe("voucher-repository", () => {
 
 describe("operational voucher presentation", () => {
   beforeEach(() => {
-    vi.clearAllMocks(); resetVoucherLifecycleSchemaForTests();
+    vi.clearAllMocks();
+    guard.mockResolvedValue(77); resetVoucherLifecycleSchemaForTests();
     vi.useFakeTimers(); vi.setSystemTime(new Date("2026-04-27T01:00:00Z"));
   });
   afterEach(() => vi.useRealTimers());
@@ -249,7 +254,8 @@ describe("operational voucher presentation", () => {
 
 describe("voucher persistence policy boundaries", () => {
   beforeEach(() => {
-    vi.clearAllMocks(); resetVoucherLifecycleSchemaForTests();
+    vi.clearAllMocks();
+    guard.mockResolvedValue(77); resetVoucherLifecycleSchemaForTests();
     dbQuery.mockResolvedValue({ rows: [], rowCount: 0 });
     vi.useFakeTimers(); vi.setSystemTime(new Date("2026-04-27T01:00:00Z"));
   });

@@ -1,4 +1,5 @@
 import { assertOnlineCapacityReleased, OnlineCapacityError } from "@/lib/online-capacity";
+import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getNativeCieloCheckoutStatus, isCieloEcommerceConfigured } from "@/lib/cielo-ecommerce";
 import { isValidCpf } from "@/lib/cpf";
@@ -930,11 +931,12 @@ export async function sendPainelBilheteriaVoucherWhatsapp(
       );
     }
 
-    const voucherResult = await client.query<Pick<PurchaseVoucherRow, "idvoucher" | "stusado" | "dtinicio_validade" | "dtvalidade">>(
+    const voucherResult = await client.query<Pick<PurchaseVoucherRow, "idvoucher" | "stusado" | "dtinicio_validade" | "dtvalidade" | "parque_operacional">>(
       `
         SELECT
           voucher.idvoucher,
           voucher.stusado,
+          voucher.parque_operacional,
           voucher.dtinicio_validade::text AS dtinicio_validade,
           voucher.dtvalidade::text AS dtvalidade
         FROM voucher
@@ -955,6 +957,10 @@ export async function sendPainelBilheteriaVoucherWhatsapp(
       );
     }
 
+    if (voucher.parque_operacional != null && voucher.parque_operacional !== getOperationalParkId()) {
+      throw new PainelBilheteriaError("voucher_park_mismatch", "O ingresso pertence a outro parque.", 409);
+    }
+
     try { await assertOnlineCapacityReleased(client, input.purchaseId); }
     catch (error) {
       if (error instanceof OnlineCapacityError && error.code === "online_capacity_delivery_hold") {
@@ -963,20 +969,7 @@ export async function sendPainelBilheteriaVoucherWhatsapp(
       throw error;
     }
 
-    const validUntil = new Date();
-    validUntil.setDate(validUntil.getDate() + 1);
-    const validUntilText = voucher.dtinicio_validade != null
-      ? String(voucher.dtvalidade ?? "").slice(0, 10)
-      : validUntil.toISOString().slice(0, 10);
-
-    if (voucher.dtinicio_validade == null) await client.query(
-      `
-        UPDATE voucher
-        SET dtvalidade = $2::date
-        WHERE idvoucher = $1
-      `,
-      [input.voucherId, validUntilText],
-    );
+    const validUntilText = String(voucher.dtvalidade ?? "").slice(0, 10);
 
     const auditLogId = await registerOpsAuditLog(
       client,
@@ -993,7 +986,7 @@ export async function sendPainelBilheteriaVoucherWhatsapp(
         detalhes: {
           via: "apps/web",
           voucherId: input.voucherId,
-          phoneNumber: normalizedPhone,
+          destinationLastDigits: normalizedPhone.slice(-4),
           validUntil: validUntilText,
         },
       },

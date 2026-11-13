@@ -3,6 +3,7 @@ import { renderPainelPurchaseSummaryPdf } from "@/lib/painel-purchase-summary-pd
 import type { PainelPurchaseDetail } from "@/lib/painel-compras";
 
 const detail: PainelPurchaseDetail = {
+  operational: { park: "rincao", purchasedOn: "2026-09-25", totalCents: 7000, origin: "ponli", customerCpf: "23787594876", payments: [], history: [], vouchers: [{ purchaseId: 190505, voucherId: 607112, agendaId: 1, schoolId: null, serviceId: null, visitDate: "2026-09-26", validFrom: null, validUntil: null, validityMode: "legacy", unitAmountCents: 7000, validation: null }] },
   purchaseId: 190505,
   purchaseDate: "25/09/2026",
   type: "ponli",

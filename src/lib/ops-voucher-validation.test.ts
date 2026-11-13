@@ -118,6 +118,28 @@ describe("ops-voucher-validation", () => {
     expect(voucherLock).toBeGreaterThan(purchaseLock);
   });
 
+  it.each([
+    ["validate", validateSelectedVouchersInCash],
+    ["unvalidate", unvalidateSelectedVouchersInCash],
+  ] as const)("rejects every foreign, absent or other-park ID atomically in purchase-scoped %s", async (_action, mutate) => {
+    for (const foreign of [
+      { idvoucher: 9002, idcompra: 999, parque_operacional: "rincao", stusado: "inv" },
+      { idvoucher: 9002, idcompra: 456, parque_operacional: "estancia", stusado: "inv" },
+      null,
+    ]) {
+      vi.clearAllMocks();
+      query.mockImplementation(async (sql: string) => ({ rows: sql.includes("FOR UPDATE OF voucher")
+        ? [{ idvoucher: 9001, idcompra: 456, parque_operacional: "rincao", stusado: "inv" }, ...(foreign ? [foreign] : [])] : [] }));
+      await expect(mutate([9001, 9002], null, periodId, 456)).rejects.toMatchObject({
+        code: foreign?.parque_operacional === "estancia" ? "voucher_park_mismatch" : "voucher_purchase_mismatch", status: 409,
+      });
+      expect(query.mock.calls.some(([sql]) => String(sql).includes("UPDATE voucher"))).toBe(false);
+      expect(query.mock.calls.some(([sql]) => sql === "ROLLBACK")).toBe(true);
+      expect(registerOpsAuditLog).not.toHaveBeenCalled();
+      expect(syncTicketValidation).not.toHaveBeenCalled();
+    }
+  });
+
   it("blocks an invalidated paid voucher without writing usage or syncing tickets", async () => {
     query.mockImplementation(async (sql: string) => ({ rows: sql.includes("WHERE voucher.numvoucher = $1")
       ? [{ idvoucher: 603884, numvoucher: "TESTE", stusado: "inv", tpcompra: "ponli", stcompra: "conc", payment_status: 3 }] : [] }));

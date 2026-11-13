@@ -1,3 +1,4 @@
+import { lockLegacyVoucherMutation, lockLegacyReservationCancellation, LegacyVoucherMutationError } from "@/lib/legacy-voucher-mutation-guard";
 import { getSaoPauloToday, isCivilDate } from "@/lib/operational-date";
 import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { purchaseDisplayStatusSql } from "@/lib/purchase-display-status";
@@ -684,21 +685,34 @@ export async function getUserVoucherExportData(
 }
 
 export async function cancelReservationPurchase(cpf: string, purchaseId: number) {
-  const pool = getIngressoSistemaDbPool();
-  const result = await pool.query<{ idcompra: number }>(
+  const client = await getIngressoSistemaDbPool().connect();
+  try {
+    await client.query("BEGIN");
+    await lockLegacyReservationCancellation(client, purchaseId, cpf);
+    const result = await client.query<{ idcompra: number }>(
     `
       UPDATE compra
       SET stcompra = 'canc'
       WHERE idcompra = $1
         AND cpf = $2
         AND tpcompra = 'reser'
-        AND stcompra <> 'canc'
+        AND stcompra = 'pend'
       RETURNING idcompra
     `,
     [purchaseId, cpf],
   );
 
-  return result.rows[0]?.idcompra ?? null;
+    // Capacity occupancy is derived from compra.stcompra. Keep the reservation
+    // identity/history intact; the day lock makes this release atomic.
+    await client.query("COMMIT");
+    return result.rows[0]?.idcompra ?? null;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    if (error instanceof LegacyVoucherMutationError) return null;
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getUserVoucherRescheduleData(
@@ -794,10 +808,11 @@ export async function rescheduleUserVoucher(
   voucherId: number,
   agendaId: number,
 ) {
-  await ensureVoucherLifecycleSchema();
-
-  const pool = getIngressoSistemaDbPool();
-  const result = await pool.query<{ idvoucher: number }>(
+  const client = await getIngressoSistemaDbPool().connect();
+  try {
+    await client.query("BEGIN");
+    await lockLegacyVoucherMutation(client, { voucherId, targetAgendaId: agendaId, cpf });
+    const result = await client.query<{ idvoucher: number }>(
     `
       UPDATE voucher
       SET idagenda = $1,
@@ -815,12 +830,20 @@ export async function rescheduleUserVoucher(
         AND COALESCE(voucher.flreagendado, 'n') <> 's'
         AND target_agenda.tpagenda = 'padra'
         AND target_agenda.stagenda = 'abe'
-        AND target_agenda.dtagenda >= CURRENT_DATE
+        AND target_agenda.dtagenda >= (clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::date
         AND target_agenda.dtagenda <= (compra.dtcompra::date + INTERVAL '6 months')::date
       RETURNING voucher.idvoucher
     `,
     [agendaId, voucherId, cpf],
   );
 
-  return result.rows[0]?.idvoucher ?? null;
+    await client.query("COMMIT");
+    return result.rows[0]?.idvoucher ?? null;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    if (error instanceof LegacyVoucherMutationError) return null;
+    throw error;
+  } finally {
+    client.release();
+  }
 }

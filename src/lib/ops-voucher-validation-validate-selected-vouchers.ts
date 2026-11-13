@@ -7,6 +7,7 @@ export async function validateSelectedVouchers(
   voucherIdsInput: number[],
   actor?: VoucherOperationInputActor | null,
   periodId?: number,
+  expectedPurchaseId?: number,
 ): Promise<VoucherOperationSuccess> {
   requireVoucherPeriodId(periodId);
   const voucherIds = normalizeVoucherIds(voucherIdsInput);
@@ -27,7 +28,7 @@ export async function validateSelectedVouchers(
   try {
     await client.query("BEGIN");
     const cash = await lockVoucherCashContext(client, periodId, date);
-    const vouchers = await getVouchersByIds(client, voucherIds);
+    const vouchers = await getVouchersByIds(client, voucherIds, expectedPurchaseId);
     const vouchersById = new Map(vouchers.map((voucher) => [voucher.idvoucher, voucher]));
     const affectedVoucherIds: number[] = [];
     const warnings: string[] = [];

@@ -8,6 +8,7 @@ describe("PainelCompraGatewayStatusPage", () => {
     const html = renderToStaticMarkup(
       React.createElement(PainelCompraGatewayStatusPage, {
         detail: {
+          operational: { park: "rincao", purchasedOn: "2026-05-06", totalCents: 8000, origin: "ponli", customerCpf: "12345678901", vouchers: [], payments: [], history: [] },
           purchaseId: 551,
           purchaseDate: "06/05/2026",
           type: "ponli",
@@ -59,6 +60,7 @@ describe("PainelCompraGatewayStatusPage", () => {
     const html = renderToStaticMarkup(
       React.createElement(PainelCompraGatewayStatusPage, {
         detail: {
+          operational: { park: "rincao", purchasedOn: "2026-05-06", totalCents: 8000, origin: "ponli", customerCpf: "12345678901", vouchers: [], payments: [], history: [] },
           purchaseId: 551,
           purchaseDate: "06/05/2026",
           type: "ponli",

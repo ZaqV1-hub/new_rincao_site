@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import type { DayProgram } from "@/lib/day-program";
 import type { OperationalDaySummary, SummarySourceValue } from "@/lib/operational-day-summary";
+import { purchaseDetailHref, purchaseListHref, readPurchaseListContext, type PurchaseListContext } from "@/lib/operational-purchase-navigation";
 import type { OperationalDayList } from "@/lib/operational-day-lists";
 
 const button = "inline-flex min-h-11 items-center justify-center rounded-lg border border-[#b8cbdc] bg-white px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#236699] disabled:opacity-50";
@@ -31,14 +32,20 @@ function SourceValue({ label, source, currency = false, maximum }: { label: stri
   </div>;
 }
 
-function DayListPanel({ date, kind }: { date: string; kind: DayList["kind"] }) {
-  const [page, setPage] = useState(1);
+function DayListPanel({ date, kind, context, onContextChange }: { date: string; kind: DayList["kind"]; context: PurchaseListContext; onContextChange: (context: PurchaseListContext) => void }) {
+  const [groupPage, setGroupPage] = useState(1);
+  const [search, setSearch] = useState(context.filters.query);
+  const page = kind === "purchases" ? context.page : groupPage;
+  const { filters } = context;
+  function setPage(next: number) { if (kind === "purchases") onContextChange({ ...context, page: next }); else setGroupPage(next); }
+  function applyFilters(next: typeof filters) { onContextChange({ ...context, page: 1, filters: next }); }
+  const query = new URLSearchParams({ kind, page: String(page), ...(kind === "purchases" ? filters : {}) }).toString();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ key: string; data?: DayList; error?: string } | null>(null);
-  const key = `${date}:${kind}:${page}:${attempt}`;
+  const key = `${date}:${query}:${attempt}`;
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`/api/painel/dias/${date}/listas?kind=${kind}&page=${page}`, { cache: "no-store", signal: controller.signal })
+    fetch(`/api/painel/dias/${date}/listas?${query}`, { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         if (response.status === 403) throw new Error("Seu perfil não tem permissão para consultar esta lista.");
         if (response.status === 401) throw new Error("Sua sessão expirou. Entre novamente para consultar esta lista.");
@@ -51,18 +58,29 @@ function DayListPanel({ date, kind }: { date: string; kind: DayList["kind"] }) {
         if (!controller.signal.aborted) setResult({ key, error: error instanceof Error ? error.message : "Não foi possível carregar a lista. Tente novamente." });
       });
     return () => controller.abort();
-  }, [date, kind, page, attempt, key]);
+  }, [date, kind, page, query, attempt, key]);
   const current = result?.key === key ? result : null;
   const data = current?.data;
+  const counters = data?.kind === "purchases" ? data.counters : null;
   return <div className={`${panel} space-y-4`}>
     <h2 className="text-lg font-bold">{kind === "groups" ? "Passeios da data" : "Compras e vouchers da visita"}</h2>
     <p className="text-sm text-[#45647f]">{kind === "groups" ? "Pessoas pagas online são ingressos registrados, não a previsão de público nem a contagem no parque." : "Valores correspondem aos itens para esta data de visita; não ao valor integral da compra nem aos recebimentos do dia. Abra a compra para consultar seus vouchers."}</p>
+    {kind === "purchases" && <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); applyFilters({ ...filters, query: search.trim() }); }}>
+      <label className="grid gap-1 text-sm font-semibold">Origem<select className={button} value={filters.origin} onChange={(event) => applyFilters({ ...filters, origin: event.target.value as typeof filters.origin })}>
+        <option value="all">Todas ({counters?.origin.all ?? "…"})</option><option value="site">Site ({counters?.origin.site ?? "…"})</option><option value="gate">Caixas e reservas ({counters?.origin.gate ?? "…"})</option>
+      </select></label>
+      <label className="grid gap-1 text-sm font-semibold">Tipo<select className={button} value={filters.type} onChange={(event) => applyFilters({ ...filters, type: event.target.value as typeof filters.type })}>
+        <option value="all">Todos ({counters?.type.all ?? "…"})</option><option value="dayuse">Day use ({counters?.type.dayuse ?? "…"})</option><option value="group">Passeios ({counters?.type.group ?? "…"})</option>
+      </select></label>
+      <label className="grid gap-1 text-sm font-semibold">Compra, nome ou CPF<input className={button} maxLength={120} value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+      <div className="flex items-end gap-2"><button type="submit" className={button}>Buscar</button><button type="button" className={button} onClick={() => { setSearch(""); applyFilters({ origin: "all", type: "all", query: "" }); }}>Limpar filtros</button></div>
+    </form>}
     {!current && <p role="status">Carregando lista…</p>}
     {current?.error && <div className="space-y-3"><p role="alert">{current.error}</p><button type="button" className={button} onClick={() => setAttempt(attempt + 1)}>Tentar novamente</button></div>}
     {data && <>
       <p role="status" className="text-sm text-[#45647f]">{number(data.total)} registro(s) · Página {data.page} de {Math.max(1, data.pageCount)}</p>
       {data.items.length === 0 ? <p>Nenhum registro encontrado nesta data.</p> : <ul className="divide-y divide-[#d4dfeb]">{data.items.map((item) => "purchaseId" in item ? <li key={item.purchaseId} className="flex flex-wrap items-start justify-between gap-3 py-4">
-        <div className="min-w-0"><Link className="inline-flex min-h-11 items-center font-semibold underline" href={`/painel/compras/${item.purchaseId}`}>Compra #{item.purchaseId} · {item.buyerName || "Cliente não informado"}</Link><p className="text-sm text-[#45647f]">{labels[item.status] ?? (item.status || "Situação não informada")} · {labels[item.channel] ?? (item.channel || "Canal não informado")} · {number(item.itemCount)} item(ns) da data</p></div>
+        <div className="min-w-0"><Link className="inline-flex min-h-11 items-center font-semibold underline" href={purchaseDetailHref(item.purchaseId, context)}>Compra #{item.purchaseId} · {item.buyerName || "Cliente não informado"}</Link><p className="text-sm text-[#45647f]">{labels[item.status] ?? (item.status || "Situação não informada")} · {labels[item.channel] ?? (item.channel || "Canal não informado")} · {number(item.itemCount)} item(ns) da data</p></div>
         <p className="font-semibold tabular-nums">{money(item.dateAmountCents)}</p>
       </li> : <li key={`${item.agendaId}:${item.clientId}`} className="py-4"><Link className="inline-flex min-h-11 items-center font-semibold underline" href={`/painel/clientes/passeios/${item.agendaId}/alunos?clientId=${item.clientId}`}>{item.clientName || "Cliente não informado"}</Link><p className="text-sm text-[#45647f]">{labels[item.agendaType] ?? item.agendaType} · {labels[item.status] ?? (item.status || "Situação não informada")} · {number(item.paidOnlinePeople)} pessoa(s) paga(s) online</p></li>)}</ul>}
       <nav aria-label="Paginação da lista" className="flex flex-wrap gap-2"><button type="button" className={button} disabled={page <= 1} onClick={() => setPage(page - 1)}>Página anterior</button><button type="button" className={button} disabled={page >= data.pageCount} onClick={() => setPage(page + 1)}>Próxima página</button></nav>
@@ -71,10 +89,15 @@ function DayListPanel({ date, kind }: { date: string; kind: DayList["kind"] }) {
 }
 
 const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Criado e enviado · arquivos gerados", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
-export function PainelOperationalDayPage({ summary, canManage, canAccessCash = false, canAccessProgram = false, programStatus = null, programError }: {
-  summary: OperationalDaySummary; canManage: boolean; canAccessCash?: boolean; canAccessProgram?: boolean; programStatus?: DayProgram["status"] | null; programError?: string | null;
+export function PainelOperationalDayPage({ summary, canManage, canAccessCash = false, canAccessProgram = false, programStatus = null, programError, initialPurchaseContext, initialTab }: {
+  summary: OperationalDaySummary; canManage: boolean; canAccessCash?: boolean; canAccessProgram?: boolean; programStatus?: DayProgram["status"] | null; programError?: string | null; initialPurchaseContext?: PurchaseListContext; initialTab?: string;
 }) {
-  const [tab, setTab] = useState<Tab>("resumo");
+  const [tab, setTab] = useState<Tab>(tabs.some((item) => item.id === initialTab) ? initialTab as Tab : "resumo");
+  const [purchaseContext, setPurchaseContext] = useState(initialPurchaseContext ?? readPurchaseListContext(summary.date, {}));
+  function updatePurchaseContext(context: PurchaseListContext) {
+    setPurchaseContext(context);
+    window.history.replaceState(null, "", purchaseListHref(context));
+  }
   const programAction = !canManage || summary.configuration?.closed ? "Abrir" : programStatus === "uncreated" ? "Criar" : programStatus === "created" || programStatus === "exported" ? "Alterar" : "Abrir";
   const { configuration: day, navigation, revenue, attendance, forecast } = summary;
   const dateLabel = new Intl.DateTimeFormat("pt-BR", { dateStyle: "full", timeZone: "UTC" }).format(new Date(`${summary.date}T12:00:00Z`));
@@ -131,7 +154,7 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessCash = f
         </div>
         {summary.warnings.length > 0 && <aside className={`${panel} bg-[#f4f8fc]`} aria-labelledby="day-warnings"><h2 id="day-warnings" className="font-bold">Pendências da apuração</h2><ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-[#45647f]">{summary.warnings.map((warning) => <li key={warning.code}>{warning.message}</li>)}</ul></aside>}
       </>}
-      {(tab === "passeios" || tab === "compras") && <DayListPanel key={`${summary.date}:${tab}`} date={summary.date} kind={tab === "passeios" ? "groups" : "purchases"} />}
+      {(tab === "passeios" || tab === "compras") && <DayListPanel key={`${summary.date}:${tab}`} date={summary.date} kind={tab === "passeios" ? "groups" : "purchases"} context={purchaseContext} onContextChange={updatePurchaseContext} />}
       {tab === "caixas" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Caixas</h2><dl><SourceValue label="Sessões de caixa" source={summary.cash} /></dl><p>Caixas abertos e fechados por local nesta data. O saldo em caixa não compõe a receita da visita.</p>{canAccessCash ? <Link className="inline-flex min-h-11 items-center underline" href={`/painel/caixas?date=${summary.date}`}>Abrir caixas da data</Link> : <p>Seu perfil não permite acessar os caixas.</p>}</div>}
       {tab === "fechamento" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Fechamento do dia</h2><p>{summary.closure.reason}</p><p className="text-sm text-[#45647f]">O subtotal disponível no resumo é parcial e não constitui um fechamento.</p></div>}
     </section>

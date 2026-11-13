@@ -1,5 +1,5 @@
 ﻿import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PainelBilheteriaPurchasePrintView } from "@/components/painel-bilheteria-purchase-print-view";
 import {
   asPainelBilheteriaError,
@@ -18,11 +18,12 @@ export const metadata: Metadata = {
 };
 
 export default async function PainelBilheteriaPurchasePrintPage({
-  params,
+  params, searchParams,
 }: {
   params: Promise<{
     purchaseId: string;
   }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await requirePainelAccess(
     ["vis_bilhet", "vis_compra"],
@@ -30,9 +31,18 @@ export default async function PainelBilheteriaPurchasePrintPage({
   );
   const { purchaseId } = await params;
   const id = Number(purchaseId);
+  if (session.authSource !== "panel") redirect("/painel/login");
 
-  if (!Number.isInteger(id) || id <= 0) {
+  if (!/^[1-9]\d*$/.test(purchaseId) || !Number.isSafeInteger(id)) {
     notFound();
+  }
+  const query = await searchParams ?? {};
+  let selectedIds: number[] | undefined;
+  if (Object.keys(query).some((key) => key !== "voucherIds")) notFound();
+  if (query.voucherIds !== undefined) {
+    if (typeof query.voucherIds !== "string" || query.voucherIds.length > 17000 || !/^[1-9]\d*(,[1-9]\d*)*$/.test(query.voucherIds)) notFound();
+    selectedIds = query.voucherIds.split(",").map(Number);
+    if (selectedIds.length > 1000 || selectedIds.some((value) => !Number.isSafeInteger(value)) || new Set(selectedIds).size !== selectedIds.length) notFound();
   }
 
   let model;
@@ -41,7 +51,7 @@ export default async function PainelBilheteriaPurchasePrintPage({
     model = await getPainelBilheteriaPurchasePrintModel(id, {
       name: session.actorName,
       cpf: session.actorCpf,
-    });
+    }, selectedIds);
   } catch (error) {
     const normalized = asPainelBilheteriaError(error);
     console.error("painel-bilheteria-purchase-print-failed", {

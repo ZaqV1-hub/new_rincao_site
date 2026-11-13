@@ -1,19 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getPainelBilheteriaPurchaseDetail,
+  getPainelBilheteriaPurchasePrintModel,
   getPainelBilheteriaVoucherPrintModel,
   payPainelBilheteriaReservation,
   sendPainelBilheteriaVoucherWhatsapp,
 } from "@/lib/painel-bilheteria";
 
-const { cashCommand, cashLock, sendPurchaseTicketsWhatsApp, query, connect, clientQuery, release, generateVoucherQrcodes, registerOpsAuditLog, queuePurchaseConfirmationEmail } = vi.hoisted(() => ({
+const { cashCommand, cashLock, sendPurchaseTicketsWhatsApp, query, connect, clientQuery, release, generateLocalVoucherQrCodes, registerOpsAuditLog, queuePurchaseConfirmationEmail } = vi.hoisted(() => ({
   cashCommand: vi.fn(), cashLock: vi.fn(),
   sendPurchaseTicketsWhatsApp: vi.fn(),
   query: vi.fn(),
   connect: vi.fn(),
   clientQuery: vi.fn(),
   release: vi.fn(),
-  generateVoucherQrcodes: vi.fn(),
+  generateLocalVoucherQrCodes: vi.fn(),
   registerOpsAuditLog: vi.fn(),
   queuePurchaseConfirmationEmail: vi.fn(),
 }));
@@ -32,7 +33,7 @@ vi.mock("@/lib/ingresso-db", () => ({
 }));
 
 vi.mock("@/lib/ticket-api", () => ({
-  generateVoucherQrcodes,
+  generateLocalVoucherQrCodes,
   TicketApiError: class TicketApiError extends Error {
     code: string;
     status: number;
@@ -211,7 +212,7 @@ describe("painel-bilheteria", () => {
     ]);
   });
 
-  it("returns a single voucher print model and extends validity", async () => {
+  it("returns a single voucher print model preserving legacy validity", async () => {
     clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql.includes('AS "isCurrentCashDate"')) return { rows: [{ isCurrentCashDate: true }] };
       if (sql === "BEGIN" || sql === "COMMIT") {
@@ -259,7 +260,7 @@ describe("painel-bilheteria", () => {
       return { rows: [] };
     });
     registerOpsAuditLog.mockResolvedValue(77);
-    generateVoucherQrcodes.mockResolvedValue({
+    generateLocalVoucherQrCodes.mockResolvedValue({
       12: "https://qr.example/12.png",
     });
 
@@ -277,10 +278,11 @@ describe("painel-bilheteria", () => {
         purchaseLocation: "Bilheteria",
         purchaseDate: "2026-04-28",
         visitDate: "2026-05-01",
+        validUntil: "2026-04-28",
         qrCodeUrl: "https://qr.example/12.png",
       }),
     );
-    expect(generateVoucherQrcodes).toHaveBeenCalledWith([
+    expect(generateLocalVoucherQrCodes).toHaveBeenCalledWith([
       expect.objectContaining({
         purchaseId: 321,
         voucherId: 12,
@@ -291,8 +293,8 @@ describe("painel-bilheteria", () => {
     expect(registerOpsAuditLog).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        origem: "compra",
-        acao: "editar",
+        origem: "voucher",
+        acao: "imprimir",
         compraId: 321,
       }),
       "postgres",
@@ -342,7 +344,7 @@ describe("painel-bilheteria", () => {
 
       return { rows: [] };
     });
-    generateVoucherQrcodes.mockResolvedValue({
+    generateLocalVoucherQrCodes.mockResolvedValue({
       12: "https://qr.example/12.png",
     });
     registerOpsAuditLog.mockResolvedValue(1001);
@@ -353,7 +355,7 @@ describe("painel-bilheteria", () => {
       voucherNumber: "A1234",
       qrCodeUrl: "https://qr.example/12.png",
     });
-    expect(generateVoucherQrcodes).toHaveBeenCalled();
+    expect(generateLocalVoucherQrCodes).toHaveBeenCalled();
     expect(release).toHaveBeenCalled();
   });
 
@@ -401,7 +403,7 @@ describe("painel-bilheteria", () => {
 
       return { rows: [] };
     });
-    generateVoucherQrcodes.mockRejectedValue(new Error("fetch failed"));
+    generateLocalVoucherQrCodes.mockRejectedValue(new Error("fetch failed"));
     registerOpsAuditLog.mockResolvedValue(1001);
     const consoleErrorSpy = vi
       .spyOn(console, "error")
@@ -413,7 +415,7 @@ describe("painel-bilheteria", () => {
       voucherNumber: "A1234",
       qrCodeUrl: null,
     });
-    expect(generateVoucherQrcodes).toHaveBeenCalled();
+    expect(generateLocalVoucherQrCodes).toHaveBeenCalled();
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "painel-bilheteria-print-qrcode-failed",
       expect.any(Error),
@@ -430,7 +432,7 @@ describe("operational voucher reissue", () => {
     cashCommand.mockImplementation(async (_client, _input, run) => (await run()).response);
     cashLock.mockResolvedValue({ id: 55, park: "rincao", date: "2099-01-01", type: "sales" });
     connect.mockResolvedValue({ query: clientQuery, release });
-    generateVoucherQrcodes.mockResolvedValue({ 12: "https://qr.example/12.png" });
+    generateLocalVoucherQrCodes.mockResolvedValue({ 12: "https://qr.example/12.png" });
     sendPurchaseTicketsWhatsApp.mockResolvedValue({ status: "sent" });
     clientQuery.mockImplementation(async (sql: string) => {
       if (sql.includes('AS "isCurrentCashDate"')) return { rows: [{ isCurrentCashDate: true }] };
@@ -449,8 +451,35 @@ describe("operational voucher reissue", () => {
     const action = operation === "print" ? getPainelBilheteriaVoucherPrintModel(12)
       : sendPainelBilheteriaVoucherWhatsapp({ purchaseId: 321, voucherId: 12, phoneNumber: "51999999999" });
     await expect(action).rejects.toMatchObject({ code: "online_capacity_delivery_hold", status: 409 });
-    expect(generateVoucherQrcodes).not.toHaveBeenCalled();
+    expect(generateLocalVoucherQrCodes).not.toHaveBeenCalled();
     expect(sendPurchaseTicketsWhatsApp).not.toHaveBeenCalled();
+  });
+  it.each(["print", "whatsapp"])("blocks %s for an explicitly different park", async (operation) => {
+    const original = clientQuery.getMockImplementation()!;
+    clientQuery.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      const result = await original(sql, ...args);
+      if (sql.includes("FROM voucher")) return { rows: result.rows.map((row: Record<string, unknown>) => ({ ...row, parque_operacional: "estancia" })) };
+      return result;
+    });
+    const action = operation === "print" ? getPainelBilheteriaVoucherPrintModel(12)
+      : sendPainelBilheteriaVoucherWhatsapp({ purchaseId: 321, voucherId: 12, phoneNumber: "51999999999" });
+    await expect(action).rejects.toMatchObject({ code: "voucher_park_mismatch", status: 409 });
+    expect(generateLocalVoucherQrCodes).not.toHaveBeenCalled(); expect(sendPurchaseTicketsWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it.each(["print", "whatsapp"])("preserves missing legacy validity during %s and keeps phone out of audit", async (operation) => {
+    const original = clientQuery.getMockImplementation()!;
+    clientQuery.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      const result = await original(sql, ...args);
+      if (sql.includes("FROM voucher")) return { rows: result.rows.map((row: Record<string, unknown>) => ({ ...row, dtinicio_validade: null, dtvalidade: null })) };
+      return result;
+    });
+    const result = operation === "print" ? await getPainelBilheteriaVoucherPrintModel(12)
+      : await sendPainelBilheteriaVoucherWhatsapp({ purchaseId: 321, voucherId: 12, phoneNumber: "51999999999" });
+    expect(result.validUntil).toBe("");
+    expect(clientQuery.mock.calls.some(([sql]) => /UPDATE voucher|SET dtvalidade/.test(String(sql)))).toBe(false);
+    expect(JSON.stringify(registerOpsAuditLog.mock.calls)).not.toContain("51999999999");
+    if (operation === "whatsapp") expect(sendPurchaseTicketsWhatsApp).toHaveBeenCalledWith(321, [12], "51999999999");
   });
 
   it("prints the saved interval without rewriting its validity", async () => {
@@ -460,5 +489,58 @@ describe("operational voucher reissue", () => {
   it("re-sends without rewriting the saved interval", async () => {
     await expect(sendPainelBilheteriaVoucherWhatsapp({ purchaseId: 321, voucherId: 12, phoneNumber: "51999999999" })).resolves.toMatchObject({ validUntil: "2026-05-07" });
     expect(clientQuery.mock.calls.some(([sql]) => String(sql).includes("SET dtvalidade"))).toBe(false);
+  });
+});
+
+
+describe("selected purchase printing", () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+  it.each([true, false])("prints only the validated selection in stable order (selected=%s)", async (selected) => {
+    query.mockResolvedValueOnce({ rows: [{ idcompra: 321 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ idvoucher: 12, parque_operacional: null }, { idvoucher: 13, parque_operacional: "rincao" }], rowCount: 2 });
+    connect.mockResolvedValue({ query: clientQuery, release });
+    clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
+      if (sql.includes("FROM voucher") && sql.includes("JOIN compra")) return { rows: [{
+        idvoucher: values?.[0], idcompra: 321, tpvoucher: "norma", dtvalidade: "2026-01-01", parque_operacional: null,
+      }] };
+      return { rows: [] };
+    });
+    generateLocalVoucherQrCodes.mockResolvedValue({ 12: "data:image/png;base64,test", 13: "data:image/png;base64,test" });
+    const result = await getPainelBilheteriaPurchasePrintModel(321, null, selected ? [13,12] : undefined);
+    expect(result.vouchers.map((row) => row.voucherId)).toEqual([12,13]);
+    expect(generateLocalVoucherQrCodes).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1][1]).toEqual(selected ? [321,[13,12]] : [321]);
+    expect(clientQuery.mock.calls.some(([sql]) => String(sql).includes("UPDATE voucher"))).toBe(false);
+    expect(registerOpsAuditLog.mock.calls.every(([, entry]) => entry.origem === "voucher" && entry.acao === "imprimir")).toBe(true);
+  });
+  it("generates the real local QR without any HTTP request", async () => {
+    const actual = await vi.importActual<typeof import("@/lib/ticket-api")>("@/lib/ticket-api");
+    const fetchMock = vi.fn(() => { throw new Error("HTTP is forbidden while printing"); });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      query.mockResolvedValueOnce({ rows: [{ idcompra: 321 }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ idvoucher: 12, parque_operacional: null }], rowCount: 1 });
+      connect.mockResolvedValue({ query: clientQuery, release });
+      clientQuery.mockImplementation(async (sql: string) => sql.includes("FROM voucher") && sql.includes("JOIN compra")
+        ? { rows: [{ idvoucher: 12, idcompra: 321, tpvoucher: "norma", dtvalidade: "2026-01-01", cpf: "52998224725" }] }
+        : { rows: [] });
+      generateLocalVoucherQrCodes.mockImplementation(actual.generateLocalVoucherQrCodes);
+      const result = await getPainelBilheteriaPurchasePrintModel(321,null,[12]);
+      expect(result.vouchers[0].qrCodeUrl).toMatch(/^data:image\/png;base64,/);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(generateLocalVoucherQrCodes).toHaveBeenCalledWith([expect.objectContaining({ purchaseId: 321, voucherId: 12 })]);
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it.each([[[]], [[12,12]], [[0]], [[Number.MAX_SAFE_INTEGER+1]]])("rejects invalid selection %j before database or QR", async (ids) => {
+    await expect(getPainelBilheteriaPurchasePrintModel(321, null, ids)).rejects.toMatchObject({ code: "invalid_voucher_selection" });
+    expect(query).not.toHaveBeenCalled(); expect(generateLocalVoucherQrCodes).not.toHaveBeenCalled();
+  });
+  it.each([
+    [[{ idvoucher: 12, parque_operacional: "rincao" }], "invalid_voucher_selection"],
+    [[{ idvoucher: 12, parque_operacional: "rincao" }, { idvoucher: 13, parque_operacional: "estancia" }], "voucher_park_mismatch"],
+  ])("validates every selected item before generating any QR", async (rows, code) => {
+    query.mockResolvedValueOnce({ rows: [{ idcompra: 321 }], rowCount: 1 }).mockResolvedValueOnce({ rows, rowCount: rows.length });
+    await expect(getPainelBilheteriaPurchasePrintModel(321, null, [12,13])).rejects.toMatchObject({ code });
+    expect(generateLocalVoucherQrCodes).not.toHaveBeenCalled(); expect(connect).not.toHaveBeenCalled();
   });
 });

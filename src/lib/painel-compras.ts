@@ -1,4 +1,6 @@
 import { purchaseDisplayStatusSql } from "@/lib/purchase-display-status";
+import type { PoolClient } from "pg";
+import { getOperationalParkId, type OperationalParkId } from "@/lib/operational-day-contract";
 import { Buffer } from "node:buffer";
 import { formatCpf } from "@/lib/cpf";
 import {
@@ -93,6 +95,24 @@ export type PainelPurchaseDetail = {
   gatewayStatusCode: string | null;
   gatewayStatusLabel: string | null;
   vouchers: PainelPurchaseDetailVoucher[];
+  operational: PainelPurchaseOperationalDetail;
+};
+
+export type PainelPurchaseOperationalDetail = {
+  park: OperationalParkId;
+  purchasedOn: string | null;
+  totalCents: number;
+  origin: string | null;
+  customerCpf: string | null;
+  vouchers: Array<{
+    purchaseId: number; voucherId: number; agendaId: number | null; schoolId: number | null; serviceId: number | null;
+    visitDate: string | null; validFrom: string | null; validUntil: string | null;
+    validityMode: "operational" | "legacy"; unitAmountCents: number;
+    validation: { periodId: number | null; locationName: string | null; validatedAt: string | null;
+      usedDate: string | null; usedTime: string | null; actorName: string | null } | null;
+  }>;
+  payments: Array<{ id: number; method: string; amountCents: number; periodId: number | null; receivedAt: string | null }>;
+  history: Array<{ id: number; occurredAt: string; action: string; description: string; reason: string; actorName: string | null }>;
 };
 
 export type PainelPurchaseGatewayConsultResult = {
@@ -278,10 +298,20 @@ type PainelPurchaseDetailRow = {
   paymentmethodtype: string | number | null;
   status: string | number | null;
   cancellation_source?: string | null;
+  origem_checkout: string | null;
 };
 
 type PainelPurchaseDetailVoucherRow = {
   idvoucher: number;
+  idcompra: number;
+  servico_id: number | string | null;
+  dtinicio_validade: string | null;
+  dtvalidade: string | null;
+  parque_operacional: string | null;
+  validacao_periodo_id: number | null;
+  validacao_local_nome: string | null;
+  validado_em: Date | string | null;
+  validado_por_nome: string | null;
   numvoucher: string | null;
   tpvoucher: string | null;
   descricao: string | null;
@@ -675,9 +705,8 @@ function readStringValue(
   return "";
 }
 
-async function loadPainelPurchaseDetailRow(purchaseId: number) {
-  const pool = getIngressoSistemaDbPool();
-  const purchaseResult = await pool.query<PainelPurchaseDetailRow>(
+async function loadPainelPurchaseDetailRow(purchaseId: number, client: Pick<PoolClient, "query"> = getIngressoSistemaDbPool()) {
+  const purchaseResult = await client.query<PainelPurchaseDetailRow>(
     `
       SELECT
         compra.idcompra,
@@ -690,6 +719,7 @@ async function loadPainelPurchaseDetailRow(purchaseId: number) {
         compra.hrpagamento::text AS hrpagamento,
         compra.cpf,
         compra.codindica,
+        compra.origem_checkout,
         usuario.nmusuario,
         pagpagseguro.idpagseguro,
         pagpagseguro.paymentmethodtype,
@@ -1401,10 +1431,58 @@ export function renderPainelPurchaseListExportTable(
 </html>`;
 }
 
+function detailDataError(): never {
+  throw new PainelComprasError("invalid_purchase_data", "Os dados da compra precisam de conferência.", 500);
+}
+
+function detailId(value: unknown): number {
+  const id = Number(value);
+  if (!Number.isSafeInteger(id) || id <= 0) return detailDataError();
+  return id;
+}
+
+function detailOptionalId(value: unknown) {
+  return value == null || value === 0 || value === "0" ? null : detailId(value);
+}
+
+function detailCents(value: unknown): number {
+  const text = String(value ?? "");
+  if (!/^\d+(?:\.\d{1,2}0*)?$/.test(text)) return detailDataError();
+  const [whole, fraction = ""] = text.split(".");
+  const cents = BigInt(whole) * BigInt(100) + BigInt(fraction.slice(0, 2).padEnd(2, "0"));
+  if (cents > BigInt(Number.MAX_SAFE_INTEGER)) return detailDataError();
+  return Number(cents);
+}
+
+function detailInstant(value: Date | string | null | undefined): string | null {
+  if (value == null) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return detailDataError();
+  return date.toISOString();
+}
+
+// Audit names/reasons can contain legacy CPF and phone fields. Never expose the raw audit payload.
+function detailHistoryText(value: string | null | undefined): string {
+  return String(value ?? "").replace(/\+?\d[\d().\s-]*\d/g, (match) =>
+    match.replace(/\D/g, "").length >= 10 ? "[dado pessoal omitido]" : match,
+  ).trim().slice(0, 500);
+}
+
+const detailHistoryEvents: Record<string, string> = {
+  "compra:editar": "Compra atualizada",
+  "compra:excluir": "Compra cancelada",
+  "voucher:validar": "Vouchers validados",
+  "voucher:desvalidar": "Validação de vouchers desfeita",
+  "voucher:invalidar": "Vouchers invalidados",
+  "voucher:whatsapp_request": "Envio de vouchers solicitado",
+  "voucher:imprimir": "Vouchers impressos",
+  "ops-box-office:sale_create": "Venda de bilheteria registrada",
+};
+
 export async function getPainelPurchaseDetail(
   purchaseId: number,
 ): Promise<PainelPurchaseDetail> {
-  if (!Number.isInteger(purchaseId) || purchaseId <= 0) {
+  if (!Number.isSafeInteger(purchaseId) || purchaseId <= 0) {
     throw new PainelComprasError(
       "invalid_purchase_id",
       "Compra invalida.",
@@ -1412,87 +1490,141 @@ export async function getPainelPurchaseDetail(
     );
   }
 
-  const purchase = await loadPainelPurchaseDetailRow(purchaseId);
+  const client = await getIngressoSistemaDbPool().connect();
+  try {
+    await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    const purchase = await loadPainelPurchaseDetailRow(purchaseId, client);
 
-  if (!purchase) {
-    throw new PainelComprasError(
-      "purchase_not_found",
-      "Compra nao encontrada.",
-      404,
+    if (!purchase) {
+      throw new PainelComprasError(
+        "purchase_not_found",
+        "Compra nao encontrada.",
+        404,
+      );
+    }
+
+    const voucherResult = await client.query<PainelPurchaseDetailVoucherRow>(
+      `
+        SELECT
+          voucher.idvoucher,
+          voucher.idcompra,
+          voucher.servico_id,
+          voucher.dtinicio_validade::text,
+          voucher.dtvalidade::text,
+          voucher.parque_operacional,
+          voucher.validacao_periodo_id,
+          caixa_periodos.local_nome AS validacao_local_nome,
+          voucher.validado_em,
+          voucher.validado_por_nome,
+          voucher.numvoucher,
+          voucher.tpvoucher,
+          voucher.descricao,
+          voucher.idagenda,
+          agenda.dtagenda::text AS dtagenda,
+          voucher.idescola,
+          clientes.nome AS nmescola,
+          voucher.nomealuno,
+          voucher.turma,
+          voucher.periodo,
+          voucher.vlunicompra::text AS vlunicompra,
+          voucher.stusado,
+          voucher.dtuso::text AS dtuso,
+          voucher.hruso::text AS hruso
+        FROM voucher
+        LEFT JOIN agenda ON agenda.idagenda = voucher.idagenda
+        LEFT JOIN clientes ON clientes.idcliente = voucher.idescola
+        LEFT JOIN caixa_periodos ON caixa_periodos.id = voucher.validacao_periodo_id
+        WHERE voucher.idcompra = $1
+        ORDER BY voucher.idvoucher DESC
+      `,
+      [purchaseId],
     );
+
+    const park = getOperationalParkId();
+    if (voucherResult.rows.some((voucher) => voucher.parque_operacional != null && voucher.parque_operacional !== park)) {
+      throw new PainelComprasError("purchase_not_found", "Compra nao encontrada.", 404);
+    }
+    const payments = await client.query<{ id: number; forma_pagamento: string; valor: string; periodo_id: number | null; recebido_em: Date | string | null }>(
+      "SELECT id, forma_pagamento, valor::text, periodo_id, recebido_em FROM compra_pagamentos WHERE idcompra=$1 ORDER BY id", [purchaseId],
+    );
+    const history = await client.query<{ id: number; created_at: Date | string; origem: string; acao: string; motivo: string | null; usuario_nome: string | null }>(
+      `SELECT id, created_at, origem, acao, motivo, usuario_nome FROM edicoes_log
+       WHERE compra_id=$1 AND origem || ':' || acao = ANY($2::text[]) ORDER BY created_at DESC, id DESC`,
+      [purchaseId, Object.keys(detailHistoryEvents)],
+    );
+    const cpfDigits = String(purchase.cpf ?? "").replace(/\D/g, "");
+    const result: PainelPurchaseDetail = {
+      purchaseId: detailId(purchase.idcompra),
+      purchaseDate: formatDateLabel(purchase.dtcompra),
+      type: String(purchase.tpcompra ?? "").trim(),
+      typeLabel: formatPurchaseTypeLabel(purchase.tpcompra),
+      status: String(purchase.stcompra ?? "").trim(),
+      statusLabel: formatPurchaseStatusLabel(purchase.stcompra),
+      paymentLabel: resolveDetailPaymentLabel(purchase),
+      paymentMethodLabel: formatGatewayPaymentDetailLabel(purchase.paymentmethodtype),
+      paymentDate: formatDateLabel(purchase.dtpagamento),
+      paymentTime: purchase.hrpagamento ? String(purchase.hrpagamento).slice(0, 8) : null,
+      totalValue: formatMoneyLabel(purchase.vltotcompra),
+      cpf: purchase.cpf ? formatCpf(purchase.cpf) : null,
+      userName: purchase.nmusuario,
+      referralCode: String(purchase.codindica ?? "").trim() || null,
+      gatewayPaymentId: purchase.idpagseguro ? String(purchase.idpagseguro) : null,
+      gatewayStatusCode:
+        purchase.status !== null && purchase.status !== undefined
+          ? String(purchase.status).trim() || null
+          : null,
+      gatewayStatusLabel:
+        purchase.status !== null && purchase.status !== undefined
+          ? formatGatewayStatusLabel(purchase.status)
+          : null,
+      vouchers: voucherResult.rows.map((voucher) => ({
+        voucherId: detailId(voucher.idvoucher),
+        voucherNumber: voucher.numvoucher,
+        visitDate: formatDateLabel(voucher.dtagenda),
+        voucherType: String(voucher.tpvoucher ?? "").trim(),
+        voucherTypeLabel:
+          String(voucher.descricao ?? "").trim() || formatVoucherTypeLabel(voucher.tpvoucher),
+        schoolName: voucher.nmescola,
+        studentName: voucher.nomealuno,
+        className: voucher.turma,
+        periodName: voucher.periodo,
+        unitValue: formatMoneyLabel(voucher.vlunicompra),
+        used: String(voucher.stusado ?? "").trim(),
+        usedLabel: formatVoucherUsedLabel(voucher.stusado),
+        usedDate: formatDateLabel(voucher.dtuso),
+        usedTime: voucher.hruso ? String(voucher.hruso).slice(0, 8) : null,
+        schoolTripHref: buildSchoolProfileHref(voucher.idescola),
+      })),
+      operational: {
+        park, purchasedOn: purchase.dtcompra, totalCents: detailCents(purchase.vltotcompra),
+        origin: purchase.origem_checkout ?? null, customerCpf: cpfDigits.length === 11 ? cpfDigits : null,
+        vouchers: voucherResult.rows.map((voucher) => ({
+          purchaseId: detailId(voucher.idcompra), voucherId: detailId(voucher.idvoucher),
+          agendaId: detailOptionalId(voucher.idagenda), schoolId: detailOptionalId(voucher.idescola), serviceId: detailOptionalId(voucher.servico_id),
+          visitDate: voucher.dtinicio_validade ?? voucher.dtagenda,
+          validFrom: voucher.dtinicio_validade ?? null, validUntil: voucher.dtvalidade ?? null,
+          validityMode: voucher.dtinicio_validade == null ? "legacy" : "operational", unitAmountCents: detailCents(voucher.vlunicompra),
+          validation: voucher.stusado === "s" || voucher.validacao_periodo_id != null || voucher.dtuso != null ? {
+            periodId: detailOptionalId(voucher.validacao_periodo_id), locationName: voucher.validacao_local_nome ?? null,
+            validatedAt: detailInstant(voucher.validado_em), usedDate: voucher.dtuso, usedTime: voucher.hruso,
+            actorName: detailHistoryText(voucher.validado_por_nome) || null,
+          } : null,
+        })),
+        payments: payments.rows.map((payment) => ({ id: detailId(payment.id), method: payment.forma_pagamento.trim(),
+          amountCents: detailCents(payment.valor), periodId: detailOptionalId(payment.periodo_id), receivedAt: detailInstant(payment.recebido_em) })),
+        history: history.rows.map((event) => ({ id: detailId(event.id), occurredAt: detailInstant(event.created_at) ?? detailDataError(),
+          action: event.acao, description: detailHistoryEvents[`${event.origem}:${event.acao}`],
+          reason: detailHistoryText(event.motivo), actorName: detailHistoryText(event.usuario_nome) || null })),
+      },
+    };
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
   }
-
-  const pool = getIngressoSistemaDbPool();
-  const voucherResult = await pool.query<PainelPurchaseDetailVoucherRow>(
-    `
-      SELECT
-        voucher.idvoucher,
-        voucher.numvoucher,
-        voucher.tpvoucher,
-        voucher.descricao,
-        voucher.idagenda,
-        agenda.dtagenda::text AS dtagenda,
-        voucher.idescola,
-        clientes.nome AS nmescola,
-        voucher.nomealuno,
-        voucher.turma,
-        voucher.periodo,
-        voucher.vlunicompra::text AS vlunicompra,
-        voucher.stusado,
-        voucher.dtuso::text AS dtuso,
-        voucher.hruso::text AS hruso
-      FROM voucher
-      LEFT JOIN agenda ON agenda.idagenda = voucher.idagenda
-      LEFT JOIN clientes ON clientes.idcliente = voucher.idescola
-      WHERE voucher.idcompra = $1
-      ORDER BY voucher.idvoucher DESC
-    `,
-    [purchaseId],
-  );
-
-  return {
-    purchaseId: purchase.idcompra,
-    purchaseDate: formatDateLabel(purchase.dtcompra),
-    type: String(purchase.tpcompra ?? "").trim(),
-    typeLabel: formatPurchaseTypeLabel(purchase.tpcompra),
-    status: String(purchase.stcompra ?? "").trim(),
-    statusLabel: formatPurchaseStatusLabel(purchase.stcompra),
-    paymentLabel: resolveDetailPaymentLabel(purchase),
-    paymentMethodLabel: formatGatewayPaymentDetailLabel(purchase.paymentmethodtype),
-    paymentDate: formatDateLabel(purchase.dtpagamento),
-    paymentTime: purchase.hrpagamento ? String(purchase.hrpagamento).slice(0, 8) : null,
-    totalValue: formatMoneyLabel(purchase.vltotcompra),
-    cpf: purchase.cpf ? formatCpf(purchase.cpf) : null,
-    userName: purchase.nmusuario,
-    referralCode: String(purchase.codindica ?? "").trim() || null,
-    gatewayPaymentId: purchase.idpagseguro ? String(purchase.idpagseguro) : null,
-    gatewayStatusCode:
-      purchase.status !== null && purchase.status !== undefined
-        ? String(purchase.status).trim() || null
-        : null,
-    gatewayStatusLabel:
-      purchase.status !== null && purchase.status !== undefined
-        ? formatGatewayStatusLabel(purchase.status)
-        : null,
-    vouchers: voucherResult.rows.map((voucher) => ({
-      voucherId: voucher.idvoucher,
-      voucherNumber: voucher.numvoucher,
-      visitDate: formatDateLabel(voucher.dtagenda),
-      voucherType: String(voucher.tpvoucher ?? "").trim(),
-      voucherTypeLabel:
-        String(voucher.descricao ?? "").trim() || formatVoucherTypeLabel(voucher.tpvoucher),
-      schoolName: voucher.nmescola,
-      studentName: voucher.nomealuno,
-      className: voucher.turma,
-      periodName: voucher.periodo,
-      unitValue: formatMoneyLabel(voucher.vlunicompra),
-      used: String(voucher.stusado ?? "").trim(),
-      usedLabel: formatVoucherUsedLabel(voucher.stusado),
-      usedDate: formatDateLabel(voucher.dtuso),
-      usedTime: voucher.hruso ? String(voucher.hruso).slice(0, 8) : null,
-      schoolTripHref: buildSchoolProfileHref(voucher.idescola),
-    })),
-  };
 }
 
 export async function getPainelPurchaseGatewayConsult(

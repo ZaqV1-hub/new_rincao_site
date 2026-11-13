@@ -196,7 +196,7 @@ Cada entrega termina com diff revisado, testes do domínio e contratos, teste de
 ### E6 — Compras e vouchers pela data
 
 **Modificar:** `painel-compras.ts`, `voucher-repository.ts`, `ops-voucher-validation.ts`, `painel-compra-detail-page.tsx`, componentes de lista e APIs de vouchers já existentes.
-- [ ] Lista com filtros/contadores, detalhe como página, retorno à data/filtro, itens, pagamentos divididos, histórico, link ao cadastro e ações selecionadas.
+- [x] Lista com filtros/contadores, detalhe como página, retorno à data/filtro, itens, pagamentos divididos, histórico, link ao cadastro e ações selecionadas.
 - [ ] Reagendamento/validade em lote com prévia de elegíveis e rejeitados, nova data aberta, motivo e auditoria; preservar preço pago, identidade do voucher e vínculo correto à compra.
 - [ ] Validar usado/cancelado/expirado, capacidade e dia fechado. Não chamar rotina de autosserviço do cliente como autorização administrativa.
 - [ ] E-mail/WhatsApp via mecanismos existentes, com estado pendente/enviado/falhou e repetição sem duplicar. Destino informado precisa autorização e registro, sem expor telefone no log.
@@ -332,7 +332,7 @@ O workflow atual publica automaticamente em push de develop/main. Planejar PRs e
 | Pendências no fechamento diário | Bloquear por padrão; gerente pode autorizar exceção com motivo e pendências visíveis. Não permite finalizar passeio sem recebimento integral | E9 |
 | Histórico dos donos | Fechamentos novos confiáveis a partir da data de corte; histórico anterior apenas com reconstrução e reconciliação próprias, identificado como legado | E10 |
 | Meteorologia | Fornecedor permitido para uso comercial e coordenadas do parque verificadas; indisponibilidade explícita até contratação/configuração | E4 |
-| Categorias e recibo | Validar nomes, faixas etárias, grupos não cobrados, sequência de recibos e quem pode autorizar exceções | E7/E8 |
+| Categorias e recibo | Faixas etárias confirmadas em 13/11/2026: seguir o sistema atual (adulto a partir de 10 anos, criança de 4 a 9 e isento até 3), inclusive contagem/passeios. Validar demais nomes, grupos não cobrados, sequência de recibos e quem pode autorizar exceções | E7/E8 |
 
 Não há estimativa responsável de prazo fechado sem E0, definição das fontes da Estância e aceite do app de contagem. Sequenciar entregas por dependência; o caminho crítico é baseline → caixa/contagem → fechamento passeio → fechamento dia → integração dos donos.
 
@@ -428,3 +428,18 @@ Verificação final do marco E2/E3: 1.284/1.284 testes em PostgreSQL16.15, sem i
 - Navegador e banco reais de ensaio: compra de 160 reais (ingresso 130 + serviço exclusivo do caixa 30), Pix 60 e dinheiro entregue 150 com troco 50. Resposta perdida após gravação; mesma compra recuperada após fechamento, sem duplicar venda ou pagamentos. Troco inicial 100 + dinheiro líquido 100 + fundo 50 − sangria 20 = saldo e contado 230, diferença zero. Validação identificou operador, horário e local; consulta preservou o caixa após navegação. Larguras 360/390/1440 sem overflow.
 - Relatório de caixa usa o mesmo snapshot na tela e impressão A4; PDF de duas páginas gerado pelo navegador, margens e páginas inspecionadas visualmente no artefato standalone. Arquivo de ensaio local: /tmp/rincao-e5-cash-1-final.pdf. Nenhuma cobrança ou mensagem externa enviada; serviço de ingressos não configurado no ambiente isolado.
 - **Gate de publicação:** E6 deve proteger os escritores antigos de edição/reagendamento de compra e passeio encontrados no inventário. A contagem de caixas já alimenta o resumo; recebimentos completos de passeios, despesas e fechamento diário seguem E8/E9. Homologação da VM, restauração comprovada e corte dos escritores externos ainda necessários. Nada enviado à develop/main ou ao Product Owner.
+
+### Decisões de 13/11/2026
+
+- Usuário confirmou que as idades devem seguir o sistema atual: adulto a partir de 10 anos, criança de 4 a 9 anos e isento até 3 anos. Não adotar as faixas 12+/4–11 do protótipo. Decisão registrada para E7/E8; nenhuma alteração comercial necessária.
+- Custos/despesas da Estância continuam pendentes. O usuário confirmará com Isaque e pediu uma mensagem pronta para ele próprio encaminhar por WhatsApp, contextualizando vendas/caixa/fechamento existentes e a falta de fonte completa de despesas identificada no código. Não enviar mensagem diretamente nem presumir novo módulo ou integração.
+
+### E6 — leitura e ações selecionadas: checkpoint local em 13/11/2026
+
+- Lista por data com filtros de origem/tipo, busca e contadores, retorno preservando contexto; detalhe coerente em uma transação de leitura, validade e uso real, recebimentos individuais e histórico com projeção segura.
+- Validação/desvalidação somente dos IDs selecionados, conferidos contra compra/parque após locks; caixa de vendas explícito. Impressão selecionada com QR local e validade preservada. Fluxos legados de edição, reagendamento e cancelamento protegidos contra operações financeiras/fechamentos concorrentes.
+- WhatsApp possui diário privado idempotente e auditoria antes do despacho. Aceite/enfileiramento não significam entrega; resposta incerta mantém a mesma solicitação. Destino só aparece mascarado. Nenhuma mensagem externa foi enviada nos testes.
+- Verificação em 12/11: 1.838 testes com PostgreSQL, 21 testes de scripts, build e tipos passaram; lint sem erros, 12 avisos preexistentes. Browser verificou seleção, caixa/ator/horário, impressão/PDF, retorno, filtros concorrentes e recuperação de pedido com resposta perdida. Em 13/11, revisão manual encontrou e corrigiu cancelamento de reserva já confirmada sem dados legados de recebimento; 109 testes afetados passaram, incluindo regressão primeiro falhando.
+- Revisões independentes de lista/detalhe/UI/WhatsApp concluídas. Revisão independente final dos escritores legados e da correção do limite de corpo foi interrompida por limite de uso do agente; coordenador concluiu a leitura desses escopos e registrou essa limitação. Não declarar revisão independente final completa.
+- Ainda pendentes nesta etapa: mudança de data/validade em lote, aviso por e-mail e integração das pendências de ajuste após fechamento. O protótipo restringe o lote a compras inteiras de day use; compras escolares não são selecionáveis. Não há reagendamento automático por previsão de chuva.
+- Custos e resultado da Estância permanecem indisponíveis até confirmação do usuário com Isaque; essa pendência não bloqueia as demais etapas autorizadas.

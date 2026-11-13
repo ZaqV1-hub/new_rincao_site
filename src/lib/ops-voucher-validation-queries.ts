@@ -1,4 +1,6 @@
 import type { PoolClient } from "pg";
+import { getOperationalParkId } from "@/lib/operational-day-contract";
+import { VoucherOperationError } from "@/lib/ops-voucher-validation-contract";
 import type { VoucherValidationRow, SchoolTripVoucherRow } from "@/lib/ops-voucher-validation-shared";
 const VALIDATION_COLUMNS = `voucher.idvoucher,voucher.idagenda,voucher.numvoucher,voucher.stusado,voucher.stvoucher,
         voucher.validacao_periodo_id,voucher.validado_em::text,voucher.validado_por_nome,voucher.periodo_id,voucher.closed_at::text,
@@ -56,7 +58,10 @@ export async function getVouchersByPurchaseId(client: PoolClient, purchaseId: nu
   return result.rows;
 }
 
-export async function getVouchersByIds(client: PoolClient, voucherIds: number[]) {
+export async function getVouchersByIds(client: PoolClient, voucherIds: number[], expectedPurchaseId?: number) {
+  if (expectedPurchaseId !== undefined && (!Number.isSafeInteger(expectedPurchaseId) || expectedPurchaseId <= 0)) {
+    throw new VoucherOperationError("invalid_purchase_id", "Informe uma compra válida.", 400);
+  }
   await lockVoucherPurchases(client, "voucher.idvoucher = ANY($1::int[])", [voucherIds]);
   const result = await client.query<VoucherValidationRow>(
     `
@@ -72,6 +77,17 @@ export async function getVouchersByIds(client: PoolClient, voucherIds: number[])
     [voucherIds],
   );
 
+  // Check the entire selection after row locks, before any voucher can be changed.
+  if (expectedPurchaseId !== undefined) {
+    const foundIds = new Set(result.rows.map((voucher) => voucher.idvoucher));
+    if (voucherIds.some((id) => !foundIds.has(id)) || result.rows.some((voucher) => voucher.idcompra !== expectedPurchaseId)) {
+      throw new VoucherOperationError("voucher_purchase_mismatch", "Todos os vouchers selecionados devem pertencer à compra informada.", 409);
+    }
+    const park = getOperationalParkId();
+    if (result.rows.some((voucher) => voucher.parque_operacional != null && voucher.parque_operacional !== park)) {
+      throw new VoucherOperationError("voucher_park_mismatch", "O ingresso pertence a outro parque.", 409);
+    }
+  }
   return result.rows;
 }
 

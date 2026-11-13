@@ -21,6 +21,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
+  release: vi.fn(),
   getNativeCieloCheckoutStatus: vi.fn(),
   isCieloEcommerceConfigured: vi.fn(),
   normalizePaymentReconciliationPayload: vi.fn(),
@@ -29,6 +30,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/ingresso-db", () => ({
   getIngressoSistemaDbPool: () => ({
     query: mocks.query,
+    connect: async () => ({ query: mocks.query, release: mocks.release }),
   }),
 }));
 
@@ -598,6 +600,7 @@ describe("listPainelPurchases", () => {
 describe("getPainelPurchaseDetail", () => {
   it("carrega o detalhe legado da compra com vouchers escolares", async () => {
     mocks.query.mockImplementation(async (sql: string) => {
+      if (/^(BEGIN|COMMIT|ROLLBACK)/.test(sql) || sql.includes("FROM compra_pagamentos") || sql.includes("FROM edicoes_log")) return { rows: [] };
       if (sql.includes("FROM compra")) {
         return {
           rows: [
@@ -613,6 +616,7 @@ describe("getPainelPurchaseDetail", () => {
               cpf: "12345678901",
               nmusuario: "DEV",
               codindica: null,
+              origem_checkout: "site",
               idpagseguro: "pay-551",
               paymentmethodtype: "1",
               status: "3",
@@ -625,6 +629,7 @@ describe("getPainelPurchaseDetail", () => {
         rows: [
           {
             idvoucher: 9001,
+            idcompra: 551,
             numvoucher: "ABC-123",
             tpvoucher: "escol",
             idagenda: 2306,
@@ -680,7 +685,20 @@ describe("getPainelPurchaseDetail", () => {
           schoolTripHref: "/painel/clientes/detalhe?id=77",
         },
       ],
+      operational: {
+        park: "rincao", purchasedOn: "2026-05-06", totalCents: 8000, origin: "site", customerCpf: "12345678901",
+        vouchers: [{ purchaseId: 551, voucherId: 9001, agendaId: 2306, schoolId: 77, serviceId: null,
+          visitDate: "2026-05-08", validFrom: null, validUntil: null, validityMode: "legacy", unitAmountCents: 4000, validation: null }],
+        payments: [], history: [],
+      },
     });
+    expect(mocks.query).toHaveBeenCalledWith("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    expect(mocks.query).toHaveBeenCalledWith("COMMIT");
+    expect(mocks.release).toHaveBeenCalledOnce();
+  });
+  it.each([0, -1, 1.2, Number.MAX_SAFE_INTEGER + 1, NaN])("rejects unsafe ID %s before querying", async (id) => {
+    await expect(getPainelPurchaseDetail(id)).rejects.toMatchObject({ code: "invalid_purchase_id" });
+    expect(mocks.query).not.toHaveBeenCalled();
   });
 });
 

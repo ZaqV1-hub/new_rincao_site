@@ -1,3 +1,4 @@
+import { lockLegacyVoucherMutation, LegacyVoucherMutationError } from "@/lib/legacy-voucher-mutation-guard";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
@@ -1517,6 +1518,8 @@ export async function updatePainelTripVoucherStudent(
   try {
     await client.query("BEGIN");
 
+    await lockLegacyVoucherMutation(client, { voucherId, purchaseId, targetAgendaId: agendaId, mutatesPurchase: true });
+
     const voucherResult = await client.query<{
       idcompra: number;
       tpparticipante: string | null;
@@ -1642,6 +1645,9 @@ export async function updatePainelTripVoucherStudent(
     };
   } catch (error) {
     await client.query("ROLLBACK").catch(() => undefined);
+    if (error instanceof LegacyVoucherMutationError) {
+      throw new PainelClientesError(error.code, error.message, error.status);
+    }
     throw error;
   } finally {
     client.release();

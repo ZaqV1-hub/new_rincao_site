@@ -1,8 +1,9 @@
 import { assertOnlineCapacityReleased, OnlineCapacityError } from "@/lib/online-capacity";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
-import { generateVoucherQrcodes, TicketApiError } from "@/lib/ticket-api";
+import { generateLocalVoucherQrCodes, TicketApiError } from "@/lib/ticket-api";
 import { getSchoolPaymentHold } from "@/lib/school-payment-eligibility";
+import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { PainelBilheteriaError, type BilheteriaActor, type PurchaseVoucherRow,
   type PainelBilheteriaVoucherPrintModel, type PainelBilheteriaPurchasePrintModel } from "@/lib/painel-bilheteria-print-contract";
 
@@ -53,7 +54,6 @@ async function getPainelBilheteriaVoucherPrintModel(
         JOIN compra ON compra.idcompra = voucher.idcompra
         WHERE voucher.idvoucher = $1
         LIMIT 1
-        FOR UPDATE
       `,
       [voucherId],
     );
@@ -65,6 +65,9 @@ async function getPainelBilheteriaVoucherPrintModel(
         "Voucher nao encontrado.",
         404,
       );
+    }
+    if (voucher.parque_operacional != null && voucher.parque_operacional !== getOperationalParkId()) {
+      throw new PainelBilheteriaError("voucher_park_mismatch", "O ingresso pertence a outro parque.", 409);
     }
 
     const hold = await getSchoolPaymentHold(client, voucher.idcompra);
@@ -96,26 +99,13 @@ async function getPainelBilheteriaVoucherPrintModel(
       agendaDate = agendaResult.rows[0]?.dtagenda ?? null;
     }
 
-    const validUntil = new Date();
-    validUntil.setDate(validUntil.getDate() + 1);
-    const validUntilText = voucher.dtinicio_validade != null
-      ? String(voucher.dtvalidade ?? "").slice(0, 10)
-      : validUntil.toISOString().slice(0, 10);
-
-    if (voucher.dtinicio_validade == null) await client.query(
-      `
-        UPDATE voucher
-        SET dtvalidade = $2::date
-        WHERE idvoucher = $1
-      `,
-      [voucherId, validUntilText],
-    );
+    const validUntilText = String(voucher.dtvalidade ?? "").slice(0, 10);
 
     await registerOpsAuditLog(
       client,
       {
-        origem: "compra",
-        acao: "editar",
+        origem: "voucher",
+        acao: "imprimir",
         compraId: voucher.idcompra,
         descricao: `Impressao operacional do voucher ${voucherId}.`,
         motivo: "Reemissao de QR individual no painel.",
@@ -134,7 +124,7 @@ async function getPainelBilheteriaVoucherPrintModel(
 
     await client.query("COMMIT");
 
-    const qrCodeMap = await generateVoucherQrcodes([
+    const qrCodeMap = await generateLocalVoucherQrCodes([
       {
         purchaseId: voucher.idcompra,
         voucherId,
@@ -189,6 +179,7 @@ async function getPainelBilheteriaVoucherPrintModel(
 async function getPainelBilheteriaPurchasePrintModel(
   purchaseId: number,
   actor?: BilheteriaActor | null,
+  voucherIds?: number[],
 ): Promise<PainelBilheteriaPurchasePrintModel> {
   if (!Number.isInteger(purchaseId) || purchaseId <= 0) {
     throw new PainelBilheteriaError(
@@ -196,6 +187,10 @@ async function getPainelBilheteriaPurchasePrintModel(
       "Compra invalida.",
       400,
     );
+  }
+  if (voucherIds !== undefined && (!Array.isArray(voucherIds) || voucherIds.length < 1 || voucherIds.length > 1000 ||
+    voucherIds.some((id) => !Number.isSafeInteger(id) || id <= 0) || new Set(voucherIds).size !== voucherIds.length)) {
+    throw new PainelBilheteriaError("invalid_voucher_selection", "Selecione de 1 a 1000 ingressos distintos.", 400);
   }
 
   const pool = getIngressoSistemaDbPool();
@@ -218,15 +213,23 @@ async function getPainelBilheteriaPurchasePrintModel(
     );
   }
 
-  const voucherResult = await pool.query<{ idvoucher: number }>(
+  const voucherResult = await pool.query<{ idvoucher: number; parque_operacional: string | null }>(
     `
-      SELECT voucher.idvoucher
+      SELECT voucher.idvoucher, voucher.parque_operacional
       FROM voucher
       WHERE voucher.idcompra = $1
+        ${voucherIds === undefined ? "" : "AND voucher.idvoucher=ANY($2::bigint[])"}
       ORDER BY voucher.idvoucher
     `,
-    [purchaseId],
+    voucherIds === undefined ? [purchaseId] : [purchaseId, voucherIds],
   );
+
+  if (voucherIds !== undefined && voucherResult.rows.length !== voucherIds.length) {
+    throw new PainelBilheteriaError("invalid_voucher_selection", "Todos os ingressos selecionados devem pertencer à compra.", 409);
+  }
+  if (voucherResult.rows.some((row) => row.parque_operacional != null && row.parque_operacional !== getOperationalParkId())) {
+    throw new PainelBilheteriaError("voucher_park_mismatch", "O ingresso pertence a outro parque.", 409);
+  }
 
   if (voucherResult.rowCount === 0) {
     throw new PainelBilheteriaError(

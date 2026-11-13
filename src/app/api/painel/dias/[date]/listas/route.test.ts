@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ access: vi.fn(), list: vi.fn() }));
 vi.mock("@/lib/painel-api-auth", () => ({ requirePainelApiAccess: mocks.access }));
-vi.mock("@/lib/operational-day-lists", () => ({ getOperationalDayList: mocks.list, OperationalDayListError: class extends Error { constructor(readonly code: string,message: string) { super(message); } } }));
+vi.mock("@/lib/operational-day-lists", async (original) => ({
+  ...await original<typeof import("@/lib/operational-day-lists")>(), getOperationalDayList: mocks.list,
+}));
 import { GET } from "./route";
 const context = { params: Promise.resolve({ date: "2099-11-15" }) };
 const request = (query: string) => new Request(`https://local.test/api/painel/dias/2099-11-15/listas?${query}`);
@@ -12,7 +14,27 @@ describe("day lists access", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(mocks.access.mock.calls.map((call) => call[1])).toEqual(["vis_agenda",permission]);
-    expect(mocks.list).toHaveBeenCalledWith("2099-11-15",kind,2);
+    expect(mocks.list).toHaveBeenCalledWith("2099-11-15",kind,2,kind === "purchases" ? { origin: "all", type: "all", query: "" } : undefined);
+  });
+  it("accepts normalized purchase filters and preserves both required permissions", async () => {
+    const response = await GET(request("kind=purchases&origin=gate&type=group&query=%20Ana%20&page=3"), context);
+    expect(response.status).toBe(200);
+    expect(mocks.access.mock.calls.map(call => call[1])).toEqual(["vis_agenda", "vis_compra"]);
+    expect(mocks.list).toHaveBeenCalledWith("2099-11-15", "purchases", 3, { origin: "gate", type: "group", query: "Ana" });
+  });
+  it.each([
+    "kind=groups&origin=all", "kind=groups&type=all", "kind=groups&query=", "kind=purchases&origin=bad", "kind=purchases&type=service",
+    "kind=purchases&origin=all&origin=site", "kind=purchases&type=all&type=group", "kind=purchases&query=a&query=b",
+    "kind=purchases&page=1&page=2", "kind=purchases&page=1000001", "kind=purchases&query=" + "x".repeat(121),
+  ])("rejects filters, duplicate keys and limits: %s", async (query) => {
+    const response = await GET(request(query), context);
+    expect(response.status).toBe(400);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(mocks.list).not.toHaveBeenCalled();
+  });
+  it("rejects an invalid civil date before querying lists", async () => {
+    const response = await GET(request("kind=purchases"), { params: Promise.resolve({ date: "2099-02-30" }) });
+    expect(response.status).toBe(400); expect(mocks.list).not.toHaveBeenCalled();
   });
   it("does not load personal lists when only agenda access is allowed", async () => {
     mocks.access.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false,response: new Response(null,{ status: 403 }) });
