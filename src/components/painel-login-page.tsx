@@ -66,7 +66,7 @@ async function readResponseBody<T>(response: Response) {
   }
 }
 
-async function resolveRecaptchaToken(siteKey: string) {
+export async function resolveRecaptchaToken(siteKey: string) {
   if (typeof window === "undefined" || !window.grecaptcha) {
     throw new Error("recaptcha_not_loaded");
   }

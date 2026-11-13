@@ -32,6 +32,7 @@ export function SiteShell({
   const pathname = usePathname();
 
   const usesStandaloneShell =
+    pathname === "/donos" || pathname.startsWith("/donos/") ||
     pathname === "/contagem" || pathname.startsWith("/contagem/") ||
     pathname.startsWith("/painel") ||
     pathname === "/agenda" ||

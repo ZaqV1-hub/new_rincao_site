@@ -1,3 +1,5 @@
+import { readRincaoOwnerDays } from "./owner-sources";
+import { readEstanciaFacts } from "./owner-estancia-source";
 import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { Pool } from "pg";
@@ -31,7 +33,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
       CREATE TABLE compra_pagamentos (id SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,forma_pagamento TEXT,valor NUMERIC,periodo_id INTEGER,recebido_em TIMESTAMPTZ);
       CREATE TABLE caixa_periodos (id SERIAL PRIMARY KEY,parque TEXT,data_operacional DATE,local_id BIGINT,fechado_em TIMESTAMPTZ,troco_inicial NUMERIC);
       CREATE TABLE voucher (idvoucher SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,idagenda INTEGER REFERENCES agenda,
-        tpvoucher VARCHAR(5),vlunicompra NUMERIC,stusado VARCHAR(3) DEFAULT 'n',dtuso DATE,idescola INTEGER,item_id INTEGER,vldesc NUMERIC,dtvalidade DATE);
+        tpvoucher VARCHAR(5),descricao TEXT,vlunicompra NUMERIC,stusado VARCHAR(3) DEFAULT 'n',dtuso DATE,idescola INTEGER,item_id INTEGER,vldesc NUMERIC,dtvalidade DATE);
     `);
     for (const migration of ["2026-11-12-operational-panel-foundation.sql", "2026-11-12-operational-voucher-validity.sql", "2026-11-12-operational-service-vouchers.sql", "2026-11-12-day-program.sql", "2026-11-13-trip-counting.sql", "2026-11-13-trip-settlement.sql", "2026-11-13-day-closure.sql"]) {
       await pool.query(await readFile(new URL(`../../docs/sql/${migration}`, import.meta.url), "utf8"));
@@ -233,6 +235,44 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     expect(summary.expenses).toMatchObject({ value: 10000 });
     await pool.query('UPDATE passeio_operacao SET finalized_receipt_id=NULL');
     expect((await getOperationalDaySummary(date)).revenue.finalizedTripsNetCents).toMatchObject({ value: 0 });
+  });
+
+  it('uses identical financial sources for owners in one range query and retains immutable closures',async()=>{
+    await pool.query(`INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES(1,'ponli','conc','pix',350,0);
+      INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,stusado,dtuso) VALUES(1,1,'norma',200,'s','2099-11-15'),(1,1,'norma',150,'n',NULL);`);
+    const summary=await getOperationalDaySummary(date);
+    const query=vi.fn(pool.query.bind(pool));
+    const rows=await readRincaoOwnerDays({query} as never,{start:'2099-11-14',end:'2099-11-16'},date);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(rows[0]).toMatchObject({state:'legacy',revenueCents:null});
+    expect(rows[1]).toMatchObject({state:'open',revenueCents:summary.revenue.totalCents.value,costCents:summary.expenses.value,attendance:summary.attendance.totalAdmitted.value});
+    expect(rows[2]).toMatchObject({revenueCents:0,attendance:0});
+    await pool.query(`INSERT INTO operacao_dias(parque,data,tabela_preco_id,day_use_agenda_id,estado) VALUES('rincao',$1,1,1,'closed');
+      `,[date]);
+    await pool.query(`INSERT INTO operacao_fechamentos(id,parque,data,revisao,snapshot,source_fingerprint,motivo,actor_cpf) VALUES('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','rincao',$1,1,$2,repeat('a',64),'Ensaio','52998224725')`,[date,JSON.stringify({summary})]);
+    await pool.query(`UPDATE operacao_dias SET fechamento_id='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' WHERE data=$1`,[date]);
+    await pool.query('UPDATE voucher SET vlunicompra=999');
+    const frozen=(await readRincaoOwnerDays(pool,{start:date,end:date},date))[0];
+    expect(frozen).toMatchObject({state:'closed',revision:1,revenueCents:35000,attendance:1});
+    expect(JSON.stringify(frozen)).not.toMatch(/52998224725|actor_cpf|signature/);
+  });
+  it('does not treat unpaid Estância reservations or unbalanced purchases as revenue and counts actual admissions separately',async()=>{
+    await pool.query(`INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES
+      (1,'ponli','conc','pix',100,0),(2,'reser','conc','N/A',80,0),(3,'bilhe','conc','dinhe',50,0),(4,'ponli','pend','pix',1000,0),(5,'ponli','conc','pix',999,0);
+      INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,stusado,dtuso) VALUES
+      (1,1,'norma',60,'s','2099-11-16'),(1,1,'espec',40,'s','2099-11-16'),(2,1,'norma',80,'n',NULL),(3,1,'infan',50,'s','2099-11-15'),(4,1,'norma',1000,'n',NULL),(5,1,'norma',10,'n',NULL);`);
+    await pool.query("UPDATE voucher SET descricao='Estacionamento' WHERE tpvoucher='espec'");
+    const rows=await readEstanciaFacts(pool,{start:date,end:'2099-11-16'},[{title:'Estacionamento',type:'addon'}]);
+    expect(rows[0]).toMatchObject({site:'10000',gate:'5000',unreconciled:'1',admitted:'1'});
+    expect(rows[1]).toMatchObject({site:'0',gate:'0',admitted:'1'});
+  });
+
+  it('counts special passports from the actual Estância catalog and flags unknown used products',async()=>{
+    await pool.query(`INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra) VALUES(1,'ponli','conc','pix',100);
+      INSERT INTO voucher(idcompra,idagenda,tpvoucher,descricao,vlunicompra,stusado,dtuso) VALUES
+      (1,1,'espec','Passaporte adaptado',50,'s','2099-11-15'),(1,1,'espec','Produto desconhecido',50,'s','2099-11-15');`);
+    const rows=await readEstanciaFacts(pool,{start:date,end:date},[{title:'Passaporte adaptado',type:'passport'}]);
+    expect(rows[0]).toMatchObject({admitted:'1',unknownAdmissions:'1'});
   });
 
 });
