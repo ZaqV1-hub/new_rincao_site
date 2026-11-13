@@ -117,11 +117,7 @@ export function validateWhatsappPhoneForEnvironment(phoneNumber: string) {
     process.env.INGRESSO_TICKET_API_WHATSAPP_ALLOWED_NUMBERS,
   );
 
-  if (allowedNumbers.length === 0 || allowedNumbers.includes(phoneNumber)) {
-    return true;
-  }
-
-  return false;
+  return allowedNumbers.includes(phoneNumber);
 }
 
 export function isWebsiteTicketApiTesting() {

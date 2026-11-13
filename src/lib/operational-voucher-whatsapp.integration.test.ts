@@ -4,9 +4,9 @@ import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sendOperationalVoucherWhatsapp } from "./operational-voucher-whatsapp";
 
-const mock = vi.hoisted(() => ({ pool: null as Pool | null, send: vi.fn() }));
+const mock = vi.hoisted(() => ({ pool: null as Pool | null, send: vi.fn(), readStatus: vi.fn() }));
 vi.mock("@/lib/ingresso-db", () => ({ getIngressoSistemaDbPool: () => mock.pool }));
-vi.mock("@/lib/ticket-service-whatsapp", () => ({ sendPurchaseTicketsWhatsApp: mock.send }));
+vi.mock("@/lib/ticket-service-whatsapp", () => ({ sendPurchaseTicketsWhatsApp: mock.send, readOperationalTicketWhatsappStatus: mock.readStatus }));
 const connectionString = process.env.PANEL_TEST_DATABASE_URL;
 if (connectionString) {
   const url = new URL(connectionString);
@@ -36,6 +36,7 @@ describe.skipIf(!connectionString)("durable WhatsApp PostgreSQL", () => {
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID","rincao"); vi.stubEnv("TICKETS_API_BASE_URL","http://127.0.0.1:1"); vi.stubEnv("INGRESSO_TICKET_API_WHATSAPP_TESTING","false");
     vi.stubGlobal("fetch",vi.fn(() => { throw new Error("No real network is allowed in this suite"); }));
+    mock.readStatus.mockReset().mockResolvedValue(null);
     mock.send.mockReset().mockResolvedValue({ status: "sent",purchaseId: 1,sentVoucherIds: [100,101] });
     await pool.query(`TRUNCATE edicoes_log,voucher_notification_requests,voucher,online_capacity_reservations,commerce_school_payment_hold,compra;
       INSERT INTO compra VALUES (1,'conc',NULL),(2,'conc',NULL);
@@ -59,6 +60,7 @@ describe.skipIf(!connectionString)("durable WhatsApp PostgreSQL", () => {
     expect(response).toMatchObject({ status: "accepted",destinationMasked: "••••••4321",voucherIds: [100,101] });
     expect(response.message).toContain("não foi confirmada");
     expect(JSON.stringify(response)).not.toMatch(/11987654321|52998224725|material_snapshot|request_hash/);
+    expect(mock.send).toHaveBeenCalledWith(1,[100,101],"11987654321",response.requestId);
     expect(mock.send).toHaveBeenCalledOnce(); expect(fetch).not.toHaveBeenCalled();
   });
   it("returns queued for 202 and replays it after purchase changes or configuration disappears", async () => {
@@ -68,6 +70,30 @@ describe.skipIf(!connectionString)("durable WhatsApp PostgreSQL", () => {
     await pool.query("UPDATE compra SET stcompra='canc' WHERE idcompra=1; UPDATE voucher SET stusado='inv' WHERE idcompra=1");
     vi.stubEnv("TICKETS_API_BASE_URL",""); vi.stubEnv("INGRESSO_TICKET_API_BASE_URL","");
     expect(await sendOperationalVoucherWhatsapp(1,{ ...input(),voucherIds: [101,100],phoneNumber: "(11) 98765-4321" },{ name: "Nome atualizado",cpf: actor.cpf })).toEqual(first);
+    expect(mock.send).toHaveBeenCalledOnce();
+  });
+  it("reconciles an uncertain response from the receiver ledger without a second send", async () => {
+    mock.send.mockRejectedValue(new Error("response lost after provider accepted"));
+    const first = await sendOperationalVoucherWhatsapp(1,input(),actor);
+    expect(first.status).toBe("unknown");
+    mock.readStatus.mockResolvedValue("accepted");
+    const resolved = await sendOperationalVoucherWhatsapp(1,input(),actor);
+    expect(resolved.requestId).toBe(first.requestId); expect(resolved.status).toBe("accepted");
+    expect(mock.readStatus).toHaveBeenCalledWith(first.requestId,1,[100,101]);
+    expect(mock.send).toHaveBeenCalledOnce();
+    expect((await pool.query("SELECT status FROM voucher_notification_requests")).rows[0].status).toBe("accepted");
+  });
+  it("reconciles concurrent consultations without exhausting the database pool", async () => {
+    mock.send.mockRejectedValue(new Error("response lost"));
+    await sendOperationalVoucherWhatsapp(1,input(),actor);
+    let entered = 0, release!: () => void;
+    const ready = new Promise<void>(resolve => { release = resolve; });
+    mock.readStatus.mockImplementation(async () => {
+      if (++entered === 6) release();
+      await ready; return "accepted";
+    });
+    const responses = await Promise.all(Array.from({length:6},()=>sendOperationalVoucherWhatsapp(1,input(),actor)));
+    expect(responses.every(response=>response.status === "accepted")).toBe(true);
     expect(mock.send).toHaveBeenCalledOnce();
   });
   it("rejects a different destination, selection or purchase for the same key without dispatch", async () => {

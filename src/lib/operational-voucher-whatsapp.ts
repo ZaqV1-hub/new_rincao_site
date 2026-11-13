@@ -5,7 +5,7 @@ import { getOperationalParkId } from "@/lib/operational-day-contract";
 import type { CatalogActor } from "@/lib/painel-operational-catalog";
 import { siteSchoolAdmissionEnabled } from "@/lib/school-commerce-contract";
 import { validateWhatsappPhoneForEnvironment } from "@/lib/ticket-service-config";
-import { sendPurchaseTicketsWhatsApp } from "@/lib/ticket-service-whatsapp";
+import { readOperationalTicketWhatsappStatus, sendPurchaseTicketsWhatsApp } from "@/lib/ticket-service-whatsapp";
 import type { TicketWhatsappSendResult } from "@/lib/ticket-service-contract";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 
@@ -96,12 +96,12 @@ async function expireDispatch(client: Pick<PoolClient, "query">, park: string, k
     WHERE parque=$1 AND idempotency_key=$2 AND status='dispatching' AND lease_expires_at<=clock_timestamp()`, [park, key]);
 }
 
-const safeSkipped = new Set(["invalid_phone_number", "phone_not_allowed_for_testing", "purchase_not_confirmed", "no_selected_vouchers", "ticket_service_not_configured", "ticket_auth_failed"]);
-async function dispatch(purchaseId: number, input: OperationalVoucherWhatsappInput): Promise<{ status: OperationalVoucherWhatsappStatus; failure: string | null }> {
+const safeSkipped = new Set(["invalid_phone_number", "phone_not_allowed_for_testing", "purchase_not_confirmed", "no_selected_vouchers", "ticket_service_not_configured", "ticket_auth_failed", "voucher_selection_unavailable"]);
+async function dispatch(purchaseId: number, input: OperationalVoucherWhatsappInput, requestId: string): Promise<{ status: OperationalVoucherWhatsappStatus; failure: string | null }> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     // The shared helper has no AbortSignal. Timeout means unknown, even if its request completes later.
-    const sending = sendPurchaseTicketsWhatsApp(purchaseId, input.voucherIds, input.phoneNumber);
+    const sending = sendPurchaseTicketsWhatsApp(purchaseId, input.voucherIds, input.phoneNumber, requestId);
     const timeout = new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 25_000); });
     const outcome: TicketWhatsappSendResult | null = await Promise.race([sending, timeout]);
     if (!outcome) return { status: "unknown", failure: "dispatch_timeout" };
@@ -138,6 +138,20 @@ export async function sendOperationalVoucherWhatsapp(purchaseId: number, value: 
       await expireDispatch(client,park,input.idempotencyKey);
       const current = (await client.query<RequestRow>("SELECT * FROM voucher_notification_requests WHERE request_id=$1", [existing.request_id])).rows[0];
       await client.query("COMMIT");
+      if (["dispatching", "queued", "unknown"].includes(current.status) && configured()) {
+        // Consultation only: an uncertain request is never dispatched again.
+        try {
+          const status = await readOperationalTicketWhatsappStatus(current.request_id,purchaseId,current.voucher_ids.map(Number));
+          if (status) {
+            const resolved = (await client.query<RequestRow>(`UPDATE voucher_notification_requests SET status=$2,
+              completed_at=clock_timestamp(),updated_at=clock_timestamp(),lease_expires_at=NULL,failure_code=NULL
+              WHERE request_id=$1 AND status IN ('dispatching','queued','unknown') RETURNING *`,[current.request_id,status])).rows[0];
+            if (resolved) return result(resolved);
+            const latest = (await client.query<RequestRow>("SELECT * FROM voucher_notification_requests WHERE request_id=$1",[current.request_id])).rows[0];
+            return result(latest ?? current);
+          }
+        } catch { /* Keep the durable state when the receiver cannot be consulted. */ }
+      }
       return result(current);
     }
     if (!configured()) throw new OperationalVoucherWhatsappError("whatsapp_not_configured", "O envio de WhatsApp não está configurado neste ambiente.", 503);
@@ -159,7 +173,7 @@ export async function sendOperationalVoucherWhatsapp(purchaseId: number, value: 
     throw error;
   } finally { client.release(); }
 
-  const outcome = await dispatch(purchaseId,input);
+  const outcome = await dispatch(purchaseId,input,claimed.request_id);
   // No retry after a lost result write: the durable claim will expire to unknown on consultation.
   const saved = (await pool.query<RequestRow>(`UPDATE voucher_notification_requests SET
     status=CASE WHEN lease_expires_at<=clock_timestamp() THEN 'unknown' ELSE $2 END,

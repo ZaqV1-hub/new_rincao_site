@@ -498,3 +498,11 @@ Verificação final do marco E2/E3: 1.284/1.284 testes em PostgreSQL16.15, sem i
 - Verificação: **2.051 testes / 368 arquivos**, PostgreSQL habilitado, nenhum skip; **21 testes de scripts**; lint sem erros, **12 avisos preexistentes**; build e tipos passaram. Evidências em `/tmp/rincao-e10-evidence`, screenshots `/tmp/rincao-e10-owner-*`. Browser 360/390/1440 sem overflow; sessão dos donos em API operacional 401, mutação em resumo 405, origem estrangeira 403; respostas privadas/no-store. Três papéis locais recusaram INSERT mesmo em transação READ WRITE (42501). PDF de três páginas e PNGs da planilha inspecionados.
 - Migração de acesso aplicada apenas ao banco local isolado; checksum `3506362ae88d6f3553330fceb39b778f8c5938dbced39bf89d693bbfdee2e06e`. Fontes adicionais locais são bancos sintéticos `estancia_owner_test` e `estancia_school_owner_test` no PostgreSQL 54422.
 - Runbook: `docs/runbooks/owner-dashboard.md`. **E10 integral ainda não homologado:** fonte gerencial completa Estância, contas reais e configuração remota continuam gates. Revisão manual concluída; revisão independente final indisponível pelo limite de uso já registrado. Nenhum push/deploy/PO nesta etapa.
+
+
+### Ensaio técnico de implantação — 13/11/2026
+
+- Backup HML novo, arquivos persistentes verificados e restauração na VM em banco isolado; 14 migrações aplicadas/reaplicadas, preservando contagens e somas. Evidências e limitações em `docs/runbooks/operational-panel-rehearsal-2026-11-13.md`.
+- Compatibilidade da API de ingressos implementada em `e2679b2`: sincronização sem contornar o painel, validade canônica na imagem, reenvio persistente e consulta sem duplicação. Dependência deve ser publicada antes do site. HML sem destinatários de teste bloqueia mensagens.
+- Consulta anual otimizada e conciliada em dez datas reais na cópia; cenário de 317 dias abertos passou de timeout de 18 s para 1,66 s. Mesma regra financeira compartilhada pelo resumo e donos.
+- Verificações locais: 2.059 testes site, 45 API com PostgreSQL, 21 scripts, nenhum skip; lint sem erros e 12 avisos legados. Homologação Windows, escritores/corte e publicação `develop` ainda pendentes neste registro. Despesas da Estância continuam pendentes de Isaque.

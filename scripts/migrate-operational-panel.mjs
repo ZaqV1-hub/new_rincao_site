@@ -18,6 +18,7 @@ const migrations = [
   "2026-11-13-trip-settlement.sql",
   "2026-11-13-day-closure.sql",
   "2026-11-13-owner-access.sql",
+  "2026-11-13-summary-date-indexes.sql",
 ];
 
 export function migrationSql(contents) {

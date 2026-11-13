@@ -1,6 +1,13 @@
 // Shared queries: the operational summary and owners use the same financial sources.
 export const DAY_SALES_SQL = `
-    WITH facts AS (
+    WITH selected_vouchers AS (
+      SELECT idvoucher FROM voucher WHERE dtinicio_validade=$1::date
+      UNION
+      SELECT v.idvoucher FROM agenda a JOIN voucher v ON v.idagenda=a.idagenda
+        WHERE a.dtagenda=$1::date AND v.dtinicio_validade IS NULL
+      UNION
+      SELECT idvoucher FROM voucher WHERE dtuso=$1::date
+    ), facts AS (
       SELECT v.vlunicompra * 100 AS cents, v.stusado, v.dtuso,
         COALESCE(v.dtinicio_validade, a.dtagenda) AS chosen_date, v.dtinicio_validade,
         c.stcompra='conc' AS paid, c.tpcompra AS channel,
@@ -18,9 +25,9 @@ export const DAY_SALES_SQL = `
           ELSE 'unknown'
         END AS kind,
         c.tpcompra IN ('ponli','bilhe') OR (c.tpcompra='reser' AND COALESCE(UPPER(TRIM(c.formapag)), '') NOT IN ('','N/A')) AS known_channel
-      FROM voucher v JOIN compra c ON c.idcompra=v.idcompra JOIN agenda a ON a.idagenda=v.idagenda
-      WHERE (COALESCE(v.dtinicio_validade,a.dtagenda)=$1::date OR v.dtuso=$1::date)
-        AND (v.parque_operacional IS NULL OR v.parque_operacional=$2)
+      FROM selected_vouchers selected JOIN voucher v ON v.idvoucher=selected.idvoucher
+      JOIN compra c ON c.idcompra=v.idcompra JOIN agenda a ON a.idagenda=v.idagenda
+      WHERE (v.parque_operacional IS NULL OR v.parque_operacional=$2)
     )
     SELECT
       COALESCE(SUM(cents) FILTER (WHERE paid AND chosen_date=$1::date AND kind='admission' AND channel='ponli'),0)::text AS site,

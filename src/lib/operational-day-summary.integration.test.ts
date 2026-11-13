@@ -35,7 +35,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
       CREATE TABLE voucher (idvoucher SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,idagenda INTEGER REFERENCES agenda,
         tpvoucher VARCHAR(5),descricao TEXT,vlunicompra NUMERIC,stusado VARCHAR(3) DEFAULT 'n',dtuso DATE,idescola INTEGER,item_id INTEGER,vldesc NUMERIC,dtvalidade DATE);
     `);
-    for (const migration of ["2026-11-12-operational-panel-foundation.sql", "2026-11-12-operational-voucher-validity.sql", "2026-11-12-operational-service-vouchers.sql", "2026-11-12-day-program.sql", "2026-11-13-trip-counting.sql", "2026-11-13-trip-settlement.sql", "2026-11-13-day-closure.sql"]) {
+    for (const migration of ["2026-11-12-operational-panel-foundation.sql", "2026-11-12-operational-voucher-validity.sql", "2026-11-12-operational-service-vouchers.sql", "2026-11-12-day-program.sql", "2026-11-13-trip-counting.sql", "2026-11-13-trip-settlement.sql", "2026-11-13-day-closure.sql", "2026-11-13-summary-date-indexes.sql"]) {
       await pool.query(await readFile(new URL(`../../docs/sql/${migration}`, import.meta.url), "utf8"));
     }
   });
@@ -144,6 +144,18 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     expect(chosen.attendance.dayUseAdmitted).toMatchObject({ value: 0 });
     expect(used.revenue.siteNetCents).toMatchObject({ value: 0 });
     expect(used.attendance.dayUseAdmitted).toMatchObject({ value: 1 });
+  });
+  it("does not duplicate a voucher selected by visit and admission date, and ignores its old agenda when validity moved", async () => {
+    await pool.query(`INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES(1,'ponli','conc','pgseg',30,0);
+      INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,stusado,dtuso,dtinicio_validade,dtvalidade,parque_operacional)
+      VALUES(1,1,'norma',10,'s','2099-11-15','2099-11-15','2099-12-14','rincao'),
+      (1,1,'norma',20,'n',NULL,'2099-11-17','2099-12-16','rincao');`);
+    const day = await getOperationalDaySummary(date);
+    expect(day.revenue.siteNetCents.value).toBe(1000);
+    expect(day.attendance.dayUseAdmitted.value).toBe(1);
+    const later = await getOperationalDaySummary("2099-11-17");
+    expect(later.revenue.siteNetCents.value).toBe(2000);
+    expect(later.attendance.dayUseAdmitted.value).toBe(0);
   });
   it("does not count service or school vouchers as persons and includes exempt admissions", async () => {
     await pool.query(`INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES (1,'bilhe','conc','dinhe',20,0);

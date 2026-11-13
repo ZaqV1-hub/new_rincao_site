@@ -7,6 +7,8 @@ import {
   sendPurchaseTicketsWhatsApp,
 } from "@/lib/ticket-service";
 
+import { validateWhatsappPhoneForEnvironment } from "./ticket-service-config";
+
 const dbQuery = vi.fn();
 const { registerTicketDeliveryAudit } = vi.hoisted(() => ({
   registerTicketDeliveryAudit: vi.fn(),
@@ -41,6 +43,15 @@ describe("ticket-service", () => {
   afterEach(() => {
     process.env = originalEnv;
     vi.unstubAllGlobals();
+  });
+
+  it("blocks all recipients in testing when no explicit allowlist is configured", () => {
+    process.env.INGRESSO_TICKET_API_WHATSAPP_TESTING = "true";
+    delete process.env.INGRESSO_TICKET_API_WHATSAPP_ALLOWED_NUMBERS;
+    expect(validateWhatsappPhoneForEnvironment("5511999999999")).toBe(false);
+    process.env.INGRESSO_TICKET_API_WHATSAPP_ALLOWED_NUMBERS = "5511999999999";
+    expect(validateWhatsappPhoneForEnvironment("5511999999999")).toBe(true);
+    expect(validateWhatsappPhoneForEnvironment("5511888888888")).toBe(false);
   });
 
   it("detects when the ticket microservice is unavailable", () => {
