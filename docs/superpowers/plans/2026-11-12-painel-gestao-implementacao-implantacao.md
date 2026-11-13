@@ -227,11 +227,11 @@ Cada entrega termina com diff revisado, testes do domínio e contratos, teste de
 ### E9 — Fechamento diário e exportações
 
 **Criar:** `src/lib/operational-day-closure.ts`, `operational-day-export.tsx`, APIs de fechar/reabrir/exportar. Reusar E3, E5 e E8; aplicar M7.
-- [ ] Indicadores, caixas incluindo Passeios, seções recolhíveis, despesas e avisos de contagem/passeio/reembolso/conferência.
-- [ ] Fechar em transação coerente com todos os caixas: impedir novas mutações, obter snapshot e fechar sessões. Valores contados ausentes permanecem ausentes, com pendência explícita.
-- [ ] Proposta: impedir fechamento definitivo com passeio não finalizado; permitir somente exceção gerencial justificada, se aprovada na revisão. O anexo apenas pede avisos, portanto este bloqueio não é tratado como regra já aprovada.
-- [ ] Reabrir exige gerente e motivo, cria revisão e preserva histórico. Corrigir e fechar novamente sem sobrescrever exportação anterior.
-- [ ] PDF A4 e XLSX com indicadores/gráficos, caixas, passeios, modalidades, compras, day use, despesas e assinaturas. Exportar cada caixa; neutralizar conteúdo que possa virar fórmula de planilha.
+- [x] Indicadores, caixas incluindo Passeios, seções recolhíveis, despesas e avisos de contagem/passeio/reembolso/conferência.
+- [x] Fechar em transação coerente com todos os caixas: impedir novas mutações, obter snapshot e fechar sessões. Valores contados ausentes permanecem ausentes, com pendência explícita.
+- [x] Bloquear fechamento com pendências por padrão; gerente pode reconhecer e justificar a exceção, conforme recomendações da seção 9 aprovadas pelo usuário. Isso não finaliza passeio sem recebimento integral.
+- [x] Reabrir exige gerente e motivo, cria revisão e preserva histórico. Corrigir e fechar novamente sem sobrescrever exportação anterior.
+- [x] PDF A4 e XLSX com indicadores/gráficos, caixas, passeios, modalidades, compras, day use, despesas e assinaturas. Exportar cada caixa; neutralizar conteúdo que possa virar fórmula de planilha.
 **Aceite:** tela, PDF, XLSX e API têm valores idênticos para mesma revisão; teste de fechamento concorrente, reabertura, pagamento tardio e job da meia-noite.
 
 ### E10 — Painel dos donos: dois parques
@@ -474,3 +474,15 @@ Verificação final do marco E2/E3: 1.284/1.284 testes em PostgreSQL16.15, sem i
 - Evidência local: 1.992 testes em 359 arquivos, PostgreSQL 16 habilitado e sem testes pulados; 21 testes de scripts; lint sem erros e 12 avisos anteriores; build e tipos aprovados. Revisão manual pelo coordenador; revisão independente adicional indisponível por quota, sem redisparo.
 - Navegador: 390 e 1440 px sem transbordamento; pagamento parcial e boleto pendente bloqueiam finalização; resposta perdida após baixa real recuperada sem duplicar; saldo da última forma acompanha mudanças anteriores; reabertura preservou recibo 1 e emitiu recibo 2. PDF real autenticado retornou 200/private no-store e foi renderizado e inspecionado.
 - Migração local M6 `2026-11-13-trip-settlement.sql`, checksum `31d64033aae81550e645df6382ed88d3b1b20433c187753796c89a6a6b9a1ddb`. Nenhuma migração remota/publicação/atualização do PO. E9 deve conferir pagamentos tardios e resolver pendências de alteração; E10 e gates de homologação permanecem abertos.
+
+
+### Evidências locais — E9 (13/11/2026)
+
+- Fechamento diário com isolamento SERIALIZABLE, locks de dia/caixas, chave idempotente e snapshot imutável por revisão. Reabertura gerencial mantém recibos e caixas anteriores. Datas futuras não fecham; pendências exigem reconhecimento/motivo. Dinheiro não contado permanece ausente; conferência posterior pertence à nova revisão diária, com motivo e valor original preservado.
+- Resumo da data fechada lê a mesma revisão. Consulta compara fontes atuais e sinaliza pagamentos/alterações posteriores; recibo de passeio divergente gera pendência. Compra escolar nova respeita bloqueio do dia/passeio, incluindo educadores. Confirmações externas continuam registradas para conferência.
+- Recebimentos reais separados da receita da visita: bruto online confirmado/data de pagamento, registros de caixa e de passeios. Datas/valores não comprovados ficam indisponíveis. Teste de compra base R$ 350 e cobrança R$ 369,98 preserva receita de visita 350 e recebimento 369,98 sem duplicar por voucher.
+- Tela com cinco indicadores, caixas visíveis, seções recolhíveis, despesas, gráficos e histórico. PDF A4/XLSX usam a revisão selecionada e trazem gráficos, caixas, passeios, contagens/modalidades, compras/day use, despesas e assinaturas. Planilha neutraliza fórmulas; exporta cada caixa. Logo Rincão conferido visualmente (o antigo arquivo rincao-logo-dark contém marca Estância, por isso foi usado rincao-logo.png).
+- Ajustes de compra E6 agora podem ser aplicados ou rejeitados por gerente com permissão de compras, motivo e prévia atual. Reutiliza validação/vagas/preços do lote; aplicação exige datas afetadas abertas. Histórico resolvido continua acessível para recuperar resposta perdida após reload.
+- Suíte completa: **2.014 testes / 361 arquivos**, PostgreSQL 16 habilitado, nenhum skip. Após os últimos ajustes de histórico/relatório, **98 testes afetados passaram**. Lint: zero erros, 12 avisos preexistentes. Build/types passaram; scripts 21/21. Revisão manual do coordenador; revisão independente segue indisponível por quota, sem redispatch.
+- Navegador local: fechamento gravado e resposta abortada; reload recuperou a mesma revisão, sem duplicar. Caixa #3 permaneceu fechado com contado NULL original; revisão diária posterior registrou R$ 123,45 contado e diferença zero, sem alterar o caixa original. Ajuste da compra sintética #900022 aplicado uma vez, resposta abortada e recuperada pelo histórico resolvido; validade passou a 20/05/2027. Mobile 390 e desktop 1440 sem overflow; PDF/XLSX reais retornaram 200/private,no-store. PDF e imagens da planilha renderizados e inspecionados.
+- M7 local `2026-11-13-day-closure.sql`, checksum `34d78b154553e44899712d5a93c41ebaa2ca0c7bea92f5d615084206c8bc558b`. Nenhuma migração remota, push ou atualização do PO. E10, restauração/homologação real e gates de implantação continuam pendentes; despesas/resultado líquido da Estância aguardam Isaque.

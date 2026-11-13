@@ -60,7 +60,7 @@ describe("operational day summary UI", () => {
     const html = renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage canAccessProgram programStatus={programStatus} />);
     expect(html).toContain(`Programação do dia · ${action}`); expect(html).toContain(label);
     expect(html).toContain('href="/painel/agenda/2099-01-02/dia-seguinte?returnTo=2099-01-02"');
-    expect(html).toContain("Fechamento diário: integração pendente."); expect(html).not.toContain("Dia seguinte, caixas");
+    expect(html).toContain("Fechamento diário: em aberto."); expect(html).not.toContain("Dia seguinte, caixas");
   });
   it("shows session counts separately from revenue and links the selected date only with cash permission", () => {
     const html = renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage={false} canAccessCash />);

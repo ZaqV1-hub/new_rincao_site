@@ -1,3 +1,5 @@
+import { lockLegacyTripChange } from "./trip-operational-guard";
+import { TripSettlementError } from "./trip-settlement-contract";
 import { formatDateLabel, parseSchoolValueInput, normalizeMoney } from "@/lib/school-purchase-values";
 import { encodeLegacyId } from "@/lib/agenda-id";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
@@ -328,6 +330,7 @@ export async function createSchoolPurchase(
 
   try {
     await client.query("BEGIN");
+    await lockLegacyTripChange(client,{ agendaId: input.agendaId,clientId: input.schoolId });
     const schoolAdmission = input.participantType === "educator" ? null : await admitSiteSchoolPurchase(client, cpf,
       { schoolId: input.schoolId, agendaId: input.agendaId, schoolName: availableTrip.school_name,
         visitDate: availableTrip.dtagenda, studentName, educationType: educationType!, educationYear: educationYear!,
@@ -382,6 +385,7 @@ export async function createSchoolPurchase(
     };
   } catch (error) {
     await client.query("ROLLBACK");
+    if (error instanceof TripSettlementError) throw new SchoolPurchaseError(error.code,error.message,error.status);
     throw error;
   } finally {
     client.release();

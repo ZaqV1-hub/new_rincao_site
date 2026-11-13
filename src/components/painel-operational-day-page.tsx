@@ -1,5 +1,6 @@
 "use client";
 
+import { PainelDayClosure } from "./painel-day-closure";
 import { PainelTripDay } from "./painel-trip-day";
 import { PainelCountingSummary } from "./painel-counting-summary";
 import Link from "next/link";
@@ -140,7 +141,7 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessCash = f
       <div className="flex flex-wrap items-center gap-3">{canManage && <Link className={button} href={`/painel/agenda/${summary.date}/editar`}>Editar day use</Link>}{canAccessProgram && <><Link className={button} href={`/painel/agenda/${summary.date}/dia-seguinte?returnTo=${summary.date}`}>Programação do dia · {programAction}</Link>
         {programStatus ? <span className="text-sm text-[#45647f]" title={programStatus === "exported" ? "Os arquivos foram gerados; o envio é feito pelo gerente." : undefined}>{programLabels[programStatus]}</span> : <p role="alert" className="text-sm text-[#694812]">{programError || "Programação do dia indisponível. Atualize a página para tentar novamente."}</p>}</>}
         {canAccessCash && <Link className={button} href={`/painel/caixas?date=${summary.date}`}>Caixas da data</Link>}
-        <p className="text-sm text-[#45647f]">Fechamento diário: integração pendente.</p></div>
+        <p className="text-sm text-[#45647f]">{summary.closure.status === "available" && summary.closure.value > 0 ? `Fechamento diário: revisão ${summary.closure.value}.` : "Fechamento diário: em aberto."}</p></div>
     </header>
     <div role="tablist" aria-label="Informações da data" className="flex flex-wrap gap-2 border-b border-[#d4dfeb] pb-3">
       {tabs.map((item, index) => <button key={item.id} id={`day-tab-${item.id}`} role="tab" type="button" aria-selected={tab === item.id} aria-controls="day-panel" tabIndex={tab === item.id ? 0 : -1} onKeyDown={(event) => navigateTabs(event, index)} onClick={() => setTab(item.id)} className={`${button} ${tab === item.id ? "border-[#236699] bg-[#edf4fa] underline decoration-2 underline-offset-4" : ""}`}>{item.label}{item.id === "passeios" ? ` (${number(summary.groupCount)})` : ""}</button>)}
@@ -157,7 +158,7 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessCash = f
             <SourceValue label="Faturamento total do dia" source={revenue.totalCents} currency /><SourceValue label="Valores sem classificação, fora do subtotal" source={revenue.unclassifiedNetCents} currency />
           </dl></section>
           <div className="space-y-6"><section className={panel} aria-labelledby="day-count-title"><h2 id="day-count-title" className="text-lg font-bold">Contagem dos passeios</h2><p className="mt-2 text-sm text-[#45647f]">{summary.groupCount === 0 ? "Nenhum passeio cadastrado nesta data." : `${number(summary.groupCount)} passeio(s) cadastrado(s) nesta data.`}</p><dl><SourceValue label="Pessoas em veículos com contagem concluída" source={attendance.completedVehiclePeople} /></dl><button type="button" className={button} onClick={() => { setTab("passeios"); document.getElementById("day-tab-passeios")?.focus(); }}>Ver passeios</button></section>
-            <section className={panel} aria-labelledby="day-finance-title"><h2 id="day-finance-title" className="text-lg font-bold">Recebimentos e fechamento</h2><dl className="mt-2 divide-y divide-[#d4dfeb]"><SourceValue label="Recebimentos na data" source={summary.receipts} currency /><SourceValue label="Sessões de caixa" source={summary.cash} /><SourceValue label="Despesas da data" source={summary.expenses} currency /><SourceValue label="Fechamento do dia" source={summary.closure} /></dl></section>
+            <section className={panel} aria-labelledby="day-finance-title"><h2 id="day-finance-title" className="text-lg font-bold">Recebimentos e fechamento</h2><dl className="mt-2 divide-y divide-[#d4dfeb]"><SourceValue label="Recebimentos registrados (site, caixas e passeios)" source={summary.receipts} currency /><SourceValue label="Sessões de caixa" source={summary.cash} /><SourceValue label="Despesas da data" source={summary.expenses} currency /><SourceValue label="Revisão do fechamento (0 = aberto)" source={summary.closure} /></dl></section>
           </div>
         </div>
         {summary.warnings.length > 0 && <aside className={`${panel} bg-[#f4f8fc]`} aria-labelledby="day-warnings"><h2 id="day-warnings" className="font-bold">Pendências da apuração</h2><ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-[#45647f]">{summary.warnings.map((warning) => <li key={warning.code}>{warning.message}</li>)}</ul></aside>}
@@ -165,7 +166,7 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessCash = f
       {tab === "passeios" && financialActorCpf ? <PainelTripDay date={summary.date} actorCpf={financialActorCpf} /> : tab === "passeios" && canAccessProgram ? <PainelCountingSummary date={summary.date} /> : null}
       {((tab === "passeios" && !financialActorCpf) || tab === "compras") && <DayListPanel key={`${summary.date}:${tab}`} date={summary.date} kind={tab === "passeios" ? "groups" : "purchases"} context={purchaseContext} onContextChange={updatePurchaseContext} canOperate={canAccessCash} />}
       {tab === "caixas" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Caixas</h2><dl><SourceValue label="Sessões de caixa" source={summary.cash} /></dl><p>Caixas abertos e fechados por local nesta data. O saldo em caixa não compõe a receita da visita.</p>{canAccessCash ? <Link className="inline-flex min-h-11 items-center underline" href={`/painel/caixas?date=${summary.date}`}>Abrir caixas da data</Link> : <p>Seu perfil não permite acessar os caixas.</p>}</div>}
-      {tab === "fechamento" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Fechamento do dia</h2><p>{summary.closure.reason}</p><p className="text-sm text-[#45647f]">O subtotal disponível no resumo é parcial e não constitui um fechamento.</p></div>}
+      {tab === "fechamento" && (financialActorCpf ? <PainelDayClosure key={`${summary.date}:${financialActorCpf}`} date={summary.date} actorCpf={financialActorCpf} manager={canManage} /> : <p>Seu perfil não permite consultar o fechamento financeiro.</p>)}
     </section>
     <p className="text-xs text-[#45647f]">Consultado em <time dateTime={summary.generatedAt}>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(summary.generatedAt))}</time> (horário de São Paulo).</p>
   </div>;

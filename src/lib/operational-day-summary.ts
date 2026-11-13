@@ -1,3 +1,4 @@
+import { readOperationalDayReceipts } from "./operational-day-receipts";
 import type { PoolClient } from "pg";
 import { getOperationalDay, OperationalDayError, type OperationalDay } from "@/lib/operational-day";
 import { getOperationalParkId, type OperationalParkId } from "@/lib/operational-day-contract";
@@ -32,10 +33,10 @@ export type OperationalDaySummary = {
   };
   forecast: { ticketsForSelectedDate: SummarySourceValue<number>; plannedGroupPeople: SummarySourceValue<number> };
   groupCount: number;
-  receipts: UnavailableSummarySource;
+  receipts: SummarySourceValue<number>;
   cash: SummarySourceValue<number>;
   expenses: SummarySourceValue<number>;
-  closure: UnavailableSummarySource;
+  closure: SummarySourceValue<number>;
   warnings: { code: string; message: string }[];
 };
 
@@ -144,6 +145,8 @@ export async function readOperationalDaySummary(client: QueryClient, date: strin
   if (safeInteger(financial.invalidReceipts)) throw new OperationalDaySummaryError("summary_invalid_data", "Há um recibo de passeio sem fechamento integral comprovado.");
   const trips = safeInteger(financial.revenue),subtotal = safeInteger(site+gate+services+trips);
   const warnings: { code: string; message: string }[] = [];
+  const receipts = await readOperationalDayReceipts(client,date,park);
+  if(receipts.unclassifiedCount)warnings.push({code:"receipts_unclassified",message:"Há recebimentos online sem data ou valor bruto comprovado. O detalhamento por forma considera apenas os registros conferíveis."});
   if (safeInteger(financial.unfinished)) warnings.push({ code: "unfinished_trips", message: "Há passeios a fechar. Eles ainda não compõem a receita da visita." });
   if (safeInteger(meta.incompleteGroups) > 0) warnings.push({ code: "attendance_incomplete", message: "Há grupos sem contagem concluída. O subtotal considera apenas as entradas de day use e os veículos concluídos." });
   if (configuration === null) warnings.push({ code: "configuration_ambiguous", message: "A data possui agendas de day use sem vínculo único. O resumo financeiro permanece disponível; revise a configuração antes de editar." });
@@ -173,10 +176,10 @@ export async function readOperationalDaySummary(client: QueryClient, date: strin
       plannedGroupPeople: safeInteger(meta.missingPlans) > 0 ? unavailable("trip_planning", "Há grupos sem previsão cadastrada.") : available(safeInteger(meta.plannedPeople), "trip_planning:canonical_groups"),
     },
     groupCount: safeInteger(meta.groupCount),
-    receipts: unavailable("payment_receipts", "Recebimentos por data e passeio ainda não integrados ao resumo."),
+    receipts: receipts.unclassifiedCount ? unavailable("recorded_receipts", "Há pagamentos sem data ou valor comprovado.") : available(safeInteger(receipts.rows.reduce((sum,r)=>sum+r.amountCents,0)), "recorded_receipts:online_cash_trips_gross"),
     cash: available(safeInteger(meta.cashCount), "operational_cash_sessions:park_operational_date"),
     expenses: park === "rincao" ? available(safeInteger(financial.expenses), "operational_expenses:visit_date") : unavailable("estancia_expenses", "Regra de despesas da Estância pendente de confirmação com o Isaque."),
-    closure: unavailable("daily_closure", "Fechamento diário revisionado ainda não integrado."),
+    closure: available(0, "daily_closure:live_preview"),
     warnings,
   };
 }
@@ -189,7 +192,8 @@ export async function getOperationalDaySummary(date: string): Promise<Operationa
   try {
     await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
     try {
-      const summary = await readOperationalDaySummary(client, date, park);
+      const frozen = (await client.query<{ summary: OperationalDaySummary; revision: number }>(`SELECT f.snapshot->'summary' AS summary,f.revisao AS revision FROM operacao_dias d JOIN operacao_fechamentos f ON f.id=d.fechamento_id AND f.parque=d.parque AND f.data=d.data WHERE d.parque=$1 AND d.data=$2::date AND d.estado='closed'`, [park,date])).rows[0];
+      const summary = frozen ? { ...frozen.summary,closure: available(frozen.revision,"daily_closure:frozen_revision"),warnings:[...frozen.summary.warnings,{code:"frozen_revision",message:`Valores da revisão ${frozen.revision}. Consulte Fechamento do dia para conferir alterações posteriores.`}] } : await readOperationalDaySummary(client, date, park);
       await client.query("COMMIT");
       return summary;
     } catch (error) {

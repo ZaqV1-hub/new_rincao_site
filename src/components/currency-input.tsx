@@ -4,6 +4,7 @@ import { useState } from "react";
 
 type CurrencyInputProps = {
   autoComplete?: string;
+  allowEmpty?: boolean;
   className?: string;
   defaultValue?: string;
   disabled?: boolean;
@@ -44,6 +45,7 @@ export function parseCurrencyInput(value: string) {
 
 export function CurrencyInput({
   autoComplete = "off",
+  allowEmpty = false,
   className,
   defaultValue = "0,00",
   disabled,
@@ -53,7 +55,7 @@ export function CurrencyInput({
   required,
   type = "text",
 }: CurrencyInputProps) {
-  const [value, setValue] = useState(() => formatCurrencyInput(defaultValue));
+  const [value, setValue] = useState(() => allowEmpty && !defaultValue ? "" : formatCurrencyInput(defaultValue));
 
   return (
     <input
@@ -63,7 +65,7 @@ export function CurrencyInput({
       inputMode="numeric"
       name={name}
       onChange={(event) => {
-        const nextValue = formatCurrencyInput(event.target.value);
+        const nextValue = allowEmpty && !toCurrencyDigits(event.target.value) ? "" : formatCurrencyInput(event.target.value);
         setValue(nextValue);
         onValueChange?.(nextValue);
       }}

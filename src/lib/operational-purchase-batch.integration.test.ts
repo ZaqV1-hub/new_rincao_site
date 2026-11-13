@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyPurchaseBatch, previewPurchaseBatch } from "./operational-purchase-batch";
+import { applyPurchaseBatch, previewPurchaseBatch, previewPurchaseAdjustment, resolvePurchaseAdjustment } from "./operational-purchase-batch";
 import { dispatchPurchaseBatchEmail, listPurchaseBatchEmail } from "./operational-purchase-batch-email";
 
 const state = vi.hoisted(() => ({ pool: null as Pool | null, onDay: null as (() => Promise<void>) | null,send: vi.fn(),configured: vi.fn() }));
@@ -64,6 +64,29 @@ describe.skipIf(!connectionString)("atomic whole-purchase batches with PostgreSQ
   afterAll(async () => { await pool?.end(); if (created) await admin.query(`DROP SCHEMA ${schema} CASCADE`); await admin?.end(); });
   async function snapshot() { return (await pool.query("SELECT * FROM voucher ORDER BY idvoucher")).rows; }
   async function apply(data: { purchaseIds: number[]; targetDate: string | null; validity: string; reason: string; notifyEmail: boolean } = input, key = "first") { const preview = await previewPurchaseBatch(data); return applyPurchaseBatch({ ...data, fingerprint: preview.fingerprint, idempotencyKey: key },actor); }
+  it('resolves closed-history adjustments only after reopening, preserving the closed cash and paid values',async()=>{
+    await pool.query("UPDATE operacao_dias SET estado='closed' WHERE data='2099-07-20'; UPDATE caixa_periodos SET fechado_em=now(),folha_id=99 WHERE id=5; UPDATE compra SET caixa_periodo_id=5 WHERE idcompra=1");
+    expect(await apply()).toMatchObject({adjustments:[1],applied:[]});
+    const id=(await pool.query('SELECT id FROM purchase_adjustments')).rows[0].id;
+    expect((await previewPurchaseAdjustment(id)).items[0].status).toBe('rejected');
+    await pool.query("UPDATE operacao_dias SET estado='open' WHERE data='2099-07-20'");
+    const preview=await previewPurchaseAdjustment(id);expect(preview.items[0].status).toBe('eligible');
+    const command={decision:'apply',reason:'Revisão autorizada',fingerprint:preview.fingerprint,idempotencyKey:'resolve-one'};
+    await expect(resolvePurchaseAdjustment(id,command,{...actor,manager:false})).rejects.toMatchObject({status:403});
+    const first=await resolvePurchaseAdjustment(id,command,{...actor,manager:true});expect(await resolvePurchaseAdjustment(id,command,{...actor,manager:true})).toEqual(first);
+    expect((await pool.query('SELECT status FROM purchase_adjustments')).rows[0].status).toBe('resolved');
+    expect((await pool.query('SELECT fechado_em,folha_id FROM caixa_periodos WHERE id=5')).rows[0].folha_id).toBe(99);
+    expect((await snapshot()).slice(0,3).map(v=>[v.idagenda,v.vlunicompra])).toEqual([[20,'100'],[20,'0'],[20,'20']]);
+  });
+  it('rejects changed adjustment sources and allows an audited rejection without changing vouchers',async()=>{
+    await pool.query("UPDATE operacao_dias SET estado='closed' WHERE data='2099-07-20'");await apply();
+    const id=(await pool.query('SELECT id FROM purchase_adjustments')).rows[0].id;
+    await pool.query('UPDATE voucher SET vlunicompra=101 WHERE idvoucher=11');
+    await expect(previewPurchaseAdjustment(id)).rejects.toMatchObject({code:'adjustment_source_changed'});
+    const before=await snapshot(),command={decision:'reject',reason:'Dados mudaram; nova conferência necessária',idempotencyKey:'reject-one'};
+    const first=await resolvePurchaseAdjustment(id,command,{...actor,manager:true});expect(await resolvePurchaseAdjustment(id,command,{...actor,manager:true})).toEqual(first);
+    expect(await snapshot()).toEqual(before);expect((await pool.query('SELECT status FROM purchase_adjustments')).rows[0].status).toBe('rejected');
+  });
   it("previews without writes then moves all tickets and services at their original prices", async () => {
     const before = await snapshot(); const preview = await previewPurchaseBatch(input);
     expect(preview.items[0]).toMatchObject({ purchaseId: 1,status: "eligible" }); expect(preview.items[0].vouchers).toHaveLength(3);

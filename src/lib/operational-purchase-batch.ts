@@ -1,3 +1,4 @@
+import { tripFingerprint } from "./trip-settlement-source";
 import { createHash, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
@@ -64,7 +65,7 @@ async function readSnapshot(client: PoolClient, input: PurchaseBatchInput): Prom
   result.closedDates = (await client.query<{ date: string }>("SELECT data::text AS date FROM operacao_dias WHERE parque=$1 AND data=ANY($2::date[]) AND estado='closed' ORDER BY data", [park,datesFor(result,input)])).rows.map(r => r.date);
   return result;
 }
-function preview(input: PurchaseBatchInput, s: Snapshot): PurchaseBatchPreview {
+function preview(input: PurchaseBatchInput, s: Snapshot, resolvingPurchaseId?: number): PurchaseBatchPreview {
   const park = getOperationalParkId();
   const items: PurchaseBatchItem[] = input.purchaseIds.map(id => {
     const item: PurchaseBatchItem = { purchaseId: id,status: "rejected",message: "Compra indisponível.",vouchers: [] };
@@ -77,7 +78,7 @@ function preview(input: PurchaseBatchInput, s: Snapshot): PurchaseBatchPreview {
       vs.some(v => !v.serviceId && !["norma","infan","isent","corte"].includes(v.type))) return reject("O lote aceita somente compras inteiras de day use, sem passeios ou escolares.");
     if (vs.some(v => v.used !== "n" || v.usedOn !== null)) return reject("A compra contém ingresso usado, cancelado ou inválido.");
     if (cap?.held || s.holds.includes(id)) return reject("Compra retida para conferência pelo atendimento.");
-    if (s.pending.includes(id)) return reject("Já existe um ajuste pendente para esta compra.");
+    if (s.pending.includes(id) && resolvingPurchaseId !== id) return reject("Já existe um ajuste pendente para esta compra.");
     if (new Set(vs.map(v => v.from ?? v.visit)).size !== 1) return reject("A compra possui mais de uma data de visita. Confira o cadastro.");
     if (cap && (cap.date !== (vs[0].from ?? vs[0].visit) || cap.quantity !== vs.filter(v => !v.serviceId).length)) return reject("A reserva de vagas não corresponde aos ingressos. Confira a compra antes de mover.");
     try {
@@ -95,8 +96,9 @@ function preview(input: PurchaseBatchInput, s: Snapshot): PurchaseBatchPreview {
     if (cap && input.targetDate && cap.date !== input.targetDate && (s.target?.version == null || s.target.onlineSoldOut)) return reject("O destino não está disponível para transferir a reserva de vagas online.");
     const linked = periodsFor(s,id);
     if (linked.some(id => !s.periods.some(p => p.id === id)) || s.periods.some(p => linked.includes(p.id) && p.park !== null && p.park !== park)) return reject("Não foi possível conferir o vínculo financeiro da compra.");
-    if (vs.some(v => v.closedAt) || s.periods.some(p => linked.includes(p.id) && p.closed) ||
-      [...vs.map(v => v.from ?? v.visit),...s.periods.filter(p => linked.includes(p.id)).map(p => p.date),cap?.date].some(d => d && s.closedDates.includes(d))) {
+    if (resolvingPurchaseId === id && s.closedDates.length) return reject("Reabra as datas afetadas antes de resolver o ajuste.");
+    if (resolvingPurchaseId !== id && (vs.some(v => v.closedAt) || s.periods.some(p => linked.includes(p.id) && p.closed) ||
+      [...vs.map(v => v.from ?? v.visit),...s.periods.filter(p => linked.includes(p.id)).map(p => p.date),cap?.date].some(d => d && s.closedDates.includes(d)))) {
       return { ...item,status: "adjustment_required",message: "Histórico fechado: será registrada uma pendência. Os ingressos não serão alterados agora." };
     }
     if (input.notifyEmail && (!p.email || p.email.length > 254 || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(p.email))) return reject("O cadastro não possui e-mail válido para o aviso solicitado.");
@@ -113,21 +115,22 @@ export async function previewPurchaseBatch(value: unknown): Promise<PurchaseBatc
   try { await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY"); const result = preview(input,await readSnapshot(client,input)); await client.query("COMMIT"); return result; }
   catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
 }
-export async function applyPurchaseBatch(value: unknown, actor: CatalogActor): Promise<PurchaseBatchResult> {
+export async function applyPurchaseBatch(value: unknown, actor: CatalogActor): Promise<PurchaseBatchResult> { return applyBatch(value,actor); }
+async function applyBatch(value: unknown, actor: CatalogActor, resolution?: {client:PoolClient;purchaseId:number}): Promise<PurchaseBatchResult> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return invalidPurchaseBatch();
   const { fingerprint,idempotencyKey,...data } = value as Record<string,unknown>;
   const input = normalizePurchaseBatch(data);
   if (typeof fingerprint !== "string" || !/^[a-f0-9]{64}$/.test(fingerprint) || typeof idempotencyKey !== "string" || !/^[A-Za-z0-9:_-]{1,100}$/.test(idempotencyKey)) return invalidPurchaseBatch();
   if (!actor.cpf || !/^\d{11}$/.test(actor.cpf)) throw new PurchaseBatchError("batch_actor_required", "Sua sessão precisa identificar o operador.",403);
-  const park = getOperationalParkId(), requestHash = hash({ input,fingerprint }), client = await getIngressoSistemaDbPool().connect();
+  const park = getOperationalParkId(), requestHash = hash({ input,fingerprint,resolvingPurchaseId:resolution?.purchaseId }), client = resolution?.client ?? await getIngressoSistemaDbPool().connect();
   try {
-    await client.query("BEGIN");
+    if (!resolution) await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [`purchase-batch:${park}:${idempotencyKey}`]);
     const existing = (await client.query<{ request_hash: string; actor_cpf: string; result: PurchaseBatchResult }>("SELECT request_hash,actor_cpf,result FROM purchase_batches WHERE parque=$1 AND idempotency_key=$2", [park,idempotencyKey])).rows[0];
     if (existing) {
       if (existing.actor_cpf !== actor.cpf) throw new PurchaseBatchError("batch_forbidden", "Esta solicitação pertence a outro operador.",403);
       if (existing.request_hash !== requestHash) throw new PurchaseBatchError("batch_idempotency_conflict", "Esta chave já foi utilizada em outro lote.");
-      await client.query("COMMIT"); return existing.result;
+      if (!resolution) await client.query("COMMIT"); return existing.result;
     }
     const before = await readSnapshot(client,input);
     for (const date of datesFor(before,input)) await lockOperationalDay(client,park,date);
@@ -136,7 +139,7 @@ export async function applyPurchaseBatch(value: unknown, actor: CatalogActor): P
     await client.query("SELECT idcompra FROM compra WHERE idcompra=ANY($1::int[]) ORDER BY idcompra FOR UPDATE", [input.purchaseIds]);
     await client.query("SELECT idvoucher FROM voucher WHERE idcompra=ANY($1::int[]) ORDER BY idcompra,idvoucher FOR UPDATE", [input.purchaseIds]);
     await client.query("SELECT idcompra FROM online_capacity_reservations WHERE idcompra=ANY($1::int[]) ORDER BY idcompra FOR UPDATE", [input.purchaseIds]);
-    const current = await readSnapshot(client,input), checked = preview(input,current);
+    const current = await readSnapshot(client,input), checked = preview(input,current,resolution?.purchaseId);
     if (hash(before) !== hash(current) || checked.fingerprint !== fingerprint) throw new PurchaseBatchError("batch_preview_changed", "Os dados mudaram. Gere uma nova prévia antes de confirmar.");
     const batchId = randomUUID();
     const result: PurchaseBatchResult = { batchId,applied: [],adjustments: [],rejected: [],emailPending: 0 };
@@ -167,6 +170,55 @@ export async function applyPurchaseBatch(value: unknown, actor: CatalogActor): P
         motivo: input.reason,usuarioNome: actor.name,detalhes: { batchId,actorCpf: actor.cpf,vouchers: item.vouchers } },"postgres");
     }
     await client.query("UPDATE purchase_batches SET result=$2::jsonb WHERE id=$1", [batchId,JSON.stringify(result)]);
-    await client.query("COMMIT"); return result;
-  } catch (error) { await client.query("ROLLBACK"); throw error; } finally { client.release(); }
+    if (!resolution) await client.query("COMMIT"); return result;
+  } catch (error) { if (!resolution) await client.query("ROLLBACK"); throw error; } finally { if (!resolution) client.release(); }
+}
+
+
+type AdjustmentRow={id:string;purchaseId:number;status:string;beforeSnapshot:Voucher[];requestedChange:PurchaseBatchInput;resolution:Record<string,unknown>|null};
+async function readAdjustment(client:PoolClient,id:string,lock=false){
+  if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id))return invalidPurchaseBatch();
+  const row=(await client.query<AdjustmentRow>(`SELECT id,purchase_id::int AS "purchaseId",status,before_snapshot AS "beforeSnapshot",requested_change AS "requestedChange",resolution FROM purchase_adjustments WHERE parque=$1 AND id=$2${lock?' FOR UPDATE':''}`,[getOperationalParkId(),id])).rows[0];
+  if(!row)throw new PurchaseBatchError('adjustment_missing','Ajuste não encontrado.',404);return row;
+}
+async function adjustmentPreview(client:PoolClient,row:AdjustmentRow){
+  const input=normalizePurchaseBatch(row.requestedChange),snapshot=await readSnapshot(client,input),result=preview(input,snapshot,row.purchaseId);
+  if(input.purchaseIds.length!==1||input.purchaseIds[0]!==row.purchaseId)throw new PurchaseBatchError('adjustment_invalid','A solicitação não corresponde à compra.');
+  if(tripFingerprint(snapshot.vouchers)!==tripFingerprint(row.beforeSnapshot))throw new PurchaseBatchError('adjustment_source_changed','Os ingressos mudaram desde a solicitação. Rejeite o ajuste e gere uma nova solicitação após conferir a compra.');
+  return {input,snapshot,result};
+}
+export async function previewPurchaseAdjustment(id:string){
+  const client=await getIngressoSistemaDbPool().connect();
+  try{await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');const row=await readAdjustment(client,id);if(row.status!=='pending')throw new PurchaseBatchError('adjustment_resolved','O ajuste já foi resolvido.');const {input,result}=await adjustmentPreview(client,row);await client.query('COMMIT');return {request:input,...result};}
+  catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+}
+export async function resolvePurchaseAdjustment(id:string,value:unknown,actor:CatalogActor & {manager:boolean}){
+  if(!actor.manager||!actor.cpf||!/^\d{11}$/.test(actor.cpf))throw new PurchaseBatchError('adjustment_manager_required','A resolução exige um gerente identificado.',403);
+  if(!value||typeof value!=='object'||Array.isArray(value))return invalidPurchaseBatch();
+  const data=value as Record<string,unknown>;
+  if(Object.keys(data).some(k=>!['decision','reason','fingerprint','idempotencyKey'].includes(k))||!['apply','reject'].includes(String(data.decision))||typeof data.reason!=='string'||!data.reason.trim()||data.reason.length>1000||data.reason.includes('\0')||typeof data.idempotencyKey!=='string'||!/^[A-Za-z0-9:_-]{1,100}$/.test(data.idempotencyKey)||(data.decision==='apply'&&(typeof data.fingerprint!=='string'||!/^[a-f0-9]{64}$/.test(data.fingerprint))))return invalidPurchaseBatch();
+  const client=await getIngressoSistemaDbPool().connect(),requestHash=hash({id,data}),park=getOperationalParkId();
+  try{
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`purchase-batch:${park}:${data.idempotencyKey}`]);
+    const initial=await readAdjustment(client,id),input=normalizePurchaseBatch(initial.requestedChange),snapshot=await readSnapshot(client,input);
+    for(const date of datesFor(snapshot,input))await lockOperationalDay(client,park,date);
+    const row=await readAdjustment(client,id,true);
+    if(row.status!=='pending'){
+      if(row.resolution?.idempotencyKey!==data.idempotencyKey||row.resolution?.requestHash!==requestHash||row.resolution?.actorCpf!==actor.cpf)throw new PurchaseBatchError('adjustment_idempotency_conflict','O ajuste foi resolvido por outra tentativa.');
+      await client.query('COMMIT');return row.resolution;
+    }
+    let batch:PurchaseBatchResult|null=null;
+    if(data.decision==='apply'){
+      const checked=await adjustmentPreview(client,row);
+      if(checked.result.fingerprint!==data.fingerprint)throw new PurchaseBatchError('adjustment_preview_changed','Os dados mudaram. Confira uma nova prévia.');
+      if(checked.result.items[0]?.status!=='eligible')throw new PurchaseBatchError('adjustment_not_eligible',checked.result.items[0]?.message??'A compra não pode ser alterada.');
+      batch=await applyBatch({...checked.input,fingerprint:data.fingerprint,idempotencyKey:data.idempotencyKey},actor,{client,purchaseId:row.purchaseId});
+      if(!batch.applied.includes(row.purchaseId))throw new PurchaseBatchError('adjustment_not_applied','O ajuste não foi aplicado.');
+    }
+    const resolution={id,decision:data.decision,reason:data.reason.trim(),actorCpf:actor.cpf,actorName:actor.name,idempotencyKey:data.idempotencyKey,requestHash,batch};
+    await client.query("UPDATE purchase_adjustments SET status=$2,resolved_at=clock_timestamp(),resolution=$3::jsonb WHERE id=$1",[id,data.decision==='apply'?'resolved':'rejected',JSON.stringify(resolution)]);
+    await registerOpsAuditLog(client,{origem:'voucher',acao:'adjustment_resolved',compraId:row.purchaseId,descricao:data.decision==='apply'?'Ajuste aplicado após revisão, preservando snapshots anteriores.':'Ajuste rejeitado; ingressos preservados.',motivo:data.reason.trim(),usuarioNome:actor.name,detalhes:resolution},'postgres');
+    await client.query('COMMIT');return resolution;
+  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }

@@ -26,31 +26,47 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
       INSERT INTO tabpreco VALUES (1);
       CREATE TABLE agenda (idagenda INTEGER PRIMARY KEY, idtabpreco INTEGER REFERENCES tabpreco, dtagenda DATE, tpagenda VARCHAR(5), stagenda VARCHAR(3));
       CREATE TABLE agenda_extras (idagenda INTEGER REFERENCES agenda, idcliente INTEGER, PRIMARY KEY (idagenda,idcliente));
-      CREATE TABLE compra (idcompra INTEGER PRIMARY KEY, tpcompra VARCHAR(5), stcompra VARCHAR(4), formapag VARCHAR(5), vltotcompra NUMERIC, vltotdesc NUMERIC);
-      CREATE TABLE compra_pagamentos (id SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,forma_pagamento TEXT,valor NUMERIC);
+      CREATE TABLE pagpagseguro(idcompra integer,idpagseguro text,status integer,"grossAmount" numeric,paymentmethodtype integer,"lastEventDate" timestamptz);
+      CREATE TABLE compra (idcompra INTEGER PRIMARY KEY, tpcompra VARCHAR(5), stcompra VARCHAR(4), formapag VARCHAR(5), vltotcompra NUMERIC, vltotdesc NUMERIC,dtpagamento DATE);
+      CREATE TABLE compra_pagamentos (id SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,forma_pagamento TEXT,valor NUMERIC,periodo_id INTEGER,recebido_em TIMESTAMPTZ);
       CREATE TABLE caixa_periodos (id SERIAL PRIMARY KEY,parque TEXT,data_operacional DATE,local_id BIGINT,fechado_em TIMESTAMPTZ,troco_inicial NUMERIC);
       CREATE TABLE voucher (idvoucher SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,idagenda INTEGER REFERENCES agenda,
         tpvoucher VARCHAR(5),vlunicompra NUMERIC,stusado VARCHAR(3) DEFAULT 'n',dtuso DATE,idescola INTEGER,item_id INTEGER,vldesc NUMERIC,dtvalidade DATE);
     `);
-    for (const migration of ["2026-11-12-operational-panel-foundation.sql", "2026-11-12-operational-voucher-validity.sql", "2026-11-12-operational-service-vouchers.sql", "2026-11-12-day-program.sql", "2026-11-13-trip-counting.sql", "2026-11-13-trip-settlement.sql"]) {
+    for (const migration of ["2026-11-12-operational-panel-foundation.sql", "2026-11-12-operational-voucher-validity.sql", "2026-11-12-operational-service-vouchers.sql", "2026-11-12-day-program.sql", "2026-11-13-trip-counting.sql", "2026-11-13-trip-settlement.sql", "2026-11-13-day-closure.sql"]) {
       await pool.query(await readFile(new URL(`../../docs/sql/${migration}`, import.meta.url), "utf8"));
     }
   });
   afterAll(async () => { try { await pool?.end(); if (created) await admin.query(`DROP SCHEMA ${schema} CASCADE`); } finally { await admin?.end(); } });
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao");
-    await pool.query("TRUNCATE caixa_periodos,voucher,compra_pagamentos,compra,agenda_extras,operacao_dias,servico_datas,servicos_adicionais,agenda RESTART IDENTITY CASCADE");
+    await pool.query("TRUNCATE pagpagseguro,caixa_periodos,voucher,compra_pagamentos,compra,agenda_extras,operacao_dias,servico_datas,servicos_adicionais,agenda RESTART IDENTITY CASCADE");
     await pool.query("INSERT INTO agenda VALUES (1,1,'2099-11-15','padra','abe')");
   });
   afterEach(() => vi.unstubAllEnvs());
 
+  it('counts actual online gross receipts once on their payment date without changing visit revenue',async()=>{
+    await pool.query(`UPDATE agenda SET dtagenda='2099-11-17';
+      INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc,dtpagamento) VALUES(1,'ponli','conc','pgseg',350,0,'2099-11-15');
+      INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra) VALUES(1,1,'norma',200),(1,1,'norma',150);
+      INSERT INTO pagpagseguro VALUES(1,'cielo-test',3,369.98,1,now());`);
+    const paid=await getOperationalDaySummary('2099-11-15'),visit=await getOperationalDaySummary('2099-11-17');
+    expect(paid.receipts.value).toBe(36998);expect(paid.revenue.totalCents.value).toBe(0);
+    expect(visit.receipts.value).toBe(0);expect(visit.revenue.totalCents.value).toBe(35000);
+  });
+  it('marks online receipts without proven dates or gateway amounts unavailable instead of fabricating a total',async()=>{
+    await pool.query(`INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES(1,'ponli','conc','pgseg',100,0);INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra) VALUES(1,1,'norma',100);`);
+    expect((await getOperationalDaySummary(date)).receipts.status).toBe('unavailable');
+    await pool.query("UPDATE compra SET dtpagamento='2099-11-15'");
+    expect((await getOperationalDaySummary(date)).receipts.status).toBe('unavailable');
+  });
   it("returns proven empty revenue and expense sources without inventing a daily closure", async () => {
     const summary = await getOperationalDaySummary(date);
     expect(summary).toMatchObject({ park: "rincao", date, configurationRevision: null, groupCount: 0,
       revenue: { siteNetCents: { status: "available", value: 0 }, knownSubtotalCents: 0,
         totalCents: { status: "available", value: 0 }, finalizedTripsNetCents: { status: "available", value: 0 } },
       attendance: { dayUseAdmitted: { status: "available", value: 0 }, totalAdmitted: { status: "available", value: 0 } },
-      cash: { status: "available", value: 0 }, receipts: { status: "unavailable", value: null }, expenses: { status: "available", value: 0 } });
+      cash: { status: "available", value: 0 }, receipts: { status: "available", value: 0 }, expenses: { status: "available", value: 0 } });
     expect((await pool.query("SELECT * FROM caixa_periodos")).rowCount).toBe(0);
     expect((await pool.query("SELECT tablename FROM pg_tables WHERE schemaname=$1 AND tablename='edicoes_log'", [schema])).rowCount).toBe(0);
   });
@@ -62,7 +78,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
       INSERT INTO passeio_contagens(id,parque,vehicle_id,catalog_version,status,owner_cpf,counts,responsible_name,responsible_phone,contact_confirmed,completed_at,created_by)
       VALUES('11111111-1111-1111-1111-111111111111','rincao',1,1,'completed','52998224725','{"adult":10,"child":20,"coordinator":0,"pcdChild":0,"pcdAdult":0,"pcdCompanion":0,"teacherChild":0,"exempt":0}', 'Maria','5511987654321',true,now(),'52998224725');
       UPDATE passeio_veiculos SET estado='completed',current_count_id='11111111-1111-1111-1111-111111111111',last_completed_count_id='11111111-1111-1111-1111-111111111111' WHERE id=1;
-      INSERT INTO compra VALUES(1,'ponli','conc','pix',10,0);
+      INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES(1,'ponli','conc','pix',10,0);
       INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,idescola,stusado,dtuso) VALUES(1,2,'escol',10,10,'s','2099-11-15');`);
     const summary = await getOperationalDaySummary(date);
     expect(summary.attendance).toMatchObject({ dayUseAdmitted: { value: 0 }, completedVehiclePeople: { value: 30 }, totalAdmitted: { status: "unavailable" } });
@@ -78,7 +94,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     expect(summary.cash).toMatchObject({ status: "available", value: 2 });
     expect(summary.revenue.knownSubtotalCents).toBe(0);
     for (const source of [summary.receipts, summary.closure]) {
-      expect(source).toMatchObject({ status: "unavailable", value: null });
+      expect(source).toMatchObject({ status: "available", value: 0 });
     }
   });
   it("navigates to session dates without an agenda and excludes foreign and unscoped cash", async () => {
@@ -94,7 +110,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     await pool.query(`INSERT INTO servicos_adicionais (parque,nome,preco_bilheteria) VALUES ('rincao','Serviço',25);
       INSERT INTO agenda VALUES (2,1,'2099-11-15','escol','abe');
       INSERT INTO agenda_extras VALUES (2,10),(2,20);
-      INSERT INTO compra VALUES (1,'ponli','conc','pgseg',85,15),(2,'bilhe','conc','dinhe',50,10),(3,'ponli','conc','pgseg',200,0),(4,'ponli','pend','pgseg',900,0);
+      INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES (1,'ponli','conc','pgseg',85,15),(2,'bilhe','conc','dinhe',50,10),(3,'ponli','conc','pgseg',200,0),(4,'ponli','pend','pgseg',900,0);
       INSERT INTO compra_pagamentos(idcompra,forma_pagamento,valor) VALUES (1,'pix',40),(1,'credi',45);
       INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,vldesc) VALUES (1,1,'norma',60,-15),(2,1,'infan',50,NULL),(4,1,'norma',900,NULL);
       INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,servico_id,dtinicio_validade,dtvalidade,parque_operacional) VALUES (1,1,'espec',25,1,'2099-11-15','2099-11-15','rincao');
@@ -108,7 +124,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
   });
   it("classifies legacy services only through a stable catalog ID mapping and warns on unknown special items", async () => {
     await pool.query(`INSERT INTO servicos_adicionais (parque,nome,preco_bilheteria,legacy_ticket_id,ativo) VALUES ('rincao','Legado',11,44,FALSE);
-      INSERT INTO compra VALUES (1,'ponli','conc','pgseg',28,0);
+      INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES (1,'ponli','conc','pgseg',28,0);
       INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,item_id,stusado,dtuso) VALUES (1,1,'espec',17,NULL,'s','2099-11-15'),(1,1,'espec',11,44,'s','2099-11-15');`);
     const result = await getOperationalDaySummary(date);
     expect(result.revenue).toMatchObject({ servicesNetCents: { value: 1100 }, unclassifiedNetCents: { value: 1700 }, knownSubtotalCents: 1100 });
@@ -117,7 +133,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
   });
   it("keeps chosen-visit revenue separate from actual admission and excludes another park", async () => {
     await pool.query(`UPDATE agenda SET dtagenda='2099-11-17';
-      INSERT INTO compra VALUES (1,'ponli','conc','pgseg',10,0),(2,'ponli','conc','pgseg',999,0);
+      INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES (1,'ponli','conc','pgseg',10,0),(2,'ponli','conc','pgseg',999,0);
       INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,stusado,dtuso,dtinicio_validade,dtvalidade,parque_operacional)
       VALUES (1,1,'norma',10,'s','2099-11-20','2099-11-15','2099-12-14','rincao'),(2,1,'norma',999,'s','2099-11-20','2099-11-15','2099-12-14','estancia');`);
     const chosen = await getOperationalDaySummary(date);
@@ -128,7 +144,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     expect(used.attendance.dayUseAdmitted).toMatchObject({ value: 1 });
   });
   it("does not count service or school vouchers as persons and includes exempt admissions", async () => {
-    await pool.query(`INSERT INTO compra VALUES (1,'bilhe','conc','dinhe',20,0);
+    await pool.query(`INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES (1,'bilhe','conc','dinhe',20,0);
       INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,stusado,dtuso,idescola)
       VALUES (1,1,'norma',20,'s','2099-11-15',NULL),(1,1,'isent',0,'s','2099-11-15',NULL),(1,1,'escol',0,'s','2099-11-15',10),(1,1,'espec',0,'s','2099-11-15',NULL);`);
     const summary = await getOperationalDaySummary(date);
@@ -136,7 +152,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     expect(summary.forecast.ticketsForSelectedDate).toMatchObject({ value: 2 });
   });
   it("does not require future settlement amounts from school vouchers to read known day-use revenue", async () => {
-    await pool.query(`INSERT INTO compra VALUES (1,'ponli','conc','pgseg',10,0);
+    await pool.query(`INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES (1,'ponli','conc','pgseg',10,0);
       INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,idescola)
       VALUES (1,1,'norma',10,NULL),(1,1,'escol',NULL,10);`);
     const summary = await getOperationalDaySummary(date);
@@ -144,7 +160,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     expect(summary.revenue.finalizedTripsNetCents).toMatchObject({ status: "available", value: 0 });
   });
   it("keeps confirmed sales with unknown payment channels outside the known subtotal", async () => {
-    await pool.query(`INSERT INTO compra VALUES (1,'reser','conc','N/A',10,0),(2,NULL,'conc',NULL,5,0);
+    await pool.query(`INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES (1,'reser','conc','N/A',10,0),(2,NULL,'conc',NULL,5,0);
       INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra) VALUES (1,1,'norma',10),(2,1,'norma',5);`);
     const summary = await getOperationalDaySummary(date);
     expect(summary.revenue).toMatchObject({ gateNetCents: { value: 0 }, unclassifiedNetCents: { value: 1500 }, knownSubtotalCents: 0 });
@@ -153,7 +169,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
 
   it("keeps financial summary readable when legacy day-use configuration is ambiguous", async () => {
     await pool.query(`INSERT INTO agenda VALUES (2,1,'2099-11-15','promo','abe');
-      INSERT INTO compra VALUES (1,'ponli','conc','pgseg',10,0),(2,'bilhe','conc','dinhe',20,0);
+      INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES (1,'ponli','conc','pgseg',10,0),(2,'bilhe','conc','dinhe',20,0);
       INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,stusado,dtuso)
       VALUES (1,1,'norma',10,'s','2099-11-15'),(2,2,'infan',20,'s','2099-11-15');`);
     const summary = await getOperationalDaySummary(date);
@@ -183,7 +199,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     try {
       await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
       const before = await readOperationalDaySummary(client, date, "rincao");
-      await pool.query("INSERT INTO compra VALUES(1,'ponli','conc','pgseg',10,0); INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra) VALUES(1,1,'norma',10)");
+      await pool.query("INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES(1,'ponli','conc','pgseg',10,0); INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra) VALUES(1,1,'norma',10)");
       await pool.query("INSERT INTO caixa_periodos(parque,data_operacional,local_id) VALUES('rincao','2099-11-15',1),('rincao','2099-11-16',1)");
       const after = await readOperationalDaySummary(client, date, "rincao");
       expect(after.revenue.siteNetCents).toEqual(before.revenue.siteNetCents);
@@ -196,7 +212,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     expect((await getOperationalDaySummary(date)).cash).toMatchObject({ status: "available", value: 1 });
   });
   it("refuses unsafe money totals and preserves paid invalidated vouchers as a financial warning", async () => {
-    await pool.query("INSERT INTO compra VALUES(1,'ponli','conc','pgseg',10,0); INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,stusado) VALUES(1,1,'norma',10,'inv')");
+    await pool.query("INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES(1,'ponli','conc','pgseg',10,0); INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,stusado) VALUES(1,1,'norma',10,'inv')");
     const summary = await getOperationalDaySummary(date);
     expect(summary.revenue.siteNetCents).toMatchObject({ value: 1000 });
     expect(summary.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: "paid_invalidated_vouchers" })]));

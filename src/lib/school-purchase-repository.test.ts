@@ -74,6 +74,8 @@ describe("school-purchase-repository", () => {
         return { rows: [] };
       }
 
+      if (sql.includes('dtagenda::text AS date FROM agenda')) return { rows: [{ date:'2026-06-15' }],rowCount:1 };
+      if (sql.includes('pg_advisory_xact_lock')||sql.includes('SELECT data FROM operacao_dias')||sql.includes('FROM passeio_operacao o')) return {rows:[],rowCount:0};
       if (sql.includes("INSERT INTO compra")) {
         expect(values).toEqual(["52998224725", "45.00"]);
         return {
