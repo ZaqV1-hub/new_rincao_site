@@ -32,7 +32,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
       CREATE TABLE voucher (idvoucher SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,idagenda INTEGER REFERENCES agenda,
         tpvoucher VARCHAR(5),vlunicompra NUMERIC,stusado VARCHAR(3) DEFAULT 'n',dtuso DATE,idescola INTEGER,item_id INTEGER,vldesc NUMERIC,dtvalidade DATE);
     `);
-    for (const migration of ["2026-11-12-operational-panel-foundation.sql", "2026-11-12-operational-voucher-validity.sql", "2026-11-12-operational-service-vouchers.sql", "2026-11-12-day-program.sql", "2026-11-13-trip-counting.sql"]) {
+    for (const migration of ["2026-11-12-operational-panel-foundation.sql", "2026-11-12-operational-voucher-validity.sql", "2026-11-12-operational-service-vouchers.sql", "2026-11-12-day-program.sql", "2026-11-13-trip-counting.sql", "2026-11-13-trip-settlement.sql"]) {
       await pool.query(await readFile(new URL(`../../docs/sql/${migration}`, import.meta.url), "utf8"));
     }
   });
@@ -44,13 +44,13 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
   });
   afterEach(() => vi.unstubAllEnvs());
 
-  it("returns proven empty sources but keeps future totals unavailable even without groups", async () => {
+  it("returns proven empty revenue and expense sources without inventing a daily closure", async () => {
     const summary = await getOperationalDaySummary(date);
     expect(summary).toMatchObject({ park: "rincao", date, configurationRevision: null, groupCount: 0,
       revenue: { siteNetCents: { status: "available", value: 0 }, knownSubtotalCents: 0,
-        totalCents: { status: "unavailable", value: null }, finalizedTripsNetCents: { status: "unavailable", value: null } },
+        totalCents: { status: "available", value: 0 }, finalizedTripsNetCents: { status: "available", value: 0 } },
       attendance: { dayUseAdmitted: { status: "available", value: 0 }, totalAdmitted: { status: "available", value: 0 } },
-      cash: { status: "available", value: 0 }, receipts: { status: "unavailable", value: null }, expenses: { status: "unavailable", value: null } });
+      cash: { status: "available", value: 0 }, receipts: { status: "unavailable", value: null }, expenses: { status: "available", value: 0 } });
     expect((await pool.query("SELECT * FROM caixa_periodos")).rowCount).toBe(0);
     expect((await pool.query("SELECT tablename FROM pg_tables WHERE schemaname=$1 AND tablename='edicoes_log'", [schema])).rowCount).toBe(0);
   });
@@ -77,7 +77,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     const summary = await getOperationalDaySummary(date);
     expect(summary.cash).toMatchObject({ status: "available", value: 2 });
     expect(summary.revenue.knownSubtotalCents).toBe(0);
-    for (const source of [summary.receipts, summary.expenses, summary.closure, summary.revenue.totalCents]) {
+    for (const source of [summary.receipts, summary.closure]) {
       expect(source).toMatchObject({ status: "unavailable", value: null });
     }
   });
@@ -141,7 +141,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
       VALUES (1,1,'norma',10,NULL),(1,1,'escol',NULL,10);`);
     const summary = await getOperationalDaySummary(date);
     expect(summary.revenue.siteNetCents).toMatchObject({ value: 1000 });
-    expect(summary.revenue.finalizedTripsNetCents).toMatchObject({ status: "unavailable", value: null });
+    expect(summary.revenue.finalizedTripsNetCents).toMatchObject({ status: "available", value: 0 });
   });
   it("keeps confirmed sales with unknown payment channels outside the known subtotal", async () => {
     await pool.query(`INSERT INTO compra VALUES (1,'reser','conc','N/A',10,0),(2,NULL,'conc',NULL,5,0);
@@ -203,4 +203,20 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     await pool.query("UPDATE voucher SET vlunicompra=100000000000000");
     await expect(getOperationalDaySummary(date)).rejects.toMatchObject({ code: "summary_invalid_data" });
   });
+  it('adds only the current immutable trip receipt once and separately sums operational expenses',async () => {
+    await pool.query(`INSERT INTO agenda VALUES(2,1,'2099-11-15','escol','abe'); INSERT INTO agenda_extras VALUES(2,10);
+      INSERT INTO passeio_operacao(parque,agenda_id,cliente_id) VALUES('rincao',2,10);
+      INSERT INTO passeio_recibos(id,parque,agenda_id,cliente_id,visit_date,source_fingerprint,snapshot,actor_cpf) VALUES
+       ('11111111-1111-1111-1111-111111111111','rincao',2,10,'2099-11-15',repeat('a',64),'{"calculation":{"totalTripCents":396000},"remainingCents":0,"pendingPaymentCents":0}','52998224725'),
+       ('22222222-2222-2222-2222-222222222222','rincao',2,10,'2099-11-15',repeat('b',64),'{"calculation":{"totalTripCents":999999},"remainingCents":0,"pendingPaymentCents":0}','52998224725');
+      UPDATE passeio_operacao SET finalized_receipt_id='11111111-1111-1111-1111-111111111111';
+      INSERT INTO operacao_despesas(parque,visit_date,scope,description,category,amount_cents,method,reference,actor_cpf) VALUES('rincao','2099-11-15','trips','Monitoria','monitoria',10000,'pix','Comprovante','52998224725');`);
+    const summary = await getOperationalDaySummary(date);
+    expect(summary.revenue.finalizedTripsNetCents).toMatchObject({ value: 396000 });
+    expect(summary.revenue.totalCents).toMatchObject({ value: 396000 });
+    expect(summary.expenses).toMatchObject({ value: 10000 });
+    await pool.query('UPDATE passeio_operacao SET finalized_receipt_id=NULL');
+    expect((await getOperationalDaySummary(date)).revenue.finalizedTripsNetCents).toMatchObject({ value: 0 });
+  });
+
 });

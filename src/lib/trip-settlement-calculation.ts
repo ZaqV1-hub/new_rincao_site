@@ -20,7 +20,7 @@ export type TripSettlementVehicle = {
 
 export type TripSettlementOnlineParticipant = {
   voucherId: number;
-  category: "adult" | "child";
+  category: keyof TripSettlementCounts;
   paidCents: number;
   refundRequested: boolean;
 };
@@ -102,14 +102,14 @@ export function calculateTripSettlement(input: TripSettlementInput): TripSettlem
     if (!Number.isSafeInteger(voucherId) || voucherId <= 0) throw new Error("invalid_voucher_id");
     if (voucherIds.has(voucherId)) throw new Error("duplicate_voucher_id");
     voucherIds.add(voucherId);
-    if (category !== "adult" && category !== "child") throw new Error("invalid_online_category");
+    if (!countCategories.includes(category)) throw new Error("invalid_online_category");
     if (typeof refundRequested !== "boolean") throw new Error("invalid_refund_requested");
     safeNonNegativeInteger(paidCents, "paidCents");
 
     if (refundRequested) {
       refundsDueCents = safeNonNegativeInteger(refundsDueCents + paidCents, "refundsDueCents");
     } else {
-      onlinePresent[category] += 1;
+      if (category === "adult" || category === "child") onlinePresent[category] += 1;
       onlinePresentCents = safeNonNegativeInteger(onlinePresentCents + paidCents, "onlinePresentCents");
     }
   }

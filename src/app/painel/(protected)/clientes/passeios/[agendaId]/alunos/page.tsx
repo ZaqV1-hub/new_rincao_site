@@ -67,6 +67,8 @@ export default async function PainelClientesPasseiosAlunosPage({
       csvHref={report.isSchool ? csvHref : undefined}
       canViewEnfermaria={hasLegacyPanelResource(session.legacyResources, "vis_enfermaria")}
       data={report}
+      canCount={hasLegacyPanelResource(session.legacyResources, "vis_contagem")}
+      financialActorCpf={hasLegacyPanelResource(session.legacyResources, "vis_bilhet") && hasLegacyPanelResource(session.legacyResources, "vis_agenda") ? session.actorCpf ?? undefined : undefined}
       isManager={session.legacyRoleId === 1}
       pdfHref={report.isSchool ? pdfHref : undefined}
     />

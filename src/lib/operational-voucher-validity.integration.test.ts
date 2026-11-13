@@ -41,6 +41,7 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
       CREATE TABLE movimentacao_caixa(id SERIAL PRIMARY KEY,tipo TEXT);
       CREATE TABLE edicoes_log(id SERIAL PRIMARY KEY,origem VARCHAR(30),acao VARCHAR(30),compra_id INTEGER,movimentacao_id INTEGER,movimentacao_tipo VARCHAR(20),periodo_id INTEGER,folha_id INTEGER,descricao TEXT,motivo TEXT,usuario_nome TEXT,detalhes_json TEXT,created_at TIMESTAMPTZ DEFAULT now());
       CREATE TABLE online_capacity_reservations (idcompra INT PRIMARY KEY, delivery_hold BOOLEAN DEFAULT false);
+      CREATE TABLE passeio_operacao(parque text,agenda_id integer,cliente_id integer,finalized_receipt_id uuid);
       CREATE TABLE operacao_dias (parque TEXT, data DATE, estado TEXT, PRIMARY KEY (parque,data));
     `);
     await pool.query(await readFile(new URL("../../docs/sql/2026-11-12-cash-sessions.sql", import.meta.url), "utf8"));

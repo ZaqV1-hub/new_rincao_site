@@ -1,3 +1,5 @@
+import { lockLegacyTripChange } from './trip-operational-guard';
+import { TripSettlementError } from './trip-settlement-contract';
 import { lockLegacyVoucherMutation, LegacyVoucherMutationError } from "@/lib/legacy-voucher-mutation-guard";
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
@@ -704,6 +706,7 @@ function validateClientPayload(values: PainelClienteMutationInput["values"]) {
 }
 
 export function asPainelClientesError(error: unknown) {
+  if (error instanceof TripSettlementError) return new PainelClientesError(error.code, error.message, error.status);
   if (error instanceof PainelClientesError) {
     return {
       code: error.code,
@@ -1147,6 +1150,7 @@ export async function togglePainelClientTripDateStatus(
 
   try {
     await client.query("BEGIN");
+    await lockLegacyTripChange(client, { agendaId, clientId });
     const binding = await client.query<{ idagenda: number }>(
       `
         SELECT idagenda
@@ -1239,6 +1243,7 @@ export async function removePainelClientTripDate(input: PainelClientTripDateMuta
     ]);
 
     await client.query("BEGIN");
+    await lockLegacyTripChange(client, { agendaId, clientId }, { structural: true });
     const binding = await client.query<{ exists: number }>(
       `
         SELECT 1 AS exists

@@ -217,11 +217,11 @@ Cada entrega termina com diff revisado, testes do domínio e contratos, teste de
 
 **Modificar/reusar:** `ops-client-trips.ts`, `painel-client-trip-detail.ts`, `painel-client-trip-detail-page.tsx`, `ops-trip-school-report-core.ts`.
 **Criar:** `trip-settlement-calculation.ts`, `trip-settlement.ts`, `trip-receipt-pdf.tsx` e testes; endpoints de recebimento, finalização e revisão por passeio.
-- [ ] M6; integrar contagem real e lista completa dos pagos online; busca por nome com ID único para reembolso.
-- [ ] Caixa de passeios reutiliza mecanismo de E5 com tipo próprio. Dinheiro, fundos/sangrias/despesas ficam vinculados; Pix/transferência/boleto confirmado independem de caixa aberto.
-- [ ] Implementar cálculo da seção 4.3; guardar pagamentos parciais; impedir finalização sem recebimento integral.
-- [ ] Prévia de recibo de duas vias; confirmação revalida contagem/pagamentos e grava snapshot/recibo único. Reimpressão usa snapshot original.
-- [ ] Relatório inclui veículos, modalidades, responsável/assinatura mediante permissão, cobrança, reembolsos e despesas.
+- [x] M6; integrar contagem real e lista completa dos pagos online; busca por nome com ID único para reembolso.
+- [x] Caixa de passeios reutiliza mecanismo de E5 com tipo próprio. Dinheiro, fundos/sangrias/despesas ficam vinculados; Pix/transferência/boleto confirmado independem de caixa aberto.
+- [x] Implementar cálculo da seção 4.3; guardar pagamentos parciais; impedir finalização sem recebimento integral.
+- [x] Prévia de recibo de duas vias; confirmação revalida contagem/pagamentos e grava snapshot/recibo único. Reimpressão usa snapshot original.
+- [x] Relatório inclui veículos, modalidades, responsável/assinatura mediante permissão, cobrança, reembolsos e despesas.
 **Testes:** caso numérico, pagamento insuficiente, boleto pendente, valor integral, zero a cobrar, dinheiro sem caixa, envio duplicado, contagem alterada durante prévia e reembolso sem estorno automático.
 
 ### E9 — Fechamento diário e exportações
@@ -464,3 +464,13 @@ Verificação final do marco E2/E3: 1.284/1.284 testes em PostgreSQL16.15, sem i
 - Painel recebe resumo somente leitura com ACL de programação; presença diária soma day use admitido e revisões atuais concluídas, sem duplicar vouchers escolares. Contagens incompletas deixam o total geral indisponível, preservando o subtotal comprovado.
 - Verificação: 1.956 testes/354 arquivos, sem skip, PostgreSQL 16; 21 testes de scripts; lint sem erros/12 avisos anteriores; build e tipos passaram. Browser comprovou 390 px sem overflow, perda de resposta após commit, reload e reconciliação sem duplicação, assinatura privada PNG e offline mantendo 7 passageiros no rascunho. Painel desktop exibiu 30 pessoas da conclusão real local. Erro de HMR durante edição de dependências desapareceu após reload, sem alteração necessária em produção.
 - Migração local `2026-11-13-trip-counting.sql`, checksum `fb453a3d2c11a86fabb6ba7e4bf6bdd40db2fb937829dbac396611d5b10db40b`. Revisão de fonte e visual pelo coordenador; revisão independente adicional indisponível por quota previamente registrada. Sem migração remota, publicação ou atualização do PO. E8–E10 e gates de homologação continuam pendentes; despesas da Estância dependem do Isaque.
+
+
+### Checkpoint E8 — financeiro dos passeios em ambiente local (13/11/2026)
+
+- Recebimentos parciais e divididos persistidos, boleto pendente separado de recebimento, dinheiro vinculado a caixa do tipo Passeios, troco líquido, devolução manual com comprovante e despesas do Rincão. A confirmação integral continua obrigatória para emitir recibo.
+- Tela do passeio reutilizada com contagens reais, previsão por veículo, inclusão pelo app de contagem, participantes pagos identificados por voucher, preços/cortesias, prévia em duas vias e recuperação da mesma tentativa após perda de resposta. Recibos imutáveis; revisão conserva o anterior e gera outro número. PDF A4 com linha de corte e assinaturas; relatório dos passeios inclui caixas, veículos, modalidades, responsáveis, assinaturas autorizadas, recebimentos, reembolsos e despesas.
+- Resumo da data soma somente o recibo vigente, sem duplicar os ingressos online escolares. Despesas da Estância e seu resultado continuam indisponíveis, aguardando Isaque. Editores legados de passeio/voucher e programação protegem recibos finalizados; mudanças estruturais com histórico exigem ajuste explícito.
+- Evidência local: 1.992 testes em 359 arquivos, PostgreSQL 16 habilitado e sem testes pulados; 21 testes de scripts; lint sem erros e 12 avisos anteriores; build e tipos aprovados. Revisão manual pelo coordenador; revisão independente adicional indisponível por quota, sem redisparo.
+- Navegador: 390 e 1440 px sem transbordamento; pagamento parcial e boleto pendente bloqueiam finalização; resposta perdida após baixa real recuperada sem duplicar; saldo da última forma acompanha mudanças anteriores; reabertura preservou recibo 1 e emitiu recibo 2. PDF real autenticado retornou 200/private no-store e foi renderizado e inspecionado.
+- Migração local M6 `2026-11-13-trip-settlement.sql`, checksum `31d64033aae81550e645df6382ed88d3b1b20433c187753796c89a6a6b9a1ddb`. Nenhuma migração remota/publicação/atualização do PO. E9 deve conferir pagamentos tardios e resolver pendências de alteração; E10 e gates de homologação permanecem abertos.

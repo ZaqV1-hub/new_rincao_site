@@ -1,3 +1,5 @@
+import { lockLegacyTripChange } from './trip-operational-guard';
+import { TripSettlementError } from './trip-settlement-contract';
 import { createHash, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
@@ -1015,6 +1017,7 @@ export async function createOpsClientTrip(input: OpsClientTripCreateInput) {
 
   try {
     await client.query("BEGIN");
+    await lockLegacyTripChange(client, { agendaId, clientId });
     const [agenda, clientRow] = await Promise.all([
       getAgendaById(client, agendaId),
       getClientById(client, clientId),
@@ -1095,6 +1098,7 @@ export async function updateOpsClientTrip(input: OpsClientTripUpdateInput) {
 
   try {
     await client.query("BEGIN");
+    await lockLegacyTripChange(client, { agendaId, clientId });
     const [agenda, extras] = await Promise.all([
       getAgendaById(client, agendaId),
       getAgendaExtras(client, agendaId, clientId, true),
@@ -1159,6 +1163,7 @@ export async function unlinkOpsClientTrip(input: OpsClientTripDeleteInput) {
 
   try {
     await client.query("BEGIN");
+    await lockLegacyTripChange(client, { agendaId, clientId }, { structural: true });
     const extras = await getAgendaExtras(client, agendaId, clientId, true);
 
     if (!extras) {
@@ -1226,6 +1231,7 @@ export async function moveOpsClientTripDate(input: OpsClientTripMoveDateInput) {
 
   try {
     await client.query("BEGIN");
+    await lockLegacyTripChange(client, { agendaId, clientId }, { structural: true, targetDate: nextDate });
     const currentAgenda = await getAgendaById(client, agendaId);
     const currentExtras = await getAgendaExtras(client, agendaId, clientId, true);
 
@@ -1422,6 +1428,7 @@ export async function moveOpsClientTripDate(input: OpsClientTripMoveDateInput) {
 }
 
 export function asOpsClientTripError(error: unknown) {
+  if (error instanceof TripSettlementError) return new OpsClientTripError(error.code, error.message, error.status);
   if (error instanceof OpsClientTripError) {
     return error;
   }

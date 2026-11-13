@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { EnfermariaTripRecords } from "@/components/enfermaria-link-client";
+import { PainelTripSettlement } from "@/components/painel-trip-settlement";
 import type { PainelClientTripDetailData } from "@/lib/painel-client-trip-detail";
 
 type EditableParticipant = PainelClientTripDetailData["students"][number];
@@ -67,12 +68,16 @@ export function PainelClientTripDetailPage({
   data,
   isManager = false,
   canViewEnfermaria = false,
+  financialActorCpf,
+  canCount = false,
   csvHref,
   pdfHref,
 }: {
   data: PainelClientTripDetailData;
   isManager?: boolean;
   canViewEnfermaria?: boolean;
+  financialActorCpf?: string;
+  canCount?: boolean;
   csvHref?: string;
   pdfHref?: string;
 }) {
@@ -268,6 +273,7 @@ export function PainelClientTripDetailPage({
 
       <div className="space-y-4">
         <h1 className="text-[32px] font-light text-[#546979]">Dados do Passeio</h1>
+        {financialActorCpf && <PainelTripSettlement agendaId={data.trip.agendaId} clientId={data.trip.clientId} actorCpf={financialActorCpf} isManager={isManager} canCount={canCount} />}
 
         <table className="w-full border-collapse border border-[#d8dfe5] bg-white">
           <tbody>

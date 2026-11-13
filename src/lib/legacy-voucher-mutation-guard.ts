@@ -80,6 +80,10 @@ export async function lockLegacyVoucherMutation(client: Client, input: {
   const days = (await client.query<{ estado: string }>(
     "SELECT estado FROM operacao_dias WHERE parque=$1 AND data=ANY($2::date[]) ORDER BY data FOR UPDATE", [park,dates])).rows;
   if (days.some((day) => day.estado === "closed")) fail("voucher_day_closed", "O dia está finalizado. Use um ajuste explícito; o histórico não pode ser alterado.");
+  const finalizedTrip = await client.query(`SELECT o.agenda_id FROM passeio_operacao o
+    WHERE o.parque=$1 AND to_jsonb(o)->>'finalized_receipt_id' IS NOT NULL
+      AND EXISTS(SELECT 1 FROM voucher v WHERE v.idcompra=$2 AND v.idagenda=o.agenda_id AND v.idescola=o.cliente_id)`, [park,purchaseId]);
+  if (finalizedTrip.rowCount) fail("trip_finalized", "O ingresso compõe um recibo de passeio finalizado. Solicite revisão financeira antes de alterar seus dados.");
   await client.query("SELECT id FROM caixa_periodos WHERE id=ANY($1::int[]) ORDER BY id FOR UPDATE", [ids]);
   const currentPeriods = await readPeriods(client, ids);
   if (currentPeriods.some((p) => p.closed)) fail("voucher_cash_closed", "O ingresso faz parte de um caixa ou fechamento encerrado.");

@@ -34,7 +34,7 @@ export type OperationalDaySummary = {
   groupCount: number;
   receipts: UnavailableSummarySource;
   cash: SummarySourceValue<number>;
-  expenses: UnavailableSummarySource;
+  expenses: SummarySourceValue<number>;
   closure: UnavailableSummarySource;
   warnings: { code: string; message: string }[];
 };
@@ -135,9 +135,16 @@ export async function readOperationalDaySummary(client: QueryClient, date: strin
       (SELECT COUNT(*)::text FROM agenda_extras ae JOIN agenda a ON a.idagenda=ae.idagenda
         LEFT JOIN passeio_operacao o ON o.parque=$2 AND o.agenda_id=ae.idagenda AND o.cliente_id=ae.idcliente WHERE a.dtagenda=$1::date AND o.planned_people IS NULL) AS "missingPlans"`, [date, park]);
   const meta = metadata.rows[0];
-  const warnings = [
-    { code: "revenue_incomplete", message: "Subtotal das fontes disponíveis. Finalização de passeios e total diário ainda indisponíveis." },
-  ];
+  const financial = (await client.query<{ revenue: string; expenses: string; invalidReceipts: string; unfinished: string }>(`SELECT
+    (SELECT COALESCE(SUM((r.snapshot->'calculation'->>'totalTripCents')::numeric),0)::text FROM passeio_recibos r JOIN passeio_operacao o ON o.finalized_receipt_id=r.id AND o.parque=r.parque WHERE r.parque=$2 AND r.visit_date=$1::date) AS revenue,
+    (SELECT COALESCE(SUM(amount_cents),0)::text FROM operacao_despesas WHERE parque=$2 AND visit_date=$1::date) AS expenses,
+    (SELECT COUNT(*)::text FROM passeio_recibos r JOIN passeio_operacao o ON o.finalized_receipt_id=r.id AND o.parque=r.parque WHERE r.parque=$2 AND r.visit_date=$1::date AND
+      (jsonb_typeof(r.snapshot->'calculation'->'totalTripCents') IS DISTINCT FROM 'number' OR r.snapshot->>'remainingCents' IS DISTINCT FROM '0' OR r.snapshot->>'pendingPaymentCents' IS DISTINCT FROM '0')) AS "invalidReceipts",
+    (SELECT COUNT(*)::text FROM agenda_extras ae JOIN agenda a ON a.idagenda=ae.idagenda LEFT JOIN passeio_operacao o ON o.parque=$2 AND o.agenda_id=ae.idagenda AND o.cliente_id=ae.idcliente WHERE a.dtagenda=$1::date AND o.finalized_receipt_id IS NULL) AS unfinished`,[date,park])).rows[0];
+  if (safeInteger(financial.invalidReceipts)) throw new OperationalDaySummaryError("summary_invalid_data", "Há um recibo de passeio sem fechamento integral comprovado.");
+  const trips = safeInteger(financial.revenue),subtotal = safeInteger(site+gate+services+trips);
+  const warnings: { code: string; message: string }[] = [];
+  if (safeInteger(financial.unfinished)) warnings.push({ code: "unfinished_trips", message: "Há passeios a fechar. Eles ainda não compõem a receita da visita." });
   if (safeInteger(meta.incompleteGroups) > 0) warnings.push({ code: "attendance_incomplete", message: "Há grupos sem contagem concluída. O subtotal considera apenas as entradas de day use e os veículos concluídos." });
   if (configuration === null) warnings.push({ code: "configuration_ambiguous", message: "A data possui agendas de day use sem vínculo único. O resumo financeiro permanece disponível; revise a configuração antes de editar." });
   if (safeInteger(row.unclassifiedCount) > 0) warnings.push({ code: "unclassified_sales", message: "Há itens vendidos sem classificação comprovada. Esses valores ficam fora do subtotal conhecido." });
@@ -152,9 +159,9 @@ export async function readOperationalDaySummary(client: QueryClient, date: strin
       gateNetCents: available(gate, "voucher:paid_gate_and_reservation_selected_date"),
       servicesNetCents: available(services, "voucher:identified_service_selected_date"),
       unclassifiedNetCents: available(safeInteger(row.unclassified), "voucher:unclassified_selected_date"),
-      knownSubtotalCents: safeInteger(site + gate + services),
-      totalCents: unavailable("daily_revenue", "O total depende das fontes completas e da finalização dos passeios."),
-      finalizedTripsNetCents: unavailable("trip_settlement", "Recebimentos e finalização de passeios ainda não integrados."),
+      knownSubtotalCents: subtotal,
+      totalCents: safeInteger(row.unclassifiedCount) ? unavailable("daily_revenue", "Há vendas sem classificação comprovada.") : available(subtotal, "visit_sales_and_current_trip_receipts"),
+      finalizedTripsNetCents: available(trips, "trip_receipts:current_frozen_snapshot"),
     },
     attendance: {
       basis: "actual_use_date", dayUseAdmitted: available(safeInteger(row.admitted), "voucher:actual_admission_date"),
@@ -168,7 +175,7 @@ export async function readOperationalDaySummary(client: QueryClient, date: strin
     groupCount: safeInteger(meta.groupCount),
     receipts: unavailable("payment_receipts", "Recebimentos por data e passeio ainda não integrados ao resumo."),
     cash: available(safeInteger(meta.cashCount), "operational_cash_sessions:park_operational_date"),
-    expenses: unavailable("operational_expenses", "Despesas por data e passeio ainda não integradas."),
+    expenses: park === "rincao" ? available(safeInteger(financial.expenses), "operational_expenses:visit_date") : unavailable("estancia_expenses", "Regra de despesas da Estância pendente de confirmação com o Isaque."),
     closure: unavailable("daily_closure", "Fechamento diário revisionado ainda não integrado."),
     warnings,
   };

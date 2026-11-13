@@ -201,6 +201,13 @@ describe("calculateTripSettlement", () => {
     })).toThrow("invalid_refund_requested");
   });
 
+  it("preserves an online payment for a noncharged category without subtracting an adult or child", () => {
+    const result = calculateTripSettlement({ ...emptyTrip, adultPriceCents: 10000,
+      vehicles: [vehicle(1, { adult: 1, coordinator: 1 })],
+      onlineParticipants: [online(1, "coordinator" as TripSettlementOnlineParticipant["category"], 5000)] });
+    expect(result).toMatchObject({ adultToCharge: 1, onlinePresentCents: 5000, schoolChargeCents: 10000, totalTripCents: 15000, notChargedCount: 1 });
+  });
+
   it("accepts a value at the safe integer limit", () => {
     expect(calculateTripSettlement({
       ...emptyTrip,

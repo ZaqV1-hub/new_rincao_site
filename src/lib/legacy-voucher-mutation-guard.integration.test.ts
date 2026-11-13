@@ -35,6 +35,7 @@ describe.skipIf(!connectionString)("legacy writers use operational locks and fre
     await pool.query(`
       CREATE TABLE agenda(idagenda integer PRIMARY KEY,dtagenda date,tpagenda text,stagenda text);
       CREATE TABLE agenda_extras(idagenda integer,idcliente integer);
+      CREATE TABLE passeio_operacao(parque text,agenda_id integer,cliente_id integer,finalized_receipt_id uuid);
       CREATE TABLE compra(idcompra integer PRIMARY KEY,cpf text,caixa_periodo_id integer,stcompra text,dtcompra date,vltotcompra numeric,tpcompra text DEFAULT 'reser',dtpagamento date);
       CREATE TABLE voucher(idvoucher integer PRIMARY KEY,idcompra integer REFERENCES compra,idagenda integer REFERENCES agenda,
         parque_operacional text,dtinicio_validade date,dtvalidade date,dtuso date,closed_at timestamptz,periodo_id integer,
@@ -50,7 +51,7 @@ describe.skipIf(!connectionString)("legacy writers use operational locks and fre
   });
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao"); state.onDay = null; state.hold.mockResolvedValue(null);
-    await pool.query(`TRUNCATE voucher,compra_pagamentos,online_capacity_reservations,compra,agenda_extras,agenda,caixa_periodos,caixa_fechamentos,operacao_dias CASCADE;
+    await pool.query(`TRUNCATE passeio_operacao,voucher,compra_pagamentos,online_capacity_reservations,compra,agenda_extras,agenda,caixa_periodos,caixa_fechamentos,operacao_dias CASCADE;
       INSERT INTO agenda VALUES (1,CURRENT_DATE,'escol','abe'),(2,CURRENT_DATE+1,'padra','abe'),(3,CURRENT_DATE+2,'padra','abe');
       INSERT INTO agenda_extras VALUES(2,1);
       INSERT INTO compra(idcompra,cpf,caixa_periodo_id,stcompra,dtcompra,vltotcompra) VALUES(1,'52998224725',NULL,'conc',CURRENT_DATE,50);
@@ -86,6 +87,7 @@ describe.skipIf(!connectionString)("legacy writers use operational locks and fre
     ["INSERT INTO online_capacity_reservations(idcompra) VALUES(1)", "voucher_operational_change_required"],
     ["UPDATE voucher SET dtinicio_validade=CURRENT_DATE", "voucher_operational_change_required"],
     ["UPDATE voucher SET stusado='s'", "voucher_operational_change_required"],
+    ["UPDATE voucher SET idescola=1; INSERT INTO passeio_operacao VALUES('rincao',1,1,'11111111-1111-1111-1111-111111111111')", "trip_finalized"],
   ])("blocks both writers without altering values: %s", async (sql, code) => {
     await pool.query(sql); const before = await snapshot();
     await expect(student()).rejects.toMatchObject({ code, status: 409 });

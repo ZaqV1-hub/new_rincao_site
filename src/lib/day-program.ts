@@ -39,7 +39,7 @@ export type DayProgramInput = DayProgramEditOptions & {
   hiringItems?: { id?: number; name?: string; value: string | null }[];
 };
 export class DayProgramError extends Error {
-  constructor(readonly code: "invalid_input" | "version_conflict" | "day_closed" | "past_readonly" | "uncreated" | "vehicle_started", message: string) { super(message); }
+  constructor(readonly code: "invalid_input" | "version_conflict" | "day_closed" | "past_readonly" | "uncreated" | "vehicle_started" | "trip_finalized", message: string) { super(message); }
 }
 function invalid(message = "Dados da programação inválidos."): never { throw new DayProgramError("invalid_input", message); }
 function record(input: unknown, keys: readonly string[]): Record<string, unknown> {
@@ -244,6 +244,8 @@ export async function saveDayProgram(date: string, input: unknown, actor: Catalo
     for (const g of data.groups ?? []) {
       const group = await client.query(`SELECT ae.idagenda FROM agenda_extras ae JOIN agenda a ON a.idagenda=ae.idagenda WHERE ae.idagenda=$1 AND ae.idcliente=$2 AND a.dtagenda=$3::date FOR SHARE OF ae,a`, [g.agendaId, g.clientId, date]);
       if (!group.rowCount) invalid("O grupo não pertence à data selecionada.");
+      const receipt = (await client.query<{ receipt: string | null }>(`SELECT to_jsonb(o)->>'finalized_receipt_id' AS receipt FROM passeio_operacao o WHERE parque=$1 AND agenda_id=$2 AND cliente_id=$3 FOR UPDATE`, [park,g.agendaId,g.clientId])).rows[0]?.receipt;
+      if (receipt) throw new DayProgramError("trip_finalized", "O passeio possui recibo finalizado. Solicite revisão financeira antes de alterar a programação.");
       let carrierId = g.carrierId;
       if (g.carrier) {
         // Reuse the stable catalog ID; incoming contacts belong to this trip only.

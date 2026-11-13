@@ -32,6 +32,7 @@ describe.skipIf(!connectionString)("cash scoped sales and reservation payments w
       CREATE TABLE descontos(id INTEGER PRIMARY KEY,nome TEXT,tipo_aplicacao TEXT,valor NUMERIC(10,2));
       CREATE TABLE cortesias(id INTEGER PRIMARY KEY,nome TEXT);
       CREATE TABLE compra(idcompra SERIAL PRIMARY KEY,cpf TEXT,tpcompra TEXT,dtcompra DATE,hrcompra TIME,dtpagamento DATE,hrpagamento TIME,formapag TEXT,vltotcompra NUMERIC(10,2),vltotdesc NUMERIC(10,2),stcompra TEXT,flenvio TEXT);
+      CREATE TABLE passeio_recebimentos(method text,amount_cents bigint,confirmed_at timestamptz,period_id integer,status text);
       CREATE TABLE compra_pagamentos(id SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,forma_pagamento CHAR(5),valor NUMERIC(10,2) NOT NULL CHECK(valor>0),created_at TIMESTAMP DEFAULT now());
       CREATE TABLE voucher(idvoucher SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,numvoucher TEXT UNIQUE,idagenda INTEGER REFERENCES agenda,tpvoucher TEXT,vlunicompra NUMERIC(8,2),vldesc NUMERIC(10,2),fldesconto TEXT,dtvalidade DATE,desconto_id INTEGER,descricao TEXT,identificacao VARCHAR(80),autorizado_por_id INTEGER,stusado TEXT,idescola INTEGER,item_id INTEGER,periodo_id INTEGER,closed_at TIMESTAMP,dtuso DATE,hruso TIME);
       CREATE TABLE caixa_periodos(id SERIAL PRIMARY KEY,aberto_em TIMESTAMPTZ NOT NULL DEFAULT now(),fechado_em TIMESTAMPTZ,operador VARCHAR(120),fechamento_auto BOOLEAN NOT NULL DEFAULT false,folha_id INTEGER,created_at TIMESTAMPTZ NOT NULL DEFAULT now());

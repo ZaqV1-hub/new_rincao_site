@@ -1,0 +1,20 @@
+'use client';
+import { useState } from 'react';
+import type { PublicTripDetail } from '@/lib/trip-settlement-route';
+import { COUNT_CATEGORIES,countCategories } from '@/lib/trip-counting-contract';
+import { CountingCommandStatus,countingInput,countingButton,useCountingCommand } from './counting-controls';
+export function PainelTripVehicles({ source,actorCpf,canCount,disabled,onChanged }: { source: PublicTripDetail['source']; actorCpf: string; canCount: boolean; disabled: boolean; onChanged: () => Promise<void> }) {
+  const [adding,setAdding] = useState<'bus' | 'van' | null>(null);
+  const command = useCountingCommand(`rincao:count:add:trip:${actorCpf}:${source.agendaId}:${source.clientId}`,async () => { await onChanged(); setAdding(null); });
+  return <section className="space-y-4 rounded-xl border border-[#d4dfeb] bg-white p-4 sm:p-5"><h3 className="text-lg font-bold">Veículos · {source.vehicles.length}</h3><CountingCommandStatus command={command} />
+    {source.vehicles.length === 0 && <p>Nenhum veículo registrado.</p>}
+    <ul className="space-y-3">{source.vehicles.map(v => <li key={v.id} className="border-b border-[#d4dfeb] pb-3"><details><summary className="min-h-11 cursor-pointer py-2 font-semibold">{v.type === 'bus' ? 'Ônibus' : 'Van'} #{v.id} · {({ waiting: 'Aguardando',counting: 'Em contagem',completed: 'Concluído' } as Record<string,string>)[v.state] ?? v.state}<span className="mt-1 block text-sm font-normal">Previstos: {v.plannedPeople ?? 'Não informado'} · Vieram: {v.state === 'completed' && v.draft ? countCategories.reduce((sum,c) => sum+(v.draft!.counts[c] ?? 0),0) : 'Contagem não concluída'} · Contador: {v.ownerName ?? 'Não atribuído'}</span>{v.addedOnDay && <span className="block text-sm">A mais no dia · Adicionado por {v.addedByName ?? 'operador identificado no histórico'}</span>}</summary>
+      {v.draft && <div className="space-y-3 py-3"><p>Responsável: {v.draft.responsible.name || 'A preencher'} · {v.draft.responsible.phone}</p><dl className="grid gap-2 sm:grid-cols-2">{countCategories.map(c => <div className="flex justify-between gap-3" key={c}><dt>{COUNT_CATEGORIES[c].label}</dt><dd>{v.draft!.counts[c] ?? 'A contar'}</dd></div>)}</dl>{v.draft.pcdDetails.map((d,index) => <p key={index}>{COUNT_CATEGORIES[d.category].label}: {d.description} · {d.quantity}</p>)}{v.draft.notes && <p>Observações: {v.draft.notes}</p>}</div>}
+      {v.canReadSignature && v.revisionId && v.state === 'completed' && <a className="inline-flex min-h-11 items-center underline" href={`/api/contagem/assinaturas/${v.revisionId}`} target="_blank" rel="noreferrer">Consultar assinatura privada</a>}
+      {canCount && <a className="ml-3 inline-flex min-h-11 items-center underline" href={`/contagem/veiculos/${v.id}`}>Abrir contagem</a>}
+    </details></li>)}</ul>
+    {canCount && <><div className="flex flex-wrap gap-3">{(['bus','van'] as const).map(type => <button key={type} type="button" className={countingButton} disabled={disabled || !!source.receiptId || command.blocked} onClick={() => setAdding(adding === type ? null : type)}>+ {type === 'bus' ? 'Ônibus' : 'Van'}</button>)}</div>
+      {adding && <form className="space-y-3" onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); void command.submit('/api/contagem/veiculos',{ agendaId: source.agendaId,clientId: source.clientId,type: adding,plannedPeople: data.get('planned') === '' ? null : Number(data.get('planned')),reason: String(data.get('reason') ?? '') }); }}><fieldset disabled={disabled || !!source.receiptId || command.blocked} className="space-y-3"><label className="grid gap-1 font-semibold">Previsão de passageiros (opcional)<input className={countingInput} name="planned" type="number" min={0} max={100000} /></label><label className="grid gap-1 font-semibold">Motivo (obrigatório fora de hoje)<input name="reason" className={countingInput} maxLength={1000} required={source.date !== source.today} /></label><button type="submit" className={countingButton}>Confirmar inclusão de {adding === 'bus' ? 'ônibus' : 'van'}</button></fieldset></form>}
+    </>}
+  </section>;
+}

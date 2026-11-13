@@ -37,6 +37,7 @@ export default async function PainelAgendaDayPage({ params, searchParams }: { pa
     catch { programError = "Programação do dia indisponível. Atualize a página para tentar novamente."; }
   }
   return <PainelOperationalDayPage key={date} summary={summary} canManage={session.legacyRoleId === 1}
+    financialActorCpf={canAccessCash && canAccessProgram ? session.actorCpf ?? undefined : undefined}
     canAccessCash={canAccessCash} canAccessProgram={canAccessProgram} programStatus={programStatus} programError={programError}
     initialTab={typeof query.tab === "string" ? query.tab : undefined} initialPurchaseContext={readPurchaseListContext(date, query)} />;
 }

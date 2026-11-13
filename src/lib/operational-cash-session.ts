@@ -155,7 +155,9 @@ export async function readCashSessionSnapshot(client: PoolClient, session: CashS
     return closure.snapshot_json;
   }
   const paymentRows = (await client.query<{ method: string; amount: string; quantity: string; last: string | null }>(`SELECT btrim(forma_pagamento) AS method,SUM(valor)::text AS amount,COUNT(*)::text AS quantity,MAX(recebido_em)::text AS last
-    FROM compra_pagamentos WHERE periodo_id=$1 GROUP BY btrim(forma_pagamento) ORDER BY btrim(forma_pagamento)`,[session.id])).rows;
+    FROM ${session.type === "trips" ? `(SELECT forma_pagamento,valor,recebido_em,periodo_id FROM compra_pagamentos
+      UNION ALL SELECT method AS forma_pagamento,(amount_cents/100.0)::numeric(12,2) AS valor,confirmed_at AS recebido_em,period_id AS periodo_id
+      FROM passeio_recebimentos WHERE status='confirmed') trip_payments` : "compra_pagamentos"} WHERE periodo_id=$1 GROUP BY btrim(forma_pagamento) ORDER BY btrim(forma_pagamento)`,[session.id])).rows;
   const payments = paymentRows.map((row) => ({method:row.method,amountCents:cents(row.amount)}));
   if (payments.some((payment) => payment.amountCents < 0 || !payment.method)) throw new CashSessionError("cash_invalid_data", "Há recebimentos inválidos neste caixa.");
   const movementRows = (await client.query<MovementRow>(`SELECT id,periodo_id,tipo,responsavel,valor::text,motivo,ator_nome,ator_cpf,created_at::text
@@ -213,9 +215,9 @@ export async function readCashSessionSnapshot(client: PoolClient, session: CashS
 }
 async function detail(client: PoolClient, session: CashSession): Promise<CashSessionDetail> { return {...session,snapshot:await readCashSessionSnapshot(client,session)}; }
 
-export async function listCashSessions(date: string): Promise<CashSession[]> {
+export async function listCashSessions(date: string, client?: Pick<PoolClient, "query">): Promise<CashSession[]> {
   civilDate(date);
-  return (await getOperationalCatalogPool().query<SessionRow>(`SELECT ${sessionColumns} FROM caixa_periodos WHERE parque=$1 AND data_operacional=$2::date ORDER BY id`,[getOperationalParkId(),date])).rows.map(mapSession);
+  return (await (client ?? getOperationalCatalogPool()).query<SessionRow>(`SELECT ${sessionColumns} FROM caixa_periodos WHERE parque=$1 AND data_operacional=$2::date ORDER BY id`,[getOperationalParkId(),date])).rows.map(mapSession);
 }
 export async function getCashSession(periodId: number): Promise<CashSessionDetail> {
   identity(periodId);return transaction(async(client)=>detail(client,await sessionRow(client,periodId)),true);

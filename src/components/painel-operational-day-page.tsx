@@ -1,5 +1,6 @@
 "use client";
 
+import { PainelTripDay } from "./painel-trip-day";
 import { PainelCountingSummary } from "./painel-counting-summary";
 import Link from "next/link";
 import { useEffect, useState, type KeyboardEvent } from "react";
@@ -96,8 +97,8 @@ function DayListPanel({ date, kind, context, onContextChange, canOperate }: { da
 }
 
 const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Criado e enviado · arquivos gerados", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
-export function PainelOperationalDayPage({ summary, canManage, canAccessCash = false, canAccessProgram = false, programStatus = null, programError, initialPurchaseContext, initialTab }: {
-  summary: OperationalDaySummary; canManage: boolean; canAccessCash?: boolean; canAccessProgram?: boolean; programStatus?: DayProgram["status"] | null; programError?: string | null; initialPurchaseContext?: PurchaseListContext; initialTab?: string;
+export function PainelOperationalDayPage({ summary, canManage, canAccessCash = false, canAccessProgram = false, programStatus = null, programError, initialPurchaseContext, initialTab, financialActorCpf }: {
+  summary: OperationalDaySummary; financialActorCpf?: string; canManage: boolean; canAccessCash?: boolean; canAccessProgram?: boolean; programStatus?: DayProgram["status"] | null; programError?: string | null; initialPurchaseContext?: PurchaseListContext; initialTab?: string;
 }) {
   const [tab, setTab] = useState<Tab>(tabs.some((item) => item.id === initialTab) ? initialTab as Tab : "resumo");
   const [purchaseContext, setPurchaseContext] = useState(initialPurchaseContext ?? readPurchaseListContext(summary.date, {}));
@@ -152,7 +153,7 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessCash = f
         <div className="grid items-start gap-6 lg:grid-cols-2">
           <section className={panel} aria-labelledby="day-revenue-title"><h2 id="day-revenue-title" className="text-lg font-bold">Receita da visita</h2><p className="mt-2 text-sm text-[#45647f]">Valores das compras confirmadas para esta data de visita. Não representam recebimentos do dia nem saldo em caixa.</p><dl className="mt-3 divide-y divide-[#d4dfeb]">
             <SourceValue label="Ingressos no site" source={revenue.siteNetCents} currency maximum={revenueMaximum} /><SourceValue label="Ingressos nos caixas e reservas" source={revenue.gateNetCents} currency maximum={revenueMaximum} /><SourceValue label="Adicionais e serviços identificados" source={revenue.servicesNetCents} currency maximum={revenueMaximum} /><SourceValue label="Passeios finalizados" source={revenue.finalizedTripsNetCents} currency maximum={revenueMaximum} />
-            <div className="py-4"><dt className="font-bold">Subtotal conhecido · parcial</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{money(revenue.knownSubtotalCents)}</dd><dd className="mt-1 text-sm text-[#45647f]">Soma das fontes disponíveis; não é o faturamento total do dia.</dd></div>
+            {revenue.totalCents.status === "unavailable" && <div className="py-4"><dt className="font-bold">Subtotal conhecido · parcial</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{money(revenue.knownSubtotalCents)}</dd><dd className="mt-1 text-sm text-[#45647f]">Soma das fontes disponíveis; não é o faturamento total do dia.</dd></div>}
             <SourceValue label="Faturamento total do dia" source={revenue.totalCents} currency /><SourceValue label="Valores sem classificação, fora do subtotal" source={revenue.unclassifiedNetCents} currency />
           </dl></section>
           <div className="space-y-6"><section className={panel} aria-labelledby="day-count-title"><h2 id="day-count-title" className="text-lg font-bold">Contagem dos passeios</h2><p className="mt-2 text-sm text-[#45647f]">{summary.groupCount === 0 ? "Nenhum passeio cadastrado nesta data." : `${number(summary.groupCount)} passeio(s) cadastrado(s) nesta data.`}</p><dl><SourceValue label="Pessoas em veículos com contagem concluída" source={attendance.completedVehiclePeople} /></dl><button type="button" className={button} onClick={() => { setTab("passeios"); document.getElementById("day-tab-passeios")?.focus(); }}>Ver passeios</button></section>
@@ -161,8 +162,8 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessCash = f
         </div>
         {summary.warnings.length > 0 && <aside className={`${panel} bg-[#f4f8fc]`} aria-labelledby="day-warnings"><h2 id="day-warnings" className="font-bold">Pendências da apuração</h2><ul className="mt-2 list-disc space-y-2 pl-5 text-sm text-[#45647f]">{summary.warnings.map((warning) => <li key={warning.code}>{warning.message}</li>)}</ul></aside>}
       </>}
-      {tab === "passeios" && canAccessProgram && <PainelCountingSummary date={summary.date} />}
-      {(tab === "passeios" || tab === "compras") && <DayListPanel key={`${summary.date}:${tab}`} date={summary.date} kind={tab === "passeios" ? "groups" : "purchases"} context={purchaseContext} onContextChange={updatePurchaseContext} canOperate={canAccessCash} />}
+      {tab === "passeios" && financialActorCpf ? <PainelTripDay date={summary.date} actorCpf={financialActorCpf} /> : tab === "passeios" && canAccessProgram ? <PainelCountingSummary date={summary.date} /> : null}
+      {((tab === "passeios" && !financialActorCpf) || tab === "compras") && <DayListPanel key={`${summary.date}:${tab}`} date={summary.date} kind={tab === "passeios" ? "groups" : "purchases"} context={purchaseContext} onContextChange={updatePurchaseContext} canOperate={canAccessCash} />}
       {tab === "caixas" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Caixas</h2><dl><SourceValue label="Sessões de caixa" source={summary.cash} /></dl><p>Caixas abertos e fechados por local nesta data. O saldo em caixa não compõe a receita da visita.</p>{canAccessCash ? <Link className="inline-flex min-h-11 items-center underline" href={`/painel/caixas?date=${summary.date}`}>Abrir caixas da data</Link> : <p>Seu perfil não permite acessar os caixas.</p>}</div>}
       {tab === "fechamento" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Fechamento do dia</h2><p>{summary.closure.reason}</p><p className="text-sm text-[#45647f]">O subtotal disponível no resumo é parcial e não constitui um fechamento.</p></div>}
     </section>

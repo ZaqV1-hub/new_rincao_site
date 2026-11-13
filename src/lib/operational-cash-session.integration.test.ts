@@ -33,6 +33,7 @@ describe.skipIf(!connectionString)("cash sessions with PostgreSQL", () => {
       CREATE TABLE compra (idcompra SERIAL PRIMARY KEY, tpcompra TEXT, stcompra TEXT, vltotcompra NUMERIC(10,2), vltotdesc NUMERIC(10,2));
       CREATE TABLE compra_pagamentos (id SERIAL PRIMARY KEY, idcompra INTEGER REFERENCES compra, forma_pagamento CHAR(5), valor NUMERIC(10,2) NOT NULL CHECK(valor>0),created_at TIMESTAMP DEFAULT now());
       CREATE TABLE voucher (idvoucher SERIAL PRIMARY KEY,idcompra INTEGER REFERENCES compra,idagenda INTEGER REFERENCES agenda,tpvoucher TEXT,vlunicompra NUMERIC(8,2),vldesc NUMERIC(8,2),stusado TEXT,idescola INTEGER,item_id INTEGER,descricao TEXT,autorizado_por_id INTEGER,dtvalidade DATE,periodo_id INTEGER,closed_at TIMESTAMP);
+      CREATE TABLE passeio_recebimentos (method TEXT,amount_cents BIGINT,confirmed_at TIMESTAMPTZ,period_id INTEGER,status TEXT);
       CREATE TABLE caixa_periodos (id SERIAL PRIMARY KEY,aberto_em TIMESTAMPTZ NOT NULL DEFAULT now(),fechado_em TIMESTAMPTZ,operador VARCHAR(120),fechamento_auto BOOLEAN NOT NULL DEFAULT false,folha_id INTEGER,created_at TIMESTAMPTZ NOT NULL DEFAULT now());
       CREATE TABLE caixa_fechamentos (id SERIAL PRIMARY KEY,snapshot_json JSONB NOT NULL,totals_dinheiro NUMERIC(12,2) NOT NULL DEFAULT 0,totals_fundo NUMERIC(12,2) NOT NULL DEFAULT 0,totals_geral NUMERIC(12,2) NOT NULL DEFAULT 0,created_at TIMESTAMPTZ NOT NULL DEFAULT now(),periodo_id INTEGER);
       CREATE TABLE movimentacao_caixa (id SERIAL PRIMARY KEY,tipo VARCHAR(10) NOT NULL,responsavel VARCHAR(100) NOT NULL,valor NUMERIC(10,2) NOT NULL CHECK(valor>=0),data_hora TIMESTAMP NOT NULL DEFAULT now(),created_at TIMESTAMPTZ DEFAULT now());
@@ -45,7 +46,7 @@ describe.skipIf(!connectionString)("cash sessions with PostgreSQL", () => {
   afterAll(async () => { try { await pool?.end(); if (created) await admin.query(`DROP SCHEMA ${schema} CASCADE`); } finally { await admin?.end(); } });
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao");
-    await pool.query(`TRUNCATE caixa_operacoes,edicoes_log,movimentacao_caixa,voucher,compra_pagamentos,compra,caixa_fechamentos,caixa_periodos,caixa_locais,servico_datas,servicos_adicionais,operacao_dias,agenda_extras,agenda,tabpreco RESTART IDENTITY CASCADE;
+    await pool.query(`TRUNCATE passeio_recebimentos,caixa_operacoes,edicoes_log,movimentacao_caixa,voucher,compra_pagamentos,compra,caixa_fechamentos,caixa_periodos,caixa_locais,servico_datas,servicos_adicionais,operacao_dias,agenda_extras,agenda,tabpreco RESTART IDENTITY CASCADE;
       INSERT INTO tabpreco VALUES(1); INSERT INTO agenda VALUES(1,'padra',CURRENT_DATE),(2,'escol',CURRENT_DATE);
       INSERT INTO caixa_locais(parque,nome,tipo) VALUES('rincao','Portaria','sales'),('rincao','Piscina','sales'),('rincao','Passeios','trips'),('estancia','Outro parque','sales');`);
   });
