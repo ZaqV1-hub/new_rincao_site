@@ -22,7 +22,8 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
   beforeAll(async () => {
     admin = new Pool({ connectionString, connectionTimeoutMillis: 2000 });
     await admin.query(`CREATE SCHEMA ${schema}`); created = true;
-    pool = new Pool({ connectionString, options: `-c search_path=${schema}`, connectionTimeoutMillis: 2000 });
+    // Direct owner queries must use the same JIT setting as withOwnerSource.
+    pool = new Pool({ connectionString, options: `-c search_path=${schema} -c jit=off`, connectionTimeoutMillis: 2000 });
     mock.pool = pool;
     await pool.query(`CREATE TABLE tabpreco (idtabpreco INTEGER PRIMARY KEY);
       INSERT INTO tabpreco VALUES (1);
