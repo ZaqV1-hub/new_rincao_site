@@ -43,7 +43,11 @@ Backup restrito: `C:\Backups\RincaoPanel\20261113-pre-counting-app`.
 
 ## Publicação
 
-Pendente nesta edição: registrar commit, execução CI/CD, saúde do artefato Windows e verificações HTTP do HML. Não interpretar este documento como confirmação de publicação antes desse registro.
+Base funcional `c8b423b943f7f700b01d9b0b8217d9ce6fe31e93` publicada em `develop` e ativada no HML. Workflow [43502696710](https://github.com/ZaqV1-hub/new_rincao_site/actions/runs/43502696710) concluído com sucesso, incluindo o build e renderizador Windows. SHA efetivo conferido em `current.txt`.
+
+Foram aprovadas17 verificações HTTP: telas do app/portaria/relatórios, consultas autenticadas, recusas sem sessão, origem externa, JSON inválido, resumo do painel, manifesto e três ícones. O manifesto também respondeu200 pelo endereço público HTTPS. Nenhum dado operacional sintético foi inserido no HML; as sessões temporárias eram assinadas para o ensaio e expiram.
+
+Evidências remotas: `counting-hml-migration-verification.json`, `counting-hml-smoke-verification.json`, `counting-cleanup-verification.json`. A cópia restaurada foi removida após as provas; os backups permanecem restritos. O registro cobre a base funcional; o commit posterior apenas esclarece o texto de rascunhos legados, padroniza no-store nas recusas da portaria e atualiza documentação.
 
 Rollback de código pelo release anterior do deploy; migrações aditivas permanecem. Não apagar revisões, assinaturas ou journals. Não reativar escritores legados nem mudar o modo sync-only da API de ingressos.
 
@@ -53,3 +57,18 @@ Rollback de código pelo release anterior do deploy; migrações aditivas perman
 - Aceite da operação/PO com contas reais autorizadas. Nenhuma mensagem real foi enviada nos testes.
 - Confirmação do template Brevia para futura automação.
 - Despesas/resultado da Estância e fonte do consolidado escolar permanecem nas pendências anteriores com Isaque; não foram simulados como completos.
+
+## Mensagem ao PO — pronta para encaminhar
+
+Oi! O aplicativo de contagem foi adequado ao protótipo e à especificação enviada e já está disponível em homologação pela develop.
+
+O app inclui programação e veículos extras, contagem por modalidade e PCD, salvamento automático, troca de monitor e recontagem com histórico, responsável e assinatura, filipeta para compartilhar manualmente e leitura de QR sem abrir caixa. O encerramento da contagem gera relatórios geral/cozinha e não fecha o financeiro. As idades seguem as regras atuais do sistema.
+
+Links de homologação:
+- Aplicativo: https://cluberincao.questione.ai/contagem
+- Painel: https://cluberincao.questione.ai/painel
+- Donos: https://cluberincao.questione.ai/donos
+
+Precisamos do aceite dos fluxos pela equipe, principalmente câmera, assinatura, instalação na tela inicial e compartilhamento em Android/iPhone. Monitores precisam das permissões de contagem e portaria.
+
+Pendências: envio automático pela Brevia até confirmar o template (alternativa manual disponível); despesas/resultado da Estância e confirmação da fonte do consolidado escolar com o Isaque; liberação das contas reais dos donos. Esta entrega fica em develop/homologação, sem promoção para produção.

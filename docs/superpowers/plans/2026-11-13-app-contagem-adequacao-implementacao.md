@@ -12,7 +12,7 @@
 
 ## Restrições globais e decisões
 
-- Estado do plano: execução autorizada em andamento, baseline `6a7f588`.
+- Estado do plano: implementação concluída e base funcional `c8b423b` publicada em develop/HML; aceite em celulares reais separado. Baseline `6a7f588`.
 - D1 confirmada: monitor pode assumir/recontar com confirmação e histórico; passeio financeiramente finalizado continua bloqueado até revisão autorizada.
 - D2 confirmada: finalizar contagem encerra a conferência e gera relatórios; não fecha caixas nem financeiro.
 - D3 confirmada: monitor pode validar entradas sem abrir caixa e sem movimentar dinheiro.
@@ -168,13 +168,14 @@ rtk proxy npx vitest run src/lib/counting-day-report.test.ts src/lib/counting-da
 
 ## T7 — PWA, regressão e implantação em homologação
 
-**Criar:** `public/contagem/manifest.webmanifest`, ícones em `public/contagem/`, eventual service worker com escopo `/contagem/` apenas se necessário à experiência validada, `docs/runbooks/counting-app-homologation.md`.
+**Executado:** rota `src/app/contagem/manifest.webmanifest/route.ts`, ícones em `public/contagem/`, eventual service worker com escopo `/contagem/` apenas se necessário à experiência validada, `docs/runbooks/counting-app-homologation.md`.
 
 **Modificar:** metadata/layout da contagem, testes correspondentes, plano e registro de execução. Não alterar escopo do site inteiro nem habilitar cache de APIs autenticadas.
 
-- [ ] Manifest com `id`, `start_url` e `scope` restritos à contagem, nome/cores/ícones aprovados, standalone. Testar instalação e retorno do login preservando destino no Android e iPhone; não prometer instalação universal sem teste.
-- [ ] Navegação sem internet mostra indisponibilidade; nenhuma mensagem “salvo” sem servidor. Atualização da PWA não substitui app durante assinatura/rascunho pendente.
-- [ ] Confirmar banco local isolado e executar suíte completa, lint, tipos, scripts e build equivalentes ao CI. Não contar testes pulados como aprovação.
+- [x] Manifest com `id`, `start_url` e `scope` restritos à contagem, nome/cores/ícones aprovados, standalone.
+- [ ] Homologação da equipe: testar instalação e retorno do login no Android e iPhone; não foi afirmada instalação universal.
+- [x] Navegação sem internet mostra indisponibilidade; nenhuma mensagem “salvo” sem servidor. Atualização da PWA não substitui app durante assinatura/rascunho pendente.
+- [x] Confirmar banco local isolado e executar suíte completa, lint, tipos, scripts e build equivalentes ao CI. Não contar testes pulados como aprovação.
 
 ```bash
 rtk proxy npm run lint
@@ -186,12 +187,13 @@ rtk proxy npm run build
 rtk proxy node scripts/verify-program-renderer.mjs
 ```
 
-- [ ] Revisar diff e integração: dados históricos, financeiro, entrada, permissões, arquivos privados, recuperação de rede e mensagens. Revisão independente se disponível; declarar indisponibilidade sem fingir revisão.
-- [ ] Antes de publicar: conferir remotos/diff da `develop`, preservar alterações locais alheias, backup do banco e arquivos persistentes de HML. Ensaiar migrações em cópia isolada e conferir quantidades/somas/hashes de assinaturas antes/depois.
-- [ ] Publicar somente commits revisados na `develop`. Workflow existente `.github/workflows/deploy-vm.yml` faz checks e implantação na VM; conferir SHA efetivo e health, não apenas push bem-sucedido. Implantar receptor compatível antes do emissor se API irmã mudar.
-- [ ] Manter dados de contagem anteriores legíveis durante rollout. No rollback, voltar release compatível; não apagar novas contagens nem restaurar banco sobre operações posteriores. Desativar envio automático se receptor/template falhar, mantendo fallback e fila rastreável.
-- [ ] Verificar HML em `https://cluberincao.questione.ai/contagem` e painel em `https://cluberincao.questione.ai/painel`. Provisionar contas de teste com permissões explícitas; remover dados sintéticos ao concluir.
-- [ ] Executar roteiro abaixo com dois celulares reais e obter aceite. Atualizar PO com implementação efetiva, links, resultados e pendências; não enviar WhatsApp a terceiros sem instrução explícita.
+- [x] Revisar diff e integração: dados históricos, financeiro, entrada, permissões, arquivos privados, recuperação de rede e mensagens. Revisão independente se disponível; declarar indisponibilidade sem fingir revisão.
+- [x] Antes de publicar: conferir remotos/diff da `develop`, preservar alterações locais alheias, backup do banco e arquivos persistentes de HML. Ensaiar migrações em cópia isolada e conferir quantidades/somas, preservação de revisões/assinaturas e hashes dos arquivos persistentes.
+- [x] Publicar somente commits revisados na `develop`. Workflow existente `.github/workflows/deploy-vm.yml` faz checks e implantação na VM; conferir SHA efetivo e health, não apenas push bem-sucedido. Implantar receptor compatível antes do emissor se API irmã mudar.
+- [x] Manter dados de contagem anteriores legíveis durante rollout. No rollback, voltar release compatível; não apagar novas contagens nem restaurar banco sobre operações posteriores. O envio automático não foi ativado; o compartilhamento manual permanece disponível.
+- [x] Verificar HML em `https://cluberincao.questione.ai/contagem` e painel em `https://cluberincao.questione.ai/painel`. Ensaios com sessões temporárias no HML e contas/fixtures somente no banco local isolado; concessões temporárias removidas.
+- [ ] Homologação da equipe: executar roteiro abaixo com dois celulares reais e obter aceite. Os fluxos foram exercitados em dois contextos de navegador; isso não substitui o teste dos dispositivos.
+- [x] Preparar mensagem do PO com implementação efetiva, links, resultados e pendências; nenhum WhatsApp enviado a terceiros.
 
 ## Roteiro de homologação com dois celulares
 
@@ -210,11 +212,11 @@ rtk proxy node scripts/verify-program-renderer.mjs
 
 Concluído somente quando a matriz da análise estiver atendida ou tiver pendência explicitamente aceita, os checks afetados passarem e a release correta estiver em HML. Envio automático pode permanecer pendente apenas com fallback funcional e status honesto, conforme alternativa já prevista no material. Aceite humano separado do resultado técnico.
 
-Estado em 13/11: D1–D3 confirmadas; protótipo navegado; 24 testes unitários da base passaram; documentos/fontes preservados. Nenhum código funcional alterado. Próxima ação: revisão deste plano, depois execução autorizada de T1. Não há processo de implementação em segundo plano.
+Histórico: na etapa de análise, D1–D3 foram confirmadas, o protótipo foi navegado e os arquivos originais foram preservados. O usuário autorizou a implementação na sequência; o resultado técnico está registrado abaixo e no runbook.
 
 ## Evidência da execução em 13/11/2026
 
-- T1–T6 implementados, com revisões independentes e achados corrigidos. T7 em verificação/publicação.
+- T1–T6 implementados, com revisões independentes e achados corrigidos. T7 publicado;17 verificações HTTP no HML aprovadas. Aceite da equipe em Android/iPhone continua explícito e separado.
 - 2.106 testes em 377 arquivos passaram com PostgreSQL, sem skips. 21 testes de scripts passaram. Lint sem erros, com 12 avisos preexistentes.
 - Navegador a 390 px e 1280 px: contagem→responsável→assinatura→prévia→filipeta, correção invalida assinatura, exportação PNG completa, encerramento/cozinha e histórico.
 - Dois contextos: monitor assume último subtotal; aba antiga preserva edição e recebe conflito. Resposta perdida: um POST, recuperação pela mesma chave. Armazenamento contém apenas URL/chave.
