@@ -16,7 +16,7 @@ const dateTime = new Intl.DateTimeFormat("pt-BR", {
 const statusLabels: Record<string, string> = {
   queued: "Na fila",
   retry: "Aguardando nova tentativa",
-  exception: "Exceção",
+  exception: "Aguardando análise humana",
   submitting: "Apresentando defesa",
   uncertain: "Envio a confirmar",
   submitted: "Defesa apresentada",
@@ -129,7 +129,7 @@ export function ChargebackAutomationSummary({ automation }: { automation: Charge
           <div><dt className="inline font-semibold">Última execução bem-sucedida: </dt><dd className="inline">{formatDate(automation.lastSuccessAt)}</dd></div>
         </dl>
       )}
-      <p className="mt-2">Use Atualizar consulta para conferir o estado atual. O resultado da defesa deve ser acompanhado no retorno de cada caso.</p>
+      <p className="mt-2">Todas as contestações exigem análise humana. Baixe e revise o dossiê; a apresentação da defesa é feita pela equipe na Cielo. Nenhuma defesa é enviada automaticamente. Use Atualizar consulta para acompanhar os casos.</p>
     </div>
   );
 }

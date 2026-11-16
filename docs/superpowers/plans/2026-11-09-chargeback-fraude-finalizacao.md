@@ -1,5 +1,17 @@
 # Finalização da preparação de chargebacks de fraude
 
+## Objetivo vigente — decisão de 16/11/2026
+
+Ativar a operação de consultas, webhooks, geração de dossiês e alertas com **análise humana obrigatória para todas as contestações**. Nenhuma defesa pode ser transmitida automaticamente, mesmo quando o conjunto de evidências está completo. A equipe revisa o PDF no painel e apresenta a defesa na Cielo. Esta decisão substitui o objetivo de envio automático e as condições de ativação históricas abaixo.
+
+Aceite: bloquear a transmissão no worker e no cliente Cielo; preservar reconciliação de casos tratados/legados; atualizar painel e instruções; validar testes e revisão independente; publicar no remoto; implantar a release; fazer backup protegido da configuração; ativar flag e tarefa na VM; observar consultas reais e dois ciclos bem-sucedidos. Nenhum dado fictício ou defesa em produção.
+
+Estado desta execução: implementação e validação em andamento; registro final de ativação será acrescentado após verificação. Confirmação de callback real continua separada da saúde da consulta periódica.
+
+---
+
+## Registro histórico (políticas anteriores, substituídas acima)
+
 > **For agentic workers:** Use `superpowers:executing-plans` para executar as tarefas sequencialmente. Não habilitar envios reais. Revisão independente somente quando justificada pelo risco e pelas instruções vigentes.
 
 **Goal:** Concluir a cobertura de fraude e a ativação da automação: obter orientação de produto, avaliar as evidências disponíveis, implementar/testar/publicar os ajustes necessários e somente então ativar, após confirmação efetiva da liberação pela Cielo. O usuário já autoriza a ativação final sem nova pergunta; até todas essas condições se confirmarem, manter integração e agendador desligados. Não tornar fraude elegível sem provas suficientes nem declarar cobertura de casos não demonstrada.

@@ -1,6 +1,5 @@
 import { request } from "node:https";
 import { readFile } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
 import type { CieloChargebackCase } from "./chargeback-contract";
 
 export type { CieloChargebackCase } from "./chargeback-contract";
@@ -265,32 +264,9 @@ export async function getCieloChargebackDocument(chargeback: CieloChargebackCase
   return { nameFile: text(data.nameFile, 50), file: data.file, dateInclusion: date(data.dateInclusion), returncode: code };
 }
 
-export async function submitCieloChargebackDefense(chargeback: CieloChargebackCase, pdf: Buffer, reason: string): Promise<unknown> {
-  const config = getConfig();
-  const item = parseCieloChargebackCase(chargeback, chargeback.remoteStatus);
-  allowed(config, item.establishmentNumber);
-  if (item.remoteStatus !== "PENDING") return invalid("case_status");
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-  if (item.treatmentDeadline < today) throw new CieloChargebackError("cielo_deadline_expired");
-  if (!reason.trim() || reason.length > 100 || /[\r\n\u0000]/.test(reason)) return invalid("reason");
-  if (!Buffer.isBuffer(pdf) || pdf.length > 8_000_000 || pdf.subarray(0, 5).toString() !== "%PDF-") return invalid("pdf");
-  // shortcut: internal renderer PDFs use uncompressed page dictionaries; reject unsupported PDFs until a parser is needed.
-  const pages = pdf.toString("latin1").match(/\/Type\s*\/Page\b/g)?.length ?? 0;
-  if (pages < 1 || pages > 10 || !pdf.subarray(-1024).toString("latin1").includes("%%EOF")) return invalid("pdf");
-  const boundary = `cielo-${randomUUID()}`;
-  const fields = { establishmentNumber: item.establishmentNumber, idChargeback: item.idChargeback, reasonToRefuse: reason.trim(), userName: config.userEmail };
-  const body = Buffer.concat([
-    ...Object.entries(fields).map(([name, value]) => Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`)),
-    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${item.idCase}.pdf"\r\nContent-Type: application/pdf\r\n\r\n`),
-    pdf, Buffer.from(`\r\n--${boundary}--\r\n`),
-  ]);
-  const payload = await apiRequest(config, "PUT", "refuse", body, true, {}, false, `multipart/form-data; boundary=${boundary}`);
-  let code: string;
-  try { code = businessCode(payload, ["102"], true); }
-  catch (error) {
-    if (error instanceof CieloChargebackError && error.code.startsWith("cielo_business_")) throw error;
-    throw new CieloChargebackError("cielo_unconfirmed_submission", false, true);
-  }
-  if (code !== "102") throw new CieloChargebackError("cielo_unconfirmed_submission", false, true);
-  return { code, message: "Chargeback recusado com sucesso!" };
+// Retain a fail-closed boundary for callers of the former submission API.
+// Enabling polling/webhooks never authorizes transmitting a defense.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Preserve the former API signature while rejecting every caller before I/O.
+export async function submitCieloChargebackDefense(_chargeback: CieloChargebackCase, _pdf: Buffer, _reason: string): Promise<never> {
+  throw new CieloChargebackError("cielo_human_review_required");
 }

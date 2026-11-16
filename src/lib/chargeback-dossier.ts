@@ -648,10 +648,11 @@ export function evaluateChargebackEvidence(evidence: ChargebackEvidence) {
   if (!notifiedCents || amountCovered !== notifiedCents) issues.add("partial_or_unproven_use");
 
   return {
-    eligible: issues.size === 0,
+    requiresHumanReview: true as const,
+    eligible: false,
     reason: issues.size === 0 ? "Registros de validação cobrem os ingressos pagos da transação." : [...issues][0],
     issues: [...issues],
-    policyVersion: "service-provision-v1",
+    policyVersion: "human-review-v1",
   };
 }
 
@@ -665,8 +666,8 @@ const issueDescriptions = new Map([
   ["live_transaction_conflict", "A consulta atual à Cielo retornou dados divergentes da cobrança."],
   ["unverified_purchase_payment", "O vínculo entre a contestação, o pagamento e a compra ainda precisa ser confirmado."],
   ["establishment_unverified", "O vínculo com o estabelecimento informado pela Cielo ainda precisa ser confirmado."],
-  ["unsupported_process", "O envio automático exige que a Cielo identifique o caso como primeira contestação."],
-  ["unsupported_currency", "O envio automático exige que a Cielo informe o real como moeda da transação."],
+  ["unsupported_process", "O estágio informado pela Cielo exige análise específica."],
+  ["unsupported_currency", "A moeda da transação precisa ser conferida."],
   ["unsupported_reason", "O motivo informado pela Cielo exige análise das evidências disponíveis."],
   ["case_not_pending", "A contestação consta como tratada na Cielo."],
   ["payment_capture_unconfirmed", "A captura do pagamento ainda precisa ser confirmada."],
