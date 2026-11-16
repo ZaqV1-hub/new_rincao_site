@@ -58,7 +58,7 @@ describe("operational day summary UI", () => {
     ["past_created", "Abrir", "Já ocorreu"], ["past_uncreated", "Abrir", "Já ocorreu e não criado"],
   ] as const)("shows %s program status and the appropriate action", (programStatus, action, label) => {
     const html = renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage canAccessProgram programStatus={programStatus} />);
-    expect(html).toContain(`Programação do dia · ${action}`); expect(html).toContain(label);
+    expect(html).toContain(`${action} dia seguinte`); expect(html).toContain(label);
     expect(html).toContain('href="/painel/agenda/2099-01-02/dia-seguinte?returnTo=2099-01-02"');
     expect(html).toContain("Fechamento diário: em aberto."); expect(html).not.toContain("Dia seguinte, caixas");
   });
@@ -72,11 +72,11 @@ describe("operational day summary UI", () => {
   it("does not expose program links without permission or imply creation after an error", () => {
     expect(render()).not.toContain("/dia-seguinte");
     const unavailable = renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage canAccessProgram programStatus={null} />);
-    expect(unavailable).toContain("Programação do dia indisponível"); expect(unavailable).not.toContain("Programação do dia · Criar"); expect(unavailable).toContain("30,00");
+    expect(unavailable).toContain("Programação do dia indisponível"); expect(unavailable).not.toContain("Criar dia seguinte"); expect(unavailable).toContain("30,00");
     const operator = renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage={false} canAccessProgram programStatus="uncreated" />);
-    expect(operator).toContain("Programação do dia · Abrir"); expect(operator).not.toContain("Programação do dia · Criar");
+    expect(operator).toContain("Abrir dia seguinte"); expect(operator).not.toContain("Criar dia seguinte");
     const closed = summary(); closed.configuration!.closed = true;
-    expect(renderToStaticMarkup(<PainelOperationalDayPage summary={closed} canManage canAccessProgram programStatus="created" />)).toContain("Programação do dia · Abrir");
+    expect(renderToStaticMarkup(<PainelOperationalDayPage summary={closed} canManage canAccessProgram programStatus="created" />)).toContain("Abrir dia seguinte");
   });
   it("starts on summary with accessible tabs and no eager list requests", () => {
     const fetch = vi.fn();

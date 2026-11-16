@@ -120,6 +120,7 @@ export function CountingAccountMenu({ name }: { name: string }) {
     <div className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-[#d9e3ee] bg-white p-4 text-[#0f2d52] shadow-lg">
       <p className="break-words font-semibold">{name}</p><a href="/painel" className="flex min-h-11 items-center underline">Voltar ao painel</a>
       <button type="button" className={`${countingButton} w-full`} disabled={busy} onClick={() => void logout()}>{busy ? 'Saindo…' : 'Sair da conta'}</button>
+      <button type="button" className={`${countingButton} mt-2 w-full`} onClick={event => event.currentTarget.closest('details')?.removeAttribute('open')}>Fechar</button>
       {error && <p role="alert" className="mt-2 text-sm">{error}</p>}
     </div>
   </details>;

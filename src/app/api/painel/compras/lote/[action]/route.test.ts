@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PurchaseBatchError } from "@/lib/operational-purchase-batch-contract";
-const mock = vi.hoisted(() => ({ access: vi.fn(), preview: vi.fn(), apply: vi.fn(),email: vi.fn(),history: vi.fn() }));
+const mock = vi.hoisted(() => ({ access: vi.fn(), preview: vi.fn(), apply: vi.fn(),email: vi.fn(),history: vi.fn(),dates: vi.fn() }));
 vi.mock("@/lib/painel-api-auth", () => ({ requirePainelApiAccess: mock.access }));
-vi.mock("@/lib/operational-purchase-batch", () => ({ previewPurchaseBatch: mock.preview,applyPurchaseBatch: mock.apply }));
+vi.mock("@/lib/operational-purchase-batch", () => ({ previewPurchaseBatch: mock.preview,applyPurchaseBatch: mock.apply,listPurchaseBatchDates: mock.dates }));
 vi.mock("@/lib/operational-purchase-batch-email", () => ({ dispatchPurchaseBatchEmail: mock.email,listPurchaseBatchEmail: mock.history }));
 const data = { purchaseIds: [1],targetDate: '2099-07-20',validity: '7_days',reason: 'Chuva',notifyEmail: false };
 async function call(action = 'preview',body: unknown = data,raw?: string) {
@@ -35,6 +35,14 @@ describe('strict panel batch API', () => {
     mock.apply.mockRejectedValue(new PurchaseBatchError('batch_preview_changed','Confira a prévia.'));
     const conflict = await call('apply'); expect(conflict.status).toBe(409); expect(await conflict.json()).toMatchObject({ error: { code: 'batch_preview_changed' } });
     mock.preview.mockRejectedValue(new Error('secret database details')); const failed = await call(); expect(failed.status).toBe(503); expect(JSON.stringify(await failed.json())).not.toContain('secret');
+  });
+  it('lists open destination dates with the same access gate and private cache', async () => {
+    const { GET } = await import('./route'); mock.dates.mockResolvedValue(['2099-07-21']);
+    const callDates = () => GET(new Request('https://local.invalid/api/painel/compras/lote/datas'), { params: Promise.resolve({ action: 'datas' }) });
+    const response = await callDates(); expect(await response.json()).toEqual({ ok: true, data: ['2099-07-21'] });
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+    mock.access.mockResolvedValue({ ok: false, response: new Response(null, { status: 403 }) });
+    expect((await callDates()).status).toBe(403); expect(mock.dates).toHaveBeenCalledTimes(1);
   });
   it('scopes email dispatch and recovery history to the authenticated operator', async () => {
     mock.email.mockResolvedValue({ pending: 0,accepted: 1 });

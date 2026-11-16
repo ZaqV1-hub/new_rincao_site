@@ -272,9 +272,10 @@ export function PainelClientTripDetailPage({
       </div>
 
       <div className="space-y-4">
-        <h1 className="text-[32px] font-light text-[#546979]">Dados do Passeio</h1>
+        <h1 className="text-2xl font-bold text-[#123b63]">Passeio · {data.trip.dateLabel}</h1>
         {financialActorCpf && <PainelTripSettlement agendaId={data.trip.agendaId} clientId={data.trip.clientId} actorCpf={financialActorCpf} isManager={isManager} canCount={canCount} />}
 
+        <details open={financialActorCpf ? undefined : true} className="space-y-4 rounded-xl border border-[#d4dfeb] bg-white p-4"><summary className="min-h-11 cursor-pointer text-base font-semibold">Cadastro, acompanhamento e relatórios do passeio</summary>
         <table className="w-full border-collapse border border-[#d8dfe5] bg-white">
           <tbody>
             <tr>
@@ -415,9 +416,10 @@ export function PainelClientTripDetailPage({
             {statusMessage}
           </div>
         ) : null}
+        </details>
       </div>
 
-      <div className="space-y-4">
+      <details open={financialActorCpf ? undefined : true} className="space-y-4 rounded-xl border border-[#d4dfeb] bg-white p-4"><summary className="min-h-11 cursor-pointer text-base font-semibold">Cadastro de participantes · alunos e acompanhantes</summary>
         <h2 className="text-[26px] font-light text-[#546979]">Relatório de Ingressos</h2>
 
         <form action="" className="flex flex-wrap items-end gap-3" method="get">
@@ -484,7 +486,7 @@ export function PainelClientTripDetailPage({
             rows={data.genericParticipants}
           />
         )}
-      </div>
+      </details>
 
       {canViewEnfermaria ? <EnfermariaTripRecords tripId={data.trip.agendaId} /> : null}
 

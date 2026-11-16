@@ -1,0 +1,28 @@
+.counting-app {
+  caret-color: #2f6fb2;
+  scrollbar-color: #8fa3bb #f4f7fb;
+  color-scheme: light;
+}
+.counting-app :is(input, textarea)::placeholder { color: #5c6f86; opacity: 1; }
+.counting-app :is(button, a, summary):focus-visible { outline: 2px solid #2f6fb2; outline-offset: 3px; }
+.counting-app img[alt*="Assinatura"] { background: white; border-radius: 6px; }
+@media (prefers-color-scheme: dark) {
+  .counting-app { color-scheme: dark; color: #eaf2fb; background: #0a1420; caret-color: #6fa9e3; scrollbar-color: #47617f #0f1a28; }
+  .counting-app [class*="bg-[#f4f7fb]"] { background-color: #0f1a28; }
+  .counting-app .bg-white:not(canvas) { background-color: #16243a; }
+  .counting-app [class*="bg-[#133a62]"] { background-color: #0d2440; }
+  .counting-app :is([class*="bg-[#eaf2fb]"], [class*="bg-[#edf4fb]"], [class*="bg-[#e9f1f9]"]) { background-color: #1b2f4a; }
+  .counting-app [class*="bg-[#e6ecf3]"] { background-color: #1c2c42; color: #9cb0c7; }
+  .counting-app :is([class*="bg-[#fff1cf]"], .bg-amber-50) { background-color: #3a2e12; color: #f2c766; }
+  .counting-app :is([class*="bg-[#e3f4e9]"], .bg-green-50) { background-color: #143225; color: #6fd39a; }
+  .counting-app :is([class*="bg-[#fff5f3]"], .bg-red-50) { background-color: #3a1a18; color: #f2877c; }
+  .counting-app :is([class*="text-[#0f2d52]"], [class*="text-[#0b1f36]"]:not([class*="bg-[#8fb9e3]"])) { color: #eaf2fb; }
+  .counting-app :is([class*="text-[#6a7c92]"], [class*="text-[#5c6f86]"], [class*="text-[#45647f]"], [class*="text-[#60768b]"], [class*="text-[#62778c]"]) { color: #aabdd2; }
+  .counting-app [class*="text-[#2f6fb2]"] { color: #6fa9e3; }
+  .counting-app :is([class*="border-[#d9e3ee]"], [class*="border-[#dbe6f1]"], [class*="border-[#dae5ef]"], [class*="border-[#d9e5ef]"], [class*="border-[#cbd6e3]"]) { border-color: #36516f; }
+  .counting-app [class*="divide-[#"] > :not(:last-child) { border-color: #36516f; }
+  .counting-app :is(input, textarea)::placeholder { color: #aabdd2; }
+  .counting-app :is(button, a, summary):focus-visible { outline-color: #6fa9e3; }
+  .counting-app button:hover:not(:disabled) { filter: brightness(1.12); }
+  .counting-app canvas { color-scheme: light; }
+}

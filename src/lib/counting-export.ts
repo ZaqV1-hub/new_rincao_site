@@ -12,7 +12,7 @@ export async function renderCountingImages(title:string,subtitle:string,blocks:C
  await header();
  for(const block of blocks){
    const segments=block.text.split(/\r?\n/).flatMap(line=>{const chars=Array.from(line);return chars.length?Array.from({length:Math.ceil(chars.length/240)},(_,i)=>chars.slice(i*240,(i+1)*240).join('')):[' '];});
-   for(const segment of segments){const rendered=await textImage(segment,block.heading);if(y+rendered.info.height+20>height-margin-70){await flush();await header();}layers.push({input:rendered.data,left:margin,top:y});y+=rendered.info.height+(block.heading?22:12);}
+   for(const segment of segments){if(!segment.trim()){y+=12;continue;}const rendered=await textImage(segment,block.heading);if(y+rendered.info.height+20>height-margin-70){await flush();await header();}layers.push({input:rendered.data,left:margin,top:y});y+=rendered.info.height+(block.heading?22:12);}
    if(block.image){const rendered=await sharp(block.image).resize({width:400,height:150,fit:'inside'}).png().toBuffer({resolveWithObject:true});if(y+rendered.info.height+20>height-margin-70){await flush();await header();}layers.push({input:rendered.data,left:margin,top:y});y+=rendered.info.height+24;}
  }
  await flush();return pages;

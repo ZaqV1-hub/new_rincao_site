@@ -44,10 +44,14 @@ export function PainelCompraDetailPage({
   const timestamp = (value: string) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }).format(new Date(value));
   const money = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const paymentMethods: Record<string, string> = { dinhe: "Dinheiro", pix: "Pix", credi: "Crédito", debit: "Débito", tranb: "Transferência", bolet: "Boleto" };
+  const cashPeriods = [...new Set(detail.operational?.payments.flatMap(payment => payment.periodId === null ? [] : [payment.periodId]) ?? [])];
+  const origin = detail.type === 'bilhe' ? `Caixa${cashPeriods.length ? ` #${cashPeriods.join(', #')}` : ' · Bilheteria'}` : detail.operational?.origin === 'lumi' ? 'Lumi' : detail.type === 'ponli' ? 'Site' : detail.typeLabel;
+  const visitDates = [...new Set(detail.vouchers.map(voucher => operationalVouchers.has(voucher.voucherId) ? civilDate(operationalVouchers.get(voucher.voucherId)?.visitDate) : voucher.visitDate ?? 'Não informado'))];
+  const hasGateway = detail.type === 'ponli' || Boolean(detail.gatewayPaymentId);
 
   return (
-    <section className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <div className="min-w-0 rounded-[6px] bg-white px-4 py-6 shadow-[0_10px_28px_rgba(26,61,94,0.08)] md:px-8">
+    <section className="grid min-w-0 gap-5">
+      <div className="min-w-0 rounded-xl border border-[#d9e3ee] bg-white p-5 md:p-6">
         <div className="border-b border-[#d8d8d8] pb-3 text-sm text-[#909090]">
           <Link className="text-[#1d68a2] underline" href="/painel">
             Home
@@ -60,109 +64,26 @@ export function PainelCompraDetailPage({
           <span>{detail.purchaseId}</span>
         </div>
 
-        <h1 className="mt-6 text-[28px] font-semibold text-[#205a7f]">
-          Dados Compra / Reserva
-        </h1>
-
-        <div className="mt-4 overflow-x-auto border border-[#cfcfcf]">
-          <table className="min-w-full border-collapse text-[15px]">
-            <tbody>
-              <tr className="bg-[#5f84a3] text-left text-white">
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal" colSpan={2}>
-                  Compra feita em
-                </th>
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Tipo</th>
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
-              </tr>
-              <tr>
-                <td className="border border-[#d7d7d7] px-4 py-3" colSpan={2}>
-                  {detail.purchaseDate ?? "-"}
-                </td>
-                <td className="border border-[#d7d7d7] px-4 py-3">{detail.typeLabel}</td>
-                <td className="border border-[#d7d7d7] px-4 py-3">
-                  <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${detail.status === "conc" ? "bg-[#e2f4e8] text-[#24733c]" : detail.status === "pend" ? "bg-[#fff3cd] text-[#8a6500]" : detail.status === "canc" ? "bg-[#fbe4e4] text-[#a83232]" : "bg-[#eef2f5] text-[#526779]"}`}>
-                    {detail.statusLabel}
-                  </span>
-                </td>
-              </tr>
-              <tr className="bg-[#5f84a3] text-left text-white">
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Pagamento</th>
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Forma Pag.</th>
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data de pagamento</th>
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Hora de pagamento</th>
-              </tr>
-              <tr>
-                <td className="border border-[#d7d7d7] px-4 py-3">{detail.paymentLabel}</td>
-                <td className="border border-[#d7d7d7] px-4 py-3">{detail.paymentMethodLabel}</td>
-                <td className="border border-[#d7d7d7] px-4 py-3">{detail.paymentDate ?? "-"}</td>
-                <td className="border border-[#d7d7d7] px-4 py-3">{detail.paymentTime ?? "-"}</td>
-              </tr>
-              {detail.referralCode ? (
-                <>
-                  <tr className="bg-[#5f84a3] text-left text-white">
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
-                      Código de indicação
-                    </th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">CPF</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Usuário</th>
-                  </tr>
-                  <tr>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{detail.totalValue}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{detail.referralCode}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{formatCpf(detail.cpf)}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">
-                      {detail.userName && userProfileHref ? (
-                        <Link className="text-[#1868d6] underline" href={userProfileHref}>
-                          {detail.userName}
-                        </Link>
-                      ) : (
-                        detail.userName ?? "-"
-                      )}
-                    </td>
-                  </tr>
-                </>
-              ) : (
-                <>
-                  <tr className="bg-[#5f84a3] text-left text-white">
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal" colSpan={2}>
-                      Valor
-                    </th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">CPF</th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Usuário</th>
-                  </tr>
-                  <tr>
-                    <td className="border border-[#d7d7d7] px-4 py-3" colSpan={2}>
-                      {detail.totalValue}
-                    </td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{formatCpf(detail.cpf)}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">
-                      {detail.userName && userProfileHref ? (
-                        <Link className="text-[#1868d6] underline" href={userProfileHref}>
-                          {detail.userName}
-                        </Link>
-                      ) : (
-                        detail.userName ?? "-"
-                      )}
-                    </td>
-                  </tr>
-                </>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <header className="mt-5 flex flex-wrap items-start justify-between gap-4">
+          <div><h1 className="text-2xl font-bold text-[#0f2d52]">Compra #{detail.purchaseId}</h1><p className="mt-1 text-[#6a7c92]">{detail.userName ?? 'Cliente não informado'} · CPF {formatCpf(detail.cpf)}</p></div>
+          <span className="rounded-full bg-[#eaf2fb] px-3 py-1 text-sm font-semibold">{detail.statusLabel}</span>
+        </header>
+        <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-[#e8eef5] pt-4 lg:grid-cols-4">
+          {[['Data da visita',visitDates.join(', ')],['Compra feita em',detail.purchaseDate],['Tipo',detail.typeLabel],['Origem',origin],['Valor total',detail.totalValue],...(detail.paymentLabel && detail.paymentLabel !== '-' ? [['Pagamento',detail.paymentLabel]] : []),...(detail.paymentMethodLabel && detail.paymentMethodLabel !== '-' ? [['Forma de pagamento',detail.paymentMethodLabel]] : []),['Data de pagamento',[detail.paymentDate,detail.paymentTime].filter(Boolean).join(' ')],...(detail.referralCode ? [['Código de indicação',detail.referralCode]] : [])].map(([label,value]) => <div key={label}><dt className="text-xs font-semibold text-[#6a7c92]">{label}</dt><dd className="mt-1 break-words font-medium">{value || 'Não informado'}</dd></div>)}
+        </dl>
+        {userProfileHref && <Link className="mt-3 inline-flex min-h-11 items-center underline" href={userProfileHref}>Mais detalhes do cliente</Link>}
 
         {detail.gatewayPaymentId ? (
           <>
             <h2 className="mt-8 text-[28px] font-semibold text-[#205a7f]">Pagamento</h2>
             <div className="mt-4 overflow-x-auto border border-[#cfcfcf]">
               <table className="min-w-full border-collapse text-[15px]">
-                <thead className="bg-[#5f84a3] text-left text-white">
+                <thead className="bg-[#eaf2fb] text-left text-[#0f2d52]">
                   <tr>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
+                    <th className="border border-[#d9e3ee] px-4 py-3 font-normal">
                       ID Pagamento
                     </th>
-                    <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
+                    <th className="border border-[#d9e3ee] px-4 py-3 font-normal">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -188,21 +109,14 @@ export function PainelCompraDetailPage({
         ) : (
           <div className="mt-4 overflow-x-auto border border-[#cfcfcf]">
             <table className="min-w-full border-collapse text-[15px]">
-              <thead className="bg-[#5f84a3] text-left text-white">
+              <thead className="bg-[#eaf2fb] text-left text-[#0f2d52]">
                 <tr>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal"><input type="checkbox" aria-label="Selecionar todos os vouchers" disabled={actionsBusy} checked={detail.vouchers.length > 0 && selectedIds.length === detail.vouchers.length} onChange={(event) => setSelection(event.target.checked ? detail.vouchers.map((voucher) => voucher.voucherId) : [])} /></th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">ID</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Voucher</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data da visita</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Validade</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Tipo</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Aluno</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Escola</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Turma</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Valor</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Usado?</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Data de uso</th>
-                  <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Hora de uso</th>
+                  <th className="border border-[#d9e3ee] px-4 py-3 font-normal"><input type="checkbox" aria-label="Selecionar todos os vouchers" disabled={actionsBusy} checked={detail.vouchers.length > 0 && selectedIds.length === detail.vouchers.length} onChange={(event) => setSelection(event.target.checked ? detail.vouchers.map((voucher) => voucher.voucherId) : [])} /></th>
+                  <th className="border border-[#d9e3ee] px-4 py-3 font-normal">Voucher</th>
+                  <th className="border border-[#d9e3ee] px-4 py-3 font-normal">Data da visita</th>
+                  <th className="border border-[#d9e3ee] px-4 py-3 font-normal">Tipo</th>
+                  <th className="border border-[#d9e3ee] px-4 py-3 font-normal">Valor</th>
+                  <th className="border border-[#d9e3ee] px-4 py-3 font-normal">Usado?</th>
                 </tr>
               </thead>
               <tbody>
@@ -212,26 +126,13 @@ export function PainelCompraDetailPage({
                     key={voucher.voucherId}
                   >
                     <td className="border border-[#d7d7d7] px-4 py-3"><input type="checkbox" aria-label={`Selecionar voucher ${voucher.voucherNumber ?? voucher.voucherId}`} disabled={actionsBusy} checked={selectedIds.includes(voucher.voucherId)} onChange={(event) => setSelection(event.target.checked ? [...selectedIds, voucher.voucherId] : selectedIds.filter((id) => id !== voucher.voucherId))} /></td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{voucher.voucherId}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">
                       <span className="inline-block min-w-[120px] bg-[#eaeaea] px-3 py-1 text-center font-mono text-sm">
                         {voucher.voucherNumber ?? "-"}
                       </span>
                     </td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{operationalVouchers.has(voucher.voucherId) ? civilDate(operationalVouchers.get(voucher.voucherId)?.visitDate) : voucher.visitDate ?? "-"}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{operationalVouchers.get(voucher.voucherId)?.validFrom ? `${civilDate(operationalVouchers.get(voucher.voucherId)?.validFrom)} até ${civilDate(operationalVouchers.get(voucher.voucherId)?.validUntil)}` : operationalVouchers.get(voucher.voucherId)?.validUntil ? `Até ${civilDate(operationalVouchers.get(voucher.voucherId)?.validUntil)} · legado` : "Não registrada"}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{voucher.voucherTypeLabel}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{voucher.studentName ?? "-"}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">
-                      {canAccessSchool && voucher.schoolName && voucher.schoolTripHref ? (
-                        <Link className="text-[#1868d6] underline" href={voucher.schoolTripHref}>
-                          {voucher.schoolName}
-                        </Link>
-                      ) : (
-                        voucher.schoolName ?? "-"
-                      )}
-                    </td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{voucher.className ?? "-"}</td>
+                    <td className="border border-[#d7d7d7] px-4 py-3"><strong>{voucher.voucherTypeLabel}</strong><p className="text-sm">{voucher.studentName}</p>{voucher.schoolName && <p className="text-sm">{canAccessSchool && voucher.schoolTripHref ? <Link className="underline" href={voucher.schoolTripHref}>{voucher.schoolName}</Link> : voucher.schoolName}{voucher.className && ` · ${voucher.className}`}</p>}<p className="mt-1 text-xs text-[#6a7c92]">Validade: {operationalVouchers.get(voucher.voucherId)?.validFrom ? `${civilDate(operationalVouchers.get(voucher.voucherId)?.validFrom)} até ${civilDate(operationalVouchers.get(voucher.voucherId)?.validUntil)}` : operationalVouchers.get(voucher.voucherId)?.validUntil ? `Até ${civilDate(operationalVouchers.get(voucher.voucherId)?.validUntil)} · legado` : "Não registrada"}</p></td>
                     <td className="border border-[#d7d7d7] px-4 py-3">{voucher.unitValue}</td>
                     <td className="border border-[#d7d7d7] px-4 py-3">
                       <span className={voucher.used === "n" ? "text-[#24733c]" : "font-bold text-[#68727b]"}>
@@ -243,15 +144,22 @@ export function PainelCompraDetailPage({
                               ? "NÃO USADO"
                               : "INDISPONÍVEL"}
                       </span>
-                    </td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{voucher.usedDate ?? "-"}</td>
-                    <td className="border border-[#d7d7d7] px-4 py-3">{voucher.usedTime ?? "-"}{voucher.used === "s" && <div className="mt-2 space-y-1 text-xs"><p>{operationalVouchers.get(voucher.voucherId)?.validation?.locationName ?? "Local não registrado"}</p><p>{operationalVouchers.get(voucher.voucherId)?.validation?.actorName ?? "Operador não registrado"}</p></div>}</td>
+                      <p className="text-sm">{voucher.usedDate} {voucher.usedTime}</p>{voucher.used === "s" && <div className="mt-2 space-y-1 text-xs"><p>{operationalVouchers.get(voucher.voucherId)?.validation?.locationName ?? "Local não registrado"}</p><p>{operationalVouchers.get(voucher.voucherId)?.validation?.actorName ?? "Operador não registrado"}</p></div>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
+        <div className="mt-4">
+        <PainelCompraDetailActions
+          purchaseId={detail.purchaseId}
+          voucherIds={selectedIds}
+          canOperate={canOperateVouchers}
+          onBusyChange={setActionsBusy}
+          onOperationComplete={() => setSelection([])}
+        />
+        </div>
         <section className="mt-8 space-y-4" aria-labelledby="purchase-receipts-title">
           <h2 id="purchase-receipts-title" className="text-xl font-semibold text-[#205a7f]">Recebimentos registrados</h2>
           {!detail.operational ? <p>Dados operacionais indisponíveis.</p> : detail.operational.payments.length === 0 ? <p>Nenhum recebimento individual registrado nesta fonte. Consulte também os dados de pagamento acima.</p> : <ul className="divide-y divide-[#d7d7d7]">{detail.operational.payments.map((payment) => <li key={payment.id} className="flex flex-wrap justify-between gap-3 py-3"><div><p>{paymentMethods[payment.method] ?? payment.method}</p><p className="text-sm text-[#5d7282]">{payment.receivedAt ? timestamp(payment.receivedAt) : "Data do recebimento não registrada"}{payment.periodId !== null && ` · Caixa #${payment.periodId}`}</p></div><strong>{money(payment.amountCents)}</strong></li>)}</ul>}
@@ -260,9 +168,9 @@ export function PainelCompraDetailPage({
           <h2 id="purchase-history-title" className="text-xl font-semibold text-[#205a7f]">Histórico da compra</h2>
           {!detail.operational ? <p>Histórico indisponível.</p> : detail.operational.history.length === 0 ? <p>Nenhuma alteração registrada.</p> : <ol className="divide-y divide-[#d7d7d7]">{detail.operational.history.map((event) => <li key={event.id} className="space-y-1 py-3"><p className="font-semibold">{event.description}</p><p>{event.reason}</p><p className="text-sm text-[#5d7282]">{timestamp(event.occurredAt)} · {event.actorName ?? "Operador não informado"}</p></li>)}</ol>}
         </section>
-        <div className="mt-6">
+        {hasGateway && <div className="mt-6">
           <PainelCompraContestacoes key={detail.purchaseId} purchaseId={detail.purchaseId} />
-        </div>
+        </div>}
       </div>
 
       <aside className="grid content-start gap-5">
@@ -275,7 +183,7 @@ export function PainelCompraDetailPage({
                 {returnContext ? "Voltar às compras da data" : "Lista de compras / reservas"}
               </Link>
             </li>
-            <li>
+            {hasGateway && <><li>
               <Link
                 className="text-[#1d68a2] underline"
                 href={`/painel/compras/${detail.purchaseId}/consulta-pagamento`}
@@ -287,18 +195,11 @@ export function PainelCompraDetailPage({
               <Link className="text-[#1d68a2] underline" href="#contestacoes">
                 Contestações Cielo
               </Link>
-            </li>
+            </li></>}
           </ul>
           {userProfileHref && <Link className="mt-4 inline-flex min-h-11 items-center text-[#1d68a2] underline" href={userProfileHref}>Mais detalhes do cliente</Link>}
         </div>
-        <PainelCompraDetailActions
-          purchaseId={detail.purchaseId}
-          voucherIds={selectedIds}
-          canOperate={canOperateVouchers}
-          onBusyChange={setActionsBusy}
-          onOperationComplete={() => setSelection([])}
-        />
-        {canOperateVouchers && detail.operational.vouchers.every(v => v.schoolId === null) &&
+        {canOperateVouchers && detail.operational?.vouchers.every(v => v.schoolId === null) &&
           <PainelPurchaseBatch purchaseIds={[detail.purchaseId]} onComplete={() => setSelection([])} />}
       </aside>
     </section>

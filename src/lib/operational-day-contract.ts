@@ -25,7 +25,7 @@ type ServicePrices = {
 };
 
 export type OperationalService = CatalogFields & CatalogVersion & ServicePrices;
-export type CashLocation = CatalogFields & CatalogVersion;
+export type CashLocation = CatalogFields & CatalogVersion & { type?: "sales" | "trips" };
 
 export type OperationalServiceInput = CatalogFields & ServicePrices & (
   | { id?: never; version?: never; applyToOpenDates?: boolean }

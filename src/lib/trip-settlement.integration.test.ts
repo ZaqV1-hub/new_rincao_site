@@ -36,7 +36,7 @@ describe.skipIf(!connectionString)('trip settlement with PostgreSQL',() => {
       CREATE TABLE caixa_fechamentos(id serial PRIMARY KEY,snapshot_json jsonb,totals_dinheiro numeric DEFAULT 0,totals_fundo numeric DEFAULT 0,totals_geral numeric DEFAULT 0,created_at timestamptz DEFAULT now(),periodo_id integer);
       CREATE TABLE movimentacao_caixa(id serial PRIMARY KEY,tipo varchar(10),responsavel varchar(100),valor numeric,data_hora timestamp DEFAULT now(),created_at timestamptz DEFAULT now());
       CREATE TABLE edicoes_log(id serial PRIMARY KEY,origem varchar(30),acao varchar(30),compra_id integer,movimentacao_id integer,movimentacao_tipo text,periodo_id integer,folha_id integer,descricao text,motivo text,usuario_nome text CHECK(usuario_nome<>'Falha de auditoria'),detalhes_json text,created_at timestamptz DEFAULT now());`);
-    for (const file of ['2026-11-12-operational-panel-foundation','2026-11-12-operational-voucher-validity','2026-11-12-operational-service-vouchers','2026-11-12-day-program','2026-11-12-cash-sessions','2026-11-13-trip-counting','2026-11-13-trip-settlement','2026-11-13-purchase-batches','2026-11-13-day-closure']) await pool.query(await readFile(new URL(`../../docs/sql/${file}.sql`,import.meta.url),'utf8'));
+    for (const file of ['2026-11-12-operational-panel-foundation','2026-11-12-operational-voucher-validity','2026-11-12-operational-service-vouchers','2026-11-12-day-program','2026-11-12-cash-sessions','2026-11-13-trip-counting','2026-11-13-trip-settlement','2026-11-13-purchase-batches','2026-11-13-day-closure','2026-11-13-counting-app-details']) await pool.query(await readFile(new URL(`../../docs/sql/${file}.sql`,import.meta.url),'utf8'));
   });
   beforeEach(async () => {
     vi.stubEnv('OPERATIONAL_PARK_ID','rincao');

@@ -210,10 +210,10 @@
   }
 
   .rincao-panel {
-    --panel-ink: #133d63;
-    --panel-muted: #5b7288;
-    --panel-border: #d7e3ee;
-    --panel-soft: #f5f9fd;
+    --panel-ink: #0f2d52;
+    --panel-muted: #6a7c92;
+    --panel-border: #d9e3ee;
+    --panel-soft: #eaf2fb;
     --panel-green: #1d68a2;
     background: #f4f8fc;
     color: var(--panel-ink);
@@ -233,8 +233,8 @@
   .rincao-panel .panel-section {
     background: #fff;
     border: 1px solid var(--panel-border);
-    border-radius: 6px;
-    box-shadow: 0 10px 22px rgba(19, 61, 99, 0.05);
+    border-radius: 12px;
+    box-shadow: none;
   }
 
   .rincao-panel .panel-eyebrow {

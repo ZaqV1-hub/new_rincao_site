@@ -12,7 +12,7 @@ import {
 
 type LocationRow = Omit<CashLocation, "id"> & { id: string };
 
-const locationColumns = "id, nome AS name, descricao AS description, ativo AS active, versao AS version";
+const locationColumns = "id, nome AS name, descricao AS description, ativo AS active, versao AS version, tipo AS type";
 
 function mapLocation(row: LocationRow): CashLocation {
   return { ...row, id: catalogId(row.id) };

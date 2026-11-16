@@ -12,12 +12,14 @@ import {
   formatPainelAgendaMonthLabel,
 } from "@/lib/painel-agenda-ui";
 
+import type { OperationalCalendarDay } from "@/lib/painel-operational-calendar";
 import type { DayProgram } from "@/lib/day-program";
 import type { OperationalDay } from "@/lib/operational-day";
 import { isCivilDate } from "@/lib/operational-date";
 
 type PainelAgendaManagerProps = {
   data: PainelAgendaScreenData;
+  indicators?: OperationalCalendarDay[] | null;
   operationalDays: OperationalDay[] | null;
   operationalError?: string | null;
   today: string;
@@ -57,11 +59,11 @@ function formatMoney(value: string | null) {
 
 function getAgendaBaseToneClasses(entry?: AgendaToneInput) {
   if (!entry) {
-    return "border-[#d9e3eb] bg-white text-[#45647f]";
+    return "border-dashed border-[#b8cbdc] bg-white text-[#45647f]";
   }
 
   if (entry.status === "lot") {
-    return "border-[#c90011] bg-[#c90011] text-white";
+    return "border-[#c89b45] bg-[#fff3dc] text-[#694812]";
   }
 
   if (entry.status === "fec") {
@@ -69,10 +71,10 @@ function getAgendaBaseToneClasses(entry?: AgendaToneInput) {
   }
 
   if (entry.type === "promo") {
-    return "border-[#ff6138] bg-[#ff6138] text-white";
+    return "border-[#2f6fb2] bg-[#eaf2fb] text-[#123b63]";
   }
 
-  return "border-[#84bd00] bg-[#84bd00] text-[#17351f]";
+  return "border-[#2f6fb2] bg-[#eaf2fb] text-[#123b63]";
 }
 
 export function getAgendaToneClasses(
@@ -127,7 +129,7 @@ const control = "min-h-11 rounded-lg border border-[#b8cbdc] px-3 py-2 text-sm f
 const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Criado e enviado · arquivos gerados", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
 const isDayUse = (entry: PainelAgendaMonthEntry) => entry.type === "padra" || entry.type === "promo";
 
-export function PainelAgendaManager({ data, operationalDays, operationalError, today, canEdit, canAccessProgram = false, programStatuses = null, programError }: PainelAgendaManagerProps) {
+export function PainelAgendaManager({ data, indicators = null, operationalDays, operationalError, today, canEdit, canAccessProgram = false, programStatuses = null, programError }: PainelAgendaManagerProps) {
   const entriesByDate = useMemo(() => groupAgendaEntries(data.entries), [data.entries]);
   const calendarCells = useMemo(() => buildPainelAgendaCalendar(data.month, data.year), [data.month, data.year]);
   const [days, setDays] = useState(operationalDays);
@@ -139,6 +141,7 @@ export function PainelAgendaManager({ data, operationalDays, operationalError, t
   const [conflict, setConflict] = useState(false);
   const [feedback, setFeedback] = useState<{ error: boolean; text: string } | null>(null);
   const daysByDate = new Map((days ?? []).map((day) => [day.date, day]));
+  const indicatorsByDate = new Map((indicators ?? []).map(day => [day.date, day]));
   const selectedDate = data.selectedDate;
   const selectedDay = data.selectedDay;
   const selectedProgramStatus = selectedDate ? programStatuses?.[selectedDate] : undefined;
@@ -186,19 +189,14 @@ export function PainelAgendaManager({ data, operationalDays, operationalError, t
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-[1120px] gap-4 text-[#123b63]">
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="mx-auto grid w-full max-w-[1440px] gap-4 text-[#123b63]">
+      <div className="grid items-start gap-4 ">
         <section className="panel-section min-w-0 p-3.5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-2xl font-bold">Agenda</h1>
             <Link href={buildAgendaHref(Number(today.slice(5, 7)), Number(today.slice(0, 4)), today)} className={`${control} hover:bg-[#eef4fb]`}>Ir para hoje</Link>
           </div>
-          <fieldset className="mt-4 flex flex-wrap gap-2">
-            <legend className="sr-only">Filtrar datas</legend>
-            {[["all", "Todas"], ["dayuse", "Day use"], ["groups", "Grupos"]].map(([value, label]) => (
-              <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={`${control} ${filter === value ? "bg-[#123b63] text-white" : "hover:bg-[#eef4fb]"}`}>{label}</button>
-            ))}
-          </fieldset>
+
           {days === null ? (
             <div role="alert" className="mt-4 rounded-lg border border-[#d6b272] bg-[#fff9ed] p-3 text-sm text-[#694812]">
               <p className="font-semibold">Programação indisponível</p>
@@ -207,8 +205,9 @@ export function PainelAgendaManager({ data, operationalDays, operationalError, t
             </div>
           ) : null}
           {canAccessProgram && programStatuses === null && <p role="alert" className="mt-4 text-sm text-[#694812]">{programError || "Programação do dia indisponível. Atualize a página para tentar novamente."}</p>}
+          {indicators === null && <p role="alert" className="mt-4 text-sm text-[#694812]">Indicadores da agenda indisponíveis. Atualize a página para tentar novamente.</p>}
           <div className="mt-4 overflow-hidden rounded-xl border border-[#d4dfeb]">
-            <div className="grid grid-cols-[44px_1fr_44px] items-center bg-[#eef4fb] text-[#123b63]">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 text-[#123b63]"><nav className="flex items-center gap-3" aria-label="Mês da agenda">
               <Link aria-label="Mês anterior" href={buildAgendaHref(previousMonth.month, previousMonth.year)} className="flex min-h-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#123b63]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
               </Link>
@@ -216,24 +215,33 @@ export function PainelAgendaManager({ data, operationalDays, operationalError, t
               <Link aria-label="Próximo mês" href={buildAgendaHref(nextMonth.month, nextMonth.year)} className="flex min-h-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#123b63]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
               </Link>
+              </nav>
+          <fieldset className="flex flex-wrap gap-2">
+            <legend className="sr-only">Filtrar datas</legend>
+            {[["all", "Todas"], ["dayuse", "Day use"], ["groups", "Grupos"], ["pending", "Fechamento pendente"]].map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={`${control} ${filter === value ? "bg-[#123b63] text-white" : "hover:bg-[#eef4fb]"}`}>{label}</button>
+            ))}
+          </fieldset>
             </div>
-            <div className="grid grid-cols-7 bg-[#eef4fb] text-center text-xs font-semibold">
+            <div className="hidden grid-cols-7 md:grid bg-white text-center text-xs font-semibold">
               {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((label) => <div key={label} className="py-2">{label}</div>)}
             </div>
-            <div className="grid grid-cols-7 gap-1 bg-[#edf3f7] p-1">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-7 bg-white p-2">
               {calendarCells.map((cell) => {
                 const entries = entriesByDate.get(cell.date) ?? [];
                 const config = daysByDate.get(cell.date);
+                const indicator = indicatorsByDate.get(cell.date);
                 const dayUse = entries.find(isDayUse);
                 const groups = entries.filter((entry) => !isDayUse(entry));
                 const open = config ? config.dayUseOpen : dayUse?.status === "abe";
-                const matches = filter === "all" || (filter === "dayuse" ? Boolean(dayUse || config?.dayUseAgendaId) : groups.length > 0);
-                if (!cell.inMonth || !matches) return <div key={cell.key} className="min-h-24 px-2 py-2 text-xs text-[#60758d]">{cell.day}</div>;
+                const movement = Boolean(open || config?.closed || (indicator?.groupCount ?? groups.length) > 0 || indicator?.vehicleCount || indicator?.revenueCents || indicator?.closurePending);
+                const matches = filter === "all" || (filter === "dayuse" ? Boolean(open) : filter === "pending" ? Boolean(indicator?.closurePending) : (indicator?.groupCount ?? groups.length) > 0);
+                if (!cell.inMonth || !matches) return <div key={cell.key} className="hidden min-h-24 px-2 py-2 text-xs text-[#60758d] md:block">{cell.day}</div>;
                 const tone = config?.closed ? { status: "fec" as const, type: "padra" as const } : config?.dayUseAgendaId ? { status: config.onlineSoldOut ? "lot" as const : open ? "abe" as const : "fec" as const, type: dayUse?.type ?? "padra" as const } : dayUse;
                 return (
-                  <div key={cell.key} className={`min-w-0 rounded-lg border ${getAgendaToneClasses(tone, cell.date === selectedDate || selectedDates.includes(cell.date))}`}>
+                  <div key={cell.key} className={`relative min-w-0 rounded-lg border ${cell.date === today ? "outline-2 outline-[#b9892c]" : ""} ${getAgendaToneClasses(tone, cell.date === selectedDate || selectedDates.includes(cell.date))}`}>
                     <Link href={buildAgendaHref(data.month, data.year, cell.date)} aria-label={`Abrir ${formatPainelAgendaDateLabel(cell.date)}`} aria-current={cell.date === today ? "date" : undefined} className="block min-h-24 rounded-lg px-1 py-2 text-xs focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#123b63] sm:px-2">
-                      <span className="text-sm font-bold tabular-nums">{cell.day}</span>
+                      <span className="pr-10 text-sm font-bold tabular-nums">{cell.day}</span>
                       {cell.date === today ? <span className="block text-[10px] font-bold">Hoje</span> : null}
                       <span className="mt-1 block break-words text-[10px] leading-4 sm:text-xs">
                         {config?.closed ? <span className="block font-semibold">Dia finalizado</span> : null}
@@ -241,13 +249,15 @@ export function PainelAgendaManager({ data, operationalDays, operationalError, t
                           <span className="whitespace-nowrap sm:hidden">{(config ? Boolean(config.onlineSoldOut) : dayUse?.status === "lot") ? "Lotado" : open ? "Aberto" : "Fechado"}</span>
                           <span className="hidden sm:inline">{(config ? Boolean(config.onlineSoldOut) : dayUse?.status === "lot") ? "Day use esgotado" : open ? "Day use aberto" : "Day use fechado"}</span>
                         </span> : null}
-                        {groups.length > 0 ? <span className="block">{`${groups.length} agenda${groups.length === 1 ? "" : "s"} de grupos`}</span> : null}
-                        {canAccessProgram && <span className="mt-1 block rounded border border-current/25 px-1 font-semibold" title={programStatuses?.[cell.date] === "exported" ? "Os arquivos foram gerados; o envio é feito pelo gerente." : undefined}>{programStatuses?.[cell.date] ? `Programação: ${programLabels[programStatuses[cell.date]]}` : "Programação indisponível"}</span>}
+                        {indicator && movement && <><span className="mt-2 block text-base font-bold tabular-nums">{indicator.plannedPeople === null ? "Previsão a preencher" : `${indicator.plannedPeople} pessoas`}</span><span className="block">{indicator.groupCount === null ? "Passeios indisponíveis" : `${indicator.groupCount} passeio(s)`} · {indicator.vehicleCount} veíc.</span>{indicator.revenueCents === null ? <span className="block">Receita indisponível</span> : indicator.revenueCents > 0 && <span className="block font-semibold tabular-nums">{formatMoney(String(indicator.revenueCents / 100))}</span>}{indicator.counting && <span className="mt-1 block font-semibold text-[#694812]">Contando</span>}{indicator.closurePending && <span className="mt-1 block font-semibold text-[#694812]">Fechamento pendente</span>}</>}
+                        {!indicator && groups.length > 0 && <span className="block">{`${groups.length} agenda${groups.length === 1 ? "" : "s"} de grupos`}</span>}
+                        {canAccessProgram && movement && <span className="mt-1 block rounded border border-current/25 px-1 font-semibold" title={programStatuses?.[cell.date] === "exported" ? "Os arquivos foram gerados; o envio é feito pelo gerente." : undefined}>{programStatuses?.[cell.date] ? `Programação: ${programLabels[programStatuses[cell.date]]}` : "Programação indisponível"}</span>}
                         {config?.priceTableId ? <span className="block truncate" title={tableName(config.priceTableId)}>{tableName(config.priceTableId)}</span> : null}
                       </span>
                     </Link>
+                    {writable && !open && !config?.closed && cell.date >= today && <Link className="flex min-h-11 items-center px-2 text-xs font-semibold underline underline-offset-4" href={`/painel/agenda/${cell.date}/editar`}>+ Abrir day use</Link>}
                     {writable && canSelectAgendaDate(cell.date, today, config) ? (
-                      <label className="flex min-h-11 cursor-pointer items-center justify-center border-t border-current/20">
+                      <label className="absolute right-0 top-0 flex min-h-11 w-11 cursor-pointer items-center justify-center">
                         <input type="checkbox" aria-label={`Selecionar ${formatPainelAgendaDateLabel(cell.date)}`} checked={selectedDates.includes(cell.date)} disabled={busy} onChange={(event) => setSelectedDates((current) => event.target.checked ? [...current, cell.date].sort() : current.filter((date) => date !== cell.date))} className="h-4 w-4 accent-[#123b63] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#123b63]" />
                       </label>
                     ) : null}
@@ -281,7 +291,7 @@ export function PainelAgendaManager({ data, operationalDays, operationalError, t
           {feedback ? <p role={feedback.error ? "alert" : "status"} className={`mt-4 rounded-lg border p-3 text-sm ${feedback.error ? "border-[#e3b8b2] bg-[#fff4f2] text-[#913c30]" : "border-[#a9cfb7] bg-[#eef8f1] text-[#245b37]"}`}>{feedback.text}</p> : null}
         </section>
 
-        <section className="panel-section min-w-0 p-4 xl:sticky xl:top-5">
+        <section className="panel-section min-w-0 p-4 ">
           <h2 className="text-xl font-bold">{selectedDate ? formatPainelAgendaDateLabel(selectedDate) : "Selecione uma data"}</h2>
           {selectedDate ? <>
             <p className="mt-3 text-sm">{selectedConfig?.closed ? "Dia finalizado" : (selectedConfig ? Boolean(selectedConfig.onlineSoldOut) : selectedDayUse?.status === "lot") ? "Day use aberto · vendas esgotadas" : selectedConfig?.dayUseOpen || (!selectedConfig && selectedDayUse?.status === "abe") ? "Day use aberto" : "Day use fechado"}</p>

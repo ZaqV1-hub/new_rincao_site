@@ -5,7 +5,7 @@ import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { lockOperationalDay } from "@/lib/operational-day-lock";
 import { getOperationalDay, type OperationalDay } from "@/lib/operational-day";
-import { isCivilDate, voucherValidityRange } from "@/lib/operational-date";
+import { getSaoPauloToday, isCivilDate, voucherValidityRange } from "@/lib/operational-date";
 import { getOnlineCapacityOccupied } from "@/lib/online-capacity";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import type { CatalogActor } from "@/lib/painel-operational-catalog";
@@ -25,6 +25,18 @@ type Snapshot = {
 };
 const hash = (data: unknown) => createHash("sha256").update(JSON.stringify(data)).digest("hex");
 const uniqueNumbers = (ids: (number | null)[]) => [...new Set(ids.filter((id): id is number => id !== null))].sort((a,b) => a-b);
+export async function listPurchaseBatchDates(): Promise<string[]> {
+  const result = await getIngressoSistemaDbPool().query<{ date: string }>(`
+    SELECT DISTINCT a.dtagenda::text AS date FROM agenda a
+    LEFT JOIN operacao_dias d ON d.parque=$1 AND d.data=a.dtagenda
+    WHERE a.dtagenda >= $2::date AND COALESCE(d.estado,'open')<>'closed'
+      AND (d.day_use_agenda_id=a.idagenda OR (d.data IS NULL AND
+        (SELECT count(*) FROM agenda other WHERE other.dtagenda=a.dtagenda AND other.tpagenda IN ('padra','promo'))=1))
+      AND a.tpagenda IN ('padra','promo') AND a.stagenda IN ('abe','lot')
+      AND NOT EXISTS (SELECT 1 FROM agenda_extras e WHERE e.idagenda=a.idagenda)
+    ORDER BY date`, [getOperationalParkId(), getSaoPauloToday()]);
+  return result.rows.map(row => row.date);
+}
 function periodsFor(s: Snapshot, id: number) {
   return uniqueNumbers([s.purchases.find(p => p.id === id)?.periodId ?? null,
     ...s.vouchers.filter(v => v.purchaseId === id).flatMap(v => [v.periodId,v.validationPeriodId]),

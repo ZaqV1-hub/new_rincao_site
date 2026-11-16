@@ -3,7 +3,7 @@
 import { PainelBrandLogo } from "@/components/painel-brand-logo";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   hasLegacyPanelResource,
   type LegacyPanelResource,
@@ -284,6 +284,40 @@ export function PainelShell({
   const [pendingLogout, setPendingLogout] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const sidebar = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const trigger = menuButton.current;
+    document.body.style.overflow = "hidden";
+    const desktop = window.matchMedia("(min-width: 1251px)");
+    const closeOnDesktop = () => { if (desktop.matches) setMenuOpen(false); };
+    desktop.addEventListener("change", closeOnDesktop);
+    sidebar.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key !== "Tab") return;
+      const controls = Array.from(sidebar.current?.querySelectorAll<HTMLElement>("a[href], button:not(:disabled)") ?? []).filter((item) => item.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      desktop.removeEventListener("change", closeOnDesktop);
+      document.removeEventListener("keydown", handleKey);
+      trigger?.focus();
+    };
+  }, [menuOpen]);
 
   const visibleItems = useMemo(
     () =>
@@ -314,17 +348,20 @@ export function PainelShell({
   }
 
   return (
-    <div className="rincao-panel min-h-screen bg-[linear-gradient(180deg,#f4f8fc_0%,#f8fbff_34%,#ffffff_100%)] text-[#133d63]">
+    <div className="rincao-panel min-h-screen bg-[#f4f7fb] text-[#133d63]">
       <div
         className={`grid min-h-screen transition-[grid-template-columns] duration-200 ${
           sidebarCollapsed
-            ? "lg:grid-cols-[88px_minmax(0,1fr)]"
-            : "lg:grid-cols-[248px_minmax(0,1fr)]"
+            ? "min-[1251px]:grid-cols-[88px_minmax(0,1fr)]"
+            : "min-[1251px]:grid-cols-[256px_minmax(0,1fr)]"
         }`}
       >
+        {menuOpen && <button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-30 bg-black/40 min-[1251px]:hidden" />}
         <aside
-          className={`flex print:hidden flex-col border-r border-[rgba(16,58,99,0.18)] bg-[#123b63] text-white transition-all duration-200 ${
-            menuOpen ? "block" : "hidden lg:flex"
+          id="painel-navigation"
+          ref={sidebar}
+          className={`flex print:hidden flex-col border-r border-[rgba(16,58,99,0.18)] bg-[#133a62] text-white fixed inset-y-0 left-0 z-40 w-64 overflow-y-auto min-[1251px]:sticky min-[1251px]:top-0 min-[1251px]:h-screen min-[1251px]:w-auto ${
+            menuOpen ? "block" : "hidden min-[1251px]:flex"
           }`}
         >
           <div
@@ -352,11 +389,11 @@ export function PainelShell({
 
             <button
               type="button"
-              aria-label="Alternar menu mobile"
+              aria-label="Fechar menu mobile"
               onClick={() => setMenuOpen((current) => !current)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-white/15 bg-white/6 text-xl lg:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-[8px] border border-white/15 bg-white/6 text-xl min-[1251px]:hidden"
             >
-              =
+              ×
             </button>
           </div>
 
@@ -398,7 +435,7 @@ export function PainelShell({
             </div>
 
             <nav
-              className={`${menuOpen ? "mt-4 grid" : "mt-4 hidden"} gap-1.5 lg:grid`}
+              className={`${menuOpen ? "mt-4 grid" : "mt-4 hidden"} gap-1.5 min-[1251px]:grid`}
             >
               {visibleItems.map((item) => {
                 const active = isPainelShellNavItemActive(pathname, item);
@@ -447,8 +484,8 @@ export function PainelShell({
         </aside>
 
         <main className="min-w-0">
-          <div className="print:hidden border-b border-[rgba(16,58,99,0.08)] bg-white/95 px-4 py-2.5 shadow-[0_10px_30px_rgba(19,61,99,0.06)] backdrop-blur-md md:px-5 lg:px-6">
-            <div className="mx-auto flex max-w-[1380px] items-center gap-3">
+          <div className="sticky top-0 z-20 flex h-[60px] items-center print:hidden border-b border-[#d9e3ee] bg-white px-4 md:px-6">
+            <div className="flex w-full items-center gap-3">
               <button
                 type="button"
                 aria-label={
@@ -456,16 +493,23 @@ export function PainelShell({
                     ? "Abrir menu lateral"
                     : "Fechar menu lateral"
                 }
-                onClick={() => {
-                  if (window.matchMedia("(min-width: 1024px)").matches) {
-                    setSidebarCollapsed((current) => !current);
-                  } else {
-                    setMenuOpen((current) => !current);
-                  }
-                }}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-[rgba(19,61,99,0.12)] bg-white text-[#133d63] shadow-[0_10px_22px_rgba(19,61,99,0.08)] hover:bg-[#133d63] hover:text-white"
+                onClick={() => setSidebarCollapsed((current) => !current)}
+                aria-expanded={!sidebarCollapsed}
+                aria-controls="painel-navigation"
+                className="hidden min-[1251px]:inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-[#d9e3ee] bg-white text-[#133d63] hover:bg-[#133d63] hover:text-white"
               >
                 <ChevronIcon open={!sidebarCollapsed} />
+              </button>
+              <button
+                ref={menuButton}
+                type="button"
+                aria-label="Abrir menu"
+                aria-expanded={menuOpen}
+                aria-controls="painel-navigation"
+                onClick={() => { setSidebarCollapsed(false); setMenuOpen(true); }}
+                className="inline-flex min-[1251px]:hidden h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-[#d9e3ee] bg-white text-[#133d63]"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
               </button>
 
               <div>
@@ -476,7 +520,7 @@ export function PainelShell({
             </div>
           </div>
 
-          <div className="mx-auto w-full max-w-[1380px] px-4 py-4 md:px-5 lg:px-6">
+          <div className="w-full px-4 pb-24 pt-[22px] md:px-6">
             {children}
           </div>
         </main>

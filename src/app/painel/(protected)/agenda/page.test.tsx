@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "./page";
-const mocks = vi.hoisted(() => ({ list: vi.fn(), programs: vi.fn(), screen: vi.fn(), session: { authSource: "panel", legacyRoleId: 1, legacyResources: ["vis_agenda", "vis_clientes"] } }));
+const mocks = vi.hoisted(() => ({ indicators: vi.fn(), list: vi.fn(), programs: vi.fn(), screen: vi.fn(), session: { authSource: "panel", legacyRoleId: 1, legacyResources: ["vis_agenda", "vis_clientes"] } }));
+vi.mock("@/lib/painel-operational-calendar", () => ({ getOperationalCalendar: mocks.indicators }));
 vi.mock("@/lib/day-program", () => ({ getDayPrograms: mocks.programs }));
 vi.mock("@/lib/painel-session", () => ({ requirePainelAccess: async () => mocks.session }));
 vi.mock("@/lib/operational-day", () => ({ listOperationalDays: mocks.list, OperationalDayError: class extends Error {} }));
 vi.mock("@/lib/operational-date", () => ({ getSaoPauloToday: () => "2099-01-02", isCivilDate: (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) }));
 vi.mock("@/lib/painel-agenda", () => ({ getPainelAgendaScreenData: mocks.screen }));
-beforeEach(() => { mocks.screen.mockReset().mockResolvedValue({ month: 1, year: 2099, selectedDate: "2099-01-02", selectedDay: null, entries: [], priceTables: [], informationOptions: [] }); mocks.list.mockReset().mockResolvedValue([{ date: "2099-01-02", version: 2 }]); mocks.session.legacyRoleId = 1; mocks.session.authSource = "panel"; mocks.session.legacyResources = ["vis_agenda", "vis_clientes"]; mocks.programs.mockReset().mockResolvedValue([{ date: "2099-01-02", status: "created", groups: [{ phone: "private" }] }]); });
+beforeEach(() => { mocks.indicators.mockReset().mockResolvedValue([]); mocks.screen.mockReset().mockResolvedValue({ month: 1, year: 2099, selectedDate: "2099-01-02", selectedDay: null, entries: [], priceTables: [], informationOptions: [] }); mocks.list.mockReset().mockResolvedValue([{ date: "2099-01-02", version: 2 }]); mocks.session.legacyRoleId = 1; mocks.session.authSource = "panel"; mocks.session.legacyResources = ["vis_agenda", "vis_clientes"]; mocks.programs.mockReset().mockResolvedValue([{ date: "2099-01-02", status: "created", groups: [{ phone: "private" }] }]); });
 describe("agenda server page configuration", () => {
   it("passes actual month configuration and permission into the calendar", async () => {
     const element = await Page({ searchParams: Promise.resolve({}) });

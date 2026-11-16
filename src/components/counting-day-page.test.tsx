@@ -4,6 +4,7 @@ import { afterEach,describe,expect,it,vi } from 'vitest';
 import type { CountingDay } from '@/lib/trip-counting';
 import { CountingDayPage } from './counting-day-page';
 const { read } = vi.hoisted(() => ({ read: vi.fn() }));
+vi.mock('next/navigation',() => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('./counting-controls',async importOriginal => ({
   ...await importOriginal<typeof import('./counting-controls')>(),
   useCountingRead: read,
@@ -24,22 +25,26 @@ describe('counting day mobile cards',() => {
     expect(html).toContain('Ônibus 2');
     expect(html).toContain('Transportadora A');
     expect(html).toContain('3 até agora · provisório');
-    expect(html).toContain('pessoas confirmadas nos passeios');
-    expect(html).toContain('>0</strong>');
+    expect(html).toContain('pessoas contadas no parque');
+    expect(html).toContain('>2</strong>');
     expect(html).toContain('há passeios sem previsão');
     expect(html).toContain('Agora na equipe');
     expect(html).toContain('Monitor A');
   });
-  it('only queries and links to gate attendance with the server-granted permission',() => {
+  it('includes attendance without gate permission but only offers QR with gate permission on today',() => {
     expect(render()).not.toContain('/contagem/day-use');
-    expect(read.mock.calls.some(([url]) => url.endsWith('/entradas'))).toBe(false);
+    expect(read.mock.calls.some(([url]) => url.endsWith('/entradas'))).toBe(true);
     const html = render(fixture(),true);
     expect(html).toContain('/contagem/day-use?date=2026-11-13');
     expect(html).toContain('2 ingressos lidos');
+    const past=fixture();past.today='2026-11-14';
+    expect(render(past,true)).not.toContain('/contagem/day-use');
   });
+  it('links each group to its contextual detail',() => { expect(render()).toContain('/contagem/passeios/1/2?date=2026-11-13'); });
   it('blocks adding vehicles in future dates even for managers and in closed days',() => {
     const future = fixture(); future.date = '2026-11-14';
     expect(render(future)).not.toContain('Chegou mais um');
+    expect(render(future)).not.toContain('Finalizar contagem do dia');
     const closed = fixture(); closed.closed = true;
     expect(render(closed)).not.toContain('Chegou mais um');
     expect(render(closed)).toContain('Ver relatórios do dia');

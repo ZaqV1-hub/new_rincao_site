@@ -1,5 +1,8 @@
 "use client";
 
+import { DayCashBadge, DayCashPanel } from "./painel-operational-day-page-cash";
+import { useCountingRead, countTime } from "./counting-controls";
+import type { CountingDay } from "@/lib/trip-counting";
 import { PainelDayClosure } from "./painel-day-closure";
 import { PainelTripDay } from "./painel-trip-day";
 import { PainelCountingSummary } from "./painel-counting-summary";
@@ -97,10 +100,31 @@ function DayListPanel({ date, kind, context, onContextChange, canOperate }: { da
   </div>;
 }
 
+function GroupProgress({ date }: { date: string }) {
+  const { data, error, checkedAt } = useCountingRead<CountingDay>(`/api/painel/dias/${date}/contagem`);
+  return <div className="mt-3 space-y-4">
+    <p className="text-sm text-[#45647f]">{checkedAt ? `Atualizado às ${countTime(checkedAt)}. Consulta a cada 5 segundos.` : "Consultando contagens…"}</p>
+    {error && <p role="alert">{error} Últimos dados preservados.</p>}
+    {data?.groups.map(group => {
+      const completed = group.vehicles.filter(vehicle => vehicle.state === "completed");
+      const counted = completed.reduce((sum, vehicle) => sum + (vehicle.total ?? 0), 0);
+      const counting = group.vehicles.filter(vehicle => vehicle.state === "counting").length;
+      return <div key={`${group.agendaId}:${group.clientId}`} className="border-t border-[#d4dfeb] pt-3">
+        <Link className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4" href={`/painel/clientes/passeios/${group.agendaId}/alunos?clientId=${group.clientId}`}>{group.clientName}</Link>
+        <p className="text-sm tabular-nums">{counted} contados · previsão {group.plannedPeople ?? "a preencher"}</p>
+        <div className="my-2 flex h-2 overflow-hidden rounded bg-[#e5edf5]" aria-hidden="true"><span className="bg-[#2e8b4e]" style={{ width: `${group.vehicles.length ? completed.length / group.vehicles.length * 100 : 0}%` }} /><span className="bg-[#c89b45]" style={{ width: `${group.vehicles.length ? counting / group.vehicles.length * 100 : 0}%` }} /></div>
+        <p className="text-sm text-[#45647f]">{completed.length}/{group.vehicles.length} veículos concluídos{counting ? ` · ${counting} contando` : ""}</p>
+      </div>;
+    })}
+  </div>;
+}
+
 const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Criado e enviado · arquivos gerados", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
-export function PainelOperationalDayPage({ summary, canManage, canAccessCash = false, canAccessProgram = false, programStatus = null, programError, initialPurchaseContext, initialTab, financialActorCpf }: {
+export function PainelOperationalDayPage({ summary: initialSummary, canManage, canAccessCash = false, canAccessProgram = false, programStatus = null, programError, initialPurchaseContext, initialTab, financialActorCpf }: {
   summary: OperationalDaySummary; financialActorCpf?: string; canManage: boolean; canAccessCash?: boolean; canAccessProgram?: boolean; programStatus?: DayProgram["status"] | null; programError?: string | null; initialPurchaseContext?: PurchaseListContext; initialTab?: string;
 }) {
+  const { data: freshSummary, error: summaryError } = useCountingRead<OperationalDaySummary>(`/api/painel/dias/${initialSummary.date}/resumo`);
+  const summary = freshSummary?.date === initialSummary.date ? freshSummary : initialSummary;
   const [tab, setTab] = useState<Tab>(tabs.some((item) => item.id === initialTab) ? initialTab as Tab : "resumo");
   const [purchaseContext, setPurchaseContext] = useState(initialPurchaseContext ?? readPurchaseListContext(summary.date, {}));
   function updatePurchaseContext(context: PurchaseListContext) {
@@ -109,6 +133,8 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessCash = f
   }
   const programAction = !canManage || summary.configuration?.closed ? "Abrir" : programStatus === "uncreated" ? "Criar" : programStatus === "created" || programStatus === "exported" ? "Alterar" : "Abrir";
   const { configuration: day, navigation, revenue, attendance, forecast } = summary;
+  const planned: SummarySourceValue<number> = forecast.ticketsForSelectedDate.status === "available" && forecast.plannedGroupPeople.status === "available" ? { status: "available", value: forecast.ticketsForSelectedDate.value + forecast.plannedGroupPeople.value, source: "forecast_total" } : { status: "unavailable", value: null, source: "forecast_total", reason: "Há grupos sem previsão cadastrada." };
+  const admitted: SummarySourceValue<number> = attendance.dayUseAdmitted.status === "available" && attendance.completedVehiclePeople.status === "available" ? { status: "available", value: attendance.dayUseAdmitted.value + attendance.completedVehiclePeople.value, source: "confirmed_admissions" } : attendance.totalAdmitted;
   const dateLabel = new Intl.DateTimeFormat("pt-BR", { dateStyle: "full", timeZone: "UTC" }).format(new Date(`${summary.date}T12:00:00Z`));
   const revenueMaximum = Math.max(0, ...[revenue.siteNetCents, revenue.gateNetCents, revenue.servicesNetCents, revenue.finalizedTripsNetCents].map((source) => source.status === "available" ? source.value : 0));
   const calendarHref = `/painel/agenda?mes=${Number(summary.date.slice(5, 7))}&ano=${summary.date.slice(0, 4)}&dia=${summary.date}`;
@@ -137,27 +163,30 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessCash = f
         {day?.onlineSoldOut && <span className="rounded-md bg-[#fff3dc] px-3 py-2">Vendas online esgotadas</span>}
         {day?.priceTableId ? <Link href={`/painel/tabela-preco/${day.priceTableId}`} className="rounded-md border border-[#d4dfeb] px-3 py-2 underline">Tabela de preço #{day.priceTableId}</Link> : <span className="rounded-md border border-[#d4dfeb] px-3 py-2">Tabela de preço {day ? "não definida" : "indisponível"}</span>}
         <span className="rounded-md border border-[#d4dfeb] px-3 py-2">{number(summary.groupCount)} passeio(s)</span>
+        {canAccessCash && <DayCashBadge date={summary.date} />}
       </div>
-      <div className="flex flex-wrap items-center gap-3">{canManage && <Link className={button} href={`/painel/agenda/${summary.date}/editar`}>Editar day use</Link>}{canAccessProgram && <><Link className={button} href={`/painel/agenda/${summary.date}/dia-seguinte?returnTo=${summary.date}`}>Programação do dia · {programAction}</Link>
+      <div className="flex flex-wrap items-center gap-3">{canManage && <Link className={button} href={`/painel/agenda/${summary.date}/editar`}>{day?.dayUseAgendaId ? "Editar day use" : "Abrir day use nesta data"}</Link>}{canAccessProgram && <><Link className={button} href={`/painel/agenda/${summary.date}/dia-seguinte?returnTo=${summary.date}`}>{programAction} dia seguinte</Link>
         {programStatus ? <span className="text-sm text-[#45647f]" title={programStatus === "exported" ? "Os arquivos foram gerados; o envio é feito pelo gerente." : undefined}>{programLabels[programStatus]}</span> : <p role="alert" className="text-sm text-[#694812]">{programError || "Programação do dia indisponível. Atualize a página para tentar novamente."}</p>}</>}
         {canAccessCash && <Link className={button} href={`/painel/caixas?date=${summary.date}`}>Caixas da data</Link>}
         <p className="text-sm text-[#45647f]">{summary.closure.status === "available" && summary.closure.value > 0 ? `Fechamento diário: revisão ${summary.closure.value}.` : "Fechamento diário: em aberto."}</p></div>
     </header>
     <div role="tablist" aria-label="Informações da data" className="flex flex-wrap gap-2 border-b border-[#d4dfeb] pb-3">
-      {tabs.map((item, index) => <button key={item.id} id={`day-tab-${item.id}`} role="tab" type="button" aria-selected={tab === item.id} aria-controls="day-panel" tabIndex={tab === item.id ? 0 : -1} onKeyDown={(event) => navigateTabs(event, index)} onClick={() => setTab(item.id)} className={`${button} ${tab === item.id ? "border-[#236699] bg-[#edf4fa] underline decoration-2 underline-offset-4" : ""}`}>{item.label}{item.id === "passeios" ? ` (${number(summary.groupCount)})` : ""}</button>)}
+      {tabs.map((item, index) => <button key={item.id} id={`day-tab-${item.id}`} role="tab" type="button" aria-selected={tab === item.id} aria-controls="day-panel" tabIndex={tab === item.id ? 0 : -1} onKeyDown={(event) => navigateTabs(event, index)} onClick={() => setTab(item.id)} className={`${button} ${tab === item.id ? "border-[#236699] bg-[#edf4fa] underline decoration-2 underline-offset-4" : ""}`}>{item.label}{item.id === "passeios" ? ` (${number(summary.groupCount)})` : item.id === "caixas" && summary.cash.status === "available" ? ` (${number(summary.cash.value)})` : ""}</button>)}
     </div>
     <section id="day-panel" role="tabpanel" aria-labelledby={`day-tab-${tab}`} tabIndex={0} className="min-w-0 space-y-6 focus-visible:outline-2 focus-visible:outline-[#236699]">
+      {summaryError && <p role="alert">{summaryError} O resumo mantém a última consulta confirmada.</p>}
       {tab === "resumo" && <>
-        <section className={panel} aria-labelledby="day-attendance-title"><h2 id="day-attendance-title" className="text-lg font-bold">Público da data</h2><dl className="mt-2 grid gap-x-6 divide-y divide-[#d4dfeb] sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4">
-          <SourceValue label="Day use vendido para a data" source={forecast.ticketsForSelectedDate} /><SourceValue label="Pessoas previstas em grupos" source={forecast.plannedGroupPeople} /><SourceValue label="Day use: entradas reais no parque" source={attendance.dayUseAdmitted} /><SourceValue label="Já no parque: total" source={attendance.totalAdmitted} />
-        </dl><p className="mt-3 text-sm text-[#45647f]">Vendas seguem a data escolhida para visita. Entradas seguem a data em que o ingresso foi usado.</p></section>
+        <section className={panel} aria-label="Indicadores da data"><dl className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-4"><SourceValue label="Pessoas previstas" source={planned} /><SourceValue label="Já no parque" source={admitted} /><SourceValue label="Faturamento do dia" source={revenue.totalCents} currency /><div className="py-3"><dt className="text-sm text-[#45647f]">Fechamento</dt><dd className="mt-1 font-semibold">{summary.closure.status !== "available" ? "Indisponível" : summary.closure.value > 0 ? `Fechado · revisão ${summary.closure.value}` : "Aberto"}</dd></div></dl><p className="text-sm text-[#45647f]">Já no parque soma ingressos lidos e veículos concluídos. Veículos aguardando ou em contagem ainda não entram.</p></section>
+        <details className={panel}><summary id="day-attendance-title" className="min-h-11 cursor-pointer text-lg font-bold">Detalhes do público da data</summary><dl className="mt-2 grid gap-x-6 divide-y divide-[#d4dfeb] sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4">
+          <SourceValue label="Day use vendido para a data" source={forecast.ticketsForSelectedDate} /><SourceValue label="Pessoas previstas em grupos" source={forecast.plannedGroupPeople} /><SourceValue label="Day use: entradas reais no parque" source={attendance.dayUseAdmitted} /><SourceValue label="Já no parque: total" source={admitted} />
+        </dl><p className="mt-3 text-sm text-[#45647f]">Vendas seguem a data escolhida para visita. Entradas seguem a data em que o ingresso foi usado.</p></details>
         <div className="grid items-start gap-6 lg:grid-cols-2">
-          <section className={panel} aria-labelledby="day-revenue-title"><h2 id="day-revenue-title" className="text-lg font-bold">Receita da visita</h2><p className="mt-2 text-sm text-[#45647f]">Valores das compras confirmadas para esta data de visita. Não representam recebimentos do dia nem saldo em caixa.</p><dl className="mt-3 divide-y divide-[#d4dfeb]">
+          <section className={panel} aria-labelledby="day-revenue-title"><h2 id="day-revenue-title" className="text-lg font-bold">De onde vem o dinheiro</h2><p className="mt-2 text-sm text-[#45647f]">Valores das compras confirmadas para esta data de visita. Não representam recebimentos do dia nem saldo em caixa.</p><dl className="mt-3 divide-y divide-[#d4dfeb]">
             <SourceValue label="Ingressos no site" source={revenue.siteNetCents} currency maximum={revenueMaximum} /><SourceValue label="Ingressos nos caixas e reservas" source={revenue.gateNetCents} currency maximum={revenueMaximum} /><SourceValue label="Adicionais e serviços identificados" source={revenue.servicesNetCents} currency maximum={revenueMaximum} /><SourceValue label="Passeios finalizados" source={revenue.finalizedTripsNetCents} currency maximum={revenueMaximum} />
             {revenue.totalCents.status === "unavailable" && <div className="py-4"><dt className="font-bold">Subtotal conhecido · parcial</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{money(revenue.knownSubtotalCents)}</dd><dd className="mt-1 text-sm text-[#45647f]">Soma das fontes disponíveis; não é o faturamento total do dia.</dd></div>}
             <SourceValue label="Faturamento total do dia" source={revenue.totalCents} currency /><SourceValue label="Valores sem classificação, fora do subtotal" source={revenue.unclassifiedNetCents} currency />
           </dl></section>
-          <div className="space-y-6"><section className={panel} aria-labelledby="day-count-title"><h2 id="day-count-title" className="text-lg font-bold">Contagem dos passeios</h2><p className="mt-2 text-sm text-[#45647f]">{summary.groupCount === 0 ? "Nenhum passeio cadastrado nesta data." : `${number(summary.groupCount)} passeio(s) cadastrado(s) nesta data.`}</p><dl><SourceValue label="Pessoas em veículos com contagem concluída" source={attendance.completedVehiclePeople} /></dl><button type="button" className={button} onClick={() => { setTab("passeios"); document.getElementById("day-tab-passeios")?.focus(); }}>Ver passeios</button></section>
+          <div className="space-y-6"><section className={panel} aria-labelledby="day-count-title"><h2 id="day-count-title" className="text-lg font-bold">Contagem dos passeios</h2><p className="mt-2 text-sm text-[#45647f]">{summary.groupCount === 0 ? "Nenhum passeio cadastrado nesta data." : `${number(summary.groupCount)} passeio(s) cadastrado(s) nesta data.`}</p><dl><SourceValue label="Pessoas em veículos com contagem concluída" source={attendance.completedVehiclePeople} /></dl>{canAccessProgram && <GroupProgress date={summary.date} />}<p className="my-3 text-sm">Day use: {forecast.ticketsForSelectedDate.status === "available" ? `${forecast.ticketsForSelectedDate.value} vendidos` : "vendas indisponíveis"} · {attendance.dayUseAdmitted.status === "available" ? `${attendance.dayUseAdmitted.value} lidos` : "entradas indisponíveis"}</p><button type="button" className={button} onClick={() => { setTab("passeios"); document.getElementById("day-tab-passeios")?.focus(); }}>Ver passeios</button></section>
             <section className={panel} aria-labelledby="day-finance-title"><h2 id="day-finance-title" className="text-lg font-bold">Recebimentos e fechamento</h2><dl className="mt-2 divide-y divide-[#d4dfeb]"><SourceValue label="Recebimentos registrados (site, caixas e passeios)" source={summary.receipts} currency /><SourceValue label="Sessões de caixa" source={summary.cash} /><SourceValue label="Despesas da data" source={summary.expenses} currency /><SourceValue label="Revisão do fechamento (0 = aberto)" source={summary.closure} /></dl></section>
           </div>
         </div>
@@ -165,7 +194,7 @@ export function PainelOperationalDayPage({ summary, canManage, canAccessCash = f
       </>}
       {tab === "passeios" && financialActorCpf ? <PainelTripDay date={summary.date} actorCpf={financialActorCpf} /> : tab === "passeios" && canAccessProgram ? <PainelCountingSummary date={summary.date} /> : null}
       {((tab === "passeios" && !financialActorCpf) || tab === "compras") && <DayListPanel key={`${summary.date}:${tab}`} date={summary.date} kind={tab === "passeios" ? "groups" : "purchases"} context={purchaseContext} onContextChange={updatePurchaseContext} canOperate={canAccessCash} />}
-      {tab === "caixas" && <div className={`${panel} space-y-3`}><h2 className="text-lg font-bold">Caixas</h2><dl><SourceValue label="Sessões de caixa" source={summary.cash} /></dl><p>Caixas abertos e fechados por local nesta data. O saldo em caixa não compõe a receita da visita.</p>{canAccessCash ? <Link className="inline-flex min-h-11 items-center underline" href={`/painel/caixas?date=${summary.date}`}>Abrir caixas da data</Link> : <p>Seu perfil não permite acessar os caixas.</p>}</div>}
+      {tab === "caixas" && (canAccessCash ? <DayCashPanel key={summary.date} date={summary.date} closed={Boolean(day?.closed || (summary.closure.status === "available" && summary.closure.value > 0))} /> : <p>Seu perfil não permite acessar os caixas.</p>)}
       {tab === "fechamento" && (financialActorCpf ? <PainelDayClosure key={`${summary.date}:${financialActorCpf}`} date={summary.date} actorCpf={financialActorCpf} manager={canManage} /> : <p>Seu perfil não permite consultar o fechamento financeiro.</p>)}
     </section>
     <p className="text-xs text-[#45647f]">Consultado em <time dateTime={summary.generatedAt}>{new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(summary.generatedAt))}</time> (horário de São Paulo).</p>

@@ -24,6 +24,17 @@ export function PainelPurchaseBatch({ purchaseIds,onBusyChange,onComplete }: {
   const [busy,setBusy] = useState(false);
   const [pending,setPending] = useState(false);
   const [ready,setReady] = useState(false);
+  const [openDates,setOpenDates] = useState<string[]>([]);
+  const [datesState,setDatesState] = useState<'loading' | 'ready' | 'error'>('loading');
+  useEffect(() => {
+    let active = true;
+    void fetch('/api/painel/compras/lote/datas', { cache: 'no-store' }).then(async response => {
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error('dates unavailable');
+      if (active) { setOpenDates(body.data); setDatesState('ready'); }
+    }).catch(() => { if (active) setDatesState('error'); });
+    return () => { active = false; };
+  }, []);
   const locked = busy || pending || !ready;
   const currentPreview = preview && JSON.stringify(preview.input.purchaseIds) === JSON.stringify(purchaseIds) ? preview : null;
   useEffect(() => {
@@ -62,7 +73,7 @@ export function PainelPurchaseBatch({ purchaseIds,onBusyChange,onComplete }: {
     {pending && <div className="space-y-2"><p role="status">Há um lote sem confirmação neste navegador. Confira a mesma tentativa antes de alterar os dados.</p><button type="button" className={button} disabled={busy} onClick={() => void apply(true)}>Conferir tentativa pendente</button></div>}
     <form onSubmit={event => { event.preventDefault(); void loadPreview(); }} className="space-y-3">
       <fieldset disabled={locked} className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1 text-sm font-semibold">Nova data de visita<input type="date" aria-label="Nova data de visita" className={field} value={targetDate} onChange={event => { edit(); setDate(event.target.value); }} /><span className="font-normal">Deixe em branco para alterar somente a validade.</span></label>
+        <label className="grid gap-1 text-sm font-semibold">Nova data de visita<select aria-label="Nova data de visita" className={field} value={targetDate} disabled={datesState !== 'ready'} onChange={event => { edit(); setDate(event.target.value); }}><option value="">Alterar somente a validade</option>{openDates.map(date => <option key={date} value={date}>{dateLabel(date)}</option>)}</select><span className="font-normal" role="status">{datesState === 'loading' ? 'Consultando dias abertos…' : datesState === 'error' ? 'Não foi possível consultar as datas. Reabra esta página para tentar novamente; a validade pode ser alterada separadamente.' : openDates.length ? 'Somente datas com day use aberto. A disponibilidade será conferida na prévia.' : 'Nenhum dia aberto disponível para mudança.'}</span></label>
         <label className="grid gap-1 text-sm font-semibold">Validade<select aria-label="Validade" className={field} value={validity} onChange={event => { edit(); setValidity(event.target.value as PurchaseBatchInput["validity"]); }}>
           <option value="keep">Manter data final atual</option><option value="day">Somente no dia da visita</option><option value="7_days">7 dias desde a visita</option><option value="30_days">30 dias desde a visita</option><option value="6_months">6 meses desde a visita</option>
         </select></label>

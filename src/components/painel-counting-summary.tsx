@@ -8,8 +8,8 @@ export function PainelCountingSummary({ date }: { date: string }) {
     {error && <p role="alert">{error}</p>}
     {data?.groups.length === 0 && <p>Nenhum passeio nesta data.</p>}
     {data?.groups.map(group => <details key={`${group.agendaId}:${group.clientId}`} className="border-t border-[#d4dfeb] pt-3" open>
-      <summary className="min-h-11 cursor-pointer font-semibold">{group.clientName} · {group.vehicles.filter(v => v.state === 'completed').length}/{group.vehicles.length} veículos concluídos</summary>
-      {group.vehicles.length === 0 ? <p className="py-3">Sem veículos cadastrados.</p> : <ul className="divide-y divide-[#d4dfeb]">{group.vehicles.map(v => <li key={v.id} className="flex flex-wrap justify-between gap-2 py-3 text-sm"><span>{v.type === 'bus' ? 'Ônibus' : 'Van'} #{v.id} · {v.ownerName ?? 'Sem contador'}</span><span className="tabular-nums">{countStateLabel[v.state]} · {v.total === null ? 'Presença não concluída' : `${v.total} pessoas`}</span></li>)}</ul>}
+      <summary className="min-h-11 cursor-pointer font-semibold">{group.clientName} · {group.vehicles.filter(v => v.state === 'completed').length}/{group.vehicles.length} veículos concluídos</summary><p className="text-sm text-[#45647f]">{group.transportName ?? "Transportador não informado"} · {group.vehicleCounts.planned} previstos · +{group.vehicleCounts.extra} a mais no dia</p>
+      {group.vehicles.length === 0 ? <p className="py-3">Sem veículos cadastrados.</p> : <ul className="divide-y divide-[#d4dfeb]">{group.vehicles.map(v => <li key={v.id} className="flex flex-wrap justify-between gap-2 py-3 text-sm"><span>{v.type === 'bus' ? 'Ônibus' : 'Van'} {v.ordinal}{v.isExtra ? ' · extra' : ''} · {v.ownerName ?? 'Sem contador'}<small className="block">{v.transportName ?? 'Transportador não informado'}{v.startedAt ? ` · desde ${countTime(v.startedAt)}` : ''}</small></span><span className="tabular-nums">{countStateLabel[v.state]} · {v.state === 'counting' ? `${v.draftSubtotal ?? '—'} até agora · provisório` : v.state === 'completed' ? `${v.total ?? '—'} pessoas` : `Prev. ${v.plannedPeople ?? 'não informada'}`}</span></li>)}</ul>}
     </details>)}
   </section>;
 }

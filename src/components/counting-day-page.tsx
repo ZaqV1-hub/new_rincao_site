@@ -1,5 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useEffect,useRef,useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { CountingVehicleIcon } from './counting-vehicle-icon';
+import { CountingTripCompletions } from './counting-trip-completions';
 import type { CountingDay } from '@/lib/trip-counting';
 import type { CountingAttendance } from '@/lib/counting-attendance';
 import { getSaoPauloToday } from '@/lib/operational-date';
@@ -11,75 +14,82 @@ export const vehicleColors = {
   completed: 'border-[#58b57a] bg-[#e3f4e9] text-[#1f7440]',
 };
 const feedActions = { start: 'começou',takeover: 'assumiu',complete: 'concluiu',add: 'adicionou',recount: 'abriu recontagem de' };
-function DayUseCard({ date }: { date: string }) {
-  const { data,error } = useCountingRead<CountingAttendance>(`/api/contagem/dias/${date}/entradas`);
-  return <section><h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-[#6a7c92]">Day use</h2>
-    <a href={`/contagem/day-use?date=${date}`} className="flex items-center gap-3 rounded-2xl border border-[#d9e3ee] bg-white p-4">
-      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#eaf2fb] text-2xl" aria-hidden="true">▦</span>
-      <span className="min-w-0 flex-1"><b className="block">{data ? `${data.admitted} ingressos lidos` : 'Portaria · day use'}</b><small className="block text-[#6a7c92]">{data ? `${data.sold} vendidos para a data · ${data.expected} ainda previstos` : 'Consultar entradas e ler QR Code'}</small></span>
-      <span className="rounded-xl bg-[#2f6fb2] px-3 py-2 text-sm font-semibold text-white">Ler QR</span>
-    </a>{error && <p role="alert" className="mt-2 text-sm">{error}</p>}
-  </section>;
-}
-export function CountingDayPage({ date,manager,actorCpf,canGate = false }: { date: string; manager: boolean; actorCpf: string; canGate?: boolean }) {
+export function CountingDayPage({ date,manager,actorCpf,canGate = false,trip }: { date: string; manager: boolean; actorCpf: string; canGate?: boolean; trip?: { agendaId: number; clientId: number } }) {
+  const router = useRouter(),startAfterAdd = useRef(false),extraDialog = useRef<HTMLDialogElement>(null);
+  const addIntentKey = `rincao:count:add-intent:${actorCpf}:${date}`;
+  const [addedVehicle,setAddedVehicle] = useState<number | null>(null);
+  const attendance = useCountingRead<CountingAttendance>(`/api/contagem/dias/${date}/entradas`);
   const { data,error,checkedAt,refresh } = useCountingRead<CountingDay>(`/api/contagem/dias/${date}`);
-  const [adding,setAdding] = useState<string | null>(null),[type,setType] = useState('bus'),[planned,setPlanned] = useState(''),[reason,setReason] = useState(''),[carrier,setCarrier] = useState('');
-  const command = useCountingCommand(`rincao:count:add:${actorCpf}:${date}`,async () => { setAdding(null); setPlanned(''); setCarrier(''); await refresh(); });
-  useCountingLeaveWarning(command.pending !== null);
+  const [adding,setAdding] = useState<string | null>(null),[type,setType] = useState('bus'),[planned,setPlanned] = useState('40'),[reason,setReason] = useState(''),[carrier,setCarrier] = useState('');
+  useEffect(() => { if (adding) extraDialog.current?.showModal(); },[adding]);
+  const startCommand = useCountingCommand(`rincao:count:start:${actorCpf}:${date}`,async result => { router.push(`/contagem/veiculos/${result.vehicleId}`); });
+  const command = useCountingCommand(`rincao:count:add:${actorCpf}:${date}`,async result => {
+    setAdding(null); setCarrier(''); setAddedVehicle(result.vehicleId); await refresh();
+    if (startAfterAdd.current || sessionStorage.getItem(addIntentKey) === 'count') { startAfterAdd.current = false; sessionStorage.removeItem(addIntentKey); await startCommand.submit(`/api/contagem/veiculos/${result.vehicleId}/start`,{ version: result.version,reason }); }
+  });
+  useCountingLeaveWarning(command.pending !== null || startCommand.pending !== null);
+  const blocked = command.blocked || startCommand.blocked;
+  const groups = data?.groups.filter(group => !trip || (group.agendaId === trip.agendaId && group.clientId === trip.clientId)) ?? [];
   const today = data?.today ?? getSaoPauloToday(),editable = date <= today && (manager || date === today) && !data?.closed;
-  const vehicles = data?.groups.flatMap(group => group.vehicles) ?? [];
+  const vehicles = groups.flatMap(group => group.vehicles);
   const completed = vehicles.filter(vehicle => vehicle.state === 'completed'),counting = vehicles.filter(vehicle => vehicle.state === 'counting');
   const total = completed.reduce((sum,vehicle) => sum+(vehicle.total ?? 0),0);
-  const knownForecast = data?.groups.reduce((sum,group) => sum+(group.plannedPeople ?? 0),0) ?? 0;
-  const forecastMissing = data?.groups.some(group => group.plannedPeople === null);
+  const knownForecast = groups.reduce((sum,group) => sum+(group.plannedPeople ?? 0),0) ?? 0;
+  const forecastMissing = groups.some(group => group.plannedPeople === null);
   const dates = Array.from({ length: 8 },(_,index) => {
     const day = new Date(`${date}T12:00:00Z`); day.setUTCDate(day.getUTCDate()+index-3);
     return { date: day.toISOString().slice(0,10),day: day.getUTCDate(),label: day.toLocaleDateString('pt-BR',{ weekday: 'short',timeZone: 'UTC' }).replace('.','') };
   });
   return <div className="space-y-6">
-    <nav aria-label="Dias de contagem" className="-mx-4 -mt-5 flex gap-2 overflow-x-auto bg-[#133a62] px-4 pb-4">
+    {!trip && <nav aria-label="Dias de contagem" className="-mx-4 -mt-5 flex gap-2 overflow-x-auto [scrollbar-width:none] bg-[#133a62] px-4 pb-4">
       {dates.map(day => <a key={day.date} href={`/contagem?date=${day.date}`} aria-current={day.date === date ? 'date' : undefined} className={`grid min-w-[58px] shrink-0 place-items-center rounded-xl border py-2 ${day.date === date ? 'border-white bg-white text-[#0b1f36]' : 'border-white/20 text-white'}`}><span className="text-[11px] uppercase">{day.date === today ? 'hoje' : day.label}</span><b className="text-xl">{day.day}</b></a>)}
-    </nav>
-    <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="text-lg font-bold">{new Date(`${date}T12:00:00Z`).toLocaleDateString('pt-BR',{ day: 'numeric',month: 'long',timeZone: 'UTC' })}</h1><details><summary className="cursor-pointer py-2 text-sm underline">Outra data</summary><form action="/contagem" className="mt-2 flex flex-wrap gap-2"><label className="sr-only" htmlFor="count-date">Data</label><input id="count-date" className={countingInput} type="date" name="date" defaultValue={date} required/><button className={countingButton}>Consultar</button></form></details></div>
+    </nav>}
+    {trip && <a className="inline-flex min-h-11 items-center underline" href={`/contagem?date=${date}`}>← Voltar aos passeios</a>}
+    {trip ? <h1 className="text-xl font-bold">{groups[0]?.clientName ?? "Passeio"}</h1> : <div className="flex flex-wrap items-center justify-between gap-2"><h1 className="text-lg font-bold">{new Date(`${date}T12:00:00Z`).toLocaleDateString('pt-BR',{ day: 'numeric',month: 'long',timeZone: 'UTC' })}</h1><details><summary className="cursor-pointer py-2 text-sm underline">Outra data</summary><form action="/contagem" className="mt-2 flex flex-wrap gap-2"><label className="sr-only" htmlFor="count-date">Data</label><input id="count-date" className={countingInput} type="date" name="date" defaultValue={date} required/><button className={countingButton}>Consultar</button></form></details></div>}
     {date > today && <p className="rounded-xl border border-[#d9e3ee] bg-[#eaf2fb] p-3 text-sm">A contagem desta data abre no próprio dia. Aqui você já vê o que está previsto.</p>}
     {data?.closed && <p className="rounded-xl border border-[#58b57a] bg-[#e3f4e9] p-3 text-sm">Contagem indisponível para alterações. Consulte os relatórios do dia para conferir o encerramento.</p>}
     {error && <p role="alert" className="rounded-xl border border-[#b84137] bg-[#fff5f3] p-3 text-sm">{error} Os dados anteriores podem estar desatualizados.</p>}
-    <CountingCommandStatus command={command}/>
-    <section className="rounded-2xl border border-[#d9e3ee] bg-white p-4" aria-label="Resumo dos passeios">
-      <div className="flex items-end justify-between gap-3"><div><strong className="text-[40px] leading-none tabular-nums">{data ? total : '—'}</strong><p className="mt-1 text-xs text-[#6a7c92]">pessoas confirmadas nos passeios</p><p className="mt-1 text-xs text-[#6a7c92]">{data ? `previsão ${forecastMissing ? 'conhecida ' : 'de '}${knownForecast}${forecastMissing ? ' · há passeios sem previsão' : ''}` : 'Consultando previsão…'}</p></div><div className="shrink-0 text-right"><b className="text-2xl">{completed.length}<small className="ml-1 text-sm font-normal text-[#6a7c92]">/ {vehicles.length}</small></b><p className="text-xs text-[#6a7c92]">veículos</p></div></div>
+    <CountingCommandStatus command={command}/><CountingCommandStatus command={startCommand}/>{addedVehicle && <a href={`/contagem/veiculos/${addedVehicle}`} className="inline-flex min-h-11 items-center text-sm underline">Veículo adicionado · abrir contagem</a>}
+    <section className="rounded-2xl border border-[#d9e3ee] bg-white p-4" aria-label={trip ? "Resumo do passeio" : "Resumo do parque"}>
+      <div className="flex items-end justify-between gap-3"><div><strong className="text-[40px] leading-none tabular-nums">{data && (trip || attendance.data) ? total+(trip ? 0 : attendance.data!.admitted) : '—'}</strong><p className="mt-1 text-xs text-[#6a7c92]">{trip ? 'pessoas contadas neste passeio' : 'pessoas contadas no parque'}</p><p className="mt-1 text-xs text-[#6a7c92]">{data ? `previsão ${forecastMissing ? 'conhecida ' : 'de '}${knownForecast+(trip ? 0 : attendance.data?.sold ?? 0)}${!trip && !attendance.data ? ' · day use não consultado' : ''}${forecastMissing ? ' · há passeios sem previsão' : ''}` : 'Consultando previsão…'}</p></div><div className="shrink-0 text-right"><b className="text-2xl">{completed.length}<small className="ml-1 text-sm font-normal text-[#6a7c92]">/ {vehicles.length}</small></b><p className="text-xs text-[#6a7c92]">veículos</p></div></div>
       {!!vehicles.length && <><div className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-[#e6ecf3]" aria-hidden="true"><span className="bg-[#2e8b4e]" style={{ width: `${completed.length/vehicles.length*100}%` }}/><span className="bg-[#f2b33d]" style={{ width: `${counting.length/vehicles.length*100}%` }}/></div><div className="mt-2 flex flex-wrap gap-3 text-xs text-[#6a7c92]"><span>✓ {completed.length} concluídos</span><span>◷ {counting.length} contando</span><span>○ {vehicles.length-completed.length-counting.length} livres</span></div></>}
     </section>
-    {canGate && <DayUseCard date={date}/>}
-    <section className="space-y-3"><h2 className="text-xs font-bold uppercase tracking-widest text-[#6a7c92]">Passeios · {data?.groups.length ?? '—'}</h2>
-      {data?.groups.length === 0 && <p className="rounded-2xl border border-[#d9e3ee] bg-white p-6 text-sm">Nenhum passeio cadastrado nesta data.</p>}
-      {data?.groups.map(group => {
+    {!trip && <section><h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-[#6a7c92]">Day use</h2><div className="flex items-center gap-3 rounded-2xl border border-[#d9e3ee] bg-white p-4"><div className="min-w-0 flex-1"><b className="block">{attendance.data ? `${attendance.data.admitted} ingressos lidos` : 'Consultando entradas…'}</b><p className="text-xs text-[#6a7c92]">{attendance.data ? `${attendance.data.sold} vendidos para a data · ${attendance.data.expected} ainda previstos` : 'Total do parque ainda não disponível'}</p></div>{canGate && date === today && <a href={`/contagem/day-use?date=${date}`} className={countingButton}>Ler QR</a>}</div>{attendance.error && <p role="alert" className="mt-2 text-sm">{attendance.error} Total do parque pode estar desatualizado.</p>}</section>}
+    <section className="space-y-3"><h2 className="text-xs font-bold uppercase tracking-widest text-[#6a7c92]">{trip ? 'Veículos do passeio' : `Passeios · ${data?.groups.length ?? '—'}`}</h2>
+      {data && groups.length === 0 && <p className="rounded-2xl border border-[#d9e3ee] bg-white p-6 text-sm">{trip ? 'Passeio não encontrado nesta data.' : 'Nenhum passeio cadastrado nesta data.'}</p>}
+      {groups.map(group => {
         const groupKey = `${group.agendaId}:${group.clientId}`,groupTotal = group.vehicles.reduce((sum,v) => sum+(v.state === 'completed' ? v.total ?? 0 : 0),0);
         return <article key={groupKey} className="rounded-2xl border border-[#d9e3ee] bg-white p-3.5">
-          <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-semibold leading-snug">{group.clientName}</h3><p className="mt-1 text-xs text-[#6a7c92]">{group.groupType === 'school' ? 'Escola' : group.groupType === 'group' ? 'Grupo' : 'Passeio'} · {group.transportName ?? 'Transportador não informado'} · prev. {group.plannedPeople ?? 'não informada'}</p>{group.vehicleCounts.extra > 0 && <p className="mt-1 text-xs font-semibold text-[#2f6fb2]">{group.vehicleCounts.planned} previstos · +{group.vehicleCounts.extra} a mais no dia</p>}</div><div className="shrink-0 text-right"><b className="text-lg tabular-nums">{groupTotal}</b><small className="block text-[#6a7c92]">{group.vehicleCounts.completed}/{group.vehicles.length} veíc.</small></div></div>
-          <div className="mt-3 grid grid-cols-2 gap-2">{group.vehicles.map(vehicle => <a key={vehicle.id} href={`/contagem/veiculos/${vehicle.id}`} className={`flex min-h-24 min-w-0 flex-col gap-1 rounded-xl border-[1.5px] p-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f6fb2] ${vehicleColors[vehicle.state]}`}>
-            <strong className="flex flex-wrap items-center gap-1 text-sm"><span aria-hidden="true">{vehicle.state === 'completed' ? '✓' : vehicle.state === 'counting' ? '◷' : '○'}</span> {vehicle.type === 'bus' ? 'Ônibus' : 'Van'} {vehicle.ordinal}{vehicle.isExtra && <small className="rounded border border-current px-1 text-[9px] uppercase">extra</small>}</strong>
-            <span className="text-xs">{countStateLabel[vehicle.state]}{vehicle.ownerName ? ` · ${vehicle.ownerName}` : ' · toque para contar'}</span><span className="text-xs font-semibold tabular-nums">{vehicle.state === 'completed' ? `${vehicle.total ?? '—'} pessoas` : vehicle.state === 'counting' ? `${vehicle.draftSubtotal ?? '—'} até agora · provisório` : `prev. ${vehicle.plannedPeople ?? 'não informada'}`}</span>
+          <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="font-semibold leading-snug"><a className="inline-flex min-h-11 items-center underline-offset-4 hover:underline" href={`/contagem/passeios/${group.agendaId}/${group.clientId}?date=${date}`}>{group.clientName}</a></h3><p className="mt-1 text-xs text-[#6a7c92]">{group.groupType === 'school' ? 'Escola' : group.groupType === 'group' ? 'Grupo' : 'Passeio'} · {group.transportName ?? 'Transportador não informado'} · prev. {group.plannedPeople ?? 'não informada'}</p>{group.vehicleCounts.extra > 0 && <p className="mt-1 text-xs font-semibold text-[#2f6fb2]">{group.vehicleCounts.planned} previstos · +{group.vehicleCounts.extra} a mais no dia</p>}</div><div className="shrink-0 text-right"><b className="text-lg tabular-nums">{groupTotal}</b><small className="block text-[#6a7c92]">{group.vehicleCounts.completed}/{group.vehicles.length} veíc.</small></div></div>
+          <div className="mt-3 grid grid-cols-2 gap-2">{group.vehicles.map(vehicle => <a key={vehicle.id} href={`/contagem/veiculos/${vehicle.id}`} onClick={event => {
+              if (vehicle.state !== 'waiting' || !editable || vehicle.financiallyFinalized || date !== today || event.ctrlKey || event.metaKey) return;
+              event.preventDefault(); if (!blocked) void startCommand.submit(`/api/contagem/veiculos/${vehicle.id}/start`,{ version: vehicle.version,reason: '' });
+            }} aria-disabled={vehicle.state === 'waiting' && blocked ? true : undefined} className={`flex min-h-24 min-w-0 flex-col gap-1 rounded-xl border-[1.5px] p-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f6fb2] ${vehicleColors[vehicle.state]}`}>
+            <strong className="flex flex-wrap items-center gap-1 text-sm"><CountingVehicleIcon type={vehicle.type}/> {vehicle.type === 'bus' ? 'Ônibus' : 'Van'} {vehicle.ordinal}{vehicle.isExtra && <small className="rounded border border-current px-1 text-[9px] uppercase">extra</small>}</strong>
+            <span className="text-xs">{countStateLabel[vehicle.state]}{vehicle.ownerName ? ` · ${vehicle.ownerName}` : editable && !vehicle.financiallyFinalized ? ' · toque para contar' : ' · somente consulta'}</span><span className="text-xs font-semibold tabular-nums">{vehicle.state === 'completed' ? `${vehicle.total ?? '—'} pessoas` : vehicle.state === 'counting' ? `${vehicle.draftSubtotal ?? '—'} até agora · provisório` : `prev. ${vehicle.plannedPeople ?? 'não informada'}`}</span>
             {vehicle.transportName !== group.transportName && <small className="text-[11px]">{vehicle.transportName ?? 'Transportador não informado'}</small>}
           </a>)}
-            {editable && <button type="button" className="min-h-24 rounded-xl border-[1.5px] border-dashed border-[#cbd6e3] p-3 text-sm font-semibold text-[#2f6fb2] disabled:opacity-50" disabled={command.blocked || group.vehicles.some(v => v.financiallyFinalized)} onClick={() => { setAdding(adding === groupKey ? null : groupKey); setCarrier(''); }}>+ Chegou mais um ônibus ou van</button>}
+            {editable && <button type="button" className="min-h-24 rounded-xl border-[1.5px] border-dashed border-[#cbd6e3] p-3 text-sm font-semibold text-[#2f6fb2] disabled:opacity-50" disabled={blocked || group.vehicles.some(v => v.financiallyFinalized)} onClick={() => { setAdding(adding === groupKey ? null : groupKey); setCarrier(''); setType('bus'); setPlanned('40'); }}>+ Chegou mais um ônibus ou van</button>}
           </div>
-          {adding === groupKey && <form className="mt-4 space-y-3 border-t border-[#d9e3ee] pt-4" onSubmit={event => { event.preventDefault(); void command.submit('/api/contagem/veiculos',{ agendaId: group.agendaId,clientId: group.clientId,type,plannedPeople: planned === '' ? null : Number(planned),carrierId: carrier === '' ? null : Number(carrier),reason }); }}>
-            <fieldset disabled={command.blocked} className="space-y-3"><legend className="mb-3 font-bold">Chegou mais um veículo</legend>
-              <label className="grid gap-1 text-sm">Tipo<select className={countingInput} value={type} onChange={e => setType(e.target.value)}><option value="bus">Ônibus</option><option value="van">Van</option></select></label>
-              <label className="grid gap-1 text-sm">Transportador<select className={countingInput} value={carrier} onChange={e => setCarrier(e.target.value)}><option value="">Do passeio: {group.transportName ?? 'não informado'}</option>{data.carriers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          {adding === groupKey && <dialog ref={extraDialog} onCancel={() => setAdding(null)} aria-label="Chegou mais um veículo" className="fixed inset-x-0 bottom-0 top-auto m-0 max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 text-[#0f2d52] backdrop:bg-[#0b1f36]/50 sm:mx-auto"><form className="space-y-3" onSubmit={event => { event.preventDefault(); startAfterAdd.current = (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'count'; sessionStorage.setItem(addIntentKey,startAfterAdd.current ? 'count' : 'only'); void command.submit('/api/contagem/veiculos',{ agendaId: group.agendaId,clientId: group.clientId,type,plannedPeople: planned === '' ? null : Number(planned),carrierId: carrier === '' ? null : Number(carrier),reason }); }}>
+            <CountingCommandStatus command={command}/>
+            <fieldset disabled={blocked} className="space-y-3"><legend className="mb-3 font-bold">Chegou mais um veículo</legend>
+              <label className="grid gap-1 text-sm">Tipo<select className={countingInput} value={type} onChange={e => { setType(e.target.value); setPlanned(e.target.value === 'van' ? '16' : '40'); }}><option value="bus">Ônibus</option><option value="van">Van</option></select></label>
+              <label className="grid gap-1 text-sm">Transportador<select className={countingInput} value={carrier} onChange={e => setCarrier(e.target.value)}><option value="">Do passeio: {group.transportName ?? 'não informado'}</option>{data?.carriers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
               <label className="grid gap-1 text-sm">Previsão de pessoas (opcional)<input className={countingInput} type="number" min="0" max="100000" step="1" inputMode="numeric" value={planned} onChange={e => setPlanned(e.target.value)}/></label>
               {manager && date !== today && <label className="grid gap-1 text-sm">Motivo da correção<input className={countingInput} maxLength={1000} value={reason} onChange={e => setReason(e.target.value)} required/></label>}
-              <button className={`${countingPrimary} w-full`} type="submit">Adicionar veículo</button><button className={`${countingButton} w-full`} type="button" onClick={() => setAdding(null)}>Cancelar</button>
+              <button className={`${countingPrimary} w-full`} type="submit" value="count">Adicionar e contar agora</button><button className={`${countingButton} w-full`} type="submit" value="only">Só adicionar</button><button className={`${countingButton} w-full`} type="button" onClick={() => setAdding(null)}>Cancelar</button>
             </fieldset>
-          </form>}
+          </form></dialog>}
         </article>;
       })}
     </section>
+    {trip && <CountingTripCompletions date={date} agendaId={trip.agendaId} clientId={trip.clientId}/>}
     {!!data?.feed.length && <section><h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-[#6a7c92]">Agora na equipe</h2><ul className="divide-y divide-[#d9e3ee] rounded-2xl border border-[#d9e3ee] bg-white px-4">{data.feed.slice(0,5).map(event => {
       const vehicle = vehicles.find(item => item.id === event.vehicleId);
-      return <li key={event.id} className="flex items-start gap-2 py-3 text-sm"><span aria-hidden="true" className="text-[#2f6fb2]">{event.action === 'complete' ? '✓' : '•'}</span><span className="min-w-0 flex-1">{event.actorName ?? 'Operador'} {feedActions[event.action]} {vehicle ? `${vehicle.type === 'bus' ? 'ônibus' : 'van'} ${vehicle.ordinal} · ${vehicle.clientName}` : 'um veículo'}</span><time className="shrink-0 text-xs text-[#6a7c92]" dateTime={event.at}>{countTime(event.at).slice(0,5)}</time></li>;
+      return <li key={event.id} className="flex items-start gap-2 py-3 text-sm"><span aria-hidden="true" className="text-[#2f6fb2]">{event.action === 'complete' ? '✓' : '•'}</span><span className="min-w-0 flex-1">{event.actorName ?? 'Operador'} {feedActions[event.action]} {vehicle ? `${vehicle.type === 'bus' ? 'ônibus' : 'van'} ${vehicle.ordinal} · ${vehicle.clientName}` : 'um veículo'}{event.action === 'complete' && vehicle?.state === 'completed' ? ` (${vehicle.total ?? '—'} pessoas)` : ''}</span><time className="shrink-0 text-xs text-[#6a7c92]" dateTime={event.at}>{countTime(event.at).slice(0,5)}</time></li>;
     })}</ul></section>}
     <p className="text-center text-xs text-[#6a7c92]">{checkedAt ? `Consultado às ${countTime(checkedAt)} · atualização a cada 5 s` : 'Consultando passeios…'}</p>
-    <div className="sticky bottom-0 -mx-4 bg-[#f4f7fb]/95 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3"><a href={`/contagem/relatorios?date=${date}`} className={`${countingPrimary} w-full`}>{data?.closed ? 'Ver relatórios do dia' : 'Finalizar contagem · relatórios'}</a></div>
+    {!trip && date <= today && <div className="sticky bottom-0 -mx-4 bg-[#f4f7fb]/95 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3"><a href={`/contagem/relatorios?date=${date}${date === today && !data?.closed ? '&finalizar=1' : ''}`} className={`${countingPrimary} w-full`}>{data?.closed || date !== today ? 'Ver relatórios do dia' : 'Finalizar contagem do dia'}</a></div>}
   </div>;
 }

@@ -368,6 +368,17 @@ export function PainelBilheteriaSalesBuilder({
     setErrorMessage(null);
   }
 
+  function addProduct(selection: string) {
+    setSaleLines(current => {
+      if (current.reduce((total, line) => total + line.quantity, 0) >= 500) return current;
+      const existing = current.find(line => line.selection === selection && !line.discountId && !line.authorId && selection !== "courtesy");
+      return existing
+        ? current.map(line => line.id === existing.id ? { ...line, quantity: line.quantity + 1 } : line)
+        : [...current, { ...emptySaleLineDraft, id: crypto.randomUUID(), selection }];
+    });
+    setErrorMessage(null);
+  }
+
   function updateLine(lineId: string, nextLine: Partial<SaleLineDraft>) {
     setSaleLines((current) =>
       current.map((line) =>
@@ -463,7 +474,7 @@ export function PainelBilheteriaSalesBuilder({
               </div>
               <div>
                 <h3 className="text-[22px] font-black text-[#17351f]">
-                  Ingressos e cortesias
+                  Ingressos e serviços
                 </h3>
               </div>
             </div>
@@ -475,6 +486,20 @@ export function PainelBilheteriaSalesBuilder({
               <SalesIcon kind="plus" />
               <span>Nova linha</span>
             </button>
+          </div>
+
+          <p className="mt-4 text-sm text-[#6a7c92]">Toque no produto para adicionar. Ajuste a quantidade e o desconto de cada ingresso abaixo.</p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {products.map(product => {
+              const quantity = saleLines.filter(line => line.selection === product.id).reduce((total, line) => total + line.quantity, 0);
+              return <button key={product.id} type="button" aria-label={`Adicionar ${product.title}`} onClick={() => addProduct(product.id)} disabled={saleLines.reduce((total, line) => total + line.quantity, 0) >= 500} className={`relative flex min-h-28 flex-col items-start gap-1 rounded-xl border p-4 text-left disabled:opacity-50 ${quantity ? 'border-[#2f6fb2] bg-[#eaf2fb]' : 'border-[#d9e3ee] bg-white hover:border-[#2f6fb2]'}`}>
+                <strong className="pr-7 text-[#0f2d52]">{product.title}</strong>
+                <span className="text-xs text-[#6a7c92]">{product.type === 'addon' ? 'Serviço · sem desconto' : product.voucherType === 'infan' ? '4 a 9 anos' : product.voucherType === 'isent' ? '0 a 3 anos' : '10 anos ou mais'}</span>
+                <span className="mt-auto pt-2 font-bold tabular-nums text-[#0f2d52]">{formatMoney(readAgendaPrice(product))}</span>
+                <span className="absolute right-3 top-3 rounded-full bg-[#133a62] px-2 text-white">{quantity || '+'}</span>
+              </button>;
+            })}
+            <button type="button" className="min-h-28 rounded-xl border border-[#d9e3ee] p-4 text-left font-semibold text-[#0f2d52]" onClick={() => addProduct('courtesy')} disabled={saleLines.reduce((total, line) => total + line.quantity, 0) >= 500}>Cortesia<span className="mt-1 block text-xs font-normal">Exige autorizador</span></button>
           </div>
 
           {saleLines.length > 0 ? (

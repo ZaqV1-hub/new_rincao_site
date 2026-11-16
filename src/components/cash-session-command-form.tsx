@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { CurrencyInput, parseCurrencyInput } from "@/components/currency-input";
 import { readStoredCashCommand, submitCashCommand } from "@/lib/cash-command-client";
+import { cashMoney } from "./cash-session-snapshot-view";
 import type { CashLocation } from "@/lib/operational-day-contract";
 
 type Props = { disabled?: boolean; onSuccess: (data: unknown) => void } & (
   | { action: "open"; date: string; locations: CashLocation[] }
-  | { action: "movement" | "close"; periodId: number }
+  | { action: "movement" | "close"; periodId: number; expectedCashCents?: number }
 );
 const field = "min-h-11 w-full rounded-lg border border-[#c8d9ea] bg-white px-3 py-2 text-[#123b63] disabled:opacity-60";
 const button = "inline-flex min-h-11 items-center justify-center rounded-lg bg-[#205a7f] px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50";
@@ -20,6 +21,7 @@ export function CashSessionCommandForm(props: Props) {
   const pending = pendingPayload !== null;
   const [formVersion, setFormVersion] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [countedCents, setCountedCents] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
@@ -44,7 +46,7 @@ export function CashSessionCommandForm(props: Props) {
     setBusy(true); setError(null);
     try {
       const result = await submitCashCommand({ storageKey, url, ...(pending ? {} : { payload }) });
-      if (result.ok) { setPendingPayload(null); form.reset(); setFormVersion((value) => value + 1); props.onSuccess(result.data); }
+      if (result.ok) { setPendingPayload(null); setCountedCents(null); form.reset(); setFormVersion((value) => value + 1); props.onSuccess(result.data); }
       else {
         if (result.uncertain) {
           try { setPendingPayload(readStoredCashCommand(storageKey)?.payload ?? null); }
@@ -66,7 +68,8 @@ export function CashSessionCommandForm(props: Props) {
     <fieldset disabled={unavailable || pending} hidden={pending} className={pending ? "hidden" : "grid gap-4 sm:grid-cols-2"}>
       {props.action === "open" && <label className="grid gap-1 text-sm font-semibold">Local<select name="locationId" className={field} required defaultValue=""><option value="" disabled>Selecione o local</option>{props.locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></label>}
       {props.action === "movement" && <><label className="grid gap-1 text-sm font-semibold">Movimento<select name="type" className={field}><option value="fundo">Adicionar fundo</option><option value="sangria">Retirar sangria</option></select></label><label className="grid gap-1 text-sm font-semibold">Nome da pessoa<input className={field} name="responsible" maxLength={100} required /></label></>}
-      <label className="grid gap-1 text-sm font-semibold">{props.action === "open" ? "Troco inicial" : props.action === "close" ? "Dinheiro contado" : "Valor"}<CurrencyInput key={`${storageKey}:${formVersion}`} name="amount" className={field} required defaultValue="0,00" /></label>
+      <label className="grid gap-1 text-sm font-semibold">{props.action === "open" ? "Troco inicial" : props.action === "close" ? "Dinheiro contado" : "Valor"}<CurrencyInput key={`${storageKey}:${formVersion}`} name="amount" className={field} required defaultValue={props.action === "close" ? "" : "0,00"} allowEmpty={props.action === "close"} onValueChange={(value) => setCountedCents(value.trim() ? Math.round(parseCurrencyInput(value) * 100) : null)} /></label>
+      {props.action === "close" && props.expectedCashCents !== undefined && <div role="status" aria-live="polite" className="rounded-lg border border-[#b9cddd] bg-[#f3f7fb] p-3 sm:col-span-2"><p>Dinheiro esperado: <strong>{cashMoney(props.expectedCashCents)}</strong></p><p>{countedCents === null ? "Informe o dinheiro contado para conferir a diferença." : `Diferença: ${cashMoney(countedCents - props.expectedCashCents)} · ${countedCents === props.expectedCashCents ? 'Sem diferença' : countedCents > props.expectedCashCents ? 'Sobra no caixa' : 'Falta no caixa'}`}</p></div>}
       {props.action !== "open" && <label className="grid gap-1 text-sm font-semibold sm:col-span-2">Motivo<textarea className={field} name="reason" maxLength={2000} required rows={2} /></label>}
     </fieldset>
     {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}

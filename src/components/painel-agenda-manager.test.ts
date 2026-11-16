@@ -13,7 +13,7 @@ describe("PainelAgendaManager tone helpers", () => {
       true,
     );
 
-    expect(classes).toContain("bg-[#84bd00]");
+    expect(classes).toContain("bg-[#eaf2fb]");
     expect(classes).toContain("ring-2");
   });
 
@@ -94,7 +94,8 @@ describe("operational agenda calendar", () => {
   });
   it("shows program statuses from the server, links with access, and never invents missing statuses", () => {
     const programStatuses = { "2099-01-02": "uncreated", "2099-01-03": "created", "2099-01-04": "exported", "2099-01-05": "past_created", "2099-01-06": "past_uncreated" } as const;
-    const html = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, programStatuses, canAccessProgram: true }));
+    const indicators = [2, 3, 4, 5, 6, 7].map(day => ({ date: `2099-01-0${day}`, plannedPeople: 20, groupCount: 1, vehicleCount: 1, counting: false, revenueCents: 0, closed: false, closurePending: false }));
+    const html = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, indicators, programStatuses, canAccessProgram: true }));
     for (const status of ["A criar", "Criado", "Criado e enviado", "Já ocorreu", "Já ocorreu e não criado"]) expect(html).toContain(status);
     expect(html).toContain('href="/painel/agenda/2099-01-02/dia-seguinte?returnTo=2099-01-02"');
     expect(html).toContain("Programação do dia · Criar");

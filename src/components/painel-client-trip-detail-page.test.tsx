@@ -160,7 +160,7 @@ describe("PainelClientTripDetailPage", () => {
       }),
     );
 
-    expect(html).toContain("Dados do Passeio");
+    expect(html).toContain("Cadastro, acompanhamento e relatórios do passeio");
     expect(html).toContain("Código do Passeio");
     expect(html).toContain("Relatório de Ingressos");
     expect(html).toContain("Alunos");
@@ -179,7 +179,7 @@ describe("PainelClientTripDetailPage", () => {
       }),
     );
 
-    expect(html).toContain("Dados do Passeio");
+    expect(html).toContain("Cadastro, acompanhamento e relatórios do passeio");
     expect(html).toContain("Nenhum ingresso.");
     expect(html).not.toContain("Educadores");
   });

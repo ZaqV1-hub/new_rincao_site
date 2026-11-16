@@ -1,5 +1,5 @@
 import { requirePainelApiAccess } from "@/lib/painel-api-auth";
-import { applyPurchaseBatch, previewPurchaseBatch } from "@/lib/operational-purchase-batch";
+import { applyPurchaseBatch, previewPurchaseBatch, listPurchaseBatchDates } from "@/lib/operational-purchase-batch";
 import { PurchaseBatchError, invalidPurchaseBatch } from "@/lib/operational-purchase-batch-contract";
 import { dispatchPurchaseBatchEmail, listPurchaseBatchEmail } from "@/lib/operational-purchase-batch-email";
 
@@ -24,6 +24,7 @@ async function run(request: Request, context: { params: Promise<{ action: string
     const { action } = await context.params;
     const actor = { name: access.session.actorName,cpf: access.session.actorCpf };
     if (request.method === "GET") {
+      if (action === "datas" && !new URL(request.url).search) return privateResponse(Response.json({ ok: true, data: await listPurchaseBatchDates() }));
       if (action !== "email" || new URL(request.url).search) return invalidPurchaseBatch();
       return privateResponse(Response.json({ ok: true,data: await listPurchaseBatchEmail(actor) }));
     }

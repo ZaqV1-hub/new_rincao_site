@@ -1,12 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "./page";
-const mocks = vi.hoisted(() => ({ read: vi.fn(), navigation: vi.fn(), access: vi.fn() }));
+const mocks = vi.hoisted(() => ({ refresh: vi.fn(), read: vi.fn(), navigation: vi.fn(), access: vi.fn() }));
 vi.mock("@/lib/painel-session", () => ({ requirePainelAccess: mocks.access }));
+vi.mock("@/lib/weather-forecast", () => ({ refreshWeatherForecast: mocks.refresh }));
 vi.mock("@/lib/day-program", () => ({ getDayProgram: mocks.read, DayProgramError: class extends Error {} }));
 vi.mock("@/lib/day-program-navigation", () => ({ getDayProgramNavigation: mocks.navigation }));
 vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("NOT_FOUND"); }, redirect: (url: string) => { throw new Error(`REDIRECT ${url}`); } }));
-beforeEach(() => { mocks.access.mockReset().mockResolvedValue({ authSource: "panel", legacyRoleId: 1 }); mocks.read.mockReset().mockResolvedValue({ date: "2099-01-02" }); mocks.navigation.mockReset().mockResolvedValue({ previousDate: null, nextDate: null, dates: [] }); });
+beforeEach(() => { mocks.refresh.mockReset().mockResolvedValue({}); mocks.access.mockReset().mockResolvedValue({ authSource: "panel", legacyRoleId: 1 }); mocks.read.mockReset().mockResolvedValue({ date: "2099-01-02" }); mocks.navigation.mockReset().mockResolvedValue({ previousDate: null, nextDate: null, dates: [] }); });
 const props = { params: Promise.resolve({ date: "2099-01-02" }), searchParams: Promise.resolve({ returnTo: "2098-12-01" }) };
 describe("day program server route", () => {
   it("requires both agenda and customer data access and loads the selected date and movement navigation", async () => {
@@ -16,6 +17,20 @@ describe("day program server route", () => {
     expect(mocks.read).toHaveBeenCalledWith("2099-01-02");
     expect(mocks.navigation).toHaveBeenCalledWith("2099-01-02");
     expect(element.props).toMatchObject({ program: { date: "2099-01-02" }, canManage: true, returnDate: "2098-12-01" });
+  });
+  it("refreshes permitted weather before reading the fingerprint and keeps a failure recoverable", async () => {
+    mocks.read.mockResolvedValue({ date: "2099-01-02", park: "rincao", closed: false, readOnly: false });
+    await Page(props);
+    expect(mocks.refresh).toHaveBeenCalledWith("2099-01-02");
+    expect(mocks.read).toHaveBeenCalledTimes(2);
+    mocks.refresh.mockRejectedValue(new Error("private endpoint"));
+    const page = await Page(props);
+    expect(page.props.initialWeatherError).toContain("última consulta foi preservada");
+    expect(JSON.stringify(page.props)).not.toContain("private endpoint");
+  });
+  it.each([{ closed: true }, { readOnly: true }, { park: "estancia" }])("does not refresh a frozen or unsupported day: %j", async override => {
+    mocks.read.mockResolvedValue({ date: "2099-01-02", park: "rincao", closed: false, readOnly: false, ...override });
+    await Page(props); expect(mocks.refresh).not.toHaveBeenCalled();
   });
   it("does not treat an operator as a manager", async () => { mocks.access.mockResolvedValue({ authSource: "panel", legacyRoleId: 3 }); expect((await Page(props)).props.canManage).toBe(false); });
   it("rejects non-panel identities before querying", async () => { mocks.access.mockResolvedValue({ authSource: "operations", legacyRoleId: 1 }); await expect(Page(props)).rejects.toThrow("REDIRECT"); expect(mocks.read).not.toHaveBeenCalled(); });

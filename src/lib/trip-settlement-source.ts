@@ -6,7 +6,7 @@ import { countCategories,normalizeCountDraft,type CountCategory,type CountDraft 
 import { calculateTripSettlement,type TripSettlementResult,type TripSettlementVehicle } from './trip-settlement-calculation';
 import { TripSettlementError,type TripConfiguration,type TripPaymentMethod } from './trip-settlement-contract';
 export type TripKey = { agendaId: number; clientId: number };
-export type TripFinancialVehicle = { id: number; type: string; version: number; state: string; plannedPeople: number | null; revisionId: string | null;
+export type TripFinancialVehicle = { id: number; ordinal?: number; type: string; version: number; state: string; plannedPeople: number | null; revisionId: string | null;
   ownerName: string | null; ownerCpf: string | null; addedOnDay: boolean; addedByName: string | null; completedAt: string | null; draft: CountDraft | null };
 export type TripOnlineParticipant = { voucherId: number; purchaseId: number; name: string; category: CountCategory | null; paidCents: number;
   refundRequested: boolean; refundPaidCents: number | null; refundPaidAt: string | null; invalidated: boolean; held: boolean };
@@ -54,13 +54,13 @@ export async function readTripSettlementSource(client: PoolClient,key: TripKey):
   const configuration = { adultPriceCents: trip.adultPrice === null ? sitePrices.adultPriceCents : number(trip.adultPrice),childPriceCents: trip.childPrice === null ? sitePrices.childPriceCents : number(trip.childPrice),adultCourtesies: trip.adultCourtesies,childCourtesies: trip.childCourtesies };
   const availability = (await client.query("SELECT to_regclass('contrato_escolar_agendamento') IS NOT NULL AS contract,to_regclass('commerce_school_payment_hold') IS NOT NULL AS holds")).rows[0];
   const representative = availability.contract ? (await client.query<{ name: string }>(`SELECT representante_nome AS name FROM contrato_escolar_agendamento WHERE agenda_id=$1 AND cliente_id=$2 AND status='agendado' ORDER BY confirmado_em DESC NULLS LAST,idcontrato DESC LIMIT 1`,[key.agendaId,key.clientId])).rows[0]?.name ?? null : null;
-  const rawVehicles = (await client.query<{ id: string; type: string; version: number; state: string; plannedPeople: number | null; revisionId: string | null; ownerName: string | null; ownerCpf: string | null;
-    addedOnDay: boolean; addedByName: string | null; completedAt: string | null; revisionStatus: string | null; catalogVersion: number; counts: CountDraft['counts']; pcdDetails: CountDraft['pcdDetails']; notes: string; responsibleName: string; responsiblePhone: string; confirmed: boolean }>(`SELECT v.id::text,v.tipo AS type,v.versao AS version,v.estado AS state,v.planned_people AS "plannedPeople",v.added_on_day AS "addedOnDay",
+  const rawVehicles = (await client.query<{ id: string; ordinal: number; type: string; version: number; state: string; plannedPeople: number | null; revisionId: string | null; ownerName: string | null; ownerCpf: string | null;
+    addedOnDay: boolean; addedByName: string | null; completedAt: string | null; revisionStatus: string | null; catalogVersion: number; counts: CountDraft['counts']; pcdDetails: CountDraft['pcdDetails']; notes: string; responsibleName: string; responsiblePhone: string; confirmed: boolean }>(`SELECT v.id::text,v.ordinal,v.tipo AS type,v.versao AS version,v.estado AS state,v.planned_people AS "plannedPeople",v.added_on_day AS "addedOnDay",
     (SELECT e.usuario_nome FROM edicoes_log e WHERE e.origem IN ('painel-contagem','painel-programacao') AND e.detalhes_json::jsonb->>'actorCpf'=v.created_by ORDER BY e.id DESC LIMIT 1) AS "addedByName",n.id AS "revisionId",n.owner_name AS "ownerName",n.owner_cpf AS "ownerCpf",
     n.completed_at::text AS "completedAt",n.status AS "revisionStatus",n.catalog_version AS "catalogVersion",n.counts,n.pcd_details AS "pcdDetails",n.notes,n.responsible_name AS "responsibleName",n.responsible_phone AS "responsiblePhone",n.contact_confirmed AS confirmed
     FROM passeio_veiculos v LEFT JOIN passeio_contagens n ON n.id=v.current_count_id AND n.parque=v.parque
     WHERE v.parque=$1 AND v.agenda_id=$2 AND v.cliente_id=$3 ORDER BY v.id`,args)).rows;
-  const vehicles: TripFinancialVehicle[] = rawVehicles.map(row => ({ id: number(row.id),type: row.type,version: row.version,state: row.state,plannedPeople: row.plannedPeople,revisionId: row.revisionId,ownerName: row.ownerName,ownerCpf: row.ownerCpf,addedOnDay: row.addedOnDay,addedByName: row.addedByName,completedAt: row.completedAt,
+  const vehicles: TripFinancialVehicle[] = rawVehicles.map(row => ({ id: number(row.id),...(row.ordinal == null ? {} : { ordinal: number(row.ordinal) }),type: row.type,version: row.version,state: row.state,plannedPeople: row.plannedPeople,revisionId: row.revisionId,ownerName: row.ownerName,ownerCpf: row.ownerCpf,addedOnDay: row.addedOnDay,addedByName: row.addedByName,completedAt: row.completedAt,
     draft: row.revisionId ? normalizeCountDraft({ counts: row.counts,pcdDetails: row.pcdDetails,notes: row.notes,responsible: { name: row.responsibleName,phone: row.responsiblePhone,confirmed: row.confirmed } },row.state === 'completed',
       { catalogVersion: row.catalogVersion,reading: true }) : null }));
   if (rawVehicles.some(row => row.state === 'completed' && row.revisionStatus !== 'completed')) throw new TripSettlementError('trip_invalid_count','Um veículo concluído não possui revisão válida.');
@@ -86,5 +86,6 @@ export async function readTripSettlementSource(client: PoolClient,key: TripKey):
   const warnings = [...(calculation?.warnings ?? []),...(!vehicles.length ? ['no_vehicles'] : []),...(calculation && confirmedCents > calculation.schoolChargeCents ? ['overpaid_school'] : [])];
   const stable = { ...key,park,date: trip.date,cancelled: trip.cancelled,clientName: trip.clientName,representative,transportName: trip.transportName,transportPhone: trip.transportPhone,plannedPeople: trip.plannedPeople,contact: trip.contact,phone: trip.phone,boardingTime: trip.boardingTime,observations: trip.observations,
     financialVersion: trip.version,configuration,sitePrices,vehicles,participants,payments,calculation,confirmedCents,pendingPaymentCents,remainingCents: calculation ? calculation.schoolChargeCents-confirmedCents : null,blockingIssues,warnings,receiptId: trip.receiptId };
-  return { ...stable,today: trip.today,closed: trip.closed,fingerprint: tripFingerprint(stable) };
+  // Ordinals label vehicles; adding them must not invalidate existing financial snapshots.
+  return { ...stable,today: trip.today,closed: trip.closed,fingerprint: tripFingerprint({ ...stable,vehicles: vehicles.map(vehicle => ({ ...vehicle,ordinal: undefined })) }) };
 }

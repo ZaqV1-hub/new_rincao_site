@@ -208,7 +208,7 @@ describe.skipIf(!connectionString)("operational catalog with PostgreSQL", () => 
     expect(update.status).toBe(200);
     expect((await locations.PATCH(request("locais-caixa", "PATCH", { ...location, id: 1, version: 1 }))).status).toBe(409);
     expect(await (await locations.GET(request("locais-caixa", "GET", undefined, operator))).json()).toEqual({
-      ok: true, data: [{ ...location, id: 1, version: 2, active: false }],
+      ok: true, data: [{ ...location, id: 1, version: 2, active: false, type: "sales" }],
     });
   });
 });

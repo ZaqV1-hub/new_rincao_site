@@ -1,6 +1,8 @@
 import React from "react";
 import { beforeEach, expect, it, vi } from "vitest";
+import { CurrencyInput } from "./currency-input";
 import { CashSessionCommandForm } from "./cash-session-command-form";
+import { PainelDayClosure } from "./painel-day-closure";
 import { PainelCashSessionPage } from "./painel-cash-session-page";
 import { PainelCashSessionsPage } from "./painel-cash-sessions-page";
 import { CashSessionSnapshotView } from "./cash-session-snapshot-view";
@@ -11,9 +13,10 @@ import type { CashLocation } from "@/lib/operational-day-contract";
 
 type Bank = { slots: unknown[]; cursor: number; effects: Map<number, unknown[]>; queued: (() => void)[] };
 const hooks = vi.hoisted(() => ({ active: null as Bank | null, push: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: hooks.push }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: hooks.push, refresh: vi.fn() }) }));
 vi.mock("react", async (original) => ({ ...await original<typeof import("react")>(),
   useState(initial: unknown) { const bank = hooks.active!, index = bank.cursor++; if (!(index in bank.slots)) bank.slots[index] = typeof initial === "function" ? initial() : initial; return [bank.slots[index], (next: unknown) => { bank.slots[index] = typeof next === "function" ? next(bank.slots[index]) : next; }]; },
+  useCallback(fn: unknown) { return fn; },
   useRef(initial: unknown) { const bank = hooks.active!, index = bank.cursor++; if (!(index in bank.slots)) bank.slots[index] = { current: initial }; return bank.slots[index]; },
   useEffect(run: () => void, dependencies: unknown[]) { const bank = hooks.active!, index = bank.cursor++; const old = bank.effects.get(index); if (!old || dependencies.some((value, i) => !Object.is(value, old[i]))) { bank.effects.set(index, dependencies); bank.queued.push(run); } },
 }));
@@ -113,4 +116,54 @@ it("does not enable mutations while retrying an authoritative read that previous
   const waiting = render(state, () => PainelCashSessionPage(pageProps(open, "consultation")));
   finish(Response.json({ ok: true, data: closed }));
   expect(find(waiting, (node) => node.type === PainelBilheteriaWorkstation).props.periodId).toBeNull();
+});
+
+
+it("previews shortage, excess and explicit zero before closing without a write", async () => {
+  const state = bank(), props: FormProps = { action: "close", periodId: 7, expectedCashCents: 1000, onSuccess: vi.fn() };
+  render(state, () => CashSessionCommandForm(props)); await effects(state);
+  let tree = render(state, () => CashSessionCommandForm(props));
+  expect(plain(tree)).toContain("Informe o dinheiro contado");
+  const change = (value: string) => { (find(tree, n => n.type === CurrencyInput).props.onValueChange as (value: string) => void)(value); tree = render(state, () => CashSessionCommandForm(props)); };
+  change("8,00"); expect(plain(tree)).toContain("-R$ 2,00 · Falta no caixa");
+  change("12,00"); expect(plain(tree)).toContain("R$ 2,00 · Sobra no caixa");
+  change("10,00"); expect(plain(tree)).toContain("Sem diferença");
+  change("0,00"); expect(plain(tree)).toContain("-R$ 10,00 · Falta no caixa");
+  change(""); expect(plain(tree)).toContain("Informe o dinheiro contado");
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it("passes the authoritative expected cash into the closing form", () => {
+  const state = bank(); const tree = render(state, () => PainelCashSessionPage(pageProps(open, "closure")));
+  expect(formProps(tree)).toMatchObject({ action: "close", expectedCashCents: 1000 });
+});
+
+
+it("clears cash-count differences after closing and reopening the daily financial revision", async () => {
+  const state = bank(), props = { date: snapshot.date, actorCpf: "operator", manager: true };
+  const metric = { value: 0 };
+  const live = { today: snapshot.date, fingerprint: "daily-source", sessions: [open], trips: [], items: [], purchases: [], receipts: [], expenses: [], cashReviews: [], warnings: [], adjustments: [], resultCents: 0, revenueCents: 0, expenseCents: 0,
+    summary: { attendance: { totalAdmitted: metric, dayUseAdmitted: metric, completedVehiclePeople: metric }, revenue: { siteNetCents: metric, gateNetCents: metric, finalizedTripsNetCents: metric, servicesNetCents: metric }, forecast: { ticketsForSelectedDate: metric } } };
+  let isClosed = false;
+  fetchMock.mockImplementation(async (_url: string, options?: { method?: string }) => {
+    if (options?.method === "POST") { isClosed = !isClosed; return Response.json({ ok: true, data: {} }); }
+    return Response.json({ ok: true, data: { live, closed: isClosed, current: isClosed ? { id: "revision", revision: 1, snapshot: live, createdAt: "2099-01-01T20:00Z" } : null, history: [], diverged: false } });
+  });
+  render(state, () => PainelDayClosure(props)); await effects(state);
+  await vi.waitFor(() => expect(plain(render(state, () => PainelDayClosure(props)))).toContain("Conferência e fechamento"));
+  let tree = render(state, () => PainelDayClosure(props));
+  (find(tree, n => n.type === CurrencyInput).props.onValueChange as (value: string) => void)("8,00");
+  tree = render(state, () => PainelDayClosure(props));
+  expect(plain(tree)).toContain("-R$");
+  await submit(tree, { "count-7": "8,00", reason: "Conferido" });
+  await vi.waitFor(() => expect(plain(render(state, () => PainelDayClosure(props)))).toContain("Reabrir para revisão"));
+  await submit(render(state, () => PainelDayClosure(props)), { reason: "Revisão solicitada" });
+  await vi.waitFor(() => expect(plain(render(state, () => PainelDayClosure(props)))).toContain("Conferência e fechamento"));
+  tree = render(state, () => PainelDayClosure(props));
+  expect(plain(tree)).toContain("Diferença: Informe o contado");
+  expect(find(tree, n => n.type === CurrencyInput).props.defaultValue).toBe("");
+  await submit(tree, { reason: "Conferência ainda pendente" });
+  await vi.waitFor(() => expect(fetchMock.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(3));
+  const posts = fetchMock.mock.calls.filter(([, options]) => options?.method === "POST");
+  expect(JSON.parse(posts[2][1].body).counts).toEqual([{ periodId: 7, countedCashCents: null }]);
 });

@@ -24,8 +24,8 @@ describe("day program export", () => {
     input.groups[0].extraBuses = 1;
     input.groups[0].vehicles = [{ id: 92,type: 'bus',plannedPeople: null,state: 'waiting',version: 1,addedOnDay: true,isExtra: true,ordinal: 2,transportName: 'Viagens do Extra' }];
     const [program,carrier] = buildDayProgramExportDocuments(input);
-    expect(program.blocks.map(block => block.text)).toContain('Ônibus 2 extra: Viagens do Extra');
-    expect(carrier.blocks.map(block => block.text)).not.toContain('Ônibus 2 extra: Viagens do Extra');
+    expect(program.blocks.map(block => block.text).join('\n')).toContain('Ônibus 2 extra: Viagens do Extra');
+    expect(carrier.blocks.map(block => block.text).join('\n')).not.toContain('Ônibus 2 extra: Viagens do Extra');
   });
   it("groups stops by ID and shares only each carrier's operational stops", () => {
     const documents = buildDayProgramExportDocuments(fixture());

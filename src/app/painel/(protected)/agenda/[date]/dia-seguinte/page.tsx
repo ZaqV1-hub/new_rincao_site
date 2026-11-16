@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { PainelDayProgramPage } from "@/components/painel-day-program-page";
 import { DayProgramError, getDayProgram } from "@/lib/day-program";
 import { getDayProgramNavigation } from "@/lib/day-program-navigation";
+import { refreshWeatherForecast } from "@/lib/weather-forecast";
 import { isCivilDate } from "@/lib/operational-date";
 import { requirePainelAccess } from "@/lib/painel-session";
 
@@ -19,11 +20,20 @@ export default async function PainelDayProgramRoute({ params, searchParams }: { 
   const { returnTo } = await searchParams;
   const returnDate = typeof returnTo === "string" && isCivilDate(returnTo) ? returnTo : date;
   let program, navigation;
+  let initialWeatherError: string | null = null;
   try {
     [program, navigation] = await Promise.all([getDayProgram(date), getDayProgramNavigation(date)]);
+    if (session.legacyRoleId === 1 && !program.closed && !program.readOnly && program.park === "rincao") {
+      try {
+        await refreshWeatherForecast(date);
+        program = await getDayProgram(date);
+      } catch {
+        initialWeatherError = "Não foi possível atualizar a previsão ao abrir. A última consulta foi preservada; use Atualizar previsão para tentar novamente.";
+      }
+    }
   } catch (error) {
     const message = error instanceof DayProgramError ? error.message : "Não foi possível consultar a programação. Atualize a página para tentar novamente.";
     return <section className="space-y-4 text-[#123b63]"><h1 className="text-2xl font-bold">Dia seguinte · {date.split("-").reverse().join("/")}</h1><p role="alert">{message}</p><Link href={`/painel/agenda/${returnDate}`} className="inline-flex min-h-11 items-center underline">Voltar à data</Link></section>;
   }
-  return <PainelDayProgramPage key={date} program={program} navigation={navigation} canManage={session.legacyRoleId === 1} returnDate={returnDate} />;
+  return <PainelDayProgramPage key={date} program={program} initialWeatherError={initialWeatherError} navigation={navigation} canManage={session.legacyRoleId === 1} returnDate={returnDate} />;
 }

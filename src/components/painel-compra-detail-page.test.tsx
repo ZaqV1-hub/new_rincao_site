@@ -79,7 +79,7 @@ describe("PainelCompraDetailPage", () => {
       }),
     );
 
-    expect(html).toContain("Dados Compra / Reserva");
+    expect(html).toContain("Compra #551");
     expect(html).toContain("Pagamento");
     expect(html).toContain("ID Pagamento");
     expect(html).toContain("Vouchers");

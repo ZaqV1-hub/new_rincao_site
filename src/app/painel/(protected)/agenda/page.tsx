@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PainelAgendaManager } from "@/components/painel-agenda-manager";
+import { getOperationalCalendar } from "@/lib/painel-operational-calendar";
 import { getPainelAgendaScreenData } from "@/lib/painel-agenda";
 import { requirePainelAccess } from "@/lib/painel-session";
 import { listOperationalDays, OperationalDayError, type OperationalDay } from "@/lib/operational-day";
@@ -42,9 +43,10 @@ export default async function PainelAgendaPage({
   let programError: string | null = null;
   let operationalDays: OperationalDay[] | null = null;
   let operationalError: string | null = null;
-  const [configuration, programs] = await Promise.allSettled([
+  const [configuration, programs, indicators] = await Promise.allSettled([
     listOperationalDays(dates[0].date, dates[dates.length - 1].date),
     canAccessProgram ? getDayPrograms(dates.map((cell) => cell.date)) : Promise.resolve(null),
+    getOperationalCalendar(dates[0].date, dates[dates.length - 1].date),
   ]);
   if (configuration.status === "fulfilled") operationalDays = configuration.value;
   else operationalError = configuration.reason instanceof OperationalDayError ? configuration.reason.message : "Não foi possível consultar a programação. Tente atualizar em instantes.";
@@ -55,6 +57,7 @@ export default async function PainelAgendaPage({
     <PainelAgendaManager
       key={`${data.year}-${data.month}-${data.selectedDate ?? "none"}`}
       data={data}
+      indicators={indicators.status === "fulfilled" ? indicators.value : null}
       operationalDays={operationalDays}
       operationalError={operationalError}
       canAccessProgram={canAccessProgram}

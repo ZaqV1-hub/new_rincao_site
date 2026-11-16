@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyPurchaseBatch, previewPurchaseBatch, previewPurchaseAdjustment, resolvePurchaseAdjustment } from "./operational-purchase-batch";
+import { listPurchaseBatchDates, applyPurchaseBatch, previewPurchaseBatch, previewPurchaseAdjustment, resolvePurchaseAdjustment } from "./operational-purchase-batch";
 import { dispatchPurchaseBatchEmail, listPurchaseBatchEmail } from "./operational-purchase-batch-email";
 
 const state = vi.hoisted(() => ({ pool: null as Pool | null, onDay: null as (() => Promise<void>) | null,send: vi.fn(),configured: vi.fn() }));
@@ -86,6 +86,13 @@ describe.skipIf(!connectionString)("atomic whole-purchase batches with PostgreSQ
     const before=await snapshot(),command={decision:'reject',reason:'Dados mudaram; nova conferência necessária',idempotencyKey:'reject-one'};
     const first=await resolvePurchaseAdjustment(id,command,{...actor,manager:true});expect(await resolvePurchaseAdjustment(id,command,{...actor,manager:true})).toEqual(first);
     expect(await snapshot()).toEqual(before);expect((await pool.query('SELECT status FROM purchase_adjustments')).rows[0].status).toBe('rejected');
+  });
+  it('lists only unambiguous open day use destinations, including legacy dates', async () => {
+    await pool.query(`INSERT INTO agenda VALUES(30,'2099-07-22','promo','abe',1),(40,'2099-07-23','padra','fec',1),(50,'2099-07-24','escol','abe',1),(60,'2099-07-25','padra','abe',1);
+      INSERT INTO agenda_extras VALUES(60,123); UPDATE operacao_dias SET estado='closed' WHERE data='2099-07-20'`);
+    expect(await listPurchaseBatchDates()).toEqual(['2099-07-21','2099-07-22']);
+    await pool.query(`INSERT INTO agenda VALUES(31,'2099-07-22','padra','abe',1)`);
+    expect(await listPurchaseBatchDates()).toEqual(['2099-07-21']);
   });
   it("previews without writes then moves all tickets and services at their original prices", async () => {
     const before = await snapshot(); const preview = await previewPurchaseBatch(input);

@@ -34,6 +34,18 @@ it("blocks another cart while this period has an unresolved attempt", () => {
   prepareStoredCashCommand(saleCommandStorageKey(4), { periodId: 4, cpf: "52998224725" });
   const tree = render(); expect(find(tree, (node) => node.type === "a").props.href).toBe("/painel/bilheteria/finalizar?periodId=4"); expect(nodes(tree).some((node) => node.type === "input")).toBe(false);
 });
+it("adds product cards directly and aggregates only undiscounted lines", () => {
+  click(find(render(), node => node.props['aria-label'] === 'Adicionar Armário'));
+  click(find(render(), node => node.props['aria-label'] === 'Adicionar Armário'));
+  let tree = render();
+  expect(nodes(tree).filter(node => node.type === 'input' && node.props.type === 'number').map(node => node.props.value)).toEqual([2]);
+  change(find(tree, node => node.props['aria-label'] === 'CPF do comprador'), '52998224725');
+  click(find(render(), node => node.type === 'button' && plain(node) === 'Finalizar compra'));
+  expect(JSON.parse(memory.get(saleDraftStorageKey(4))!)).toMatchObject({ services: [{ serviceId: 7, quantity: 2, totalValue: '20.00' }] });
+  tree = render();
+  change(find(tree, node => node.type === 'input' && node.props.type === 'number'), '500');
+  expect(find(render(), node => node.props['aria-label'] === 'Adicionar Armário').props.disabled).toBe(true);
+});
 it("enforces the 500-unit total across multiple rows", () => {
   let tree = render(); change(find(tree, (node) => node.props["aria-label"] === "CPF do comprador"), "52998224725");
   for (let i = 0; i < 2; i++) { click(find(render(), (node) => node.type === "button" && plain(node).includes("Nova linha"))); tree = render(); change(find(tree, (node) => node.type === "select" && node.props.value === "" && plain(node).includes("Armário")), "servico:7"); }
