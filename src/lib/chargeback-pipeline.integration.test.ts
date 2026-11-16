@@ -163,7 +163,7 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
 
   afterEach(() => vi.unstubAllEnvs());
 
-  it("imports a webhook, archives and submits once, and updates the outcome on another tick", async () => {
+  it("imports a webhook, archives for human review, alerts once and tracks an external defense", async () => {
     const notification = {
       kind: "new_case",
       idCase: pending.idCase,
@@ -183,15 +183,16 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
     const collectionsBeforeReconciliation = mocks.collect.mock.calls.length;
     const result = await pool.query("SELECT id, status, receipt, submitted_dossier_id FROM chargeback_cases");
     expect(result.rows).toEqual([expect.objectContaining({
-      status: "submitted",
-      receipt: { code: "102", message: "Defesa recebida" },
-      submitted_dossier_id: expect.any(Number),
+      status: "exception",
+      receipt: null,
+      submitted_dossier_id: null,
     })]);
     const dossier = await getChargebackDossier(result.rows[0].id);
     expect(dossier?.filename).toBe(`${pending.idCase}.pdf`);
     expect(dossier?.pdf.subarray(0, 5).toString()).toBe("%PDF-");
-    expect(dossier?.pdf).toEqual(Buffer.from(remoteFile, "base64"));
-    expect(dossier?.sha256).toBe(createHash("sha256").update(Buffer.from(remoteFile, "base64")).digest("hex"));
+    expect(dossier?.sha256).toBe(createHash("sha256").update(dossier!.pdf).digest("hex"));
+    expect(mocks.email).toHaveBeenCalledOnce();
+    expect(mocks.email).toHaveBeenCalledWith(expect.objectContaining({ html: expect.stringContaining("análise humana") }));
     expect((await pool.query("SELECT COUNT(*)::int AS count FROM chargeback_events WHERE kind='new_case' AND processed_at IS NOT NULL")).rows[0].count).toBe(1);
     expect(await runChargebackSync()).toMatchObject({ processed: 0, failed: 0 });
 
@@ -204,7 +205,7 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
     });
     await pool.query("UPDATE chargeback_cases SET next_attempt_at=NOW()");
     expect(await runChargebackSync()).toMatchObject({ processed: 0 });
-    expect(mocks.submit).toHaveBeenCalledOnce();
+    expect(mocks.submit).not.toHaveBeenCalled();
     expect(mocks.collect).toHaveBeenCalledTimes(collectionsBeforeReconciliation);
   });
 
@@ -220,7 +221,7 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
     expect(second.startDate < first.startDate).toBe(true);
   });
 
-  it("submits a known case even when the scan and alert delivery fail", async () => {
+  it("archives a known case for review even when the scan and alert delivery fail", async () => {
     const known = await upsertChargeback(pool, pending);
     const exception = await upsertChargeback(pool, { ...pending, idCase: "102", idChargeback: "202" });
     await pool.query(
@@ -238,15 +239,15 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
     expect((await pool.query("SELECT phase, page FROM chargeback_reconciliation WHERE id=1")).rows[0])
       .toMatchObject({ phase: "PENDING", page: 0 });
     expect(mocks.email).toHaveBeenCalled();
-    expect(mocks.submit).toHaveBeenCalledOnce();
+    expect(mocks.submit).not.toHaveBeenCalled();
     expect((await pool.query("SELECT status, receipt FROM chargeback_cases WHERE id=$1", [known])).rows[0])
-      .toMatchObject({ status: "submitted", receipt: { code: "102" } });
+      .toMatchObject({ status: "exception", receipt: null });
     expect((await pool.query("SELECT status, alert_key FROM chargeback_cases WHERE id=$1", [exception])).rows[0])
       .toMatchObject({ status: "exception", alert_key: null });
   });
 
-  it("does not present a dossier when material evidence changes between collections", async () => {
-    await upsertChargeback(pool, pending);
+  it("archives changed evidence on a later tick without ever transmitting", async () => {
+    const id = await upsertChargeback(pool, pending);
     mocks.collect.mockImplementationOnce(async (chargeback: CieloChargebackCase) => collectedEvidence(chargeback));
     mocks.collect.mockImplementation(async (chargeback: CieloChargebackCase) => {
       const evidence = collectedEvidence(chargeback);
@@ -255,11 +256,13 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
     });
 
     expect(await runChargebackSync()).toMatchObject({ processed: 1, failed: 0 });
+    await pool.query("UPDATE chargeback_cases SET next_attempt_at=NOW() WHERE id=$1", [id]);
+    expect(await runChargebackSync()).toMatchObject({ processed: 1, failed: 0 });
     expect(mocks.collect).toHaveBeenCalledTimes(2);
     expect(mocks.submit).not.toHaveBeenCalled();
     expect((await pool.query("SELECT status, receipt, submitted_dossier_id FROM chargeback_cases")).rows[0])
-      .toMatchObject({ status: "retry", receipt: null, submitted_dossier_id: null });
-    expect((await pool.query("SELECT COUNT(*)::int AS count FROM chargeback_dossiers")).rows[0].count).toBe(1);
+      .toMatchObject({ status: "exception", receipt: null, submitted_dossier_id: null });
+    expect((await pool.query("SELECT COUNT(*)::int AS count FROM chargeback_dossiers")).rows[0].count).toBe(2);
   });
 
   it("reuses the archived dossier when an exception is collected again with unchanged evidence", async () => {
@@ -289,35 +292,12 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
     expect((await getChargebackDossier(id))?.sha256).toBe(first?.sha256);
   });
 
-  it("recovers a receipt write failure from the archived remote PDF without sending again", async () => {
-    await upsertChargeback(pool, pending);
-    await pool.query(`
-      CREATE FUNCTION fail_chargeback_receipt() RETURNS trigger LANGUAGE plpgsql AS $$
-      BEGIN
-        IF OLD.status='submitting' AND NEW.status='submitted' AND NEW.submitted_at IS NOT NULL THEN
-          RAISE EXCEPTION 'test receipt persistence failure';
-        END IF;
-        RETURN NEW;
-      END $$;
-      CREATE TRIGGER fail_chargeback_receipt BEFORE UPDATE ON chargeback_cases
-      FOR EACH ROW EXECUTE FUNCTION fail_chargeback_receipt();
-    `);
-    try {
-      mocks.submit.mockImplementationOnce(async (_chargeback: CieloChargebackCase, pdf: Buffer) => {
-        const { rows } = await pool.query("SELECT status, submitted_dossier_id FROM chargeback_cases");
-        expect(rows[0]).toMatchObject({ status: "submitting", submitted_dossier_id: expect.any(Number) });
-        remoteFile = pdf.toString("base64");
-        return { code: "102" };
-      });
-      expect(await runChargebackSync()).toMatchObject({ processed: 0, failed: 1 });
-      const interrupted = (await pool.query("SELECT status, receipt FROM chargeback_cases")).rows[0];
-      expect(interrupted).toMatchObject({ status: "uncertain", receipt: null });
-      expect(mocks.submit).toHaveBeenCalledOnce();
-      expect(mocks.email).toHaveBeenCalledOnce();
-    } finally {
-      await pool.query("DROP TRIGGER fail_chargeback_receipt ON chargeback_cases; DROP FUNCTION fail_chargeback_receipt()");
-    }
-
+  it("reconciles a legacy uncertain submission without sending again", async () => {
+    const id = await upsertChargeback(pool, pending);
+    const pdf = Buffer.from("%PDF-legacy");
+    const dossierId = await saveChargebackDossier(pool, id, collectedEvidence(pending), pdf, "legacy");
+    await pool.query("UPDATE chargeback_cases SET status='uncertain', submitted_dossier_id=$2 WHERE id=$1", [id, dossierId]);
+    remoteFile = pdf.toString("base64");
     remote = { ...pending, remoteStatus: "DONE", actionTakenCode: "RECUSADO" };
     await pool.query("UPDATE chargeback_cases SET next_attempt_at=NOW()");
     expect(await runChargebackSync()).toMatchObject({ processed: 1, failed: 0 });
@@ -326,7 +306,7 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
       receipt: { confirmedBy: "supportDocument" },
     });
     expect(mocks.document).toHaveBeenCalledOnce();
-    expect(mocks.submit).toHaveBeenCalledOnce();
+    expect(mocks.submit).not.toHaveBeenCalled();
   });
 
   it("runs only one concurrent worker against the same database", async () => {

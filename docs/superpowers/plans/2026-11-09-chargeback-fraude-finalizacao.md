@@ -1,5 +1,25 @@
 # Finalização da preparação de chargebacks de fraude
 
+## Objetivo vigente — decisão de 16/11/2026
+
+Ativar a operação de consultas, webhooks, geração de dossiês e alertas com **análise humana obrigatória para todas as contestações**. Nenhuma defesa pode ser transmitida automaticamente, mesmo quando o conjunto de evidências está completo. A equipe revisa o PDF no painel e apresenta a defesa na Cielo. Esta decisão substitui o objetivo de envio automático e as condições de ativação históricas abaixo.
+
+Aceite: bloquear a transmissão no worker e no cliente Cielo; preservar reconciliação de casos tratados/legados; atualizar painel e instruções; validar testes e revisão independente; publicar no remoto; implantar a release; fazer backup protegido da configuração; ativar flag e tarefa na VM; observar consultas reais e dois ciclos bem-sucedidos. Nenhum dado fictício ou defesa em produção.
+
+**Concluído em 16/11/2026, 11:12 BRT:** política implantada e operação de análise humana ativada. Release `b396540f1ae2043ac4608ebac448332212215562`; [deploy aprovado](https://github.com/ZaqV1-hub/new_rincao_site/actions/runs/43882365887). Flag persistente true e runtime confirmado habilitado; tarefa existente `RincaoChargebackSync-prod` habilitada, intervalo PT5M, estado Ready e LastTaskResult 0. Três execuções reais registradas como success, imported=0, processed=0, failed=0. Nenhuma defesa transmitida.
+
+Validação: 145 testes pertinentes aprovados (incluindo oito de integração com PostgreSQL isolado), seis testes do runner, TypeScript, ESLint e build de produção. Revisão independente somente leitura sem bloqueadores. Verificados bloqueio de chamada direta à antiga API de envio com flag true em ambos os ambientes, caso completo em análise humana, PDF/alerta, deduplicação e acompanhamento de defesa apresentada externamente.
+
+Backup protegido na VM: `C:\SitesData\Rincao\secrets\cielo-chargeback\2899426197-20261105\preparation-20261107\human-review-activation-20261116`, contendo ambiente anterior, ponteiro de release e XML da tarefa. A comparação inicial do runner encontrou somente formatação de fim de linha; o conteúdo normalizado coincide com o repositório. Não houve migração nem mudança de credenciais nesta ativação.
+
+Saúde: robots e login 200 no loopback e no domínio público (IPv4); callbacks externos com cabeçalhos de origem forjados continuam 403. Requisição local de origem autorizada com corpo inválido retorna 400, confirmando receptor habilitado sem persistir evento fictício. Alerta configurado para dev@cluberincao.com.br, SMTP síncrono. Nenhum caso/evento/dossiê real novo até a verificação; nenhum e-mail de caso foi necessário.
+
+Limites: a varredura inicial ainda percorre o histórico desde 2024-01-01; na verificação de 11:12 BRT, o cursor estava na janela 2024-12-01 a 2025-05-29, após consultar as janelas mais recentes sem pendentes. Não confundir isso com conclusão de todo o histórico. Callback legítimo externo e ciclo de um novo caso real ainda não foram observados. A tentativa externa por Python expirou; as verificações IPv4 por curl passaram, sem diagnóstico de causa atribuído. Acompanhar em `/painel/compras/contestacoes`; a equipe revisa o PDF e apresenta a defesa pela Cielo. Futuras ampliações de envio exigem nova decisão explícita.
+
+---
+
+## Registro histórico (políticas anteriores, substituídas acima)
+
 > **For agentic workers:** Use `superpowers:executing-plans` para executar as tarefas sequencialmente. Não habilitar envios reais. Revisão independente somente quando justificada pelo risco e pelas instruções vigentes.
 
 **Goal:** Concluir a cobertura de fraude e a ativação da automação: obter orientação de produto, avaliar as evidências disponíveis, implementar/testar/publicar os ajustes necessários e somente então ativar, após confirmação efetiva da liberação pela Cielo. O usuário já autoriza a ativação final sem nova pergunta; até todas essas condições se confirmarem, manter integração e agendador desligados. Não tornar fraude elegível sem provas suficientes nem declarar cobertura de casos não demonstrada.
@@ -204,3 +224,15 @@ Validação: 34 testes de base; cinco novos testes falharam antes da implementa�
 Sonda real isolada, usando a lista protegida de 44 casos DONE de 01/09–09/11: 43 vinculados, 43 com cadastro, 41 com último login e 28 com compras anteriores, sem erros. Foram 607 consultas SQL somente leitura e 43 GETs E-commerce. Nenhum caso elegível. Após a correção, três casos representativos foram revalidados (49 consultas e três GETs), incluindo cinco asserts SQL com CTE sintética, sem escrita, para CPF diferente/inválido, mesma data, ambos os limites cronológicos e histórico vazio. Três PDFs, três páginas cada, foram inspecionados visualmente. Amostras permanecem fora do Git, em área protegida; nenhum documento foi enviado à Cielo.
 
 VM antes do deploy: release `7d9d4e0`, flag false, tarefa `RincaoChargebackSync-prod` Disabled/Enabled=false, ACL protegida e quatro tabelas da automação vazias. Publicação e conferência pós-deploy ainda pendentes neste registro. O objetivo integral permanece incompleto: não ampliar fraude nem ativar nesta entrega.
+
+Conferência complementar dos pagamentos/vouchers dos mesmos 43 vínculos, sem API: zero payloads com os campos pesquisados de IP/dispositivo/geolocalização e zero vouchers com `identificacao` preenchida. Nome/documento/e-mail declarados estavam presentes; versão/referência/CAVV de autenticação e `Authenticate=true` não estavam. ECI: 20 registros com `0` e 23 com `7`, sem inferir responsabilidade. O inventário não prova ausência desses dados em todo sistema externo: delimita as fontes e a amostra examinadas. Nenhum dado de prontuário, log bruto de erro ou fluxo sem vínculo foi incorporado.
+
+### Publicação das evidências auxiliares concluída — 13/11/2026
+
+Código `594c8b46ed9deb86218f1a7c3948c41878b8ffea` publicado em `main` e `codex/chargeback-additional-evidence`. [Deploy 43507083265](https://github.com/ZaqV1-hub/new_rincao_site/actions/runs/43507083265) concluiu com sucesso em 3m46s; a VM confirmou essa release e Next.js 16.4.5. O build da revisão exata foi aprovado no deploy.
+
+Pós-deploy: `CIELO_CHARGEBACK_ENABLED=false`, tarefa Disabled/Enabled=false, último resultado 267011 (não executada), destinatário de alertas `dev@cluberincao.com.br`, ACL protegida, processo somente em loopback, proteção de origem e sobrescrita do header presentes. Quatro tabelas da automação continuam vazias; nenhuma defesa enviada. Não foi executado o job autenticado. Recursos descartáveis das validações anteriores seguem ausentes.
+
+Checagens externas: `/robots.txt` e `/painel/login` 200; callbacks 403 inclusive com headers forjados; job sem token 401. Checagens locais da VM: ambas as páginas 200 e callbacks com origem confiável 404, confirmando runtime desligado. A primeira checagem HTTPS da VM para seu próprio domínio excedeu 15 segundos; acesso externo e acesso local passaram em checagens independentes. Causa desse timeout não determinada, sem afirmar correção de rede.
+
+Esta entrega de evidências existentes está concluída. A automação integral não está ativada e fraude segue inelegível: contexto de conta/histórico não substitui comprovação do vínculo com o titular. Nenhum contato externo adicional foi enviado. O checkout original em `develop` manteve os arquivos não rastreados de outras tarefas intactos; alterações desta entrega foram realizadas no worktree de sincronização e publicadas. Sem processos de teste/deploy pendentes. Próxima etapa do objetivo integral continua sujeita à confirmação efetiva de liberação e às condições de ativação registradas, sem ampliar fraude sem provas.

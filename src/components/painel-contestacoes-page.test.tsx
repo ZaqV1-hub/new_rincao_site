@@ -8,5 +8,6 @@ it("describes automatic processing and links back to purchases", () => {
 
   expect(html).toContain("Contestação");
   expect(html).toContain("automaticamente");
+  expect(html).toContain("Todas as contestações exigem análise humana");
   expect(html).toContain('href="/painel/compras"');
 });

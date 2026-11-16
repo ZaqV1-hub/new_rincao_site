@@ -261,7 +261,7 @@ describe("chargeback evidence", () => {
 
     configured.mockReturnValue(true);
     querySale.mockResolvedValue(JSON.parse(payment().payload).sale);
-    expect(evaluateChargebackEvidence(await collectChargebackEvidence(chargeback))).toMatchObject({ eligible: true });
+    expect(evaluateChargebackEvidence(await collectChargebackEvidence(chargeback))).toMatchObject({ eligible: false, requiresHumanReview: true, issues: [] });
   });
 
   it.each([
@@ -280,7 +280,7 @@ describe("chargeback evidence", () => {
     });
     expect(evidence.case.process).toBe(process);
     expect(evidence.case.transactionDetails.currency).toBe(currency);
-    expect(evaluateChargebackEvidence(evidence).eligible).toBe(true);
+    expect(evaluateChargebackEvidence(evidence)).toMatchObject({ eligible: false, requiresHumanReview: true, issues: [] });
   });
 
   it.each([

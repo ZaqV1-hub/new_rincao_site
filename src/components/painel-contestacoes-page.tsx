@@ -11,7 +11,7 @@ export function PainelContestacoesPage() {
         </Link>
         <h1 className="mt-4 text-[28px] font-semibold text-[#205a7f]">Contestação de pagamentos Cielo</h1>
         <p className="mt-2 text-sm text-[#345062]">
-          Acompanhe casos por prazo, dossiês arquivados e o resultado da defesa. Os casos elegíveis são processados automaticamente.
+          Acompanhe casos por prazo, dossiês arquivados e o resultado da defesa. Os dossiês são preparados automaticamente. Todas as contestações exigem análise humana antes da apresentação da defesa pela equipe na Cielo.
         </p>
       </header>
       <PainelCompraContestacoes />
