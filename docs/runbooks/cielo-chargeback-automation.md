@@ -4,6 +4,8 @@ O job consulta casos confirmados pela API Cielo, correlaciona a compra, coleta e
 
 **Política autorizada em 16/11/2026:** ativar consultas, recebimento de callbacks, geração de dossiês e alertas, mantendo todo envio automático bloqueado no código. `CIELO_CHARGEBACK_ENABLED=true` habilita apenas esse processamento. A antiga função de apresentação rejeita qualquer chamada antes de autenticação/rede, tanto em sandbox quanto em produção. A política anterior de envio elegível e sua autorização condicional estão substituídas por esta decisão. Ver [plano e registro operacional](../superpowers/plans/2026-11-09-chargeback-fraude-finalizacao.md).
 
+**Estado verificado em 16/11, 11:12 BRT:** release `b396540` ativa; flag true, tarefa habilitada a cada cinco minutos e três execuções bem-sucedidas, sem casos nas janelas consultadas e sem defesas transmitidas. A varredura histórica segue em andamento. Nenhum callback externo legítimo observado nesta validação.
+
 ## 1. Habilitação com a Cielo
 
 Solicitar ao suporte da API de Chargeback, com acompanhamento do gestor comercial:

@@ -6,7 +6,15 @@ Ativar a operação de consultas, webhooks, geração de dossiês e alertas com 
 
 Aceite: bloquear a transmissão no worker e no cliente Cielo; preservar reconciliação de casos tratados/legados; atualizar painel e instruções; validar testes e revisão independente; publicar no remoto; implantar a release; fazer backup protegido da configuração; ativar flag e tarefa na VM; observar consultas reais e dois ciclos bem-sucedidos. Nenhum dado fictício ou defesa em produção.
 
-Estado desta execução: implementação e validação em andamento; registro final de ativação será acrescentado após verificação. Confirmação de callback real continua separada da saúde da consulta periódica.
+**Concluído em 16/11/2026, 11:12 BRT:** política implantada e operação de análise humana ativada. Release `b396540f1ae2043ac4608ebac448332212215562`; [deploy aprovado](https://github.com/ZaqV1-hub/new_rincao_site/actions/runs/43882365887). Flag persistente true e runtime confirmado habilitado; tarefa existente `RincaoChargebackSync-prod` habilitada, intervalo PT5M, estado Ready e LastTaskResult 0. Três execuções reais registradas como success, imported=0, processed=0, failed=0. Nenhuma defesa transmitida.
+
+Validação: 145 testes pertinentes aprovados (incluindo oito de integração com PostgreSQL isolado), seis testes do runner, TypeScript, ESLint e build de produção. Revisão independente somente leitura sem bloqueadores. Verificados bloqueio de chamada direta à antiga API de envio com flag true em ambos os ambientes, caso completo em análise humana, PDF/alerta, deduplicação e acompanhamento de defesa apresentada externamente.
+
+Backup protegido na VM: `C:\SitesData\Rincao\secrets\cielo-chargeback\2899426197-20261105\preparation-20261107\human-review-activation-20261116`, contendo ambiente anterior, ponteiro de release e XML da tarefa. A comparação inicial do runner encontrou somente formatação de fim de linha; o conteúdo normalizado coincide com o repositório. Não houve migração nem mudança de credenciais nesta ativação.
+
+Saúde: robots e login 200 no loopback e no domínio público (IPv4); callbacks externos com cabeçalhos de origem forjados continuam 403. Requisição local de origem autorizada com corpo inválido retorna 400, confirmando receptor habilitado sem persistir evento fictício. Alerta configurado para dev@cluberincao.com.br, SMTP síncrono. Nenhum caso/evento/dossiê real novo até a verificação; nenhum e-mail de caso foi necessário.
+
+Limites: a varredura inicial ainda percorre o histórico desde 2024-01-01; na verificação de 11:12 BRT, o cursor estava na janela 2024-12-01 a 2025-05-29, após consultar as janelas mais recentes sem pendentes. Não confundir isso com conclusão de todo o histórico. Callback legítimo externo e ciclo de um novo caso real ainda não foram observados. A tentativa externa por Python expirou; as verificações IPv4 por curl passaram, sem diagnóstico de causa atribuído. Acompanhar em `/painel/compras/contestacoes`; a equipe revisa o PDF e apresenta a defesa pela Cielo. Futuras ampliações de envio exigem nova decisão explícita.
 
 ---
 
