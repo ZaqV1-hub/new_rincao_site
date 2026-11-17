@@ -40,17 +40,26 @@ async function refreshCase(payload: CieloChargebackCase) {
   return done;
 }
 
+function isFinalLifecycleAction(action: string | null) {
+  return ["a favor do estabelecimento", "a favor do emissor"].includes(action?.trim().toLocaleLowerCase("pt-BR") ?? "");
+}
+
 async function saveLifecycle(client: ChargebackQuery, row: StoredChargeback, current: CieloChargebackCase) {
   const lifecycle = await getCieloChargebackLifecycle(current.idCase);
   const entries = Array.isArray(lifecycle) ? lifecycle : [lifecycle];
-  const latest = entries.filter((entry) => entry && typeof entry === "object")
-    .sort((a, b) => String(a.actionDate ?? "").localeCompare(String(b.actionDate ?? ""))).at(-1);
-  const message = typeof latest?.action === "string" ? latest.action : typeof latest?.message === "string" ? latest.message : null;
+  const actions = entries.filter((entry) => entry && typeof entry === "object").map((entry) => ({
+    date: String(entry.actionDate ?? ""),
+    message: typeof entry.action === "string" ? entry.action : typeof entry.message === "string" ? entry.message : null,
+  }));
+  // Cielo can report the final decision and the preceding review on the same date.
+  actions.sort((a, b) => b.date.localeCompare(a.date) ||
+    Number(isFinalLifecycleAction(b.message)) - Number(isFinalLifecycleAction(a.message)));
+  const message = actions[0]?.message ?? null;
   await client.query(
     `UPDATE chargeback_cases SET lifecycle=$2::jsonb,result_message=$3,payload=$4::jsonb,
      last_synced_at=NOW(),updated_at=NOW() WHERE id=$1`, [row.id, JSON.stringify(lifecycle), message, JSON.stringify(current)],
   );
-  return ["a favor do estabelecimento", "a favor do emissor"].includes(message?.trim().toLocaleLowerCase("pt-BR") ?? "");
+  return isFinalLifecycleAction(message);
 }
 
 function materialEvidence(value: Awaited<ReturnType<typeof collectChargebackEvidence>>) {

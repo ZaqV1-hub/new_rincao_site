@@ -55,6 +55,25 @@ describe("automatic chargeback processing", () => {
     expect(mocks.submit).not.toHaveBeenCalled();
     expect(mocks.update).toHaveBeenCalledWith(expect.anything(), 1, "remote_done", null, expect.any(Number));
   });
+  it.each([
+    { finalAction: "A favor do Emissor", reviewDate: "2026-11-06", message: "A favor do Emissor", status: "resolved" },
+    { finalAction: "A favor do Estabelecimento", reviewDate: "2026-11-06", message: "A favor do Estabelecimento", status: "resolved" },
+    { finalAction: "A favor do Emissor", reviewDate: "2026-11-07", message: "Em análise com a Cielo", status: "remote_done" },
+  ])("stores $message when the review event is dated $reviewDate", async ({ finalAction, reviewDate, message, status }) => {
+    const payload = { ...row.payload, remoteStatus: "DONE" as const };
+    mocks.list.mockResolvedValue([payload]);
+    mocks.lifecycle.mockResolvedValue([
+      { action: finalAction, actionDate: "2026-11-06" },
+      { action: "Em análise com a Cielo", actionDate: reviewDate },
+      { action: "Em análise com o Cliente", actionDate: "2026-10-30" },
+    ]);
+
+    await processChargeback({ query: mocks.query }, { ...row, payload, status: "remote_done" });
+
+    expect(mocks.query).toHaveBeenCalledWith(expect.stringContaining("result_message=$3"), [1, expect.any(String), message, expect.any(String)]);
+    expect(mocks.update).toHaveBeenCalledWith(expect.anything(), 1, status, null, 360);
+    expect(mocks.submit).not.toHaveBeenCalled();
+  });
   it("reconciles its own archived PDF when an uncertain submission becomes DONE", async () => {
     const pdf = Buffer.from("%PDF-test");
     mocks.list.mockResolvedValue([{ ...row.payload, remoteStatus: "DONE" }]);
