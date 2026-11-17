@@ -81,6 +81,10 @@ function buildComprasHref(filters: PainelPurchaseListFilters, page: number) {
     params.set("tpcompra", filters.type);
   }
 
+  if (filters.originCheckout) {
+    params.set("origem_checkout", filters.originCheckout);
+  }
+
   if (filters.purchaseStatus) {
     params.set("stcompra", filters.purchaseStatus);
   }

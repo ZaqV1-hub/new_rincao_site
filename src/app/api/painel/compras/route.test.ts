@@ -40,6 +40,7 @@ describe("GET /api/painel/compras", () => {
         userName: null,
         dateFrom: null,
         dateTo: null,
+        originCheckout: "lumi",
       },
       items: [
         {
@@ -47,6 +48,7 @@ describe("GET /api/painel/compras", () => {
           purchaseDate: "06/05/2026",
           type: "bilhe",
           typeLabel: "Bilheteria",
+          originLabel: "Lumi",
           status: "conc",
           statusLabel: "Concluida",
           paymentMethodLabel: "PIX",
@@ -60,7 +62,7 @@ describe("GET /api/painel/compras", () => {
 
     const { GET } = await import("@/app/api/painel/compras/route");
     const response = await GET(
-      new Request("https://example.com/api/painel/compras?page=1"),
+      new Request("https://example.com/api/painel/compras?page=1&origem_checkout=lumi"),
     );
     const body = await response.json();
 
@@ -72,6 +74,7 @@ describe("GET /api/painel/compras", () => {
       page: "1",
       filters: {
         page: "1",
+        origem_checkout: "lumi",
       },
     });
     expect(response.status).toBe(200);
@@ -93,6 +96,7 @@ describe("GET /api/painel/compras", () => {
           userName: null,
           dateFrom: null,
           dateTo: null,
+          originCheckout: "lumi",
         },
         items: [
           {
@@ -100,6 +104,7 @@ describe("GET /api/painel/compras", () => {
             purchaseDate: "06/05/2026",
             type: "bilhe",
             typeLabel: "Bilheteria",
+            originLabel: "Lumi",
             status: "conc",
             statusLabel: "Concluida",
             paymentMethodLabel: "PIX",

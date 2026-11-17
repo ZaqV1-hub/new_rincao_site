@@ -22,6 +22,7 @@ export type PainelPurchaseListFilters = {
   gatewayStatus: string | null;
   cpf: string | null;
   userName: string | null;
+  originCheckout?: string | null;
   dateFrom: string | null;
   dateTo: string | null;
 };
@@ -33,6 +34,7 @@ export type PainelPurchaseListItem = {
   paymentTime: string | null;
   type: string;
   typeLabel: string;
+  originLabel?: string | null;
   status: string;
   statusLabel: string;
   paymentMethodLabel: string;
@@ -209,6 +211,7 @@ type PainelPurchaseListFilterInput = Record<string, unknown> & {
   status?: unknown;
   cpf?: unknown;
   nmusuario?: unknown;
+  origem_checkout?: unknown;
   "dtcompra[de]"?: unknown;
   "dtcompra[ate]"?: unknown;
   dtcompra?: LegacyDateRangeShape;
@@ -237,6 +240,7 @@ type PainelPurchaseListRow = {
   idcompra: number;
   dtcompra: string | null;
   tpcompra: string | null;
+  origem_checkout: string | null;
   stcompra: string | null;
   formapag: string | null;
   idpagseguro: number | null;
@@ -353,7 +357,7 @@ const ticketPaymentMethodLabels: Record<string, string> = {
 };
 
 const gatewayPaymentMethodLabels: Record<string, string> = {
-  "1": "Cartao de credito",
+  "1": "Cartão de crédito",
   "2": "Boleto",
   "3": "Cartão de débito",
   "11": "Pix",
@@ -510,6 +514,7 @@ function normalizeWhereFilters(
     gatewayStatus: normalizePainelCompraScalarFilterValue(filters.gatewayStatus),
     cpf: normalizeCpf(filters.cpf),
     userName: normalizePainelCompraScalarFilterValue(filters.userName),
+    originCheckout: normalizeCheckoutOrigin(filters.originCheckout),
     dateFrom: normalizePainelCompraDateFilterValue(filters.dateFrom),
     dateTo: normalizePainelCompraDateFilterValue(filters.dateTo),
   };
@@ -752,6 +757,9 @@ function buildPurchaseListItem(row: PainelPurchaseListRow): PainelPurchaseListIt
     paymentTime: row.hrpagamento ? String(row.hrpagamento).slice(0, 8) : null,
     type,
     typeLabel: formatPurchaseTypeLabel(type),
+    originLabel: String(row.origem_checkout ?? "").trim().toLowerCase() === "lumi"
+      ? "Lumi"
+      : null,
     status,
     statusLabel: formatPurchaseStatusLabel(status),
     paymentMethodLabel: resolvePaymentMethodLabel(row),
@@ -760,6 +768,10 @@ function buildPurchaseListItem(row: PainelPurchaseListRow): PainelPurchaseListIt
     userName: row.nmusuario,
     totalValue: formatMoneyLabel(row.vltotcompra),
   };
+}
+
+function normalizeCheckoutOrigin(value: unknown) {
+  return normalizePainelCompraScalarFilterValue(value)?.toLowerCase() === "lumi" ? "lumi" : null;
 }
 
 export function normalizePainelPurchaseListFilters(
@@ -777,6 +789,7 @@ export function normalizePainelPurchaseListFilters(
     gatewayStatus: normalizePainelCompraScalarFilterValue(input.status),
     cpf: normalizeCpf(normalizePainelCompraScalarFilterValue(input.cpf)),
     userName: normalizePainelCompraScalarFilterValue(input.nmusuario),
+    originCheckout: normalizeCheckoutOrigin(input.origem_checkout),
     dateFrom: resolveDateRangeValue(input, "de"),
     dateTo: resolveDateRangeValue(input, "ate"),
   };
@@ -836,6 +849,10 @@ export function buildPainelPurchaseListWhere(
 
   if (normalizedFilters.type) {
     clauses.push(`compra.tpcompra = '${escapeSqlLiteral(normalizedFilters.type)}'`);
+  }
+
+  if (normalizedFilters.originCheckout === "lumi") {
+    clauses.push("compra.origem_checkout = 'lumi'");
   }
 
   if (normalizedFilters.purchaseStatus) {
@@ -1011,6 +1028,7 @@ export async function listPainelPurchases(input: {
         compra.idcompra,
         compra.dtcompra::text AS dtcompra,
         compra.tpcompra,
+        compra.origem_checkout,
         ${purchaseDisplayStatusSql("compra")} AS stcompra,
         compra.formapag,
         compra.vltotcompra::text AS vltotcompra,
@@ -1269,6 +1287,7 @@ export function mapPainelPurchaseListExportRows(result: PainelPurchaseListResult
         "ID",
         "Data",
         "Tipo",
+        "Origem",
         "Status",
         "Pagamento",
         "Data de pagamento",
@@ -1281,6 +1300,7 @@ export function mapPainelPurchaseListExportRows(result: PainelPurchaseListResult
       String(item.purchaseId),
       item.purchaseDate ?? "-",
       item.typeLabel,
+      item.originLabel ?? "-",
       item.statusLabel,
       item.paymentLabel,
       item.paymentDate ?? "-",

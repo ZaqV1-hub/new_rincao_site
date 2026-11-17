@@ -57,12 +57,14 @@ describe("normalizePainelPurchaseListFilters", () => {
       "dtcompra[ate]": "07/05/2026",
       idcompra: "551",
       formapag: "pix",
+      origem_checkout: "Lumi",
     });
 
     expect(filters.purchaseId).toBe("551");
     expect(filters.dateFrom).toBe("01/05/2026");
     expect(filters.dateTo).toBe("07/05/2026");
     expect(filters.ticketPaymentMethod).toBe("pix");
+    expect(filters.originCheckout).toBe("lumi");
   });
 });
 
@@ -208,6 +210,17 @@ describe("buildPainelPurchaseListWhere", () => {
 
     expect(sql).toBe("");
   });
+
+  it("filters Lumi origin without changing the technical purchase type", () => {
+    const { sql } = buildPainelPurchaseListWhere({
+      type: "ponli",
+      originCheckout: "lumi",
+    });
+
+    expect(normalizeSql(sql)).toBe(
+      "compra.tpcompra = 'ponli' AND compra.origem_checkout = 'lumi'",
+    );
+  });
 });
 
 describe("buildPainelPurchaseVoucherListWhere", () => {
@@ -254,6 +267,7 @@ describe("mapPainelPurchaseListExportRows", () => {
           paymentTime: "14:32:11",
           type: "ponli",
           typeLabel: "Compra",
+          originLabel: "Lumi",
           status: "conc",
           statusLabel: "Concluida",
           paymentMethodLabel: "PIX",
@@ -286,6 +300,7 @@ describe("mapPainelPurchaseListExportRows", () => {
         "ID",
         "Data",
         "Tipo",
+        "Origem",
         "Status",
         "Pagamento",
         "Data de pagamento",
@@ -298,6 +313,7 @@ describe("mapPainelPurchaseListExportRows", () => {
         "551",
         "06/05/2026",
         "Compra",
+        "Lumi",
         "Concluida",
         "Paga",
         "07/05/2026",
@@ -392,6 +408,45 @@ describe("mapPainelPurchaseVoucherListExportRows", () => {
 });
 
 describe("listPainelPurchases", () => {
+  it("exibe a origem Lumi e o débito confirmado sem alterar o tipo técnico", async () => {
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("COUNT(*)::text AS total")) {
+        return { rows: [{ total: "1" }] };
+      }
+
+      return {
+        rows: [
+          {
+            idcompra: 900000052,
+            dtcompra: "2026-10-30",
+            tpcompra: "ponli",
+            origem_checkout: "lumi",
+            stcompra: "conc",
+            formapag: "pgseg",
+            idpagseguro: "payment-900000052",
+            paymentmethodtype: 3,
+            status: 3,
+            dtpagamento: "2026-10-30",
+            hrpagamento: "10:00:00",
+            cpf: null,
+            nmusuario: null,
+            vltotcompra: "2.00",
+          },
+        ],
+      };
+    });
+
+    const result = await listPainelPurchases({ filters: {} });
+
+    expect(result.items[0]).toMatchObject({
+      purchaseId: 900000052,
+      type: "ponli",
+      typeLabel: "Compra",
+      originLabel: "Lumi",
+      paymentMethodLabel: "Cartão de débito",
+    });
+  });
+
   it("loads the main purchase list with legacy mapping and pagination", async () => {
     mocks.query.mockImplementation(async (sql: string) => {
       if (sql.includes("COUNT(*)::text AS total")) {
@@ -407,6 +462,7 @@ describe("listPainelPurchases", () => {
             idcompra: 551,
             dtcompra: "2026-05-06",
             tpcompra: "bilhe",
+            origem_checkout: "lumi",
             stcompra: "conc",
             formapag: "pix",
             idpagseguro: null,
@@ -440,6 +496,7 @@ describe("listPainelPurchases", () => {
           paymentTime: "10:15:00",
           type: "bilhe",
           typeLabel: "Bilheteria",
+          originLabel: "Lumi",
           status: "conc",
           statusLabel: "Concluida",
           paymentMethodLabel: "PIX",
@@ -465,6 +522,7 @@ describe("listPainelPurchases", () => {
         userName: null,
         dateFrom: null,
         dateTo: null,
+        originCheckout: null,
       },
     });
 
@@ -574,7 +632,7 @@ describe("getPainelPurchaseDetail", () => {
       status: "conc",
       statusLabel: "Concluida",
       paymentLabel: "Cielo 3 - Paga",
-      paymentMethodLabel: "Cartao de credito",
+      paymentMethodLabel: "Cartão de crédito",
       paymentDate: "07/05/2026",
       paymentTime: "14:32:11",
       totalValue: "80,00",
@@ -673,7 +731,7 @@ describe("getPainelPurchaseGatewayConsult", () => {
       pixTxId: null,
       pixNsu: null,
       pixTid: null,
-      paymentMethodLabel: "Cartao de credito",
+      paymentMethodLabel: "Cartão de crédito",
       grossAmount: "80,00",
       feeAmount: "0,00",
       netAmount: "80,00",
