@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadOperationalDayOffer } from "@/lib/operational-day-offer";
+import { loadOperationalDayOffer, loadOperationalServiceOffer } from "@/lib/operational-day-offer";
 import type { PurchaseAgendaDetail } from "@/lib/purchase-contracts";
 const mock = vi.hoisted(() => ({ pool: null as Pool | null }));
 vi.mock("@/lib/ingresso-db", () => ({ getIngressoSistemaDbPool: () => mock.pool }));
@@ -28,6 +28,7 @@ describe.skipIf(!connectionString)("operational offer with PostgreSQL", () => {
     pool = new Pool({ connectionString, options: `-c search_path=${schema}`, connectionTimeoutMillis: 2000 });
     mock.pool = pool;
     await pool.query(`
+      CREATE TABLE agenda (idagenda INTEGER PRIMARY KEY, dtagenda DATE, tpagenda TEXT, stagenda TEXT);
       CREATE TABLE operacao_dias (parque TEXT, data DATE, day_use_agenda_id INTEGER, tabela_preco_id INTEGER,
         validade TEXT, tipos_ingresso JSONB, estado TEXT, PRIMARY KEY (parque,data));
       CREATE TABLE servicos_adicionais (id BIGINT PRIMARY KEY, parque TEXT, nome TEXT, descricao TEXT,
@@ -41,7 +42,7 @@ describe.skipIf(!connectionString)("operational offer with PostgreSQL", () => {
   });
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao");
-    await pool.query(`TRUNCATE operacao_dias,servicos_adicionais,servico_datas;
+    await pool.query(`TRUNCATE agenda,operacao_dias,servicos_adicionais,servico_datas;
       INSERT INTO operacao_dias VALUES ('rincao','2099-01-31',12,7,'7_days','["norma","isent"]','open'),
         ('estancia','2099-01-31',12,7,'day','["infan"]','open');
       INSERT INTO servicos_adicionais VALUES
@@ -72,6 +73,15 @@ describe.skipIf(!connectionString)("operational offer with PostgreSQL", () => {
     const legacy = await loadOperationalDayOffer(agenda);
     expect(legacy.products.map(({ type }) => type)).toEqual(["passport", "passport", "passport"]);
     expect(legacy.validity).toBeNull();
+  });
+  it("offers only services on a configured group date or closed public agenda, without opening admission", async () => {
+    await pool.query("INSERT INTO agenda VALUES (12,'2099-01-31','padra','fec')");
+    expect(await loadOperationalServiceOffer(agenda.date)).toMatchObject({ agendaId: 12, products: [{ id: "servico:1" }, { id: "servico:3" }, { id: "servico:4" }] });
+    await pool.query("UPDATE operacao_dias SET day_use_agenda_id=NULL WHERE parque='rincao'; UPDATE agenda SET tpagenda='escol',stagenda='abe'");
+    expect(await loadOperationalServiceOffer(agenda.date)).toMatchObject({ agendaId: 12, products: [{ id: "servico:1" }, { id: "servico:3" }, { id: "servico:4" }] });
+    expect((await pool.query("SELECT tpagenda,stagenda FROM agenda")).rows).toEqual([{ tpagenda: "escol", stagenda: "abe" }]);
+    await pool.query("UPDATE operacao_dias SET estado='closed' WHERE parque='rincao'");
+    expect(await loadOperationalServiceOffer(agenda.date)).toEqual({ agendaId: null, products: [] });
   });
   it("locks service prices until the purchase transaction completes", async () => {
     const purchase = await pool.connect();

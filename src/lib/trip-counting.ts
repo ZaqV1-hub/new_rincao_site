@@ -17,9 +17,10 @@ type Revision = { id: string; status: 'draft' | 'completed'; ownerCpf: string | 
   pcdDetails: CountDraft['pcdDetails']; notes: string; responsibleName: string; responsiblePhone: string; contactConfirmed: boolean; completedAt: string | null;
   catalogVersion: number; startedAt: Date; draftSaved: boolean };
 export type CountingVehicleDetail = Vehicle & {
-  closed: boolean; today: string; startedAt: string | null; draftSubtotal: number | null;
+  cancelled: boolean; closed: boolean; today: string; startedAt: string | null; draftSubtotal: number | null;
   revision: { id: string; status: string; ownerName: string | null; ownedByMe: boolean; draft: CountDraft;
     total: number | null; completedAt: string | null; startedAt: string; catalogVersion: number; canReadSignature: boolean } | null;
+  historyEvents: { id: number; action: 'takeover' | 'recount'; actorName: string | null; previousOwnerName: string | null; previousRevisionId: string | null; reason: string; at: string }[];
   history: { id: string; ownerName: string | null; completedAt: string; canReadSignature: boolean }[];
 };
 type CountingDayGroup = { agendaId: number; clientId: number; clientName: string; groupType: GroupType; foodNotes: string | null;
@@ -103,6 +104,7 @@ async function lockTrip(client: PoolClient,agendaId: number,clientId: number,act
 }
 const groupType = `CASE WHEN btrim(to_jsonb(a)->>'tpagenda')='escol' THEN 'school'
   WHEN btrim(to_jsonb(a)->>'tpagenda') IN ('igrej','casam','melho','confr','ongs','grmix') THEN 'group' END`;
+const activeTrip = `COALESCE(btrim(a.stagenda),'') NOT IN ('can','canc','ina','inat') AND COALESCE(btrim(to_jsonb(ae)->>'stagenda_cli'),'') NOT IN ('can','canc','ina','inat')`;
 const tripTransport = `CASE WHEN o.transport_mode='client' THEN 'Transporte do cliente' ELSE carrier.nome END`;
 const vehicleColumns = `v.id::text,v.agenda_id AS "agendaId",v.cliente_id AS "clientId",a.dtagenda::text AS date,c.nome AS "clientName",v.tipo AS type,
   v.planned_people AS "plannedPeople",v.estado AS state,v.versao AS version,v.added_on_day AS "addedOnDay",v.is_extra AS "isExtra",v.ordinal,
@@ -129,9 +131,9 @@ function revisionDraft(revision: Revision): CountDraft {
     responsible: { name: revision.responsibleName,phone: revision.responsiblePhone,confirmed: revision.contactConfirmed } },revision.status === 'completed',
   { catalogVersion: revision.catalogVersion,reading: true });
 }
-async function audit(client: PoolClient,vehicle: Pick<Vehicle,'id' | 'version' | 'agendaId' | 'clientId'>,action: string,actor: CountingActor,reason: string,revisionId: string | null,signature?: CountingSignature) {
+async function audit(client: PoolClient,vehicle: Pick<Vehicle,'id' | 'version' | 'agendaId' | 'clientId'>,action: string,actor: CountingActor,reason: string,revisionId: string | null,signature?: CountingSignature,previous?: Revision | null) {
   await registerOpsAuditLog(client,{ origem: 'painel-contagem',acao: action,descricao: `Contagem do veículo #${vehicle.id}.`,motivo: reason || 'Contagem operacional',usuarioNome: actor.name,
-    detalhes: { vehicleId: vehicle.id,agendaId: vehicle.agendaId,clientId: vehicle.clientId,version: vehicle.version,revisionId,actorCpf: actor.cpf,...(signature ? { signatureHash: signature.hash } : {}) } },'postgres');
+    detalhes: { vehicleId: vehicle.id,agendaId: vehicle.agendaId,clientId: vehicle.clientId,version: vehicle.version,revisionId,actorCpf: actor.cpf,...(previous ? { previousOwnerName: previous.ownerName,previousOwnerCpf: previous.ownerCpf,previousRevisionId: previous.id } : {}),...(signature ? { signatureHash: signature.hash } : {}) } },'postgres');
 }
 async function newRevision(client: PoolClient,vehicle: Vehicle,actor: CountingActor) {
   const id = randomUUID(),counts = Object.fromEntries(countCategories.map(key => [key,0]));
@@ -183,7 +185,7 @@ export async function changeTripCount(id: number,action: CountAction,value: unkn
     }
     await client.query(`UPDATE passeio_veiculos SET current_count_id=$2,estado=$3,versao=versao+1,
       last_completed_count_id=CASE WHEN $3='completed' THEN $2 ELSE last_completed_count_id END WHERE id=$1 AND parque=$4`,[id,revisionId,state,getOperationalParkId()]);
-    await audit(client,{ ...vehicle,version: version+1 },action,actor,reason,revisionId,signature ?? undefined);
+    await audit(client,{ ...vehicle,version: version+1 },action,actor,reason,revisionId,signature ?? undefined,['takeover','recount'].includes(action) ? revision : null);
     await assertEditable(client,date,actor,reason);
     return { vehicleId: id,version: version+1,revisionId,state };
   });
@@ -210,11 +212,17 @@ export async function getCountingVehicle(id: number,actor: CountingActor): Promi
     const vehicle = await readVehicle(client,id),revision = await readRevision(client,vehicle.currentRevision),day = await dayState(client,vehicle.date);
     const history = (await client.query<{ id: string; ownerCpf: string; ownerName: string | null; completedAt: string }>(`SELECT id,owner_cpf AS "ownerCpf",owner_name AS "ownerName",completed_at::text AS "completedAt"
       FROM passeio_contagens WHERE parque=$1 AND vehicle_id=$2 AND status='completed' ORDER BY completed_at DESC`,[getOperationalParkId(),id])).rows;
+    const cancelled = !(await client.query<{ active: boolean }>(`SELECT (${activeTrip}) AS active FROM agenda a JOIN agenda_extras ae ON ae.idagenda=a.idagenda WHERE a.idagenda=$1 AND ae.idcliente=$2`,[vehicle.agendaId,vehicle.clientId])).rows[0]?.active;
+    const hasAudit = (await client.query<{ available: boolean }>("SELECT to_regclass('edicoes_log') IS NOT NULL AS available")).rows[0].available;
+    const historyEvents = hasAudit ? (await client.query<CountingVehicleDetail['historyEvents'][number]>(`SELECT e.id,e.acao AS action,e.usuario_nome AS "actorName",e.motivo AS reason,e.created_at::text AS at,
+      NULLIF(e.detalhes_json,'')::jsonb->>'previousOwnerName' AS "previousOwnerName",NULLIF(e.detalhes_json,'')::jsonb->>'previousRevisionId' AS "previousRevisionId"
+      FROM edicoes_log e WHERE e.origem='painel-contagem' AND e.acao IN ('takeover','recount')
+      AND (CASE WHEN e.origem='painel-contagem' AND e.acao IN ('takeover','recount') THEN NULLIF(e.detalhes_json,'')::jsonb->>'vehicleId' END)=$1 ORDER BY e.id DESC`,[String(id)])).rows : [];
     const draft = revision ? revisionDraft(revision) : null;
     const subtotal = draft && Object.values(draft.counts).some(value => value !== null)
       ? countCategories.reduce((sum,key) => sum+(draft.counts[key] ?? 0),0) : null;
     const startedAt = revision?.startedAt.toISOString() ?? null;
-    return { ...vehicle,...day,startedAt,draftSubtotal: revision?.status === 'draft' && revision.draftSaved ? subtotal : null,
+    return { ...vehicle,...day,cancelled,historyEvents,startedAt,draftSubtotal: revision?.status === 'draft' && revision.draftSaved ? subtotal : null,
       revision: revision && draft ? { id: revision.id,status: revision.status,ownerName: revision.ownerName,ownedByMe: revision.ownerCpf === actor.cpf,
       draft,total: revision.status === 'completed' && vehicle.state === 'completed' ? subtotal : null,startedAt: revision.startedAt.toISOString(),catalogVersion: revision.catalogVersion,
       completedAt: revision.completedAt,canReadSignature: revision.status === 'completed' } : null,
@@ -244,7 +252,7 @@ export async function readCountingDay(client: PoolClient,date: string): Promise<
     FROM agenda_extras ae JOIN agenda a ON a.idagenda=ae.idagenda JOIN clientes c ON c.idcliente=ae.idcliente
     LEFT JOIN passeio_operacao o ON o.parque=$1 AND o.agenda_id=ae.idagenda AND o.cliente_id=ae.idcliente
     LEFT JOIN transportadores carrier ON carrier.parque=o.parque AND carrier.id=o.carrier_id
-    WHERE a.dtagenda=$2::date ORDER BY c.nome,ae.idagenda,ae.idcliente`,[park,date])).rows;
+    WHERE a.dtagenda=$2::date AND ${activeTrip} ORDER BY c.nome,ae.idagenda,ae.idcliente`,[park,date])).rows;
   const vehicles = (await client.query<Omit<Vehicle,'id'> & { id: string; total: number | null; draftSubtotal: number | null; ownerName: string | null; startedAt: Date | null }>(
     `SELECT ${vehicleColumns},n.owner_name AS "ownerName",n.created_at AS "startedAt",
       CASE WHEN v.estado='completed' AND n.status='completed' THEN subtotal.people END AS total,

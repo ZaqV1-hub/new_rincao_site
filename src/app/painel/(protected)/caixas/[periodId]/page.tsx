@@ -5,7 +5,7 @@ import { PainelBilheteriaSalesBuilder } from "@/components/painel-bilheteria-sal
 import { getCashSession, CashSessionError } from "@/lib/operational-cash-session";
 import { getSaoPauloToday } from "@/lib/operational-date";
 import { getBilheteriaAgendaStatusToday } from "@/lib/bilheteria-agenda";
-import { loadOperationalDayOffer } from "@/lib/operational-day-offer";
+import { loadOperationalDayOffer, loadOperationalServiceOffer } from "@/lib/operational-day-offer";
 import { requirePainelAccess } from "@/lib/painel-session";
 import { lookupPainelBilheteriaTicketByVoucherId, PainelBilheteriaWorkstationError } from "@/lib/painel-bilheteria-workstation";
 
@@ -23,17 +23,17 @@ export default async function CashSessionPage({ params, searchParams }: { params
     return <section className="space-y-3"><h1 className="text-2xl font-bold">Caixa indisponível</h1><p role="alert">Não foi possível consultar esta sessão.</p><Link className="underline" href="/painel/caixas">Voltar aos caixas</Link></section>;
   }
   const today = getSaoPauloToday(), writable = session.closedAt === null && session.date === today;
-  let saleData: { agendas: Awaited<ReturnType<typeof getBilheteriaAgendaStatusToday>>["openAgendas"]; products: Awaited<ReturnType<typeof loadOperationalDayOffer>>["products"] } | null = null;
+  let saleData: { serviceAgendaId: number | null; agendas: Awaited<ReturnType<typeof getBilheteriaAgendaStatusToday>>["openAgendas"]; products: Awaited<ReturnType<typeof loadOperationalDayOffer>>["products"] } | null = null;
   let saleError = false;
   if (writable && session.type === "sales") {
     try {
       const { openAgendas } = await getBilheteriaAgendaStatusToday();
       const agenda = openAgendas[0];
-      const offer = agenda ? await loadOperationalDayOffer(agenda, undefined, "gate") : { products: [] };
-      saleData = { agendas: openAgendas, products: offer.products };
+      const offer = agenda ? { ...await loadOperationalDayOffer(agenda, undefined, "gate"), agendaId: agenda.id } : await loadOperationalServiceOffer(session.date);
+      saleData = { agendas: openAgendas, serviceAgendaId: offer.agendaId, products: offer.products };
     } catch { saleError = true; }
   }
-  const sale = saleError ? <p role="alert">Não foi possível consultar a oferta desta data. Consulte novamente antes de vender.</p> : saleData ? <PainelBilheteriaSalesBuilder periodId={session.id} today={today} agendas={saleData.agendas} products={saleData.products} /> : <p>O caixa não está disponível para novas vendas.</p>;
+  const sale = saleError ? <p role="alert">Não foi possível consultar a oferta desta data. Consulte novamente antes de vender.</p> : saleData ? <PainelBilheteriaSalesBuilder periodId={session.id} today={today} agendas={saleData.agendas} products={saleData.products} serviceAgendaId={saleData.serviceAgendaId} /> : <p>O caixa não está disponível para novas vendas.</p>;
   const query = await searchParams;
   let lookup;
   if (typeof query.ingresso === "string" && session.type === "sales") {

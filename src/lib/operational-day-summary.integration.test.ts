@@ -112,7 +112,7 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
   it("sums net sold snapshots once with multiple payments and groups, excluding school and pending purchases", async () => {
     await pool.query(`INSERT INTO servicos_adicionais (parque,nome,preco_bilheteria) VALUES ('rincao','Serviço',25);
       INSERT INTO agenda VALUES (2,1,'2099-11-15','escol','abe');
-      INSERT INTO agenda_extras VALUES (2,10),(2,20);
+      INSERT INTO agenda_extras VALUES (1,10),(1,20);
       INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES (1,'ponli','conc','pgseg',85,15),(2,'bilhe','conc','dinhe',50,10),(3,'ponli','conc','pgseg',200,0),(4,'ponli','pend','pgseg',900,0);
       INSERT INTO compra_pagamentos(idcompra,forma_pagamento,valor) VALUES (1,'pix',40),(1,'credi',45);
       INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,vldesc) VALUES (1,1,'norma',60,-15),(2,1,'infan',50,NULL),(4,1,'norma',900,NULL);
@@ -122,8 +122,22 @@ describe.skipIf(!connectionString)("operational summary PostgreSQL", () => {
     const result = await getOperationalDaySummary(date);
     expect(result.revenue).toMatchObject({ siteNetCents: { value: 6000 }, gateNetCents: { value: 5000 }, servicesNetCents: { value: 2500 }, unclassifiedNetCents: { value: 0 }, knownSubtotalCents: 13500 });
     expect(result.groupCount).toBe(2);
+    await pool.query("ALTER TABLE compra ADD COLUMN checkout_school_site_context jsonb; UPDATE compra SET checkout_school_site_context='{}' WHERE idcompra=1");
+    try { expect((await getOperationalDaySummary(date)).revenue.siteNetCents.value).toBe(0); }
+    finally {await pool.query('ALTER TABLE compra DROP COLUMN checkout_school_site_context');}
     expect(result.forecast.ticketsForSelectedDate).toMatchObject({ value: 2 });
     expect(result.attendance.dayUseAdmitted).toMatchObject({ value: 0 });
+  });
+  it("keeps service revenue on group-only dates without turning services or pupils into admissions", async () => {
+    await pool.query(`UPDATE agenda SET tpagenda='escol';
+      INSERT INTO servicos_adicionais(parque,nome,preco_bilheteria) VALUES ('rincao','Almoço',25);
+      INSERT INTO compra(idcompra,tpcompra,stcompra,formapag,vltotcompra,vltotdesc) VALUES (1,'bilhe','conc','pix',75,0);
+      INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,servico_id,idescola,stusado,dtuso,parque_operacional,dtinicio_validade,dtvalidade) VALUES
+        (1,1,'espec',25,1,NULL,'s','2099-11-15','rincao','2099-11-15','2099-11-15'),(1,1,'espec',25,1,10,'s','2099-11-15','rincao','2099-11-15','2099-11-15'),(1,1,'norma',25,NULL,NULL,'s','2099-11-15','rincao','2099-11-15','2099-11-15');`);
+    const result = await getOperationalDaySummary(date);
+    expect(result.revenue).toMatchObject({ servicesNetCents: { value: 2500 }, knownSubtotalCents: 2500 });
+    expect(result.forecast.ticketsForSelectedDate.value).toBe(0);
+    expect(result.attendance.dayUseAdmitted.value).toBe(0);
   });
   it("classifies legacy services only through a stable catalog ID mapping and warns on unknown special items", async () => {
     await pool.query(`INSERT INTO servicos_adicionais (parque,nome,preco_bilheteria,legacy_ticket_id,ativo) VALUES ('rincao','Legado',11,44,FALSE);

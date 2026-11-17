@@ -65,3 +65,15 @@ it("reservation retry retains the original receipt despite paid state or a close
   const body = JSON.parse(fetchMock.mock.calls[0][1].body); expect(body).toMatchObject({ periodId: 9, payments: [{ method: "pix", value: "100.00" }] }); expect(body).not.toHaveProperty("cpf"); expect(body).not.toHaveProperty("actor");
   expect(fetchMock.mock.calls[0][1].body).toBe(fetchMock.mock.calls[1][1].body);
 });
+
+it.each([
+  [[], "100.00"],
+  [[{ method: "pix", value: "40,25" }], "59.75"],
+  [[{ method: "pix", value: "40" }, { method: "dinhe", value: "60" }], "0.00"],
+  [[{ method: "dinhe", value: "120" }], "0.00"],
+])("fills the remaining balance for a new payment form", (rows, expected) => {
+  const onChange = vi.fn();
+  const tree = CashPaymentFields({ rows, onChange, totalCents: 10000, disabled: false });
+  (find(tree, node => node.type === "button" && text(node) === "Adicionar forma").props.onClick as () => void)();
+  expect(onChange).toHaveBeenCalledWith([...rows, { method: "", value: expected }]);
+});

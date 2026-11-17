@@ -3,7 +3,11 @@ import { isCivilDate } from "@/lib/operational-date";
 import { getOperationalParkId } from "@/lib/operational-day-contract";
 import { getOperationalCatalogPool } from "@/lib/painel-operational-catalog";
 
-export type DayPurchaseRow = { purchaseId: number; buyerName: string; status: string; channel: string; itemCount: number; dateAmountCents: number; batchSelectable?: boolean };
+export type DayPurchaseRow = { purchaseId: number; buyerName: string; status: string; channel: string; itemCount: number; dateAmountCents: number; batchSelectable?: boolean;
+  purchaseType: "dayuse" | "group" | "mixed" | "items"; peopleCount: number; usedPeopleCount: number; invalidPeopleCount: number;
+  groupPeopleCount: number; refundRequestedCount: number; refundPaidCount: number; rescheduled: boolean;
+  composition: { label: string; quantity: number }[];
+};
 export type DayGroupRow = { agendaId: number; clientId: number; clientName: string; agendaType: string; status: string; paidOnlinePeople: number };
 export type DayPurchaseFilters = {
   origin: "all" | "site" | "gate";
@@ -63,22 +67,35 @@ async function readPurchases(client: Pick<PoolClient, "query">, date: string, pa
       SELECT c.idcompra AS "purchaseId",
         COALESCE(NULLIF(TRIM(c.checkout_buyer_name),''),NULLIF(TRIM(u.nmusuario),''),'Comprador não identificado') AS "buyerName",
         COALESCE(u.nmusuario,'') AS registered_name, COALESCE(c.cpf,'') AS cpf,
-        COALESCE(c.stcompra,'') AS status, COALESCE(c.tpcompra,'') AS channel, v.vlunicompra AS amount,
+        COALESCE(c.stcompra,'') AS status, COALESCE(c.tpcompra,'') AS channel, v.vlunicompra AS amount, v.stusado, v.flreagendado,
+        COALESCE(p.refund_requested,false) AS refund_requested, p.refund_paid_at IS NOT NULL AS refund_paid,
+        CASE WHEN v.servico_id IS NOT NULL OR v.tpvoucher='espec'
+          THEN COALESCE(NULLIF(TRIM(v.descricao),''),NULLIF(TRIM(s.nome),''),'Serviço não identificado')
+          ELSE CASE v.tpvoucher WHEN 'norma' THEN 'Adulto' WHEN 'infan' THEN 'Criança' WHEN 'isent' THEN 'Isento'
+            WHEN 'corte' THEN 'Cortesia' WHEN 'escol' THEN 'Escolar' ELSE 'Ingresso não identificado' END END AS item_label,
         CASE
           WHEN v.servico_id IS NOT NULL OR v.tpvoucher='espec' THEN 'other'
-          WHEN v.idescola IS NOT NULL OR v.tpvoucher='escol'
+          WHEN v.idescola IS NOT NULL OR v.tpvoucher='escol' OR to_jsonb(c)->>'checkout_school_site_context' IS NOT NULL
             OR a.tpagenda IN ('escol','igrej','casam','melho','confr','ongs','grmix') THEN 'group'
-          WHEN v.tpvoucher IN ('norma','infan','isent','corte') AND a.tpagenda IN ('padra','promo')
-            AND NOT EXISTS (SELECT 1 FROM agenda_extras ae WHERE ae.idagenda=a.idagenda) THEN 'dayuse'
+          WHEN v.tpvoucher IN ('norma','infan','isent','corte') AND a.tpagenda IN ('padra','promo') THEN 'dayuse'
           ELSE 'other'
         END AS item_type
       FROM voucher v JOIN compra c ON c.idcompra=v.idcompra JOIN agenda a ON a.idagenda=v.idagenda
       LEFT JOIN usuario u ON u.cpf=c.cpf
+      LEFT JOIN servicos_adicionais s ON s.id=v.servico_id AND s.parque=$2
+      LEFT JOIN passeio_participantes p ON p.voucher_id=v.idvoucher AND p.parque=$2 AND p.agenda_id=v.idagenda AND p.cliente_id=v.idescola
       WHERE COALESCE(v.dtinicio_validade,a.dtagenda)=$1::date AND (v.parque_operacional IS NULL OR v.parque_operacional=$2)
     ), purchases AS (
       SELECT "purchaseId", "buyerName", registered_name, cpf, status, channel,
         COUNT(*)::text AS "itemCount", SUM(amount*100)::text AS "dateAmountCents",
         COUNT(*) FILTER (WHERE amount IS NULL OR amount<0 OR amount*100<>TRUNC(amount*100))::text AS invalid,
+        COUNT(*) FILTER (WHERE item_type IN ('dayuse','group'))::text AS "peopleCount",
+        COUNT(*) FILTER (WHERE item_type IN ('dayuse','group') AND stusado='s')::text AS "usedPeopleCount",
+        COUNT(*) FILTER (WHERE item_type IN ('dayuse','group') AND stusado='inv')::text AS "invalidPeopleCount",
+        COUNT(*) FILTER (WHERE item_type='group')::text AS "groupPeopleCount",
+        COUNT(*) FILTER (WHERE item_type='group' AND refund_requested)::text AS "refundRequestedCount",
+        COUNT(*) FILTER (WHERE item_type='group' AND refund_paid)::text AS "refundPaidCount",
+        BOOL_OR(flreagendado='s') AS rescheduled,
         BOOL_OR(item_type='dayuse') AS dayuse, BOOL_OR(item_type='group') AS group_items
       FROM date_items GROUP BY "purchaseId", "buyerName", registered_name, cpf, status, channel
     ), searched AS (
@@ -89,7 +106,11 @@ async function readPurchases(client: Pick<PoolClient, "query">, date: string, pa
     ), matching AS (
       SELECT * FROM searched WHERE ${originMatches} AND ${typeMatches}
     ), paged AS (
-      SELECT "purchaseId", "buyerName", status, channel, "itemCount", "dateAmountCents", invalid, (dayuse AND NOT group_items) AS "batchSelectable"
+      SELECT "purchaseId", "buyerName", status, channel, "itemCount", "dateAmountCents", invalid, (dayuse AND NOT group_items) AS "batchSelectable",
+        CASE WHEN dayuse AND group_items THEN 'mixed' WHEN dayuse THEN 'dayuse' WHEN group_items THEN 'group' ELSE 'items' END AS "purchaseType",
+        "peopleCount","usedPeopleCount","invalidPeopleCount","groupPeopleCount","refundRequestedCount","refundPaidCount",rescheduled,
+        (SELECT jsonb_agg(parts ORDER BY label) FROM (SELECT item_label AS label,COUNT(*)::int AS quantity FROM date_items
+          WHERE "purchaseId"=matching."purchaseId" GROUP BY item_label) parts) AS composition
       FROM matching ORDER BY "purchaseId" DESC LIMIT 20 OFFSET $3
     ), counters AS (
       SELECT jsonb_build_object(
@@ -116,7 +137,11 @@ async function readPurchases(client: Pick<PoolClient, "query">, date: string, pa
     items: result.items.map(row => {
       if (integer(row.invalid) > 0) throw new OperationalDayListError("invalid_data", "Há itens com valores ausentes ou inválidos nesta data.");
       return { purchaseId: integer(row.purchaseId), buyerName: String(row.buyerName), status: String(row.status), channel: String(row.channel),
-        itemCount: integer(row.itemCount), dateAmountCents: integer(row.dateAmountCents), batchSelectable: row.batchSelectable === true };
+        itemCount: integer(row.itemCount), dateAmountCents: integer(row.dateAmountCents), batchSelectable: row.batchSelectable === true,
+        purchaseType: row.purchaseType as DayPurchaseRow['purchaseType'],peopleCount: integer(row.peopleCount),usedPeopleCount: integer(row.usedPeopleCount),
+        invalidPeopleCount: integer(row.invalidPeopleCount),groupPeopleCount: integer(row.groupPeopleCount),refundRequestedCount: integer(row.refundRequestedCount),
+        refundPaidCount: integer(row.refundPaidCount),rescheduled: row.rescheduled === true,
+        composition: (row.composition as {label:string;quantity:number}[]).map(item => ({label:item.label,quantity:integer(item.quantity)})) };
     }),
   };
 }

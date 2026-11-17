@@ -70,6 +70,24 @@ describe.skipIf(!connectionString)("cash scoped sales and reservation payments w
     ]);
     expect((await getCashSession(session.id)).snapshot.expectedCashCents).toBe(2000);
   });
+  it.each(["closed public", "group only"])("sells services with %s without opening public admission", async (kind) => {
+    const session = await open();
+    await pool.query("UPDATE agenda SET stagenda='fec'");
+    if (kind === "group only") await pool.query("UPDATE operacao_dias SET day_use_agenda_id=NULL; UPDATE agenda SET tpagenda='escol',stagenda='abe',idtabpreco=NULL");
+    const before = (await pool.query("SELECT * FROM agenda")).rows;
+    const result = await createOperationalBoxOfficeSale({ ...input(session.id), items: [], services: [{ serviceId: 1, quantity: 2 }], payments: [{ method: "pix", value: "15" }, { method: "dinhe", value: "10" }] });
+    expect(result).toMatchObject({ agendaId: 1, totalCents: 2000, receivedCents: 2500, changeCents: 500 });
+    expect((await pool.query("SELECT * FROM agenda")).rows).toEqual(before);
+    expect((await pool.query("SELECT idagenda,tpvoucher,servico_id::text,vlunicompra::text FROM voucher")).rows).toEqual([
+      { idagenda: 1, tpvoucher: "espec", servico_id: "1", vlunicompra: "10.00" },
+      { idagenda: 1, tpvoucher: "espec", servico_id: "1", vlunicompra: "10.00" },
+    ]);
+    expect((await getCashSession(session.id)).snapshot.sales).toMatchObject({ ticketCount: 0, serviceCount: 2, revenueCents: 2000 });
+    await expect(createOperationalBoxOfficeSale(input(session.id,"forbidden-admission"))).rejects.toMatchObject({ code: "agenda_not_found" });
+    await expect(createOperationalBoxOfficeSale({ ...input(session.id,"forbidden-courtesy"), items: [], courtesies: [{ authorId: 3, quantity: 1 }], payments: [] })).rejects.toMatchObject({ code: "agenda_not_found" });
+    await pool.query("UPDATE servicos_adicionais SET ativo=false WHERE id=1");
+    await expect(createOperationalBoxOfficeSale({ ...input(session.id,"inactive-group-service"), items: [], services: [{ serviceId: 1, quantity: 1 }] })).rejects.toMatchObject({ code: "service_unavailable" });
+  });
   it("allows a free gate-only service without fake payment rows, rejects inactive/unassigned services and disabled admission", async () => {
     const session = await open();
     expect(await createOperationalBoxOfficeSale({ ...input(session.id), items: [], services: [{ serviceId: 2, quantity: 1 }], payments: [] })).toMatchObject({ totalCents: 0, netPayments: [] });

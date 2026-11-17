@@ -7,7 +7,7 @@ import { buildDayProgramExportDocuments, renderDayProgramBundle } from "@/lib/da
 function group(clientId: number, carrierId: number | null, extra: Partial<DayProgramGroup> = {}): DayProgramGroup {
   return { agendaId: 20, clientId, clientName: `Escola ${clientId}`, address: `Rua ${clientId}`, representative: "Representante", contact: `Contato ${clientId}`, phone: `Telefone ${clientId}`, plannedPeople: 30,
     carrierContact: carrierId === 8 ? "Contato A" : "Contato B", carrierPhone: carrierId === 8 ? "1111" : "9999",
-    transportMode: carrierId === null ? "unset" : "carrier", carrierId, boardingTime: "07:30", observations: null, foodNotes: null, buses: 1, vans: 0, extraBuses: 0, extraVans: 0, vehicles: [],
+    transportMode: carrierId === null ? "unset" : "carrier", carrierId, boardingTime: "07:30", observations: null, foodNotes: null, buses: 1, vans: 0, extraBuses: 0, extraVans: 0, vehicles: [{ id: clientId, type: "bus", plannedPeople: 30, state: "waiting", version: 1, addedOnDay: false, isExtra: false, ordinal: 1, carrierId, transportName: carrierId === null ? null : "Mesmo nome" }],
     origins: { address: "client", representative: "contract", contact: "operational", phone: "operational", observations: null }, ...extra };
 }
 function fixture(): DayProgram {
@@ -22,10 +22,56 @@ describe("day program export", () => {
   it('shows the extra vehicle and its own transport in the general program', () => {
     const input = fixture();
     input.groups[0].extraBuses = 1;
-    input.groups[0].vehicles = [{ id: 92,type: 'bus',plannedPeople: null,state: 'waiting',version: 1,addedOnDay: true,isExtra: true,ordinal: 2,transportName: 'Viagens do Extra' }];
+    input.groups[0].vehicles = [{ id: 92,type: 'bus',plannedPeople: null,state: 'waiting',version: 1,addedOnDay: true,isExtra: true,ordinal: 2,carrierId: 9,transportName: 'Viagens do Extra' }];
     const [program,carrier] = buildDayProgramExportDocuments(input);
     expect(program.blocks.map(block => block.text).join('\n')).toContain('Ônibus 2 extra: Viagens do Extra');
     expect(carrier.blocks.map(block => block.text).join('\n')).not.toContain('Ônibus 2 extra: Viagens do Extra');
+  });
+  it("allocates base and extra vehicles to their actual carrier without double counting", () => {
+    const input = fixture();
+    const stop = input.groups[0];
+    input.groups = [stop];
+    stop.extraBuses = 1; stop.extraVans = 1;
+    stop.vehicles.push({ ...stop.vehicles[0], id: 91, ordinal: 2, isExtra: true },
+      { ...stop.vehicles[0], id: 92, type: "van", ordinal: 1, isExtra: true, carrierId: 9 });
+    const documents = buildDayProgramExportDocuments(input);
+    const base = documents.find(document => document.filename === "transportador-8")!;
+    const extra = documents.find(document => document.filename === "transportador-9")!;
+    expect(base.blocks.map(block => block.text)).toContain("Ônibus: 2");
+    expect(base.blocks.map(block => block.text)).toContain("Vans: 0");
+    expect(extra.blocks.map(block => block.text)).toContain("Ônibus: 0");
+    expect(extra.blocks.map(block => block.text)).toContain("Vans: 1");
+    expect(extra.blocks.map(block => block.text)).toContain("Contato do transportador: Contato B");
+  });
+  it("shows assigned extras even when the base vehicle plan is still unknown", () => {
+    const input = fixture();
+    const stop = group(1, 8, { buses: null, vans: null, extraBuses: 1 });
+    stop.vehicles[0].isExtra = true;
+    input.groups = [stop];
+    const carrier = buildDayProgramExportDocuments(input)[1];
+    expect(carrier.blocks.map(block => block.text)).toContain("Ônibus: 1 + previsão a preencher");
+    expect(carrier.blocks.map(block => block.text)).toContain("Vans: a preencher");
+  });
+  it("exports only explicitly assigned carrier vehicles when the base transport belongs to the client", () => {
+    const input = fixture();
+    const stop = group(1, null, { transportMode: "client", extraBuses: 1 });
+    stop.vehicles.push({ ...stop.vehicles[0], id: 92, ordinal: 2, isExtra: true, carrierId: 9 });
+    input.groups = [stop];
+    const documents = buildDayProgramExportDocuments(input);
+    expect(documents.map(document => document.filename)).toEqual(["programacao", "transportador-9"]);
+    expect(documents[1].blocks.map(block => block.text)).toContain("Ônibus: 1");
+  });
+  it("keeps a normal length observation inside the group's rendered row", async () => {
+    const input = fixture();
+    input.groups = [group(1, null, { observations: "Cozinha: Sem lactose. Ônibus 2 extra: Transportes da Escola. Ônibus 3 extra: Empresa de Transportes e Turismo TESTE ACEITE 17 Transporte." })];
+    input.carriers = [];
+    const zip = await JSZip.loadAsync(await renderDayProgramBundle(input));
+    const { data, info } = await sharp(await zip.file("programacao-001.png")!.async("nodebuffer")).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const rules = Array.from({ length: info.height }, (_, y) => y).filter(y => [73, 600, 1115].every(x => {
+      const offset = (y * info.width + x) * info.channels;
+      return data[offset] === 212 && data[offset + 1] === 223 && data[offset + 2] === 235;
+    }));
+    expect(rules).toHaveLength(4); // Header, one group, day use and totals.
   });
   it("groups stops by ID and shares only each carrier's operational stops", () => {
     const documents = buildDayProgramExportDocuments(fixture());

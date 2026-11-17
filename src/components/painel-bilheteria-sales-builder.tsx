@@ -48,6 +48,7 @@ type PainelBilheteriaSalesBuilderProps = {
   today: string;
   agendas: PublicAgendaEvent[];
   products: B2cProduct[];
+  serviceAgendaId?: number | null;
 };
 
 const emptySaleLineDraft: SaleLineDraft = {
@@ -186,6 +187,7 @@ export function PainelBilheteriaSalesBuilder({
   today,
   agendas,
   products,
+  serviceAgendaId = null,
 }: PainelBilheteriaSalesBuilderProps) {
   const router = useRouter();
   const clientReady = useSyncExternalStore(subscribeReady, () => true, () => false);
@@ -355,7 +357,8 @@ export function PainelBilheteriaSalesBuilder({
     [saleItems, serviceTotal],
   );
   const canProceed =
-    selectedAgenda != null && (saleItems.length > 0 || courtesyDrafts.length > 0 || serviceDrafts.length > 0);
+    selectedAgenda != null ? saleItems.length > 0 || courtesyDrafts.length > 0 || serviceDrafts.length > 0
+      : serviceAgendaId != null && saleItems.length === 0 && courtesyDrafts.length === 0 && serviceDrafts.length > 0;
 
   function addLine() {
     setSaleLines((current) => [
@@ -405,7 +408,7 @@ export function PainelBilheteriaSalesBuilder({
   }
 
   function handleProceed() {
-    if (!selectedAgenda) {
+    if (!selectedAgenda && (!serviceAgendaId || saleItems.length > 0 || courtesyDrafts.length > 0)) {
       setErrorMessage("A agenda não está aberta para hoje.");
       return;
     }
@@ -426,8 +429,8 @@ export function PainelBilheteriaSalesBuilder({
     } catch { setErrorMessage("Há uma operação salva que precisa de conferência. Abra a finalização deste caixa."); return; }
     const draft: PainelBilheteriaSaleDraft = {
       periodId,
-      agendaId: selectedAgenda.id,
-      agendaLabel: `${selectedAgenda.date} - #${selectedAgenda.id}`,
+      agendaId: selectedAgenda?.id ?? serviceAgendaId!,
+      agendaLabel: `${today} - #${selectedAgenda?.id ?? serviceAgendaId}`,
       cpf: sanitizeCpf(cpf),
       items: saleItems,
       services: serviceDrafts,
@@ -446,7 +449,7 @@ export function PainelBilheteriaSalesBuilder({
 
   if (clientReady && pendingAttempt) return <section className="panel-section p-5"><p>Há uma tentativa de venda sem confirmação neste caixa. Confira antes de montar outra compra.</p><a href={`/painel/bilheteria/finalizar?periodId=${periodId}`}>Conferir tentativa anterior</a></section>;
 
-  if (agendas.length === 0) {
+  if (agendas.length === 0 && !serviceAgendaId) {
     return (
       <section className="panel-section p-4">
         <p className="panel-eyebrow">Bilheteria</p>
@@ -461,12 +464,12 @@ export function PainelBilheteriaSalesBuilder({
   }
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
-      <label className="panel-section grid gap-2 p-4 xl:col-span-2">CPF do comprador (obrigatório)
-        <input aria-label="CPF do comprador" inputMode="numeric" maxLength={14} value={cpf} onChange={(event) => setCpf(event.target.value)} className="rounded border px-3 py-2" />
+    <section className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
+      <label className="panel-section grid min-w-0 grid-cols-1 gap-2 p-4 xl:col-span-2">CPF do comprador (obrigatório)
+        <input aria-label="CPF do comprador" inputMode="numeric" maxLength={14} value={cpf} onChange={(event) => setCpf(event.target.value)} className="min-w-0 w-full rounded border px-3 py-2" />
       </label>
-      <div className="grid gap-6">
-        <article className="panel-section p-6">
+      <div className="grid min-w-0 grid-cols-1 gap-6">
+        <article className="panel-section min-w-0 p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-start gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-[8px] bg-[#f1f7f0] text-[#214f2d]">
@@ -488,22 +491,23 @@ export function PainelBilheteriaSalesBuilder({
             </button>
           </div>
 
+          {!selectedAgenda ? <p className="mt-4 text-sm">Day use fechado ao público. Venda disponível somente para serviços.</p> : null}
           <p className="mt-4 text-sm text-[#6a7c92]">Toque no produto para adicionar. Ajuste a quantidade e o desconto de cada ingresso abaixo.</p>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:grid-cols-3">
             {products.map(product => {
               const quantity = saleLines.filter(line => line.selection === product.id).reduce((total, line) => total + line.quantity, 0);
-              return <button key={product.id} type="button" aria-label={`Adicionar ${product.title}`} onClick={() => addProduct(product.id)} disabled={saleLines.reduce((total, line) => total + line.quantity, 0) >= 500} className={`relative flex min-h-28 flex-col items-start gap-1 rounded-xl border p-4 text-left disabled:opacity-50 ${quantity ? 'border-[#2f6fb2] bg-[#eaf2fb]' : 'border-[#d9e3ee] bg-white hover:border-[#2f6fb2]'}`}>
-                <strong className="pr-7 text-[#0f2d52]">{product.title}</strong>
+              return <button key={product.id} type="button" aria-label={`Adicionar ${product.title}`} onClick={() => addProduct(product.id)} disabled={saleLines.reduce((total, line) => total + line.quantity, 0) >= 500} className={`relative flex min-w-0 min-h-28 flex-col items-start gap-1 rounded-xl border p-4 text-left disabled:opacity-50 ${quantity ? 'border-[#2f6fb2] bg-[#eaf2fb]' : 'border-[#d9e3ee] bg-white hover:border-[#2f6fb2]'}`}>
+                <strong className="max-w-full pr-7 text-[#0f2d52] [overflow-wrap:anywhere]">{product.title}</strong>
                 <span className="text-xs text-[#6a7c92]">{product.type === 'addon' ? 'Serviço · sem desconto' : product.voucherType === 'infan' ? '4 a 9 anos' : product.voucherType === 'isent' ? '0 a 3 anos' : '10 anos ou mais'}</span>
                 <span className="mt-auto pt-2 font-bold tabular-nums text-[#0f2d52]">{formatMoney(readAgendaPrice(product))}</span>
                 <span className="absolute right-3 top-3 rounded-full bg-[#133a62] px-2 text-white">{quantity || '+'}</span>
               </button>;
             })}
-            <button type="button" className="min-h-28 rounded-xl border border-[#d9e3ee] p-4 text-left font-semibold text-[#0f2d52]" onClick={() => addProduct('courtesy')} disabled={saleLines.reduce((total, line) => total + line.quantity, 0) >= 500}>Cortesia<span className="mt-1 block text-xs font-normal">Exige autorizador</span></button>
+            {selectedAgenda ? <button type="button" className="min-h-28 rounded-xl border border-[#d9e3ee] p-4 text-left font-semibold text-[#0f2d52]" onClick={() => addProduct('courtesy')} disabled={saleLines.reduce((total, line) => total + line.quantity, 0) >= 500}>Cortesia<span className="mt-1 block text-xs font-normal">Exige autorizador</span></button> : null}
           </div>
 
           {saleLines.length > 0 ? (
-            <div className="mt-6 grid gap-4">
+            <div className="mt-6 grid min-w-0 grid-cols-1 gap-4">
               {saleLines.map((line) => {
                 const lineProduct =
                   line.selection && line.selection !== "courtesy"
@@ -544,18 +548,18 @@ export function PainelBilheteriaSalesBuilder({
                 return (
                   <div
                     key={line.id}
-                    className="rounded-[8px] border border-[#dbe7d7] bg-[#fcfefd] px-6 py-5"
+                    className="min-w-0 rounded-[8px] border border-[#dbe7d7] bg-[#fcfefd] px-3 py-5 sm:px-6"
                   >
                     <div
                       className={
                         isCourtesy
-                          ? "grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_minmax(0,1fr)]"
+                          ? "grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[220px_minmax(0,1fr)_minmax(0,1fr)]"
                           : hasSelection
-                            ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]"
-                            : "grid gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]"
+                            ? "grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_280px]"
+                            : "grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]"
                       }
                     >
-                      <label className="grid gap-2 text-sm font-semibold text-[#3d5844]">
+                      <label className="grid min-w-0 grid-cols-1 gap-2 text-sm font-semibold text-[#3d5844]">
                         Ingresso
                         <select
                           value={line.selection}
@@ -569,10 +573,10 @@ export function PainelBilheteriaSalesBuilder({
                               quantity: 1,
                             })
                           }
-                          className="min-h-[54px] rounded-[6px] border border-[#dbe7d7] bg-white px-4 text-sm font-normal text-[#17351f]"
+                          className="min-w-0 w-full min-h-[54px] rounded-[6px] border border-[#dbe7d7] bg-white px-4 text-sm font-normal text-[#17351f]"
                         >
                           <option value="">Selecione</option>
-                          <option value="courtesy">Cortesia</option>
+                          {selectedAgenda ? <option value="courtesy">Cortesia</option> : null}
                           {products.map((product) => (
                             <option key={product.id} value={product.id}>
                               {product.title}
@@ -583,7 +587,7 @@ export function PainelBilheteriaSalesBuilder({
 
                       {isCourtesy ? (
                         <>
-                          <label className="grid gap-2 text-sm font-semibold text-[#3d5844]">
+                          <label className="grid min-w-0 grid-cols-1 gap-2 text-sm font-semibold text-[#3d5844]">
                             Nome
                             <input
                               value={line.identification}
@@ -593,10 +597,10 @@ export function PainelBilheteriaSalesBuilder({
                                 })
                               }
                               placeholder="Nome da pessoa ou identificação"
-                              className="min-h-[54px] rounded-[6px] border border-[#dbe7d7] bg-white px-4 text-sm font-normal text-[#17351f]"
+                              className="min-w-0 w-full min-h-[54px] rounded-[6px] border border-[#dbe7d7] bg-white px-4 text-sm font-normal text-[#17351f]"
                             />
                           </label>
-                          <label className="grid gap-2 text-sm font-semibold text-[#3d5844]">
+                          <label className="grid min-w-0 grid-cols-1 gap-2 text-sm font-semibold text-[#3d5844]">
                             Observações
                             <input
                               value={line.note}
@@ -604,21 +608,21 @@ export function PainelBilheteriaSalesBuilder({
                                 updateLine(line.id, { note: event.target.value })
                               }
                               placeholder="Observações da cortesia"
-                              className="min-h-[54px] rounded-[6px] border border-[#dbe7d7] bg-white px-4 text-sm font-normal text-[#17351f]"
+                              className="min-w-0 w-full min-h-[54px] rounded-[6px] border border-[#dbe7d7] bg-white px-4 text-sm font-normal text-[#17351f]"
                             />
                           </label>
                         </>
                       ) : null}
 
                       {lineProduct ? (
-                        <div className="grid gap-4">
-                          <div className="grid gap-2 text-sm font-semibold text-[#205a7f]">
+                        <div className="grid min-w-0 grid-cols-1 gap-4">
+                          <div className="grid min-w-0 grid-cols-1 gap-2 text-sm font-semibold text-[#205a7f]">
                             Quantidade
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2 sm:gap-4">
                               <button
                                 type="button"
                                 onClick={() => updateQuantity(line.id, line.quantity - 1)}
-                                className="inline-flex h-[54px] w-[54px] items-center justify-center rounded-[6px] bg-[#d93636] text-2xl font-normal text-white shadow-[0_8px_18px_rgba(217,54,54,0.16)]"
+                                className="inline-flex h-[54px] w-12 shrink-0 sm:w-[54px] items-center justify-center rounded-[6px] bg-[#d93636] text-2xl font-normal text-white shadow-[0_8px_18px_rgba(217,54,54,0.16)]"
                               >
                                 -
                               </button>
@@ -629,26 +633,26 @@ export function PainelBilheteriaSalesBuilder({
                                 onChange={(event) =>
                                   updateQuantity(line.id, Number(event.target.value))
                                 }
-                                className="h-[54px] w-[76px] rounded-[6px] border border-[#b8d2e4] bg-white text-center text-base font-semibold text-[#14324a]"
+                                className="min-w-0 h-[54px] w-16 sm:w-[76px] rounded-[6px] border border-[#b8d2e4] bg-white text-center text-base font-semibold text-[#14324a]"
                               />
                               <button
                                 type="button"
                                 onClick={() => updateQuantity(line.id, line.quantity + 1)}
-                                className="inline-flex h-[54px] w-[54px] items-center justify-center rounded-[6px] bg-[#205a7f] text-2xl font-normal text-white shadow-[0_8px_18px_rgba(32,90,127,0.18)]"
+                                className="inline-flex h-[54px] w-12 shrink-0 sm:w-[54px] items-center justify-center rounded-[6px] bg-[#205a7f] text-2xl font-normal text-white shadow-[0_8px_18px_rgba(32,90,127,0.18)]"
                               >
                                 +
                               </button>
                             </div>
                           </div>
 
-                          <label className="grid gap-2 text-sm font-semibold text-[#205a7f]">
+                          <label className="grid min-w-0 grid-cols-1 gap-2 text-sm font-semibold text-[#205a7f]">
                             Desconto por ingresso
                             <select
                               value={isDiscountAllowed ? line.discountId : ""}
                               onChange={(event) =>
                                 updateLine(line.id, { discountId: event.target.value })
                               }
-                              className="min-h-[54px] rounded-[6px] border border-[#b8d2e4] bg-white px-4 text-sm font-normal text-[#14324a]"
+                              className="min-w-0 w-full min-h-[54px] rounded-[6px] border border-[#b8d2e4] bg-white px-4 text-sm font-normal text-[#14324a]"
                               disabled={loadingReference || !isDiscountAllowed}
                             >
                               <option value="">
@@ -671,14 +675,14 @@ export function PainelBilheteriaSalesBuilder({
 
                     {isCourtesy ? (
                       <>
-                        <label className="mt-4 grid gap-2 text-sm font-semibold text-[#3d5844]">
+                        <label className="mt-4 grid min-w-0 grid-cols-1 gap-2 text-sm font-semibold text-[#3d5844]">
                           Autorizado por
                           <select
                             value={line.authorId}
                             onChange={(event) =>
                               updateLine(line.id, { authorId: event.target.value })
                             }
-                            className="min-h-[48px] rounded-[6px] border border-[#dbe7d7] bg-white px-4 text-sm font-normal text-[#17351f]"
+                            className="min-w-0 w-full min-h-[48px] rounded-[6px] border border-[#dbe7d7] bg-white px-4 text-sm font-normal text-[#17351f]"
                             disabled={loadingReference}
                           >
                             <option value="">Selecione o responsável pela cortesia</option>
@@ -690,7 +694,7 @@ export function PainelBilheteriaSalesBuilder({
                           </select>
                         </label>
 
-                        <div className="mt-4 grid gap-2 text-sm font-semibold text-[#3d5844]">
+                        <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 text-sm font-semibold text-[#3d5844]">
                           Quantidade
                           <div className="flex items-center gap-3">
                             <button
@@ -722,7 +726,7 @@ export function PainelBilheteriaSalesBuilder({
                     ) : null}
 
                     {hasSelection ? (
-                      <div className="mt-5 grid gap-4 border-t border-[#dbe7d7] pt-5 lg:grid-cols-[140px_150px_150px_minmax(0,1fr)] lg:items-end">
+                      <div className="mt-5 grid min-w-0 grid-cols-1 gap-4 border-t border-[#dbe7d7] pt-5 lg:grid-cols-[140px_150px_150px_minmax(0,1fr)] lg:items-end">
                         <div>
                           <div className="text-sm font-semibold text-[#5d7282]">
                             Valor base
@@ -815,8 +819,8 @@ export function PainelBilheteriaSalesBuilder({
 
       </div>
 
-      <aside className="xl:sticky xl:top-5">
-        <article className="panel-section p-6">
+      <aside className="min-w-0 [overflow-wrap:anywhere] xl:sticky xl:top-5">
+        <article className="panel-section min-w-0 p-4 sm:p-6">
           <p className="panel-eyebrow">Resumo</p>
           <h3 className="mt-3 text-[28px] font-black text-[#17351f]">{todayLabel}</h3>
 
@@ -832,7 +836,7 @@ export function PainelBilheteriaSalesBuilder({
                     key={`${item.label}-${item.quantity}`}
                     className="text-sm"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <div className="font-semibold text-[#17351f]">{item.label}</div>
                         <div className="mt-1 text-xs text-[#5f7564]">
@@ -855,7 +859,7 @@ export function PainelBilheteriaSalesBuilder({
                     key={`${courtesy.authorId}-${courtesy.identification}-${courtesy.note}`}
                     className="text-sm"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <div className="font-semibold text-[#17351f]">Cortesia</div>
                         <div className="mt-1 text-xs text-[#5f7564]">
@@ -884,19 +888,19 @@ export function PainelBilheteriaSalesBuilder({
           {serviceDrafts.map((service) => <p key={service.serviceId} className="mt-3 text-sm">{service.quantity} × {service.label} — {formatMoney(parseMoney(service.totalValue))}</p>)}
 
           <div className="mt-6 space-y-3 border-t border-[#dbe7d7] pt-5 text-sm">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="text-[#5d7282]">Subtotal</span>
               <strong className="text-[#14324a]">{formatMoney(subtotalValue)}</strong>
             </div>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="text-[#5d7282]">Descontos</span>
               <strong className="text-[#14324a]">- {formatMoney(discountValue)}</strong>
             </div>
-            <div className="flex items-center justify-between gap-3 border-t border-[#dbe7d7] pt-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#dbe7d7] pt-5">
               <span className="text-[13px] font-bold uppercase tracking-[0.22em] text-[#205a7f]">
                 Total
               </span>
-              <strong className="text-[34px] font-black text-[#14324a]">
+              <strong className="text-[28px] sm:text-[34px] font-black text-[#14324a]">
                 {formatMoney(saleTotal)}
               </strong>
             </div>

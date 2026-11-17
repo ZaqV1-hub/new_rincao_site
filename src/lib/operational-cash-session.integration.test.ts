@@ -135,7 +135,8 @@ describe.skipIf(!connectionString)("cash sessions with PostgreSQL", () => {
     expect(actual.snapshot.lastReceiptAt).toBeTruthy();
     expect((await getCashSession(b.id)).snapshot.expectedCashCents).toBe(5000);
   });
-  it("classifies service sales and admissions without counting services or school participants as day use", async () => {
+  it("classifies mixed-day sales and admissions without counting services or school participants as day use", async () => {
+    await pool.query("INSERT INTO agenda_extras VALUES(1)");
     const session=await openCashSession(opening(),actor);
     await pool.query(`INSERT INTO servicos_adicionais(parque,nome,preco_bilheteria) VALUES('rincao','Armário',19)`);
     await pool.query(`INSERT INTO compra(tpcompra,stcompra,vltotcompra,vltotdesc,caixa_periodo_id) VALUES('bilhe','conc',109,10,$1),('ponli','conc',50,0,NULL)`,[session.id]);
@@ -150,6 +151,9 @@ describe.skipIf(!connectionString)("cash sessions with PostgreSQL", () => {
     expect(actual.admissions).toEqual({ticketCount:2,serviceCount:1,onlineTicketCount:1,schoolCount:1,unclassifiedCount:0});
     expect(actual.services).toEqual([{serviceId:1,name:"Armário",quantity:1,revenueCents:1900}]);
     expect(actual.expectedCashCents).toBe(10000);
+    await pool.query("ALTER TABLE compra ADD COLUMN checkout_school_site_context jsonb; UPDATE compra SET checkout_school_site_context='{}' WHERE idcompra=2");
+    try { expect((await getCashSession(session.id)).snapshot.admissions).toMatchObject({ticketCount:1,schoolCount:2}); }
+    finally {await pool.query('ALTER TABLE compra DROP COLUMN checkout_school_site_context');}
   });
   it("refuses to turn a sold purchase with missing value into zero revenue", async () => {
     const session=await openCashSession(opening(),actor);

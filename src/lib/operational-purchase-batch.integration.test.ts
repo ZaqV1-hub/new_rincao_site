@@ -90,11 +90,12 @@ describe.skipIf(!connectionString)("atomic whole-purchase batches with PostgreSQ
   it('lists only unambiguous open day use destinations, including legacy dates', async () => {
     await pool.query(`INSERT INTO agenda VALUES(30,'2099-07-22','promo','abe',1),(40,'2099-07-23','padra','fec',1),(50,'2099-07-24','escol','abe',1),(60,'2099-07-25','padra','abe',1);
       INSERT INTO agenda_extras VALUES(60,123); UPDATE operacao_dias SET estado='closed' WHERE data='2099-07-20'`);
-    expect(await listPurchaseBatchDates()).toEqual(['2099-07-21','2099-07-22']);
+    expect(await listPurchaseBatchDates()).toEqual(['2099-07-21','2099-07-22','2099-07-25']);
     await pool.query(`INSERT INTO agenda VALUES(31,'2099-07-22','padra','abe',1)`);
-    expect(await listPurchaseBatchDates()).toEqual(['2099-07-21']);
+    expect(await listPurchaseBatchDates()).toEqual(['2099-07-21','2099-07-25']);
   });
   it("previews without writes then moves all tickets and services at their original prices", async () => {
+    await pool.query("INSERT INTO agenda_extras VALUES(10,1),(20,2)");
     const before = await snapshot(); const preview = await previewPurchaseBatch(input);
     expect(preview.items[0]).toMatchObject({ purchaseId: 1,status: "eligible" }); expect(preview.items[0].vouchers).toHaveLength(3);
     expect(await snapshot()).toEqual(before);
@@ -121,7 +122,7 @@ describe.skipIf(!connectionString)("atomic whole-purchase batches with PostgreSQ
     "UPDATE voucher SET stusado='s' WHERE idvoucher=12", "UPDATE voucher SET stusado='inv' WHERE idvoucher=12",
     "UPDATE compra SET stcompra='canc' WHERE idcompra=1", "UPDATE compra SET stcompra='pend' WHERE idcompra=1",
     "UPDATE voucher SET dtinicio_validade='2000-01-01',dtvalidade='2000-01-02' WHERE idvoucher=12",
-    "UPDATE voucher SET idescola=1 WHERE idvoucher=12", "INSERT INTO agenda_extras VALUES(10,1)",
+    "UPDATE voucher SET idescola=1 WHERE idvoucher=12", "UPDATE agenda SET tpagenda='escol' WHERE idagenda=10",
     "UPDATE voucher SET parque_operacional='estancia' WHERE idvoucher=12", "UPDATE online_capacity_reservations SET delivery_hold=true",
     "INSERT INTO commerce_school_payment_hold VALUES(1,'held')", "UPDATE compra SET checkout_school_site_context='{}' WHERE idcompra=1",
   ])("rejects the whole purchase: %s", async sql => {
@@ -155,6 +156,7 @@ describe.skipIf(!connectionString)("atomic whole-purchase batches with PostgreSQ
     expect((await pool.query('SELECT count(*) FROM purchase_batches')).rows[0].count).toBe('1');
   });
   it('validity-only edits leave quota and agenda identity intact', async () => {
+    await pool.query('INSERT INTO agenda_extras VALUES(10,1)');
     const result = await apply({ ...input,targetDate: null,validity: '30_days' });
     expect(result.applied).toEqual([1]);
     expect((await pool.query('SELECT idagenda,dtvalidade::text FROM voucher WHERE idvoucher=11')).rows[0]).toEqual({ idagenda: 10,dtvalidade: '2099-08-18' });
@@ -171,7 +173,7 @@ describe.skipIf(!connectionString)("atomic whole-purchase batches with PostgreSQ
     await pool.query("INSERT INTO online_capacity_reservations(idcompra,parque,data,quantidade) VALUES(2,'rincao','2099-07-20',1); UPDATE operacao_dias SET limite_online=2 WHERE data='2099-07-21'");
     expect((await previewPurchaseBatch({ ...input,purchaseIds: [1,2] })).items.map(i => i.status)).toEqual(['rejected','rejected']);
   });
-  it.each(["INSERT INTO agenda_extras VALUES(20,1)","UPDATE online_capacity_reservations SET quantidade=1", "UPDATE online_capacity_reservations SET data='2099-07-19'"])("rejects inconsistent target or capacity: %s", async sql => {
+  it.each(["UPDATE agenda SET tpagenda='escol' WHERE idagenda=20; UPDATE operacao_dias SET day_use_agenda_id=NULL WHERE day_use_agenda_id=20","UPDATE online_capacity_reservations SET quantidade=1", "UPDATE online_capacity_reservations SET data='2099-07-19'"])("rejects inconsistent target or capacity: %s", async sql => {
     await pool.query(sql); expect((await previewPurchaseBatch(input)).items[0].status).toBe('rejected');
   });
   it("persists notification once in the same transaction without altering legacy sent flags", async () => {

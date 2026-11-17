@@ -14,9 +14,8 @@ export async function readCountingAttendance(client:Pick<PoolClient,'query'>,dat
       AND (c.tpcompra IN ('ponli','bilhe') OR (c.tpcompra='reser' AND COALESCE(UPPER(TRIM(c.formapag)),'') NOT IN ('','N/A'))))::text AS sold,
       COUNT(*) FILTER(WHERE v.stusado='s' AND v.dtuso=$1::date)::text AS admitted
     FROM selected JOIN voucher v USING(idvoucher) JOIN compra c ON c.idcompra=v.idcompra JOIN agenda a ON a.idagenda=v.idagenda
-    WHERE (v.parque_operacional IS NULL OR v.parque_operacional=$2) AND v.idescola IS NULL
-      AND v.tpvoucher IN ('norma','infan','isent','corte') AND v.servico_id IS NULL AND a.tpagenda IN ('padra','promo')
-      AND NOT EXISTS(SELECT 1 FROM agenda_extras ae WHERE ae.idagenda=a.idagenda)`,[date,getOperationalParkId()]);
+    WHERE (v.parque_operacional IS NULL OR v.parque_operacional=$2) AND v.idescola IS NULL AND to_jsonb(c)->>'checkout_school_site_context' IS NULL
+      AND v.tpvoucher IN ('norma','infan','isent','corte') AND v.servico_id IS NULL AND a.tpagenda IN ('padra','promo')`,[date,getOperationalParkId()]);
   const sold=Number(row.sold),admitted=Number(row.admitted);
   if(![sold,admitted].every(n=>Number.isSafeInteger(n)&&n>=0))throw new Error('invalid_attendance');
   return {date,sold,admitted,expected:Math.max(0,sold-admitted)};

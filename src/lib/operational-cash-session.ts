@@ -172,9 +172,10 @@ export async function readCashSessionSnapshot(client: PoolClient, session: CashS
   const items = (await client.query<Item>(`SELECT v.tpvoucher,v.vlunicompra::text AS price,v.servico_id::text AS "serviceId",v.descricao AS description,
     (c.caixa_periodo_id=$1 AND c.stcompra='conc') IS TRUE AS sold,(v.validacao_periodo_id=$1 AND v.stusado='s') IS TRUE AS admitted,c.tpcompra='ponli' AS online,
     CASE WHEN v.parque_operacional IS NOT NULL AND v.parque_operacional<>$2 THEN 'unknown'
-      WHEN v.idescola IS NOT NULL OR v.tpvoucher='escol' OR a.tpagenda IN ('escol','igrej','casam','melho','confr','ongs','grmix') THEN 'school'
+      WHEN v.idescola IS NOT NULL OR v.tpvoucher='escol' OR to_jsonb(c)->>'checkout_school_site_context' IS NOT NULL THEN 'school'
       WHEN v.servico_id IS NOT NULL THEN 'service'
-      WHEN v.tpvoucher IN ('norma','infan','isent','corte') AND a.tpagenda IN ('padra','promo') AND NOT EXISTS(SELECT 1 FROM agenda_extras ae WHERE ae.idagenda=a.idagenda) THEN 'admission'
+      WHEN a.tpagenda IN ('escol','igrej','casam','melho','confr','ongs','grmix') THEN 'school'
+      WHEN v.tpvoucher IN ('norma','infan','isent','corte') AND a.tpagenda IN ('padra','promo') THEN 'admission'
       ELSE 'unknown' END AS kind
     FROM voucher v JOIN compra c ON c.idcompra=v.idcompra LEFT JOIN agenda a ON a.idagenda=v.idagenda
     WHERE c.caixa_periodo_id=$1 OR v.validacao_periodo_id=$1 ORDER BY v.idvoucher`,[session.id,session.park])).rows;

@@ -276,6 +276,30 @@ describe.skipIf(!connectionString)('vehicle counting with PostgreSQL', () => {
     await pool.query('UPDATE agenda_extras SET stagenda_cli=$1 WHERE idagenda=1 AND idcliente=10',[status]);
     await expect(command('start',1)).rejects.toMatchObject({ code: 'count_trip_cancelled' });
   });
+  it.each(['can','canc','ina','inat'])('excludes cancelled work (%s) while preserving completed history',async status => {
+    await command('start',1); const completed=await command('complete',2,{draft:completeDraft(),signature});
+    const before=await getCountingVehicle(1,actor);
+    await pool.query('UPDATE agenda_extras SET stagenda_cli=$1 WHERE idcliente=10',[status]);
+    expect((await getCountingDay(before.date)).groups.map(g=>g.clientId)).toEqual([20]);
+    expect(await getCountingVehicle(1,actor)).toMatchObject({cancelled:true,history:[{id:completed.revisionId}]});
+    expect((await getCountingSlip(completed.revisionId!,actor)).draft.counts.adult).toBe(10);
+    await expect(command('recount',3,{reason:'Corrigir'})).rejects.toMatchObject({code:'count_trip_cancelled'});
+    await pool.query('UPDATE agenda SET stagenda=$1',[status]);
+    expect((await getCountingDay(before.date)).groups).toEqual([]);
+  });
+  it('returns takeover and recount reasons and previous owners only in authorized vehicle history',async()=>{
+    await command('start',1);
+    await command('takeover',2,{reason:'Troca de turno'},other);
+    const completed=await command('complete',3,{draft:completeDraft(),signature},other);
+    await command('recount',4,{reason:'Conferência do total'},actor);
+    const detail=await getCountingVehicle(1,other);
+    expect(detail.historyEvents).toMatchObject([
+      {action:'recount',actorName:'Ana',previousOwnerName:'Bia',previousRevisionId:completed.revisionId,reason:'Conferência do total'},
+      {action:'takeover',actorName:'Bia',previousOwnerName:'Ana',reason:'Troca de turno'},
+    ]);
+    expect(JSON.stringify(detail.historyEvents)).not.toContain(actor.cpf);
+    expect(JSON.stringify((await getCountingDay(detail.date)).feed)).not.toContain('Troca de turno');
+  });
   it('keeps the same per-type vehicle limit as programming', async () => {
     await pool.query("INSERT INTO passeio_veiculos(parque,agenda_id,cliente_id,tipo) SELECT 'rincao',1,10,'bus' FROM generate_series(1,99)");
     const input = { agendaId: 1,clientId: 10,type: 'bus',plannedPeople: null,reason: '',idempotencyKey: 'extra-bus' };

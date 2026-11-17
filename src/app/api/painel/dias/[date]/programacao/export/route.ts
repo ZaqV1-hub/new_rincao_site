@@ -1,6 +1,6 @@
 import { DayProgramError, getDayProgram, markDayProgramExported } from "@/lib/day-program";
 import { renderDayProgramBundle } from "@/lib/day-program-export";
-import { getSaoPauloToday, isCivilDate } from "@/lib/operational-date";
+import { isCivilDate } from "@/lib/operational-date";
 import { requirePainelApiAccess } from "@/lib/painel-api-auth";
 import { opsErrorResponse, readJsonPayload, readRouteActor } from "@/lib/ops-route-utils";
 
@@ -13,7 +13,6 @@ export async function POST(request: Request, context: { params: Promise<{ date: 
   try {
     const access = await requirePainelApiAccess(request, "vis_agenda");
     if (!access.ok) return privateResponse(access.response);
-    if (access.session.legacyRoleId !== 1) return privateResponse(opsErrorResponse("painel_forbidden", "Apenas gerentes podem gerar a programação.", 403));
     const detailAccess = await requirePainelApiAccess(request, ["vis_clientes", "vis_escola"]);
     if (!detailAccess.ok) return privateResponse(detailAccess.response);
     const { date } = await context.params;
@@ -28,9 +27,8 @@ export async function POST(request: Request, context: { params: Promise<{ date: 
     }
     const allowPast = input.allowPast === true;
     const reason = typeof input.reason === "string" ? input.reason.trim() : undefined;
-    if ((date < getSaoPauloToday() || allowPast) && (!allowPast || !reason)) throw new DayProgramError("past_readonly", "Informe o motivo para gerar novamente os arquivos de uma data passada.");
+    if (allowPast && !reason) throw new DayProgramError("past_readonly", "Informe o motivo para gerar novamente os arquivos de uma data passada.");
     const program = await getDayProgram(date);
-    if (program.closed) throw new DayProgramError("day_closed", "O dia está finalizado.");
     if (program.version === null) throw new DayProgramError("uncreated", "Crie a programação antes de gerar os arquivos.");
     if (program.version !== input.version || program.sourceFingerprint !== input.sourceFingerprint) throw new DayProgramError("version_conflict", "A programação mudou. Confira os dados antes de gerar os arquivos.");
     const bundle = await renderDayProgramBundle(program);

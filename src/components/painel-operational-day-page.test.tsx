@@ -2,7 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { OperationalDaySummary, SummarySourceValue, UnavailableSummarySource } from "@/lib/operational-day-summary";
-import { PainelOperationalDayPage } from "./painel-operational-day-page";
+import { PainelOperationalDayPage, DayPurchaseSummary } from "./painel-operational-day-page";
 
 const available = (value: number): SummarySourceValue<number> => ({ status: "available", value, source: "fixture" });
 const unavailable: UnavailableSummarySource = { status: "unavailable", value: null, source: "fixture", reason: "Fonte ainda não integrada." };
@@ -54,7 +54,7 @@ describe("operational day summary UI", () => {
     expect(render()).toContain('href="/painel/agenda/2099-01-02/editar"');
   });
   it.each([
-    ["uncreated", "Criar", "A criar"], ["created", "Alterar", "Criado"], ["exported", "Alterar", "Criado e enviado"],
+    ["uncreated", "Criar", "A criar"], ["created", "Alterar", "Criado"], ["exported", "Alterar", "Arquivos gerados · envio manual"],
     ["past_created", "Abrir", "Já ocorreu"], ["past_uncreated", "Abrir", "Já ocorreu e não criado"],
   ] as const)("shows %s program status and the appropriate action", (programStatus, action, label) => {
     const html = renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage canAccessProgram programStatus={programStatus} />);
@@ -89,5 +89,22 @@ describe("operational day summary UI", () => {
       expect(html).toContain("Fechamento do dia");
       expect(fetch).not.toHaveBeenCalled();
     } finally { vi.unstubAllGlobals(); }
+  });
+});
+
+
+describe("purchase row operational status", () => {
+  const purchase = {purchaseId:1,buyerName:"Cliente",status:"conc",channel:"bilhe",itemCount:3,dateAmountCents:16000,purchaseType:"dayuse" as const,
+    peopleCount:2,usedPeopleCount:1,invalidPeopleCount:0,groupPeopleCount:0,refundRequestedCount:0,refundPaidCount:0,rescheduled:true,
+    composition:[{label:"Adulto",quantity:1},{label:"Criança",quantity:1},{label:"Estacionamento",quantity:1}]};
+  it("shows partial admission and service composition without treating services as people", () => {
+    const html=renderToStaticMarkup(<DayPurchaseSummary item={purchase} />);
+    for(const expected of ["Day use","2 pessoa(s)","1 de 2 usados","Reagendada","Estacionamento"]) expect(html).toContain(expected);
+    expect(html).not.toContain("3 pessoa(s)");
+  });
+  it("distinguishes registered refunds from absence requests and does not invent attendance", () => {
+    const html=renderToStaticMarkup(<DayPurchaseSummary item={{...purchase,purchaseType:'group',groupPeopleCount:2,usedPeopleCount:0,refundRequestedCount:2,refundPaidCount:1}} />);
+    expect(html).toContain("2 ausente(s)");expect(html).toContain("1 devolução(ões) registrada(s)");expect(html).not.toContain("Presente");
+    expect(renderToStaticMarkup(<DayPurchaseSummary item={{...purchase,purchaseType:'items',peopleCount:0,usedPeopleCount:0}} />)).toContain("Só itens");
   });
 });

@@ -33,7 +33,6 @@ export async function listPurchaseBatchDates(): Promise<string[]> {
       AND (d.day_use_agenda_id=a.idagenda OR (d.data IS NULL AND
         (SELECT count(*) FROM agenda other WHERE other.dtagenda=a.dtagenda AND other.tpagenda IN ('padra','promo'))=1))
       AND a.tpagenda IN ('padra','promo') AND a.stagenda IN ('abe','lot')
-      AND NOT EXISTS (SELECT 1 FROM agenda_extras e WHERE e.idagenda=a.idagenda)
     ORDER BY date`, [getOperationalParkId(), getSaoPauloToday()]);
   return result.rows.map(row => row.date);
 }
@@ -85,7 +84,7 @@ function preview(input: PurchaseBatchInput, s: Snapshot, resolvingPurchaseId?: n
     const p = s.purchases.find(p => p.id === id), vs = s.vouchers.filter(v => v.purchaseId === id), cap = s.capacity.find(c => c.purchaseId === id);
     if (!p || !vs.length || vs.some(v => v.park && v.park !== park) || (cap && cap.park !== park)) return reject("Compra indisponível neste parque.");
     if (p.status !== "conc") return reject("A compra precisa estar confirmada e não cancelada.");
-    if (p.schoolContext != null || vs.some(v => v.schoolId !== null || v.type === "escol" || v.groupAgenda || !["padra","promo"].includes(v.agendaType ?? "")) ||
+    if (p.schoolContext != null || vs.some(v => v.schoolId !== null || v.type === "escol" || !["padra","promo"].includes(v.agendaType ?? "")) ||
       !vs.some(v => !v.serviceId && ["norma","infan","isent","corte"].includes(v.type)) ||
       vs.some(v => !v.serviceId && !["norma","infan","isent","corte"].includes(v.type))) return reject("O lote aceita somente compras inteiras de day use, sem passeios ou escolares.");
     if (vs.some(v => v.used !== "n" || v.usedOn !== null)) return reject("A compra contém ingresso usado, cancelado ou inválido.");
@@ -104,7 +103,7 @@ function preview(input: PurchaseBatchInput, s: Snapshot, resolvingPurchaseId?: n
         item.vouchers.push({ id: v.id,from,until,nextFrom: range.validFrom,nextUntil: range.validUntil });
       }
     } catch { return reject("A nova data está fora da validade. Escolha uma validade compatível."); }
-    if (input.targetDate && (input.targetDate < s.today || !s.target?.dayUseOpen || !s.target.dayUseAgendaId || s.target.closed || s.targetHasGroups)) return reject("Escolha uma data futura ou de hoje com day use aberto, sem vínculo de grupo.");
+    if (input.targetDate && (input.targetDate < s.today || !s.target?.dayUseOpen || !s.target.dayUseAgendaId || s.target.closed)) return reject("Escolha uma data futura ou de hoje com day use aberto.");
     if (cap && input.targetDate && cap.date !== input.targetDate && (s.target?.version == null || s.target.onlineSoldOut)) return reject("O destino não está disponível para transferir a reserva de vagas online.");
     const linked = periodsFor(s,id);
     if (linked.some(id => !s.periods.some(p => p.id === id)) || s.periods.some(p => linked.includes(p.id) && p.park !== null && p.park !== park)) return reject("Não foi possível conferir o vínculo financeiro da compra.");

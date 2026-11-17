@@ -28,9 +28,10 @@ export async function readOperationalDaySnapshot(client:PoolClient,date:string) 
   for(const session of await listCashSessions(date,client))sessions.push({...session,snapshot:await readCashSessionSnapshot(client,session)});
   const expenses=park==='rincao'?await listOperationalExpenses(date,client):null;
   const items=(await client.query<Omit<DailyPurchaseItem,'amountCents'> & {amountCents:string|null}>(`SELECT v.idvoucher AS "voucherId",v.idcompra AS "purchaseId",btrim(c.stcompra) AS status,btrim(c.tpcompra) AS channel,btrim(v.tpvoucher) AS type,v.descricao AS service,
-    CASE WHEN v.idescola IS NOT NULL OR v.tpvoucher='escol' OR a.tpagenda IN ('escol','igrej','casam','melho','confr','ongs','grmix') THEN 'school'
+    CASE WHEN v.idescola IS NOT NULL OR v.tpvoucher='escol' OR to_jsonb(c)->>'checkout_school_site_context' IS NOT NULL THEN 'school'
       WHEN EXISTS(SELECT 1 FROM servicos_adicionais z WHERE z.parque=$1 AND (z.id=v.servico_id OR (v.tpvoucher='espec' AND z.legacy_ticket_id=v.item_id))) THEN 'service'
-      WHEN v.tpvoucher IN ('norma','infan','isent','corte') AND a.tpagenda IN ('padra','promo') AND NOT EXISTS(SELECT 1 FROM agenda_extras ae WHERE ae.idagenda=a.idagenda) THEN 'admission' ELSE 'unknown' END AS kind,
+      WHEN a.tpagenda IN ('escol','igrej','casam','melho','confr','ongs','grmix') THEN 'school'
+      WHEN v.tpvoucher IN ('norma','infan','isent','corte') AND a.tpagenda IN ('padra','promo') THEN 'admission' ELSE 'unknown' END AS kind,
     COALESCE(v.dtinicio_validade,a.dtagenda)::text AS "visitDate",v.dtuso::text AS "usedOn",btrim(v.stusado) AS used,(v.vlunicompra*100)::text AS "amountCents",v.idescola AS "schoolId"
     FROM voucher v JOIN compra c ON c.idcompra=v.idcompra JOIN agenda a ON a.idagenda=v.idagenda
     WHERE (COALESCE(v.dtinicio_validade,a.dtagenda)=$2::date OR v.dtuso=$2::date) AND (v.parque_operacional IS NULL OR v.parque_operacional=$1) ORDER BY v.idvoucher`,[park,date])).rows.map(row=>({...row,amountCents:row.amountCents===null?null:tripInteger(Number(row.amountCents),Number.MAX_SAFE_INTEGER)}));

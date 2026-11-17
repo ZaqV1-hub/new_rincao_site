@@ -193,9 +193,17 @@ export async function createOperationalBoxOfficeSale(input: CreateBoxOfficeSaleI
     try {
       result = await withCashSessionCommand(client, { action: "sale", key, periodId, payload: { agendaId, periodId, cpf, items, courtesies, services, payments, reason } }, async () => {
         const session = await lockOpenCashSession(client, { periodId, expectedType: "sales" });
-        const agenda = (await client.query<AgendaRow>(`SELECT a.idagenda,a.dtagenda::text AS dtagenda,t.vlnormalbil::text AS vlnormalbil,t.vlinfantbil::text AS vlinfantbil,d.validade AS validity,d.tipos_ingresso AS "ticketTypes"
-          FROM agenda a JOIN tabpreco t ON t.idtabpreco=a.idtabpreco JOIN operacao_dias d ON d.parque=$2 AND d.data=a.dtagenda AND d.day_use_agenda_id=a.idagenda
-          WHERE a.idagenda=$1 AND a.dtagenda=$3::date AND a.tpagenda IN ('padra','promo') AND a.stagenda IN ('abe','lot') FOR SHARE OF a,t`, [agendaId, session.park, session.date])).rows[0];
+        const servicesOnly = items.length === 0 && courtesies.length === 0;
+        const agenda = servicesOnly
+          ? (await client.query<AgendaRow>(`SELECT a.idagenda,a.dtagenda::text AS dtagenda,d.validade AS validity
+              FROM agenda a JOIN operacao_dias d ON d.parque=$2 AND d.data=a.dtagenda AND d.estado='open'
+              WHERE a.idagenda=$1 AND a.dtagenda=$3::date AND (
+                (d.day_use_agenda_id=a.idagenda AND a.tpagenda IN ('padra','promo')) OR
+                (d.day_use_agenda_id IS NULL AND a.tpagenda IN ('escol','igrej','casam','melho','confr','ongs','grmix') AND a.stagenda IN ('abe','lot'))
+              ) FOR SHARE OF a`, [agendaId, session.park, session.date])).rows[0]
+          : (await client.query<AgendaRow>(`SELECT a.idagenda,a.dtagenda::text AS dtagenda,t.vlnormalbil::text AS vlnormalbil,t.vlinfantbil::text AS vlinfantbil,d.validade AS validity,d.tipos_ingresso AS "ticketTypes"
+              FROM agenda a JOIN tabpreco t ON t.idtabpreco=a.idtabpreco JOIN operacao_dias d ON d.parque=$2 AND d.data=a.dtagenda AND d.day_use_agenda_id=a.idagenda AND d.estado='open'
+              WHERE a.idagenda=$1 AND a.dtagenda=$3::date AND a.tpagenda IN ('padra','promo') AND a.stagenda IN ('abe','lot') FOR SHARE OF a,t`, [agendaId, session.park, session.date])).rows[0];
         if (!agenda) throw new BoxOfficeSaleError("agenda_not_found", "Agenda indisponível para venda neste caixa.", 409);
         const discountIds = [...new Set(items.flatMap((item) => item.discountId === null ? [] : [item.discountId]))];
         const discounts = discountIds.length ? (await client.query<Discount>("SELECT id,nome,tipo_aplicacao,valor::text AS valor FROM descontos WHERE id=ANY($1::int[]) FOR SHARE", [discountIds])).rows : [];

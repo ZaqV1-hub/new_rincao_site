@@ -104,7 +104,7 @@ describe.skipIf(!connectionString)("day program PostgreSQL transactions", () => 
     expect(decreased.groups[0].vehicles.find((v) => v.id === second.id)).toBeUndefined();
     await expect(saveDayProgram(date, { version: 3, groups: [{ ...group, buses: 0 }] }, actor)).rejects.toMatchObject({ code: "vehicle_started" });
     expect((await getDayProgram(date)).version).toBe(3);
-    await expect(pool.query("DELETE FROM agenda_extras WHERE idagenda=1 AND idcliente=1")).rejects.toMatchObject({ code: "23503" });
+    await expect(pool.query("DELETE FROM agenda_extras WHERE idagenda=1 AND idcliente=1")).rejects.toMatchObject({ code: expect.stringMatching(/^(23503|23001)$/) });
   });
   it("keeps unknown vehicle planning null when only contact data is completed", async () => {
     await createDayProgram(date, {}, actor);
@@ -125,6 +125,16 @@ describe.skipIf(!connectionString)("day program PostgreSQL transactions", () => 
     expect(next.groups[0]).toMatchObject({ buses: 2,extraBuses: 1,foodNotes: 'Sem lactose',vehicles: [
       { ordinal: 1 },{ id: extra,ordinal: 3 },{ ordinal: 4,isExtra: false },
     ] });
+  });
+  it("reads carrier overrides on extra vehicles and fingerprints their own contact details", async () => {
+    await createDayProgram(date, {}, actor);
+    const saved = await saveDayProgram(date, { version: 1, groups: [{ ...group, transportMode: "carrier", carrier: { name: "Base", contact: "Base", phone: "111" } }] }, actor);
+    const other = (await pool.query("INSERT INTO transportadores(parque,nome,contato,telefone) VALUES ('rincao','Extra','Outro','222') RETURNING id::int AS id")).rows[0].id;
+    await pool.query("INSERT INTO passeio_veiculos(parque,agenda_id,cliente_id,tipo,is_extra,carrier_id) VALUES('rincao',1,1,'bus',true,$1)", [other]);
+    const before = await getDayProgram(date);
+    expect(before.groups[0].vehicles).toMatchObject([{ carrierId: saved.carriers[0].id }, { carrierId: saved.carriers[0].id }, { carrierId: other, isExtra: true }]);
+    await pool.query("UPDATE transportadores SET telefone='333' WHERE id=$1", [other]);
+    expect((await getDayProgram(date)).sourceFingerprint).not.toBe(before.sourceFingerprint);
   });
   it("persists carriers and extra hiring catalog items for later dates without carrying assignments", async () => {
     await createDayProgram(date, {}, actor);
@@ -227,6 +237,13 @@ describe.skipIf(!connectionString)("day program PostgreSQL transactions", () => 
     expect((await pool.query("SELECT motivo,detalhes_json::jsonb->>'actorCpf' AS cpf FROM edicoes_log ORDER BY id")).rows).toEqual([{ motivo: "Correção histórica", cpf: actor.cpf }, { motivo: "Conferência", cpf: actor.cpf }]);
     expect(await getDayProgram(past)).toMatchObject({ readOnly: true, status: "past_created" });
   });
+  it("exports an existing past program without authorizing edits", async () => {
+    const past = "2000-01-01";
+    const original = await createDayProgram(past, { allowPast: true, reason: "Histórico" }, actor);
+    const exported = await markDayProgramExported(past, 1, actor, { expectedFingerprint: original.sourceFingerprint });
+    expect(exported).toMatchObject({ version: 1, readOnly: true, groups: original.groups, observations: original.observations });
+    await expect(saveDayProgram(past, { version: 1 }, actor)).rejects.toMatchObject({ code: "past_readonly" });
+  });
   it("rechecks export revision under lock, and further edits make exports stale", async () => {
     const original = await createDayProgram(date, {}, actor);
     const exported = await markDayProgramExported(date, 1, actor, { expectedFingerprint: original.sourceFingerprint });
@@ -253,18 +270,26 @@ describe.skipIf(!connectionString)("day program PostgreSQL transactions", () => 
   it("includes only paid admission for the selected date in the material fingerprint", async () => {
     const original = await createDayProgram(date, {}, actor);
     await pool.query(`INSERT INTO agenda VALUES (4,'2099-01-01','padra');
+      INSERT INTO agenda_extras VALUES(4,1);
       INSERT INTO compra VALUES (1,'conc','ponli',NULL),(2,'pend','ponli',NULL);
       INSERT INTO voucher VALUES (1,1,4,NULL,NULL,'norma',NULL,NULL,NULL),(2,1,1,NULL,NULL,'escol',1,NULL,NULL),
       (3,2,4,NULL,NULL,'norma',NULL,NULL,NULL),(4,1,4,NULL,NULL,'espec',NULL,1,NULL),
       (5,1,4,NULL,'estancia','norma',NULL,NULL,NULL),(6,1,4,NULL,NULL,'norma',NULL,NULL,'inv');`);
     const changed = await getDayProgram(date);
     expect(changed.dayUseSold).toBe(1); expect(changed.sourceFingerprint).not.toBe(original.sourceFingerprint);
+    await pool.query("ALTER TABLE compra ADD COLUMN checkout_school_site_context jsonb; UPDATE compra SET checkout_school_site_context='{}' WHERE idcompra=1");
+    try { expect((await getDayProgram(date)).dayUseSold).toBe(0); }
+    finally {await pool.query('ALTER TABLE compra DROP COLUMN checkout_school_site_context');}
   });
-  it("blocks every mutation on a closed day while reads remain available", async () => {
+  it("blocks edits on a closed day while export audit leaves its content and revision intact", async () => {
     const original = await createDayProgram(date, {}, actor);
     await pool.query("INSERT INTO operacao_dias VALUES ('rincao',$1,'closed')", [date]);
-    for (const call of [() => createDayProgram(date, {}, actor), () => saveDayProgram(date, { version: 1 }, actor), () => markDayProgramExported(date, 1, actor, { expectedFingerprint: original.sourceFingerprint })]) await expect(call()).rejects.toMatchObject({ code: "day_closed" });
-    expect(await getDayProgram(date)).toMatchObject({ closed: true, readOnly: true });
+    for (const call of [() => createDayProgram(date, {}, actor), () => saveDayProgram(date, { version: 1 }, actor)]) await expect(call()).rejects.toMatchObject({ code: "day_closed" });
+    const closed = await getDayProgram(date);
+    const exported = await markDayProgramExported(date, 1, actor, { expectedFingerprint: closed.sourceFingerprint });
+    expect(exported).toMatchObject({ closed: true, readOnly: true, version: 1, observations: original.observations, groups: original.groups });
+    expect((await pool.query("SELECT snapshot FROM programacao_exportacoes WHERE id=$1", [exported.exportId])).rows[0].snapshot.closed).toBe(true);
+    expect((await pool.query("SELECT estado FROM operacao_dias")).rows[0].estado).toBe("closed");
   });
   it("propagates missing core tables instead of claiming the program is uncreated", async () => {
     await pool.query("ALTER TABLE programacoes_dia RENAME TO programacoes_dia_hidden");

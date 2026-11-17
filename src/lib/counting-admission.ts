@@ -28,7 +28,7 @@ export async function admitCountingVoucher(value:unknown,actor:VoucherOperationI
     const voucher='number'in code?await getVoucherByNumber(client,code.number):(await getVouchersByIds(client,[code.voucherId],code.purchaseId))[0];
     if(!voucher)return deny('voucher_not_found','Ingresso não encontrado.',404);
     if(voucher.parque_operacional&&voucher.parque_operacional!==park)return deny('voucher_park_mismatch','Ingresso de outro parque.');
-    const school=(await client.query('SELECT 1 FROM voucher v WHERE v.idvoucher=$1 AND (v.idescola IS NOT NULL OR EXISTS(SELECT 1 FROM agenda_extras ae WHERE ae.idagenda=v.idagenda))',[voucher.idvoucher])).rowCount;
+    const school=(await client.query("SELECT 1 FROM voucher v JOIN compra c ON c.idcompra=v.idcompra WHERE v.idvoucher=$1 AND (v.idescola IS NOT NULL OR to_jsonb(c)->>'checkout_school_site_context' IS NOT NULL)",[voucher.idvoucher])).rowCount;
     if(school||!['norma','infan','isent','corte'].includes(voucher.tpvoucher??'')||voucher.servico_id!=null||!['padra','promo'].includes(voucher.tpagenda??''))return deny('gate_admission_only','Este QR não é uma entrada de day use. Confira o passeio ou serviço no painel.');
     if(voucher.stusado==='inv')return deny('voucher_invalidated','Ingresso invalidado. Entrada não autorizada.');
     if(voucher.stusado!=='n')throw alreadyUsedError(voucher);

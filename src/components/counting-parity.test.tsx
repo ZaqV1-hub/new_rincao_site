@@ -1,6 +1,7 @@
 import React from 'react';
 import { afterEach,beforeEach,describe,expect,it,vi } from 'vitest';
 import { CountingDayPage } from './counting-day-page';
+import { CountingVehiclePage } from './counting-vehicle-page';
 import { CountingDayReports } from './counting-day-reports';
 import { CountingDayUsePage } from './counting-day-use-page';
 import { CountingShare } from './counting-share';
@@ -17,10 +18,11 @@ vi.mock('next/navigation',()=>({useRouter:()=>({push:hooks.push})}));
 vi.mock('@/lib/trip-counting-client',()=>({readCountingJson:hooks.json}));
 vi.mock('react',async original=>({...await original<typeof import('react')>(),
  useState(initial:unknown){const b=hooks.active!,i=b.cursor++;if(!(i in b.slots))b.slots[i]=typeof initial==='function'?initial():initial;return[b.slots[i],(next:unknown)=>{b.slots[i]=typeof next==='function'?next(b.slots[i]):next;}];},
+ useReducer(reducer:(state:unknown,event:unknown)=>unknown,initial:unknown){const b=hooks.active!,i=b.cursor++;if(!(i in b.slots))b.slots[i]=initial;return[b.slots[i],(event:unknown)=>{b.slots[i]=reducer(b.slots[i],event);}];},
  useRef(initial:unknown){const b=hooks.active!,i=b.cursor++;if(!(i in b.slots))b.slots[i]={current:initial};return b.slots[i];},
  useEffect(run:()=>void){hooks.active!.cursor++;hooks.active!.effects.push(run);},
 }));
-vi.mock('./counting-controls',async original=>({...await original<typeof import('./counting-controls')>(),useCountingRead:hooks.read,useCountingLeaveWarning:()=>{},useCountingCommand:(key:string,confirmed:Command['confirmed'])=>{
+vi.mock('./counting-controls',async original=>({...await original<typeof import('./counting-controls')>(),useCountingRead:hooks.read,useCountingConnection:()=>true,useCountingLeaveWarning:()=>{},useCountingCommand:(key:string,confirmed:Command['confirmed'])=>{
  const command=hooks.commands.get(key)??{submit:vi.fn(),pending:null,blocked:false,ready:true,busy:false,message:'',confirmed};command.confirmed=confirmed;hooks.commands.set(key,command);return command;
 }}));
 type Node=React.ReactElement<Record<string,unknown>>;
@@ -95,4 +97,24 @@ it('rejects empty, transparent, white and uniform signature pixels while retaini
 it('accepts a blue signature on ivory using the same channel contrast as the server',()=>{
  expect(hasCountingSignatureInk(new Uint8ClampedArray([18,59,99,255,255,255,240,255]))).toBe(true);
  expect(hasCountingSignatureInk(new Uint8ClampedArray([255,255,240,255,255,255,240,255]))).toBe(false);
+});
+
+
+it('shows takeover origins and reasons while cancelled vehicles have no write action',()=>{
+ setupRead({...day().groups[0].vehicles[0],cancelled:true,closed:false,today,revision:null,history:[],historyEvents:[{id:1,action:'takeover',actorName:'Bia',previousOwnerName:'Ana',previousRevisionId:'revision',reason:'Troca de turno',at:'2026-11-17T12:00:00Z'},{id:2,action:'recount',actorName:'Ana',previousOwnerName:'Bia',previousRevisionId:'revision',reason:'Conferência do total',at:'2026-11-17T13:00:00Z'}]});
+ const tree=render(bank(),()=>CountingVehiclePage({id:9,manager:true,actorCpf:'actor'})),text=plain(tree);
+ expect(text).toContain('cancelado ou inativo');expect(text).toContain('Bia assumiu de Ana');expect(text).toContain('Ana abriu recontagem de Bia');expect(text).toContain('Troca de turno');expect(text).toContain('Conferência do total');
+ expect(nodes(tree).some(n=>n.type==='button'&&/Iniciar contagem|Assumir contagem|Abrir recontagem/.test(plain(n)))).toBe(false);
+});
+it('allows only managers to issue past reports with a reason retained on retry',async()=>{
+ const date='2020-01-01',report={date,generatedAt:'',fingerprint:'0'.repeat(64),dayUse:{date,sold:0,admitted:0,expected:0},groups:[]};
+ setupRead({closed:false,current:null,history:[],live:report,diverged:false});
+ expect(nodes(render(bank(),()=>CountingDayReports({date,actorCpf:'actor',manager:false}))).some(n=>n.type==='button'&&plain(n)==='Finalizar contagem do dia')).toBe(false);
+ const props={date,actorCpf:'actor',manager:true},b=bank();render(b,()=>CountingDayReports(props));await effects(b);let tree=render(b,()=>CountingDayReports(props));
+ expect(nodes(tree).some(n=>n.type==='button'&&plain(n)==='Finalizar contagem do dia')).toBe(true);
+ let submit=find(tree,n=>n.type==='button'&&plain(n)==='Finalizar e ver relatórios');expect(submit.props.disabled).toBe(true);
+ const reason=find(tree,n=>n.type==='textarea'&&n.props.maxLength===1000);(reason.props.onChange as (e:unknown)=>void)({target:{value:'Correção autorizada'}});
+ tree=render(b,()=>CountingDayReports(props));const modal=find(tree,n=>n.type==='dialog');(modal.props.ref as {current:unknown}).current={close:vi.fn()};submit=find(tree,n=>n.type==='button'&&plain(n)==='Finalizar e ver relatórios');expect(submit.props.disabled).toBe(false);
+ fetchMock.mockRejectedValue(new Error('network'));click(submit);await vi.waitFor(()=>expect(fetchMock).toHaveBeenCalledOnce());
+ tree=render(b,()=>CountingDayReports(props));click(find(tree,n=>n.type==='button'&&plain(n)==='Conferir a mesma tentativa'));await vi.waitFor(()=>expect(fetchMock).toHaveBeenCalledTimes(2));expect(fetchMock.mock.calls[1][1].body).toBe(fetchMock.mock.calls[0][1].body);expect(JSON.parse(fetchMock.mock.calls[0][1].body).reason).toBe('Correção autorizada');
 });

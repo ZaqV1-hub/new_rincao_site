@@ -46,9 +46,15 @@ describe("program export", () => {
     expect((await POST(request(body),context)).status).toBe(body.allowPast ? 403 : 400);
     expect(mock.render).not.toHaveBeenCalled();
   });
-  it("requires manager and client/school access", async () => {
-    mock.access.mockResolvedValueOnce({ ok: true,session: { legacyRoleId: 3 } });
-    expect((await POST(request(),context)).status).toBe(403);
+  it("allows an authorized viewer to download without edit access", async () => {
+    mock.access.mockResolvedValue({ ok: true,session: { legacyRoleId: 3,actorName: "Consulta",actorCpf: "52998224725" } });
+    expect((await POST(request(),context)).status).toBe(200);
+  });
+  it.each([false, true])("exports a past date without reopening or an edit reason (closed=%s)", async (closed) => {
+    mock.get.mockResolvedValue({ version: 2,sourceFingerprint: fingerprint,closed });
+    expect((await POST(request(), { params: Promise.resolve({ date: "2000-01-01" }) })).status).toBe(200);
+  });
+  it("requires client/school access", async () => {
     mock.access.mockResolvedValueOnce({ ok: true,session: { legacyRoleId: 1 } }).mockResolvedValueOnce({ ok: false,response: new Response(null,{ status: 403 }) });
     expect((await POST(request(),context)).status).toBe(403);
     expect(mock.get).not.toHaveBeenCalled();

@@ -25,14 +25,31 @@ describe.skipIf(!connectionString)("day lists PostgreSQL", () => {
       CREATE TABLE voucher (idcompra INT,idagenda INT,dtinicio_validade DATE,parque_operacional TEXT,vlunicompra NUMERIC,idescola INT,tpvoucher TEXT,servico_id BIGINT,stusado TEXT);
       CREATE TABLE clientes (idcliente INT PRIMARY KEY,nome TEXT);
       CREATE TABLE agenda_extras (idagenda INT,idcliente INT,stagenda_cli TEXT,PRIMARY KEY(idagenda,idcliente));`);
+    await pool.query(`ALTER TABLE voucher ADD COLUMN idvoucher serial, ADD COLUMN flreagendado text DEFAULT 'n', ADD COLUMN descricao text;
+      CREATE TABLE servicos_adicionais(id bigint,parque text,nome text);
+      CREATE TABLE passeio_participantes(parque text,voucher_id int,agenda_id int,cliente_id int,refund_requested boolean,refund_paid_at timestamptz);`);
   });
   afterAll(async () => { try { await pool?.end(); if (created) await admin.query(`DROP SCHEMA ${schema} CASCADE`); } finally { await admin?.end(); } });
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao");
-    await pool.query(`TRUNCATE voucher,compra,usuario,agenda_extras,clientes,agenda;
+    await pool.query(`TRUNCATE passeio_participantes,servicos_adicionais,voucher,compra,usuario,agenda_extras,clientes,agenda;
       INSERT INTO agenda VALUES (1,'2099-11-15','padra'),(2,'2099-11-20','escol');`);
   });
   afterEach(() => vi.unstubAllEnvs());
+  it("reports admission usage and composition separately from service items and financial status", async () => {
+    await pool.query(`INSERT INTO compra VALUES(1,NULL,'Mista','conc','bilhe'),(2,NULL,'Escolar','conc','ponli');
+      INSERT INTO servicos_adicionais VALUES(7,'rincao','Estacionamento');
+      INSERT INTO voucher(idcompra,idagenda,tpvoucher,stusado,vlunicompra,servico_id,idescola,flreagendado) VALUES
+        (1,1,'norma','s',80,NULL,NULL,'s'),(1,1,'infan','n',60,NULL,NULL,'s'),(1,1,'espec','n',20,7,NULL,'n'),
+        (2,2,'escol','n',50,NULL,10,'n'),(2,2,'escol','n',50,NULL,10,'n');
+      INSERT INTO passeio_participantes SELECT 'rincao',idvoucher,idagenda,idescola,true,CASE WHEN idvoucher=(SELECT max(idvoucher) FROM voucher) THEN now() END FROM voucher WHERE idcompra=2;`);
+    const result = await readOperationalDayList(pool,'2099-11-15','purchases',1);
+    expect(result.items[0]).toMatchObject({purchaseId:1,itemCount:3,peopleCount:2,usedPeopleCount:1,invalidPeopleCount:0,rescheduled:true,purchaseType:'dayuse',composition:[
+      {label:'Adulto',quantity:1},{label:'Criança',quantity:1},{label:'Estacionamento',quantity:1}
+    ]});
+    const group = await readOperationalDayList(pool,'2099-11-20','purchases',1);
+    expect(group.items[0]).toMatchObject({purchaseType:'group',peopleCount:2,refundRequestedCount:2,refundPaidCount:1});
+  });
   it("paginates all purchase statuses and sums only items belonging to the chosen date and park", async () => {
     await pool.query(`INSERT INTO compra SELECT i,NULL,'Comprador '||i,CASE WHEN i=22 THEN 'pend' ELSE 'conc' END,'ponli' FROM generate_series(1,22) i;
       INSERT INTO voucher SELECT i,1,NULL,NULL,10.25,NULL,'norma',NULL,'n' FROM generate_series(1,22) i;
@@ -49,7 +66,7 @@ describe.skipIf(!connectionString)("day lists PostgreSQL", () => {
   it("filters distinct purchases by proven item presence and computes counters with the opposite filter", async () => {
     await pool.query(`INSERT INTO agenda VALUES (3,'2099-11-15','escol'),(4,'2099-11-15','igrej');
       INSERT INTO clientes VALUES (10,'Grupo A'),(20,'Grupo B');
-      INSERT INTO agenda_extras VALUES (3,10,'abe'),(3,20,'abe');
+      INSERT INTO agenda_extras VALUES (1,10,'abe'),(1,20,'abe');
       INSERT INTO compra VALUES
         (1,NULL,'Day use site','conc','ponli'),(2,NULL,'Grupo caixa','conc','bilhe'),
         (3,NULL,'Reserva de grupo','pend','reser'),(4,NULL,'Igreja site','conc','ponli'),
@@ -79,6 +96,9 @@ describe.skipIf(!connectionString)("day lists PostgreSQL", () => {
     expect(filtered.items[0]).toMatchObject({ itemCount: 3, dateAmountCents: 6000 });
     const gate = await readOperationalDayList(pool,"2099-11-15","purchases",1,{ origin: "gate", type: "group" });
     expect(gate.items.map(row => "purchaseId" in row && row.purchaseId)).toEqual([3,2]);
+    await pool.query("ALTER TABLE compra ADD COLUMN checkout_school_site_context jsonb; UPDATE compra SET checkout_school_site_context='{}' WHERE idcompra=1");
+    try { expect(await readOperationalDayList(pool,'2099-11-15','purchases',1,{type:'group',query:'Day use site'})).toMatchObject({total:1}); }
+    finally {await pool.query('ALTER TABLE compra DROP COLUMN checkout_school_site_context');}
   });
   it("searches checkout or registered names, exact purchase number and normalized CPF without interpreting wildcards", async () => {
     await pool.query(`INSERT INTO usuario VALUES ('529.982.247-25','Nome do cadastro');

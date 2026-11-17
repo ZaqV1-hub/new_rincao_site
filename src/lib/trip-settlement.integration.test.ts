@@ -40,7 +40,7 @@ describe.skipIf(!connectionString)('trip settlement with PostgreSQL',() => {
   });
   beforeEach(async () => {
     vi.stubEnv('OPERATIONAL_PARK_ID','rincao');
-    await pool.query(`TRUNCATE caixa_fechamentos,movimentacao_caixa,operacao_fechamentos,financeiro_comandos,passeio_operacao,agenda_extras,agenda,clientes,voucher,compra_pagamentos,compra,caixa_periodos,caixa_locais,edicoes_log,tabpreco,agenda_faixas,operacao_dias RESTART IDENTITY CASCADE;
+    await pool.query(`TRUNCATE servico_datas,servicos_adicionais,caixa_fechamentos,movimentacao_caixa,operacao_fechamentos,financeiro_comandos,passeio_operacao,agenda_extras,agenda,clientes,voucher,compra_pagamentos,compra,caixa_periodos,caixa_locais,edicoes_log,tabpreco,agenda_faixas,operacao_dias RESTART IDENTITY CASCADE;
       INSERT INTO tabpreco VALUES(1,100,80);
       INSERT INTO agenda VALUES(2,1,(clock_timestamp() AT TIME ZONE 'America/Sao_Paulo')::date,'escol','abe');
       INSERT INTO clientes VALUES(10,'Escola A'),(20,'Escola B'); INSERT INTO agenda_extras VALUES(2,10,'abe'),(2,20,'abe');
@@ -58,6 +58,27 @@ describe.skipIf(!connectionString)('trip settlement with PostgreSQL',() => {
   afterAll(async () => { await pool?.end(); if (created) await admin.query(`DROP SCHEMA ${schema} CASCADE`); await admin?.end(); });
   async function mutate(action: string,extra: Record<string,unknown> = {}) { const { source } = await getTripSettlement(key); return changeTripSettlement(key,action,{ version: source.financialVersion,fingerprint: source.fingerprint,idempotencyKey: `${action}-${source.financialVersion}`,reason: '',...extra },actor); }
   async function pay(amountCents: number,status = 'confirmed',method = 'pix') { const { source } = await getTripSettlement(key); return mutate('receive',{ paymentDate: source.today,periodId: null,payments: [{ method,amountCents,status,reference: status === 'pending' ? '' : 'Comprovante de teste' }] }); }
+  it('classifies public day-use items on a shared group agenda in daily closure',async()=>{
+    await pool.query("UPDATE agenda SET tpagenda='padra'; INSERT INTO compra VALUES(2,'bilhe','conc',80,0,'pix'); INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,stusado) VALUES(2,2,'norma',80,'n')");
+    const {source}=await getTripSettlement(key),closure=await getOperationalDayClosure(source.today);
+    expect(closure.live.items.find(i=>i.purchaseId===2)?.kind).toBe('admission');
+    expect(closure.live.items.filter(i=>i.purchaseId===1).every(i=>i.kind==='school')).toBe(true);
+    expect(closure.live.summary.revenue.gateNetCents.value).toBe(8000);
+    expect(closure.live.summary.revenue.unclassifiedNetCents.value).toBe(0);
+    await pool.query("ALTER TABLE compra ADD COLUMN checkout_school_site_context jsonb; UPDATE compra SET checkout_school_site_context='{}' WHERE idcompra=2");
+    try { expect((await getOperationalDayClosure(source.today)).live.items.find(i=>i.purchaseId===2)?.kind).toBe('school'); }
+    finally {await pool.query('ALTER TABLE compra DROP COLUMN checkout_school_site_context');}
+  });
+  it('classifies a service linked to a group agenda separately from actual school participants',async()=>{
+    await pool.query(`INSERT INTO servicos_adicionais(parque,nome,preco_bilheteria) VALUES('rincao','Almoço',25);
+      INSERT INTO compra VALUES(2,'bilhe','conc',25,0,'pix');
+      INSERT INTO voucher(idcompra,idagenda,tpvoucher,vlunicompra,stusado,servico_id,parque_operacional,dtinicio_validade,dtvalidade) VALUES(2,2,'espec',25,'n',1,'rincao',(now() AT TIME ZONE 'America/Sao_Paulo')::date,(now() AT TIME ZONE 'America/Sao_Paulo')::date)`);
+    const {source}=await getTripSettlement(key),closure=await getOperationalDayClosure(source.today);
+    expect(closure.live.items.find(i=>i.purchaseId===2)?.kind).toBe('service');
+    expect(closure.live.items.filter(i=>i.purchaseId===1).every(i=>i.kind==='school')).toBe(true);
+    expect(closure.live.summary.revenue.servicesNetCents.value).toBe(2500);
+    expect(closure.live.summary.attendance.dayUseAdmitted.value).toBe(0);
+  });
   it('closes atomically, preserves missing cash counts and immutable revisions, and detects a late payment',async () => {
     const { source } = await getTripSettlement(key),date=source.today;
     const cash=await openCashSession({ date,locationId: 2,openingCashCents: 1200,idempotencyKey: 'daily-cash' },actor);

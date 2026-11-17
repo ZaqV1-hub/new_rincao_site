@@ -16,7 +16,7 @@ function plain(value: unknown): string { return Array.isArray(value) ? value.map
 function find(tree: unknown, predicate: (node: Node) => boolean) { const result = nodes(tree).find(predicate); if (!result) throw new Error("Element absent"); return result; }
 const products: B2cProduct[] = [...DEFAULT_B2C_PRODUCTS, { ...DEFAULT_B2C_PRODUCTS[0], id: "servico:7", type: "addon", voucherType: "espec", operationalServiceId: 7, title: "Armário", sitePrice: "", boxOfficePrice: "10.00" }];
 const memory = new Map<string, string>();
-function render() { hooks.index = 0; return PainelBilheteriaSalesBuilder({ periodId: 4, today: "2099-01-01", agendas: [{ id: 2, date: "2099-01-01" }] as PublicAgendaEvent[], products }); }
+function render(serviceOnly = false) { hooks.index = 0; return PainelBilheteriaSalesBuilder({ periodId: 4, today: "2099-01-01", agendas: serviceOnly ? [] : [{ id: 2, date: "2099-01-01" }] as PublicAgendaEvent[], serviceAgendaId: serviceOnly ? 9 : null, products: serviceOnly ? products.filter(product => product.type === "addon") : products }); }
 const click = (node: Node) => (node.props.onClick as () => void)();
 const change = (node: Node, value: string) => (node.props.onChange as (event: unknown) => void)({ target: { value } });
 beforeEach(() => { hooks.slots = []; hooks.effects = []; hooks.index = 0; hooks.push.mockClear(); memory.clear(); vi.stubGlobal("window", {}); vi.stubGlobal("sessionStorage", { getItem: (key: string) => memory.get(key) ?? null, setItem: (key: string, value: string) => memory.set(key, value), removeItem: (key: string) => memory.delete(key) }); vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ ok: true, data: { discounts: [], courtesyAuthors: [] } }))); });
@@ -52,4 +52,16 @@ it("enforces the 500-unit total across multiple rows", () => {
   tree = render(); for (const node of nodes(tree).filter((node) => node.type === "input" && node.props.type === "number")) change(node, "500");
   click(find(render(), (node) => node.type === "button" && plain(node) === "Finalizar compra"));
   expect(hooks.push).not.toHaveBeenCalled(); expect(plain(render())).toContain("Limite de 500 unidades");
+});
+
+it("sells assigned services without offering tickets or courtesies when public day use is closed", () => {
+  const renderServices = () => render(true);
+  let tree = renderServices();
+  expect(nodes(tree).some(node => node.type === "button" && plain(node).startsWith("Cortesia"))).toBe(false);
+  click(find(tree, node => node.props["aria-label"] === "Adicionar Armário"));
+  tree = renderServices();
+  expect(nodes(tree).some(node => node.type === "option" && node.props.value === "courtesy")).toBe(false);
+  change(find(tree, node => node.props["aria-label"] === "CPF do comprador"), "52998224725");
+  click(find(renderServices(), node => node.type === "button" && plain(node) === "Finalizar compra"));
+  expect(JSON.parse(memory.get(saleDraftStorageKey(4))!)).toMatchObject({ agendaId: 9, items: [], courtesies: [], services: [{ serviceId: 7, quantity: 1 }], totalValue: "10.00" });
 });

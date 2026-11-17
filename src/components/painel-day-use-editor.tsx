@@ -8,7 +8,7 @@ import { getSaoPauloToday, voucherValidityRange, type OperationalValidity } from
 
 type Props = {
   day: OperationalDay;
-  priceTables: { id: number; label: string }[];
+  priceTables: { id: number; label: string; prices?: { siteAdult: string | null; siteChild: string | null; gateAdult: string | null; gateChild: string | null } }[];
   services: OperationalService[];
   canEdit: boolean;
 };
@@ -19,6 +19,9 @@ const ticketLabels: Record<OperationalTicketType, string> = { norma: "Adulto", i
 
 export function PainelDayUseEditor({ day: initialDay, priceTables, services, canEdit }: Props) {
   const [day, setDay] = useState(initialDay);
+  const [priceTableId, setPriceTableId] = useState(initialDay.priceTableId ?? "");
+  const prices = priceTables.find(table => table.id === Number(priceTableId))?.prices;
+  const price = (value: string | null | undefined) => value == null ? "Não informado" : Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const [validity, setValidity] = useState(initialDay.validity);
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
@@ -35,6 +38,7 @@ export function PainelDayUseEditor({ day: initialDay, priceTables, services, can
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error?.message || "Não foi possível carregar a data.");
       setDay(result.data);
+      setPriceTableId(result.data.priceTableId ?? "");
       setValidity(result.data.validity);
       setConflict(false);
       setFeedback({ error: false, text: "Programação atual carregada. Confira os campos antes de salvar." });
@@ -98,11 +102,19 @@ export function PainelDayUseEditor({ day: initialDay, priceTables, services, can
         {day.onlineSoldOut ? <p role="status" className="text-sm text-[#8a2525]">Esgotado para novas vendas; aberto para uso de ingressos válidos. Alterar preços ou validade mantém as vendas encerradas.</p> : null}
         <p className="text-sm text-[#45647f]">Fechar a oferta retira esta data do site. Ingressos já comprados não são cancelados.</p>
         <label className="block space-y-1 text-sm font-semibold"><span>Tabela de preço da data</span>
-          <select name="priceTableId" className={field} required defaultValue={day.priceTableId ?? ""}>
+          <select name="priceTableId" className={field} required value={priceTableId} onChange={event => setPriceTableId(event.target.value)}>
             <option value="" disabled>Selecione uma tabela</option>
             {priceTables.map((table) => <option key={table.id} value={table.id}>{table.label}</option>)}
           </select>
         </label>
+        <section aria-label="Preços da tabela selecionada" className="rounded-lg border border-[#d4dfeb] p-3 text-sm">
+          <h2 className="font-bold">Preços da tabela selecionada</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div><h3 className="font-semibold">Adulto · 10 anos ou mais</h3><p>Site: {price(prices?.siteAdult)}</p><p>Bilheteria: {price(prices?.gateAdult)}</p></div>
+            <div><h3 className="font-semibold">Criança · 4 a 9 anos</h3><p>Site: {price(prices?.siteChild)}</p><p>Bilheteria: {price(prices?.gateChild)}</p></div>
+          </div>
+          <p className="mt-3">Isento · 0 a 3 anos: gratuito.</p>
+        </section>
         <label className="block space-y-1 text-sm font-semibold"><span>Validade dos novos ingressos</span>
           <select name="validity" className={field} value={validity} onChange={(event) => setValidity(event.target.value as OperationalValidity)}>
             <option value="day">Somente na data escolhida</option><option value="7_days">7 dias</option><option value="30_days">30 dias</option><option value="6_months">6 meses</option>
@@ -118,7 +130,7 @@ export function PainelDayUseEditor({ day: initialDay, priceTables, services, can
         </fieldset>
         <fieldset className="space-y-2"><legend className="mb-2 text-sm font-bold">Serviços adicionais</legend>
           {services.length ? services.map((service) => <label key={service.id} className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" name="serviceIds" value={service.id} defaultChecked={day.serviceIds.includes(service.id)} />
-            <span>{service.name}{!service.active ? " (inativo — remova da seleção)" : service.sitePriceCents === null ? " · só na bilheteria" : ""}</span>
+            <span>{service.name}{!service.active ? " (inativo — remova da seleção)" : ""}<span className="block text-[#45647f]">Site: {service.sitePriceCents === null ? "não vendido online" : price(String(service.sitePriceCents / 100))} · Bilheteria: {price(String(service.gatePriceCents / 100))}</span></span>
           </label>) : <p className="text-sm text-[#45647f]">Nenhum serviço cadastrado.</p>}
         </fieldset>
         {!readOnly && <>

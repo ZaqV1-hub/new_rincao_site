@@ -126,7 +126,7 @@ export async function applyAgendaPriceSelection(
 }
 
 const control = "min-h-11 rounded-lg border border-[#b8cbdc] px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#236699] disabled:opacity-50";
-const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Criado e enviado · arquivos gerados", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
+const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Arquivos gerados · envio manual", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
 const isDayUse = (entry: PainelAgendaMonthEntry) => entry.type === "padra" || entry.type === "promo";
 
 export function PainelAgendaManager({ data, indicators = null, operationalDays, operationalError, today, canEdit, canAccessProgram = false, programStatuses = null, programError }: PainelAgendaManagerProps) {

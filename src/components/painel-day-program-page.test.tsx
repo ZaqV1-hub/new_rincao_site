@@ -104,13 +104,14 @@ describe("day program UI", () => {
     const html = render(program);
     expect(html).toContain("Editar mesmo assim");
     expect(html).not.toContain("Editar grupo");
-    expect(html).not.toContain("Gerar arquivos para envio");
+    expect(html).toContain("Baixar programação e fichas");
+    expect(render({ ...program, closed: true })).toContain("Baixar programação e fichas");
     expect(render(program, false)).not.toContain("Editar mesmo assim");
     expect(render({ ...program, closed: true })).not.toContain("Editar mesmo assim");
   });
-  it("does not expose editing or exporting to viewers, or fire requests during server rendering", () => {
+  it("does not expose editing to viewers and allows consultation downloads, or fire requests during server rendering", () => {
     const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
-    try { const html = render(fixture(), false); expect(html).not.toContain("Editar grupo"); expect(html).not.toContain("Gerar arquivos para envio"); expect(html).not.toContain("Adicionar outro item"); expect(fetch).not.toHaveBeenCalled(); }
+    try { const html = render(fixture(), false); expect(html).not.toContain("Editar grupo"); expect(html).toContain("Baixar programação e fichas"); expect(html).not.toContain("Adicionar outro item"); expect(fetch).not.toHaveBeenCalled(); }
     finally { vi.unstubAllGlobals(); }
   });
 });

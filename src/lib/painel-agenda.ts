@@ -463,11 +463,13 @@ export async function listPainelAgendaPriceTables() {
     idtabpreco: number;
     nmtabpreco: string | null;
     sttabpreco: string | null;
+    vlnormal: string | null; vlinfant: string | null; vlnormalbil: string | null; vlinfantbil: string | null;
   }>)
     .filter((row) => !["ina", "inat"].includes(String(row.sttabpreco ?? "ativ").trim().toLowerCase()))
     .map((row) => ({
       id: Number(row.idtabpreco),
       label: String(row.nmtabpreco ?? "").trim() || `Tabela #${row.idtabpreco}`,
+      prices: { siteAdult: toMoney(row.vlnormal), siteChild: toMoney(row.vlinfant), gateAdult: toMoney(row.vlnormalbil), gateChild: toMoney(row.vlinfantbil) },
     }))
     .sort((left, right) => left.label.localeCompare(right.label, "pt-BR"));
 }

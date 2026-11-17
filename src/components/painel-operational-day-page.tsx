@@ -11,7 +11,7 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import type { DayProgram } from "@/lib/day-program";
 import type { OperationalDaySummary, SummarySourceValue } from "@/lib/operational-day-summary";
 import { purchaseDetailHref, purchaseListHref, readPurchaseListContext, type PurchaseListContext } from "@/lib/operational-purchase-navigation";
-import type { OperationalDayList } from "@/lib/operational-day-lists";
+import type { OperationalDayList, DayPurchaseRow } from "@/lib/operational-day-lists";
 import { PainelPurchaseBatch } from "@/components/painel-purchase-batch";
 
 const button = "inline-flex min-h-11 items-center justify-center rounded-lg border border-[#b8cbdc] bg-white px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#236699] disabled:opacity-50";
@@ -36,6 +36,17 @@ function SourceValue({ label, source, currency = false, maximum }: { label: stri
     <dd className="mt-1 font-semibold tabular-nums">{source.status === "available" ? (currency ? money(source.value) : number(source.value)) : "Indisponível"}</dd>
     {source.status === "available" && maximum !== undefined && <dd aria-hidden="true" className="mt-2 h-2 overflow-hidden rounded bg-[#e5edf5]"><div className="h-full rounded bg-[#236699]" style={{ width: `${maximum > 0 ? source.value / maximum * 100 : 0}%` }} /></dd>}
     {source.status === "unavailable" && <dd className="mt-1 text-sm text-[#45647f]">{source.reason}</dd>}
+  </div>;
+}
+
+export function DayPurchaseSummary({ item }: { item: DayPurchaseRow }) {
+  const type = { dayuse: "Day use", group: "Passeio/escolar", mixed: "Day use e passeio", items: "Só itens" }[item.purchaseType];
+  const usage = item.peopleCount === 0 ? "Só itens" : item.usedPeopleCount === item.peopleCount ? "Usada" : item.usedPeopleCount > 0 ? `${item.usedPeopleCount} de ${item.peopleCount} usados` : "Não usada";
+  return <div className="space-y-1 text-sm text-[#45647f]">
+    <p>{labels[item.status] ?? (item.status || "Situação não informada")} · {labels[item.channel] ?? (item.channel || "Canal não informado")} · {type} · {number(item.peopleCount)} pessoa(s)</p>
+    <p>{item.composition.map(part => `${number(part.quantity)}× ${part.label}`).join(", ")}</p>
+    <p>{usage}{item.rescheduled ? " · Reagendada" : ""}{item.invalidPeopleCount > 0 ? ` · ${number(item.invalidPeopleCount)} invalidado(s)` : ""}</p>
+    {item.groupPeopleCount > 0 && <p>{number(item.refundRequestedCount)} ausente(s) com reembolso solicitado · {number(item.refundPaidCount)} devolução(ões) registrada(s). {number(item.groupPeopleCount - item.refundRequestedCount)} ingresso(s) sem ausência marcada.</p>}
   </div>;
 }
 
@@ -91,7 +102,7 @@ function DayListPanel({ date, kind, context, onContextChange, canOperate }: { da
       <p role="status" className="text-sm text-[#45647f]">{number(data.total)} registro(s) · Página {data.page} de {Math.max(1, data.pageCount)}</p>
       {data.items.length === 0 ? <p>Nenhum registro encontrado nesta data.</p> : <ul className="divide-y divide-[#d4dfeb]">{data.items.map((item) => "purchaseId" in item ? <li key={item.purchaseId} className="flex flex-wrap items-start justify-between gap-3 py-4">
         {canOperate && item.batchSelectable && <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" aria-label={`Selecionar compra ${item.purchaseId} para alterar data ou validade`} disabled={batchBusy} checked={selected.includes(item.purchaseId)} onChange={event => setSelection({ key,ids: event.target.checked ? [...selected,item.purchaseId] : selected.filter(id => id !== item.purchaseId) })} />Selecionar</label>}
-        <div className="min-w-0"><Link className="inline-flex min-h-11 items-center font-semibold underline" href={purchaseDetailHref(item.purchaseId, context)}>Compra #{item.purchaseId} · {item.buyerName || "Cliente não informado"}</Link><p className="text-sm text-[#45647f]">{labels[item.status] ?? (item.status || "Situação não informada")} · {labels[item.channel] ?? (item.channel || "Canal não informado")} · {number(item.itemCount)} item(ns) da data</p></div>
+        <div className="min-w-0"><Link className="inline-flex min-h-11 items-center font-semibold underline" href={purchaseDetailHref(item.purchaseId, context)}>Compra #{item.purchaseId} · {item.buyerName || "Cliente não informado"}</Link><DayPurchaseSummary item={item} /></div>
         <p className="font-semibold tabular-nums">{money(item.dateAmountCents)}</p>
       </li> : <li key={`${item.agendaId}:${item.clientId}`} className="py-4"><Link className="inline-flex min-h-11 items-center font-semibold underline" href={`/painel/clientes/passeios/${item.agendaId}/alunos?clientId=${item.clientId}`}>{item.clientName || "Cliente não informado"}</Link><p className="text-sm text-[#45647f]">{labels[item.agendaType] ?? item.agendaType} · {labels[item.status] ?? (item.status || "Situação não informada")} · {number(item.paidOnlinePeople)} pessoa(s) paga(s) online</p></li>)}</ul>}
       <nav aria-label="Paginação da lista" className="flex flex-wrap gap-2"><button type="button" className={button} disabled={page <= 1} onClick={() => setPage(page - 1)}>Página anterior</button><button type="button" className={button} disabled={page >= data.pageCount} onClick={() => setPage(page + 1)}>Próxima página</button></nav>
@@ -119,7 +130,7 @@ function GroupProgress({ date }: { date: string }) {
   </div>;
 }
 
-const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Criado e enviado · arquivos gerados", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
+const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Arquivos gerados · envio manual", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
 export function PainelOperationalDayPage({ summary: initialSummary, canManage, canAccessCash = false, canAccessProgram = false, programStatus = null, programError, initialPurchaseContext, initialTab, financialActorCpf }: {
   summary: OperationalDaySummary; financialActorCpf?: string; canManage: boolean; canAccessCash?: boolean; canAccessProgram?: boolean; programStatus?: DayProgram["status"] | null; programError?: string | null; initialPurchaseContext?: PurchaseListContext; initialTab?: string;
 }) {

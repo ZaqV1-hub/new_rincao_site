@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { expireUnusedVouchers, rescheduleUserVoucher, resetVoucherLifecycleSchemaForTests } from "@/lib/voucher-repository";
 import { lockVoucherCashContext } from "@/lib/ops-voucher-validation-cash";
 import { validateVoucherByNumber, validateSelectedVouchers, validateSchoolTripVouchers, unvalidateSelectedVouchers, invalidateSelectedVouchers } from "@/lib/ops-voucher-validation";
+import { readCountingAttendance } from "./counting-attendance";
 import { admitCountingVoucher } from "./counting-admission";
 import { markVoucherUsed } from "@/lib/ops-voucher-validation-shared";
 
@@ -68,6 +69,27 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
     await pool.query("UPDATE voucher SET numvoucher='TICKET-'||idvoucher");
   });
 
+  it("admits public tickets on mixed agendas and counts only public attendance", async () => {
+    await pool.query("INSERT INTO agenda_extras VALUES(1,10),(2,10)");
+    await pool.query("UPDATE voucher SET dtinicio_validade=$1 WHERE idvoucher=1", [today]);
+    const actor = { name:'Monitora',cpf:'52998224725' };
+    expect(await readCountingAttendance(pool,today)).toMatchObject({sold:1,admitted:0,expected:1});
+    expect(await admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'mixed'},actor)).toMatchObject({admitted:true});
+    expect(await readCountingAttendance(pool,today)).toMatchObject({sold:1,admitted:1,expected:0});
+  });
+  it.each(["UPDATE voucher SET idescola=10 WHERE idvoucher=1", "UPDATE agenda SET tpagenda='escol' WHERE idagenda=1", "UPDATE voucher SET tpvoucher='escol' WHERE idvoucher=1"])("rejects genuine school entry on mixed days: %s",async sql=>{
+    await pool.query('INSERT INTO agenda_extras VALUES(1,10)'); await pool.query(sql);
+    await expect(admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'school'},{name:'A',cpf:'52998224725'})).rejects.toMatchObject({code:'gate_admission_only'});
+  });
+
+  it("keeps school checkout context out of public gate entry and attendance",async()=>{
+    await pool.query("ALTER TABLE compra ADD COLUMN checkout_school_site_context jsonb; UPDATE compra SET checkout_school_site_context='{}'; INSERT INTO agenda_extras VALUES(1,10)");
+    try {
+      await pool.query('UPDATE voucher SET dtinicio_validade=$1 WHERE idvoucher=1',[today]);
+      expect(await readCountingAttendance(pool,today)).toMatchObject({sold:0,admitted:0});
+      await expect(admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'context'},{name:'A',cpf:'52998224725'})).rejects.toMatchObject({code:'gate_admission_only'});
+    } finally {await pool.query('ALTER TABLE compra DROP COLUMN checkout_school_site_context');}
+  });
   it("admits at the gate without any cash session and reconciles the same attempt", async () => {
     await pool.query('DELETE FROM caixa_periodos');
     const actor = { name: 'Monitora', cpf: '52998224725' };

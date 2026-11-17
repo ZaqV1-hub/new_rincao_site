@@ -12,6 +12,7 @@ export function CashPaymentFields({ rows, onChange, totalCents, disabled }: {
   rows: CashPaymentRow[]; onChange: (rows: CashPaymentRow[]) => void; totalCents: number; disabled: boolean;
 }) {
   const preview = previewCashPayments(totalCents, rows);
+  const remainingCents = Math.max(0, totalCents - rows.reduce((sum, row) => sum + (cashInputCents(row.value) ?? 0), 0));
   return <fieldset disabled={disabled} className="grid gap-3 disabled:opacity-70">
     <legend className="mb-3 font-semibold">Valores entregues por forma de pagamento</legend>
     {rows.map((row, index) => <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
@@ -22,7 +23,7 @@ export function CashPaymentFields({ rows, onChange, totalCents, disabled }: {
       <button type="button" onClick={() => onChange(rows.filter((_, i) => i !== index))} className="rounded border px-3">Remover</button>
     </div>)}
     {totalCents === 0 && rows.length === 0 ? <p>Compra sem cobrança. Confirme para registrar os ingressos.</p> : null}
-    <button type="button" disabled={rows.length >= 20} onClick={() => onChange([...rows, { method: "", value: "" }])} className="justify-self-start rounded border px-3 py-2">Adicionar forma</button>
+    <button type="button" disabled={rows.length >= 20} onClick={() => onChange([...rows, { method: "", value: (remainingCents / 100).toFixed(2) }])} className="justify-self-start rounded border px-3 py-2">Adicionar forma</button>
     <p>Total da compra: <strong>{cashDisplay(totalCents)}</strong></p>
     {preview.ok ? <p aria-live="polite">Entregue: {cashDisplay(preview.receivedCents)} · Troco: <strong>{cashDisplay(preview.changeCents)}</strong></p> : <p>{preview.message}</p>}
   </fieldset>;

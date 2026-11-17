@@ -12,16 +12,15 @@ export const DAY_SALES_SQL = `
         COALESCE(v.dtinicio_validade, a.dtagenda) AS chosen_date, v.dtinicio_validade,
         c.stcompra='conc' AS paid, c.tpcompra AS channel,
         CASE
-          WHEN v.idescola IS NOT NULL OR v.tpvoucher='escol'
-            OR a.tpagenda IN ('escol','igrej','casam','melho','confr','ongs','grmix') THEN 'school'
+          WHEN v.idescola IS NOT NULL OR v.tpvoucher='escol' OR to_jsonb(c)->>'checkout_school_site_context' IS NOT NULL THEN 'school'
           WHEN v.servico_id IS NOT NULL AND EXISTS (
             SELECT 1 FROM servicos_adicionais s WHERE s.id=v.servico_id AND s.parque=$2
           ) THEN 'service'
           WHEN v.tpvoucher='espec' AND v.item_id IS NOT NULL AND EXISTS (
             SELECT 1 FROM servicos_adicionais s WHERE s.legacy_ticket_id=v.item_id AND s.parque=$2
           ) THEN 'service'
-          WHEN v.tpvoucher IN ('norma','infan','isent','corte') AND a.tpagenda IN ('padra','promo')
-            AND NOT EXISTS (SELECT 1 FROM agenda_extras ae WHERE ae.idagenda=a.idagenda) THEN 'admission'
+          WHEN a.tpagenda IN ('escol','igrej','casam','melho','confr','ongs','grmix') THEN 'school'
+          WHEN v.tpvoucher IN ('norma','infan','isent','corte') AND a.tpagenda IN ('padra','promo') THEN 'admission'
           ELSE 'unknown'
         END AS kind,
         c.tpcompra IN ('ponli','bilhe') OR (c.tpcompra='reser' AND COALESCE(UPPER(TRIM(c.formapag)), '') NOT IN ('','N/A')) AS known_channel

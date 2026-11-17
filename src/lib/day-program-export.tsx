@@ -61,15 +61,21 @@ export function buildDayProgramExportDocuments(program: DayProgram): ExportDocum
     if (weather.license) blocks.push(field("Licença", `${weather.license}${weather.licenseUrl ? ` · ${weather.licenseUrl}` : ""}`));
   }
   blocks.push({ text: "Observações gerais", heading: true }, { text: program.observations?.trim() || "Nenhuma observação informada." });
+  function carrierVehicles(stop: DayProgramGroup, carrierId: number, type: "bus" | "van") {
+    const count = stop.vehicles.filter(vehicle => vehicle.carrierId === carrierId && vehicle.type === type).length;
+    if (stop.carrierId === carrierId && stop[type === "bus" ? "buses" : "vans"] === null) return count ? `${count} + previsão a preencher` : null;
+    return count;
+  }
   const documents: ExportDocument[] = [{ filename: "programacao", title: "Programação do dia", subtitle, blocks }];
   for (const carrier of program.carriers) {
-    const stops = program.groups.filter((group) => group.transportMode === "carrier" && group.carrierId === carrier.id);
+    const stops = program.groups.filter((group) => group.vehicles.some(vehicle => vehicle.carrierId === carrier.id) || (group.transportMode === "carrier" && group.carrierId === carrier.id));
     if (!stops.length) continue;
     documents.push({ filename: `transportador-${carrier.id}`, title: `Ficha do transportador - ${carrier.name}`, subtitle,
       blocks: stops.flatMap((stop, index): ExportBlock[] => [{ text: `Parada ${index + 1} - ${stop.clientName}`, heading: true },
-          field("Ônibus", stop.buses), field("Vans", stop.vans), field("Embarque", stop.boardingTime),
+          field("Ônibus", carrierVehicles(stop, carrier.id, "bus")),
+          field("Vans", carrierVehicles(stop, carrier.id, "van")), field("Embarque", stop.boardingTime),
           field("Endereço", stop.address), field("Contato da escola", stop.contact), field("Telefone da escola", stop.phone),
-          field("Contato do transportador", stop.carrierContact), field("Telefone do transportador", stop.carrierPhone)]) });
+          field("Contato do transportador", stop.carrierId === carrier.id ? stop.carrierContact : carrier.contact), field("Telefone do transportador", stop.carrierId === carrier.id ? stop.carrierPhone : carrier.phone)]) });
   }
   return documents;
 }
@@ -97,16 +103,42 @@ function paragraphs(text: string): string[] {
 }
 
 const columnWidths = [0.12, 0.19, 0.16, 0.08, 0.10, 0.17, 0.18];
-function expandedBlocks(document: ExportDocument): ExportBlock[] {
-  return document.blocks.flatMap((block) => {
-    if (!block.cells) return paragraphs(block.text).map((text) => ({ ...block, text }));
-    // Split very long cells into continuation rows; never truncate school names or notes.
-    const columns = block.cells.map(cell => cell.match(/[\s\S]{1,120}/gu) ?? [""]);
-    return Array.from({ length: Math.max(...columns.map(column => column.length)) }, (_, index) => {
+async function expandedBlocks(document: ExportDocument): Promise<ExportBlock[]> {
+  const blocks: ExportBlock[] = [];
+  for (const block of document.blocks) {
+    if (!block.cells) { blocks.push(...paragraphs(block.text).map((text) => ({ ...block, text }))); continue; }
+    const columns = await Promise.all(block.cells.map(async (cell, column) => {
+      const width = Math.floor((PAGE_WIDTH - MARGIN * 2) * columnWidths[column]) - 16;
+      // Leave room for headings and footers in both PNG pixels and PDF points.
+      const fits = async (text: string) => !text.trim() || (await pngText(text, 17, block.tableHeader || block.total, width)).info.height <= 1000;
+      if (await fits(cell)) return [cell];
+      const chunks: string[] = [];
+      let rest = cell;
+      while (rest) {
+        const characters = Array.from(rest);
+        let low = 1, high = characters.length;
+        while (low < high) {
+          const middle = Math.ceil((low + high) / 2);
+          if (await fits(characters.slice(0, middle).join(""))) low = middle;
+          else high = middle - 1;
+        }
+        let end = low;
+        if (end < characters.length) {
+          const boundary = characters.slice(0, end).findLastIndex(character => /\s/u.test(character));
+          if (boundary > 0) end = boundary + 1;
+        }
+        chunks.push(characters.slice(0, end).join(""));
+        rest = characters.slice(end).join("");
+      }
+      return chunks;
+    }));
+    for (let index = 0; index < Math.max(...columns.map(column => column.length)); index++) {
       const cells = columns.map(column => column[index] ?? "");
-      return { ...block, cells, text: cells.join(" | ") };
-    });
-  });
+      if (index > 0) cells[0] = `Continuação\n${cells[0]}`;
+      blocks.push({ ...block, cells, text: cells.join(" | ") });
+    }
+  }
+  return blocks;
 }
 
 async function pngText(text: string, size: number, bold = false, width = PAGE_WIDTH - MARGIN * 2) {
@@ -135,7 +167,7 @@ async function appendPngs(zip: JSZip, document: ExportDocument, remainingPages: 
     page++;
   }
   await header();
-  const blocks = expandedBlocks(document);
+  const blocks = document.blocks;
   for (let index = 0; index < blocks.length; index++) {
     const block = blocks[index];
     if (block.cells) {
@@ -186,7 +218,7 @@ async function renderPdf(document: ExportDocument, remainingPages: number) {
         <Text hyphenationCallback={(word) => word.length > 40 ? Array.from(word) : [word]} style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{document.title}</Text>
         <Text>{document.subtitle}</Text>
       </View>
-      {expandedBlocks(document).map((block, index) => block.cells ? <View key={index} wrap={false} style={{ flexDirection: "row", backgroundColor: block.tableHeader || block.total ? "#eaf2fb" : "#ffffff", borderBottomWidth: 0.5, borderBottomColor: "#d4dfeb", minHeight: 20 }}>
+      {document.blocks.map((block, index) => block.cells ? <View key={index} wrap={false} style={{ flexDirection: "row", backgroundColor: block.tableHeader || block.total ? "#eaf2fb" : "#ffffff", borderBottomWidth: 0.5, borderBottomColor: "#d4dfeb", minHeight: 20 }}>
         {block.cells.map((cell, column) => <Text key={column} hyphenationCallback={(word) => word.length > 12 ? Array.from(word) : [word]} style={{ width: `${columnWidths[column] * 100}%`, padding: 4, fontSize: 8, lineHeight: 1.35, fontWeight: block.tableHeader || block.total ? 700 : 400 }}>{cell}</Text>)}
       </View> : <Text key={index} minPresenceAhead={block.heading ? 24 : 0}
         hyphenationCallback={(word) => word.length > 40 ? Array.from(word) : [word]}
@@ -211,6 +243,7 @@ export async function renderDayProgramBundle(program: DayProgram): Promise<Buffe
   let pngPages = 0;
   let pdfPages = 0;
   for (const document of documents) {
+    document.blocks = await expandedBlocks(document);
     pngPages += await appendPngs(zip, document, MAX_PAGES - pngPages);
     const pdf = await renderPdf(document, MAX_PAGES - pdfPages);
     pdfPages += pdf.pageCount;

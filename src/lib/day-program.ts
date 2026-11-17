@@ -10,7 +10,7 @@ import { getCachedWeatherForecasts, type WeatherForecastDTO } from "@/lib/weathe
 
 type QueryClient = Pick<PoolClient, "query">;
 export type DayProgramVehicle = { id: number; type: "bus" | "van"; plannedPeople: number | null; state: "waiting" | "counting" | "completed";
-  version: number; addedOnDay: boolean; isExtra: boolean; ordinal: number; transportName: string | null };
+  version: number; addedOnDay: boolean; isExtra: boolean; ordinal: number; carrierId: number | null; transportName: string | null };
 export type DayProgramCarrier = { id: number; name: string; contact: string | null; phone: string | null };
 export type DayProgramGroup = {
   agendaId: number; clientId: number; clientName: string; address: string | null; representative: string | null;
@@ -138,6 +138,7 @@ async function readPrograms(client: QueryClient, park: OperationalParkId, dates:
     WHERE a.dtagenda=ANY($2::date[]) ORDER BY c.nome,a.idagenda,c.idcliente`, [park, dates])).rows;
   const vehicles = (await client.query<DayProgramVehicle & { agendaId: number; clientId: number }>(`SELECT v.id::text, v.agenda_id AS "agendaId",v.cliente_id AS "clientId",v.tipo AS type,
     v.planned_people AS "plannedPeople",v.estado AS state,v.versao AS version,v.added_on_day AS "addedOnDay",v.is_extra AS "isExtra",v.ordinal,
+    COALESCE(v.carrier_id,CASE WHEN o.transport_mode='carrier' THEN o.carrier_id END)::text AS "carrierId",
     COALESCE(vehicle_carrier.nome,CASE WHEN o.transport_mode='client' THEN 'Transporte do cliente' ELSE carrier.nome END) AS "transportName"
     FROM passeio_veiculos v JOIN agenda a ON a.idagenda=v.agenda_id
     JOIN passeio_operacao o ON o.parque=v.parque AND o.agenda_id=v.agenda_id AND o.cliente_id=v.cliente_id
@@ -151,9 +152,8 @@ async function readPrograms(client: QueryClient, park: OperationalParkId, dates:
     JOIN compra cp ON cp.idcompra=v.idcompra JOIN agenda a ON a.idagenda=v.idagenda
     WHERE COALESCE(v.dtinicio_validade,a.dtagenda)=ANY($2::date[]) AND (v.parque_operacional IS NULL OR v.parque_operacional=$1)
       AND cp.stcompra='conc' AND (cp.tpcompra IN ('ponli','bilhe') OR (cp.tpcompra='reser' AND COALESCE(UPPER(TRIM(cp.formapag)),'') NOT IN ('','N/A')))
-      AND v.tpvoucher IN ('norma','infan','isent','corte') AND v.idescola IS NULL AND v.servico_id IS NULL
+      AND v.tpvoucher IN ('norma','infan','isent','corte') AND v.idescola IS NULL AND to_jsonb(cp)->>'checkout_school_site_context' IS NULL AND v.servico_id IS NULL
       AND a.tpagenda IN ('padra','promo') AND v.stusado IS DISTINCT FROM 'inv'
-      AND NOT EXISTS (SELECT 1 FROM agenda_extras ae WHERE ae.idagenda=a.idagenda)
     GROUP BY COALESCE(v.dtinicio_validade,a.dtagenda)`, [park, dates])).rows;
   const weather = await getCachedWeatherForecasts(dates, park, client);
   return dates.map((date) => {
@@ -170,7 +170,7 @@ async function readPrograms(client: QueryClient, park: OperationalParkId, dates:
         if (groupDate !== date) return [];
         const tripVehicles = vehicles.filter((v) => v.agendaId === g.agendaId && v.clientId === g.clientId).map((v) => ({
           id: catalogId(String(v.id)), type: v.type, plannedPeople: v.plannedPeople, state: v.state, version: v.version,
-          addedOnDay: v.addedOnDay, isExtra: v.isExtra, ordinal: v.ordinal, transportName: v.transportName,
+          addedOnDay: v.addedOnDay, isExtra: v.isExtra, ordinal: v.ordinal, carrierId: v.carrierId === null ? null : catalogId(String(v.carrierId)), transportName: v.transportName,
         }));
         const planned = tripVehicles.filter((v) => !v.isExtra);
         return [{ ...g, carrierId: g.carrierId === null ? null : catalogId(String(g.carrierId)), vehicles: tripVehicles,
@@ -181,7 +181,7 @@ async function readPrograms(client: QueryClient, park: OperationalParkId, dates:
       }), carriers: carriers.map((c) => ({ ...c, id: catalogId(String(c.id)) })), hiringItems: hiringItems.flatMap(({ date: itemDate, ...item }) => itemDate === date ? [{ ...item, id: catalogId(item.id) }] : []),
       weather: weather[date] };
     program.sourceFingerprint = createHash("sha256").update(JSON.stringify({ park, date, observations: program.observations, groups: program.groups,
-      carriers: program.carriers.filter((carrier) => program.groups.some((group) => group.carrierId === carrier.id)),
+      carriers: program.carriers.filter((carrier) => program.groups.some((group) => group.carrierId === carrier.id || group.vehicles.some(vehicle => vehicle.carrierId === carrier.id))),
       hiringItems: program.hiringItems.filter((item) => item.value !== null), dayUseSold, weather: program.weather })).digest("hex");
     if (program.status === "exported" && program.sourceFingerprint !== program.exportedFingerprint) program.status = "created";
     return program;
@@ -295,7 +295,7 @@ export async function markDayProgramExported(date: string, version: number, acto
   const options = optionsInput(data); const park = getOperationalParkId();
   if (typeof data.expectedFingerprint !== "string" || !/^[a-f0-9]{64}$/.test(data.expectedFingerprint)) invalid("Informe a revisão dos materiais gerados.");
   return withOperationalCatalogTransaction(async (client) => {
-    await editable(client, park, date, options);
+    await lockOperationalDay(client, park, date);
     const before = await readProgram(client, park, date); matchVersion(before, version);
     if (before.sourceFingerprint !== data.expectedFingerprint) throw new DayProgramError("version_conflict", "Os dados da programação mudaram durante a geração. Gere os materiais novamente.");
     await client.query(`INSERT INTO programacao_exportacoes (parque,data,versao,fingerprint,snapshot,actor_name,actor_cpf)

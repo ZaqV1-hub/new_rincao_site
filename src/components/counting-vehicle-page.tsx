@@ -63,7 +63,7 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
   const conflict = data !== null && version !== 0 && data.version > version && !command.busy;
   const catchingUp = data !== null && data.version < version;
   const allowedDate = !!data && data.date <= data.today && (data.date === data.today || manager);
-  const canEdit = !!data && !data.closed && !data.financiallyFinalized && allowedDate && data.state === 'counting' && !!data.revision?.ownedByMe;
+  const canEdit = !!data && !data.cancelled && !data.closed && !data.financiallyFinalized && allowedDate && data.state === 'counting' && !!data.revision?.ownedByMe;
   const legacy = !!data?.revision && data.revision.catalogVersion === 1;
   const legacyPcd = draft.pcdDetails.some(item => !PCD_TYPES.some(type => type === item.description));
   const pcdMismatch = (['pcdChild','pcdAdult'] as const).some(key => draft.pcdDetails.filter(item => item.category === key).reduce((sum,item) => sum+item.quantity,0) !== (draft.counts[key] ?? 0));
@@ -103,7 +103,7 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
       setValidation(''); setStep(step === 0 ? 1 : 2); window.scrollTo({ top: 0,behavior: 'instant' });
     } catch (error) { setValidation(error instanceof Error ? error.message : 'Confira os campos.'); }
   }
-  const exceptional = data && !data.closed && !data.financiallyFinalized && allowedDate && ((data.state === 'counting' && !data.revision?.ownedByMe && data.revision?.ownerName) || data.state === 'completed' || data.date !== data.today);
+  const exceptional = data && !data.cancelled && !data.closed && !data.financiallyFinalized && allowedDate && ((data.state === 'counting' && !data.revision?.ownedByMe && data.revision?.ownerName) || data.state === 'completed' || data.date !== data.today);
   return <div className="space-y-5">
     <a href={data ? `/contagem/passeios/${data.agendaId}/${data.clientId}?date=${data.date}` : '/contagem'} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">← Voltar ao passeio</a>
     <header className="flex items-start gap-3"><span className="grid h-13 w-13 shrink-0 place-items-center rounded-2xl border border-[#f2b33d] bg-[#fff1cf] text-2xl text-[#8a5a00]" aria-hidden="true"><CountingVehicleIcon type={data?.type ?? 'bus'} className="h-7 w-7"/></span><div className="min-w-0"><h1 className="text-xl font-bold">{step === 1 ? 'Responsável' : step === 2 ? 'Resumo para conferir' : data ? `${data.type === 'bus' ? 'Ônibus' : 'Van'} ${data.ordinal}` : 'Consultando veículo…'}</h1>{data && <><p className="mt-1 text-sm">{data.clientName}{data.isExtra ? ' · veículo extra' : ''}</p><p className="mt-1 text-xs text-[#6a7c92]">{data.transportName ?? 'Transportador não informado'} · {countStateLabel[data.state]}</p><p className="text-xs text-[#6a7c92]">Prev. {data.plannedPeople ?? 'não informada'} · {data.startedAt ? `começou ${countTime(data.startedAt).slice(0,5)}` : 'ainda não iniciado'}</p></>}</div></header>
@@ -112,12 +112,13 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
     {error && <p role="alert" className="rounded-xl border border-[#b84137] bg-[#fff5f3] p-3 text-sm">{error} Preserve a edição e confira a conexão antes de concluir.</p>}
     {!online && <p role="alert" className="rounded-xl border border-[#b84137] bg-[#fff5f3] p-3 text-sm">Sem conexão. Mantenha esta tela aberta; as alterações ficam apenas na memória até a confirmação do servidor.</p>}
     <CountingCommandStatus command={command}/>
+    {data?.cancelled && <p className="rounded-xl bg-[#eaf2fb] p-3 text-sm">Passeio cancelado ou inativo. As contagens anteriores permanecem disponíveis para consulta.</p>}
     {data?.closed && <p className="rounded-xl bg-[#eaf2fb] p-3 text-sm">Dia encerrado para contagem. Consulte os relatórios para verificar a reabertura.</p>}
     {data?.financiallyFinalized && <p className="rounded-xl bg-[#eaf2fb] p-3 text-sm">Passeio financeiramente finalizado. Alterações exigem revisão financeira autorizada.</p>}
     {data && data.date !== data.today && <p className="text-sm">{data.date > data.today ? 'A contagem abre no dia do passeio.' : manager ? 'Correção de data passada: toda alteração exige motivo.' : 'Esta data está disponível apenas para consulta.'}</p>}
     {conflict && <div role="alert" className="space-y-3 rounded-xl border border-[#b84137] p-3 text-sm"><p>O veículo mudou em outro aparelho. Seus campos foram preservados. Confira a versão atual antes de continuar.</p><button className={countingButton} disabled={command.blocked} onClick={loadCurrent}>Usar versão salva no servidor</button></div>}
     {exceptional && <label className="grid gap-2 text-sm">Motivo para assumir, recontar ou corrigir<input className={countingInput} maxLength={1000} value={reason} disabled={command.blocked} onChange={e => setReason(e.target.value)}/></label>}
-    {data && !data.closed && !data.financiallyFinalized && allowedDate && <div className="space-y-3">
+    {data && !data.cancelled && !data.closed && !data.financiallyFinalized && allowedDate && <div className="space-y-3">
       {(data.state === 'waiting' || (data.state === 'counting' && !data.revision?.ownerName)) && <button className={`${countingPrimary} w-full`} disabled={command.blocked || conflict || !version || (data.date !== data.today && !reason.trim())} onClick={() => void action('start')}>Iniciar contagem</button>}
       {data.state === 'counting' && !data.revision?.ownedByMe && data.revision?.ownerName && <><p className="rounded-xl bg-[#fff1cf] p-3 text-sm">{data.revision.ownerName} está contando · {data.draftSubtotal ?? '—'} pessoas até agora (provisório). Assumir recupera somente o rascunho confirmado.</p><button className={`${countingButton} w-full`} disabled={command.blocked || conflict || !reason.trim()} onClick={() => void action('takeover')}>Assumir contagem</button></>}
       {data.state === 'completed' && <><a href={`/contagem/filipetas/${data.lastCompletedRevision}`} className={`${countingPrimary} w-full`}>Ver filipeta concluída</a><button className={`${countingButton} w-full`} disabled={command.blocked || conflict || !reason.trim()} onClick={() => void action('recount')}>Abrir recontagem</button></>}
@@ -160,6 +161,7 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
         </div>
       </>}
     </>}
+    {!!data?.historyEvents?.length && <section className="space-y-3 border-t border-[#d9e3ee] pt-4"><h2 className="text-xs font-bold uppercase tracking-widest text-[#6a7c92]">Histórico de responsáveis</h2><ul className="divide-y divide-[#d9e3ee]">{data.historyEvents.map(event => <li key={event.id} className="space-y-1 py-3 text-sm"><p>{event.actorName ?? 'Operador'} {event.action === 'takeover' ? 'assumiu de' : 'abriu recontagem de'} {event.previousOwnerName ?? 'responsável anterior não registrado'}</p><p className="text-xs text-[#6a7c92]">{new Date(event.at).toLocaleString('pt-BR',{ timeZone: 'America/Sao_Paulo' })}</p><p className="whitespace-pre-wrap break-words">Motivo: {event.reason}</p></li>)}</ul></section>}
     {!!data?.history.length && <section className="space-y-3 border-t border-[#d9e3ee] pt-4"><h2 className="text-xs font-bold uppercase tracking-widest text-[#6a7c92]">Histórico de conclusões</h2><ul className="divide-y divide-[#d9e3ee]">{data.history.map(revision => <li key={revision.id} className="py-3 text-sm"><p>{revision.ownerName ?? 'Operador'} · {new Date(revision.completedAt).toLocaleString('pt-BR',{ timeZone: 'America/Sao_Paulo' })}</p>{revision.canReadSignature && <a href={`/contagem/filipetas/${revision.id}`} className="inline-flex min-h-11 items-center underline">Consultar filipeta e assinatura</a>}</li>)}</ul></section>}
   </div>;
 }
