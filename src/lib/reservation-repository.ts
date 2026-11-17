@@ -98,7 +98,8 @@ export async function createReservationPurchase(
           hrcompra,
           formapag,
           vltotcompra,
-          stcompra
+          stcompra,
+          origem_checkout
         )
         VALUES (
           $1,
@@ -107,7 +108,8 @@ export async function createReservationPurchase(
           CURRENT_TIME,
           'N/A',
           $2,
-          'conc'
+          'conc',
+          'site'
         )
         RETURNING idcompra
       `,

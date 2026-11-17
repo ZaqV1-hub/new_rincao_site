@@ -217,9 +217,8 @@ describe("buildPainelPurchaseListWhere", () => {
       originCheckout: "lumi",
     });
 
-    expect(normalizeSql(sql)).toBe(
-      "compra.tpcompra = 'ponli' AND compra.origem_checkout = 'lumi'",
-    );
+    expect(normalizeSql(sql)).toContain("compra.tpcompra = 'ponli' AND (CASE");
+    expect(normalizeSql(sql)).toContain("END) = 'lumi'");
   });
 });
 
@@ -629,6 +628,7 @@ describe("getPainelPurchaseDetail", () => {
       purchaseDate: "06/05/2026",
       type: "ponli",
       typeLabel: "Compra",
+      originLabel: "Não identificada",
       status: "conc",
       statusLabel: "Concluida",
       paymentLabel: "Cielo 3 - Paga",

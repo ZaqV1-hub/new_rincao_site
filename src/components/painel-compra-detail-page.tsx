@@ -47,17 +47,19 @@ export function PainelCompraDetailPage({
           <table className="min-w-full border-collapse text-[15px]">
             <tbody>
               <tr className="bg-[#5f84a3] text-left text-white">
-                <th className="border border-[#6f8ea8] px-4 py-3 font-normal" colSpan={2}>
+                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">
                   Data
                 </th>
                 <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Tipo</th>
+                <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Origem</th>
                 <th className="border border-[#6f8ea8] px-4 py-3 font-normal">Status</th>
               </tr>
               <tr>
-                <td className="border border-[#d7d7d7] px-4 py-3" colSpan={2}>
+                <td className="border border-[#d7d7d7] px-4 py-3">
                   {detail.purchaseDate ?? "-"}
                 </td>
                 <td className="border border-[#d7d7d7] px-4 py-3">{detail.typeLabel}</td>
+                <td className="border border-[#d7d7d7] px-4 py-3">{detail.originLabel}</td>
                 <td className="border border-[#d7d7d7] px-4 py-3">
                   <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${detail.status === "conc" ? "bg-[#e2f4e8] text-[#24733c]" : detail.status === "pend" ? "bg-[#fff3cd] text-[#8a6500]" : detail.status === "canc" ? "bg-[#fbe4e4] text-[#a83232]" : "bg-[#eef2f5] text-[#526779]"}`}>
                     {detail.statusLabel}

@@ -7,6 +7,7 @@ const detail: PainelPurchaseDetail = {
   purchaseDate: "25/09/2026",
   type: "ponli",
   typeLabel: "Compra",
+  originLabel: "Site",
   status: "conc",
   statusLabel: "Concluída",
   paymentLabel: "Cielo 3 - Paga",

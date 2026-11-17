@@ -127,6 +127,9 @@ export function PainelComprasFiltersForm({
           Origem
           {renderSelect("origem_checkout", filters.originCheckout ?? null, [
             { value: "lumi", label: "Lumi" },
+            { value: "site", label: "Site" },
+            { value: "bilheteria", label: "Bilheteria" },
+            { value: "unknown", label: "Não identificada" },
           ])}
         </label>
         <label className="grid gap-1 text-[13px] font-semibold text-[#133d63]">

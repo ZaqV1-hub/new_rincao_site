@@ -12,6 +12,27 @@ import {
   normalizePainelCompraScalarFilterValue,
 } from "@/lib/painel-compras-format";
 
+const checkoutOriginLabels = {
+  lumi: "Lumi",
+  site: "Site",
+  bilheteria: "Bilheteria",
+  unknown: "Não identificada",
+} as const;
+
+type CheckoutOrigin = keyof typeof checkoutOriginLabels;
+
+// The legacy site creates vouchers with the order. Lumi records its own
+// checkout session and only creates vouchers after payment confirmation.
+const purchaseOriginSql = `CASE
+  WHEN compra.origem_checkout IN ('site', 'lumi') THEN compra.origem_checkout
+  WHEN compra.tpcompra = 'bilhe' THEN 'bilheteria'
+  WHEN compra.tpcompra = 'ponli'
+    AND compra.checkout_session_id IS NULL
+    AND EXISTS (SELECT 1 FROM voucher AS origin_voucher WHERE origin_voucher.idcompra = compra.idcompra)
+    THEN 'site'
+  ELSE 'unknown'
+END`;
+
 export type PainelPurchaseListFilters = {
   purchaseId: string | null;
   type: string | null;
@@ -22,7 +43,7 @@ export type PainelPurchaseListFilters = {
   gatewayStatus: string | null;
   cpf: string | null;
   userName: string | null;
-  originCheckout?: string | null;
+  originCheckout?: CheckoutOrigin | null;
   dateFrom: string | null;
   dateTo: string | null;
 };
@@ -76,6 +97,7 @@ export type PainelPurchaseDetail = {
   purchaseDate: string | null;
   type: string;
   typeLabel: string;
+  originLabel: string;
   status: string;
   statusLabel: string;
   paymentLabel: string;
@@ -240,7 +262,7 @@ type PainelPurchaseListRow = {
   idcompra: number;
   dtcompra: string | null;
   tpcompra: string | null;
-  origem_checkout: string | null;
+  origem_checkout: CheckoutOrigin;
   stcompra: string | null;
   formapag: string | null;
   idpagseguro: number | null;
@@ -257,6 +279,7 @@ type PainelPurchaseDetailRow = {
   idcompra: number;
   dtcompra: string | null;
   tpcompra: string | null;
+  origem_checkout: CheckoutOrigin;
   stcompra: string | null;
   formapag: string | null;
   vltotcompra: string | number | null;
@@ -661,6 +684,7 @@ async function loadPainelPurchaseDetailRow(purchaseId: number) {
         compra.idcompra,
         compra.dtcompra::text AS dtcompra,
         compra.tpcompra,
+        ${purchaseOriginSql} AS origem_checkout,
         ${purchaseDisplayStatusSql("compra")} AS stcompra,
         compra.formapag,
         compra.vltotcompra::text AS vltotcompra,
@@ -757,9 +781,7 @@ function buildPurchaseListItem(row: PainelPurchaseListRow): PainelPurchaseListIt
     paymentTime: row.hrpagamento ? String(row.hrpagamento).slice(0, 8) : null,
     type,
     typeLabel: formatPurchaseTypeLabel(type),
-    originLabel: String(row.origem_checkout ?? "").trim().toLowerCase() === "lumi"
-      ? "Lumi"
-      : null,
+    originLabel: checkoutOriginLabels[row.origem_checkout] ?? checkoutOriginLabels.unknown,
     status,
     statusLabel: formatPurchaseStatusLabel(status),
     paymentMethodLabel: resolvePaymentMethodLabel(row),
@@ -771,7 +793,10 @@ function buildPurchaseListItem(row: PainelPurchaseListRow): PainelPurchaseListIt
 }
 
 function normalizeCheckoutOrigin(value: unknown) {
-  return normalizePainelCompraScalarFilterValue(value)?.toLowerCase() === "lumi" ? "lumi" : null;
+  const normalized = normalizePainelCompraScalarFilterValue(value)?.toLowerCase();
+  return normalized && Object.hasOwn(checkoutOriginLabels, normalized)
+    ? (normalized as CheckoutOrigin)
+    : null;
 }
 
 export function normalizePainelPurchaseListFilters(
@@ -851,8 +876,8 @@ export function buildPainelPurchaseListWhere(
     clauses.push(`compra.tpcompra = '${escapeSqlLiteral(normalizedFilters.type)}'`);
   }
 
-  if (normalizedFilters.originCheckout === "lumi") {
-    clauses.push("compra.origem_checkout = 'lumi'");
+  if (normalizedFilters.originCheckout) {
+    clauses.push(`(${purchaseOriginSql}) = '${normalizedFilters.originCheckout}'`);
   }
 
   if (normalizedFilters.purchaseStatus) {
@@ -1028,7 +1053,7 @@ export async function listPainelPurchases(input: {
         compra.idcompra,
         compra.dtcompra::text AS dtcompra,
         compra.tpcompra,
-        compra.origem_checkout,
+        ${purchaseOriginSql} AS origem_checkout,
         ${purchaseDisplayStatusSql("compra")} AS stcompra,
         compra.formapag,
         compra.vltotcompra::text AS vltotcompra,
@@ -1428,6 +1453,7 @@ export async function getPainelPurchaseDetail(
     purchaseDate: formatDateLabel(purchase.dtcompra),
     type: String(purchase.tpcompra ?? "").trim(),
     typeLabel: formatPurchaseTypeLabel(purchase.tpcompra),
+    originLabel: checkoutOriginLabels[purchase.origem_checkout] ?? checkoutOriginLabels.unknown,
     status: String(purchase.stcompra ?? "").trim(),
     statusLabel: formatPurchaseStatusLabel(purchase.stcompra),
     paymentLabel: resolveDetailPaymentLabel(purchase),

@@ -471,7 +471,8 @@ export async function createOnlinePurchase(
             vltotdesc,
             codindica,
             stcompra,
-            flenvio
+            flenvio,
+            origem_checkout
           )
           VALUES (
             $1,
@@ -483,7 +484,8 @@ export async function createOnlinePurchase(
             $3,
             $4,
             'pend',
-            'nao'
+            'nao',
+            'site'
           )
           RETURNING idcompra
         `,
@@ -671,7 +673,8 @@ export async function createOnlinePurchase(
           vltotdesc,
           codindica,
           stcompra,
-          flenvio
+          flenvio,
+          origem_checkout
         )
         VALUES (
           $1,
@@ -683,7 +686,8 @@ export async function createOnlinePurchase(
           $3,
           $4,
           'pend',
-          'nao'
+          'nao',
+          'site'
         )
         RETURNING idcompra
       `,

@@ -645,8 +645,18 @@ CREATE TABLE public.compra (
     codindica character varying(6),
     vltotdesc numeric(8,2),
     vlcomiss numeric(8,2),
-    vlcashback numeric(10,2) DEFAULT 0
+    vlcashback numeric(10,2) DEFAULT 0,
+    origem_checkout character varying(12),
+    checkout_session_id character varying(120),
+    checkout_buyer_name character varying(120),
+    checkout_buyer_phone character varying(32),
+    CONSTRAINT compra_origem_checkout_check
+      CHECK (origem_checkout IS NULL OR origem_checkout IN ('site', 'lumi'))
 );
+
+CREATE UNIQUE INDEX compra_checkout_session_id_uq
+    ON public.compra (checkout_session_id)
+    WHERE checkout_session_id IS NOT NULL;
 
 CREATE TABLE public.checkout_installment_quotes (
     id bigserial PRIMARY KEY,

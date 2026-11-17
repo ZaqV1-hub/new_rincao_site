@@ -19,6 +19,7 @@ describe("PainelCompraDetailPage", () => {
           purchaseDate: "06/05/2026",
           type: "ponli",
           typeLabel: "Compra",
+          originLabel: "Site",
           status: "conc",
           statusLabel: "Concluida",
           paymentLabel: "Cielo 3 - Paga",
@@ -56,6 +57,8 @@ describe("PainelCompraDetailPage", () => {
     );
 
     expect(html).toContain("Dados Compra / Reserva");
+    expect(html).toContain("Origem");
+    expect(html).toContain(">Site</td>");
     expect(html).toContain("Pagamento");
     expect(html).toContain("ID Pagamento");
     expect(html).toContain("Vouchers");
