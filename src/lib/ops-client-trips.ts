@@ -1352,7 +1352,7 @@ export async function moveOpsClientTripDate(input: OpsClientTripMoveDateInput) {
       [agendaId, clientId],
     );
 
-    const [remainingBindings, remainingSchoolDates, remainingVouchers] = await Promise.all([
+    const [remainingBindings, remainingSchoolDates, remainingVouchers, remainingDayUseDays] = await Promise.all([
       client.query<{ total: string | number }>(
         `
           SELECT COUNT(*) AS total
@@ -1381,9 +1381,14 @@ export async function moveOpsClientTripDate(input: OpsClientTripMoveDateInput) {
             [agendaId],
           )
         : Promise.resolve({ rows: [{ total: 0 }] }),
+      client.query<{ total: string | number }>(
+        "SELECT COUNT(*) AS total FROM operacao_dias WHERE day_use_agenda_id = $1",
+        [agendaId],
+      ),
     ]);
 
     if (
+      Number(remainingDayUseDays.rows[0]?.total ?? 0) === 0 &&
       Number(remainingBindings.rows[0]?.total ?? 0) === 0 &&
       Number(remainingSchoolDates.rows[0]?.total ?? 0) === 0 &&
       Number(remainingVouchers.rows[0]?.total ?? 0) === 0
