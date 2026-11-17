@@ -24,6 +24,7 @@ const purchaseStatusOptions = [
 
 const gatewayPaymentMethodOptions = [
   { value: "1", label: "Cartão de crédito" },
+  { value: "3", label: "Cartão de débito" },
   { value: "2", label: "Boleto" },
   { value: "11", label: "Pix" },
 ];

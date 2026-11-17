@@ -355,6 +355,7 @@ const ticketPaymentMethodLabels: Record<string, string> = {
 const gatewayPaymentMethodLabels: Record<string, string> = {
   "1": "Cartao de credito",
   "2": "Boleto",
+  "3": "Cartão de débito",
   "11": "Pix",
 };
 
