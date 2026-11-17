@@ -19,7 +19,12 @@ export function useCountingRead<T>(url: string) {
   },[url]);
   useEffect(() => {
     const requests = sequence;
-    alive.current = true; const tick = () => { if (document.visibilityState === 'visible') void refresh(); };
+    let polling = false;
+    alive.current = true; const tick = async () => {
+      if (document.visibilityState !== 'visible' || polling) return;
+      polling = true;
+      try { await refresh(); } finally { polling = false; }
+    };
     tick(); const interval = setInterval(tick,5000); document.addEventListener('visibilitychange',tick);
     return () => { alive.current = false; requests.current++; clearInterval(interval); document.removeEventListener('visibilitychange',tick); };
   },[refresh]);
