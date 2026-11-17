@@ -3,7 +3,7 @@ import { PainelBilheteriaPageHeader } from "@/components/painel-bilheteria-page-
 import { PainelBilheteriaSalesBuilder } from "@/components/painel-bilheteria-sales-builder";
 import { getBilheteriaAgendaStatusToday } from "@/lib/bilheteria-agenda";
 import { requirePainelAccess } from "@/lib/painel-session";
-import { loadOperationalDayOffer } from "@/lib/operational-day-offer";
+import { loadOperationalDayOffer, loadOperationalServiceOffer } from "@/lib/operational-day-offer";
 import { getCashSession } from "@/lib/operational-cash-session";
 import { redirect } from "next/navigation";
 
@@ -26,7 +26,7 @@ export default async function PainelBilheteriaVendasPage({ searchParams }: { sea
   if (cash.type !== "sales" || cash.closedAt || cash.date !== today) redirect(`/painel/caixas/${periodId}`);
   const agendas = openAgendas;
   const agenda = agendas[0] ?? null;
-  const availableProducts = agenda ? (await loadOperationalDayOffer(agenda, undefined, "gate")).products : [];
+  const offer = agenda ? { ...await loadOperationalDayOffer(agenda, undefined, "gate"), agendaId: agenda.id } : await loadOperationalServiceOffer(cash.date);
 
   return (
     <div className="grid gap-5">
@@ -43,7 +43,8 @@ export default async function PainelBilheteriaVendasPage({ searchParams }: { sea
         periodId={periodId}
         today={today}
         agendas={agendas}
-        products={availableProducts}
+        products={offer.products}
+        serviceAgendaId={offer.agendaId}
       />
     </div>
   );
