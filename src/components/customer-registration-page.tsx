@@ -275,6 +275,8 @@ export function CustomerRegistrationPage({
         },
         body: JSON.stringify({
           ...form,
+          lumiClaimToken:
+            new URLSearchParams(window.location.search).get("claim") || undefined,
           cpf: form.cpf.replace(/\D/g, ""),
           cep: form.cep.replace(/\D/g, ""),
           cityId: Number(form.cityId),

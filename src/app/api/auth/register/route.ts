@@ -5,6 +5,11 @@ import type {
 } from "@/lib/auth-contracts";
 import { createAuthSessionToken, setAuthCookie } from "@/lib/auth-session";
 import {
+  canClaimGuest,
+  createPublicUserWithGuestClaim,
+  GuestClaimError,
+} from "@/lib/lumi-guest-registration";
+import {
   createPublicUser,
   findPublicUserByCpf,
   findPublicUserByEmail,
@@ -17,6 +22,7 @@ import {
 export const runtime = "nodejs";
 
 type RegisterPayload = {
+  lumiClaimToken?: unknown;
   cpf?: unknown;
   password?: unknown;
   confirmPassword?: unknown;
@@ -209,7 +215,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const sex = typeof payload.sex === "string" ? payload.sex.trim().toLowerCase() : "";
+  const sex: "m" | "f" | "" =
+    typeof payload.sex === "string"
+      ? (payload.sex.trim().toLowerCase() as "m" | "f" | "")
+      : "";
 
   if (sex !== "m" && sex !== "f") {
     return errorResponse(
@@ -335,7 +344,18 @@ export async function POST(request: Request) {
       );
     }
 
-    if (existingCpf) {
+    if (payload.lumiClaimToken && !existingCpf) {
+      return errorResponse(
+        "cpf_in_use",
+        "Este link nao corresponde a um cadastro pendente valido.",
+        409,
+      );
+    }
+
+    if (
+      existingCpf &&
+      !(await canClaimGuest(cpf, payload.lumiClaimToken, phone, mobile))
+    ) {
       return errorResponse(
         "cpf_in_use",
         "Seu CPF ja esta vinculado a uma conta.",
@@ -351,7 +371,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await createPublicUser({
+    const registration = {
       cpf,
       password,
       name: name.value,
@@ -368,7 +388,10 @@ export async function POST(request: Request) {
       uf,
       cityId,
       complement: complement.value,
-    });
+    };
+    const user = payload.lumiClaimToken
+      ? await createPublicUserWithGuestClaim(registration, payload.lumiClaimToken)
+      : await createPublicUser(registration);
 
     if (!user) {
       return errorResponse(
@@ -393,6 +416,14 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
+    if (error instanceof GuestClaimError) {
+      return errorResponse(
+        "cpf_in_use",
+        "Seu CPF nao pode ser vinculado a este cadastro. Verifique o link recebido e tente novamente.",
+        409,
+      );
+    }
+
     console.error("auth-register-bff-failed", error);
 
     return errorResponse(

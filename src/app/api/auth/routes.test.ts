@@ -14,6 +14,8 @@ const isValidCpf = vi.fn();
 const listProfileCitiesByUf = vi.fn();
 const listProfileUfs = vi.fn();
 const sanitizeCpf = vi.fn();
+const canClaimGuest = vi.fn();
+const createPublicUserWithGuestClaim = vi.fn();
 
 vi.mock("@/lib/auth-session", () => ({
   createAuthSessionToken,
@@ -35,9 +37,16 @@ vi.mock("@/lib/user-repository", () => ({
   sanitizeCpf,
 }));
 
+vi.mock("@/lib/lumi-guest-registration", () => ({
+  canClaimGuest,
+  createPublicUserWithGuestClaim,
+  GuestClaimError: class GuestClaimError extends Error {},
+}));
+
 describe("auth BFF routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    canClaimGuest.mockResolvedValue(false);
     sanitizeCpf.mockImplementation((value: string) => value.replace(/\D/g, ""));
     isValidCpf.mockReturnValue(true);
     listProfileUfs.mockResolvedValue([
@@ -327,6 +336,70 @@ describe("auth BFF routes", () => {
         message: "Seu CPF ja esta vinculado a uma conta.",
       },
     });
+  });
+
+  it("completes a valid guest registration without changing the cpf", async () => {
+    getProfileCityById.mockResolvedValue({
+      id: 9668,
+      name: "Sao Paulo",
+      uf: "SP",
+    });
+    findPublicUserByCpf.mockResolvedValue({
+      cpf: "52998224725",
+      cpfMasked: "529.***.***-25",
+      name: "Comprador Convidado",
+      email: null,
+      status: "ati",
+    });
+    findPublicUserByEmail.mockResolvedValue(null);
+    canClaimGuest.mockResolvedValue(true);
+    createPublicUserWithGuestClaim.mockResolvedValue({
+      cpf: "52998224725",
+      cpfMasked: "529.***.***-25",
+      name: "Comprador Convidado",
+      email: "cliente@example.com",
+      status: "ati",
+    });
+    createAuthSessionToken.mockReturnValue("signed-token");
+
+    const { POST } = await import("@/app/api/auth/register/route");
+    const response = await POST(
+      new Request("https://example.com/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          cpf: "529.982.247-25",
+          lumiClaimToken: "v1.claim-token",
+          password: "senha123",
+          confirmPassword: "senha123",
+          name: "Comprador Convidado",
+          email: "cliente@example.com",
+          birthDate: "1990-01-01",
+          sex: "m",
+          phone: "1155550000",
+          mobile: "11999990000",
+          address: "Rua Teste",
+          cep: "04870425",
+          district: "Jardim Casa Grande",
+          uf: "SP",
+          cityId: 9668,
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(canClaimGuest).toHaveBeenCalledWith(
+      "52998224725",
+      "v1.claim-token",
+      "1155550000",
+      "11999990000",
+    );
+    expect(createPublicUserWithGuestClaim).toHaveBeenCalledWith(
+      expect.objectContaining({ cpf: "52998224725", email: "cliente@example.com" }),
+      "v1.claim-token",
+    );
+    expect(createPublicUser).not.toHaveBeenCalled();
+    expect(body.data.user.cpfMasked).toBe("529.***.***-25");
   });
 
   it("returns public registration reference data", async () => {
