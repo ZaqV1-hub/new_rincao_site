@@ -16,7 +16,7 @@ describe.skipIf(!connectionString)('counting closure separate from finance',()=>
   await pool.query(`CREATE TABLE agenda(idagenda integer PRIMARY KEY,dtagenda date,stagenda text,tpagenda text);
     CREATE TABLE clientes(idcliente integer PRIMARY KEY,nome text,idtipo integer);
     CREATE TABLE agenda_extras(idagenda integer,idcliente integer,stagenda_cli text,PRIMARY KEY(idagenda,idcliente));
-    CREATE TABLE operacao_dias(parque text,data date,estado text,PRIMARY KEY(parque,data));
+    CREATE TABLE operacao_dias(parque text,data date,estado text,day_use_agenda_id integer,PRIMARY KEY(parque,data));
     CREATE TABLE edicoes_log(id serial PRIMARY KEY,origem varchar(30),acao varchar(30),compra_id integer,movimentacao_id integer,movimentacao_tipo text,periodo_id integer,folha_id integer,descricao text,motivo text,usuario_nome text,detalhes_json text,created_at timestamptz DEFAULT now());
     CREATE TABLE compra(idcompra integer PRIMARY KEY,stcompra text,tpcompra text,formapag text);
     CREATE TABLE voucher(idvoucher integer PRIMARY KEY,idcompra integer,idagenda integer,dtinicio_validade date,dtuso date,stusado text,parque_operacional text,idescola integer,tpvoucher text,servico_id bigint);
@@ -26,7 +26,7 @@ describe.skipIf(!connectionString)('counting closure separate from finance',()=>
  });
  async function sql(text:string){for(const statement of text.split(';').filter(s=>s.trim()))await pool.query(statement,statement.includes('$1')?[date]:[]);}
  beforeEach(async()=>{await sql(`TRUNCATE contagem_dia_revisoes,contagem_dia_comandos,contagem_dias,passeio_contagens,passeio_veiculos,passeio_operacao,programacoes_dia,programacao_exportacoes,programacao_contratacoes,contagem_comandos,agenda_extras,agenda,clientes,operacao_dias,edicoes_log,voucher,compra RESTART IDENTITY CASCADE;
- INSERT INTO agenda VALUES(1,$1,'abe','escol'),(2,$1,'abe','padra');INSERT INTO clientes VALUES(10,'Escola',1);INSERT INTO agenda_extras VALUES(1,10,'abe');INSERT INTO operacao_dias VALUES('rincao',$1,'open');INSERT INTO passeio_operacao(parque,agenda_id,cliente_id) VALUES('rincao',1,10);INSERT INTO passeio_veiculos(parque,agenda_id,cliente_id,tipo) VALUES('rincao',1,10,'bus');`);});
+ INSERT INTO agenda VALUES(1,$1,'abe','escol'),(2,$1,'abe','padra');INSERT INTO clientes VALUES(10,'Escola',1);INSERT INTO agenda_extras VALUES(1,10,'abe');INSERT INTO operacao_dias(parque,data,estado) VALUES('rincao',$1,'open');INSERT INTO passeio_operacao(parque,agenda_id,cliente_id) VALUES('rincao',1,10);INSERT INTO passeio_veiculos(parque,agenda_id,cliente_id,tipo) VALUES('rincao',1,10,'bus');`);});
  afterAll(async()=>{await pool?.end();if(admin){await admin.query(`DROP SCHEMA ${schema} CASCADE`);await admin.end();}vi.unstubAllEnvs();});
  it('requires acknowledgement for pending vehicles and never closes financial day/cash',async()=>{
   const before=await getCountingDayClosure(date),input={action:'close',fingerprint:before.live.fingerprint,idempotencyKey:'close',acknowledgePending:false};
@@ -64,7 +64,7 @@ describe.skipIf(!connectionString)('counting closure separate from finance',()=>
   expect(after.current).toMatchObject({version:2,reason:'Total conferido',snapshot:{groups:[{plannedPeople:45}]}});
   expect((await pool.query('SELECT estado FROM operacao_dias')).rows[0].estado).toBe('open');
   expect((await pool.query('SELECT fechado_em FROM caixa_periodos')).rows[0].fechado_em).toBeNull();
-  await pool.query("INSERT INTO operacao_dias VALUES('rincao',$1,'closed')",[past]);
+  await pool.query("INSERT INTO operacao_dias(parque,data,estado) VALUES('rincao',$1,'closed')",[past]);
   await expect(changeCountingDayClosure(past,{...reissue,action:'reopen',idempotencyKey:'finance-block'},manager)).rejects.toMatchObject({code:'count_day_financial_closed'});
  });
  it('rejects future emission and malformed reasons even for managers',async()=>{

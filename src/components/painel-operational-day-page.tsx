@@ -170,7 +170,7 @@ export function PainelOperationalDayPage({ summary: initialSummary, canManage, c
         </nav>
       </div>
       <div className="flex flex-wrap gap-2 text-sm">
-        <span className="rounded-md bg-[#edf4fa] px-3 py-2 font-semibold">{!day ? "Configuração pendente de conferência" : day.closed ? "Data bloqueada para edição" : day.dayUseOpen ? "Day use aberto" : summary.groupCount > 0 ? "Só grupos · day use fechado" : "Day use fechado"}</span>
+        <span className="rounded-md bg-[#edf4fa] px-3 py-2 font-semibold">{!day ? "Configuração pendente de conferência" : day.closed ? "Dia fechado" : day.dayUseOpen ? "Day use aberto" : summary.groupCount > 0 ? "Só grupos · day use fechado" : "Day use fechado"}</span>
         {day?.onlineSoldOut && <span className="rounded-md bg-[#fff3dc] px-3 py-2">Vendas online esgotadas</span>}
         {day?.priceTableId ? <Link href={`/painel/tabela-preco/${day.priceTableId}`} className="rounded-md border border-[#d4dfeb] px-3 py-2 underline">Tabela de preço #{day.priceTableId}</Link> : <span className="rounded-md border border-[#d4dfeb] px-3 py-2">Tabela de preço {day ? "não definida" : "indisponível"}</span>}
         <span className="rounded-md border border-[#d4dfeb] px-3 py-2">{number(summary.groupCount)} passeio(s)</span>
@@ -181,8 +181,8 @@ export function PainelOperationalDayPage({ summary: initialSummary, canManage, c
         {canAccessCash && <Link className={button} href={`/painel/caixas?date=${summary.date}`}>Caixas da data</Link>}
         <p className="text-sm text-[#45647f]">{summary.closure.status === "available" && summary.closure.value > 0 ? `Fechamento diário: revisão ${summary.closure.value}.` : "Fechamento diário: em aberto."}</p></div>
     </header>
-    <div role="tablist" aria-label="Informações da data" className="flex flex-wrap gap-2 border-b border-[#d4dfeb] pb-3">
-      {tabs.map((item, index) => <button key={item.id} id={`day-tab-${item.id}`} role="tab" type="button" aria-selected={tab === item.id} aria-controls="day-panel" tabIndex={tab === item.id ? 0 : -1} onKeyDown={(event) => navigateTabs(event, index)} onClick={() => setTab(item.id)} className={`${button} ${tab === item.id ? "border-[#236699] bg-[#edf4fa] underline decoration-2 underline-offset-4" : ""}`}>{item.label}{item.id === "passeios" ? ` (${number(summary.groupCount)})` : item.id === "caixas" && summary.cash.status === "available" ? ` (${number(summary.cash.value)})` : ""}</button>)}
+    <div role="tablist" aria-label="Informações da data" className="flex gap-0.5 overflow-x-auto border-b border-[#d9e3ee]">
+      {tabs.map((item, index) => <button key={item.id} id={`day-tab-${item.id}`} role="tab" type="button" aria-selected={tab === item.id} aria-controls="day-panel" tabIndex={tab === item.id ? 0 : -1} onKeyDown={(event) => navigateTabs(event, index)} onClick={() => setTab(item.id)} className={`inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-[3px] px-4 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#2f6fb2] ${tab === item.id ? "border-[#133a62] text-[#0f2d52]" : "border-transparent text-[#6a7c92] hover:bg-[#eaf2fb]"}`}>{item.label}{item.id === "passeios" ? ` (${number(summary.groupCount)})` : item.id === "caixas" && summary.cash.status === "available" ? ` (${number(summary.cash.value)})` : ""}</button>)}
     </div>
     <section id="day-panel" role="tabpanel" aria-labelledby={`day-tab-${tab}`} tabIndex={0} className="min-w-0 space-y-6 focus-visible:outline-2 focus-visible:outline-[#236699]">
       {summaryError && <p role="alert">{summaryError} O resumo mantém a última consulta confirmada.</p>}

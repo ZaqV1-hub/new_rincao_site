@@ -46,7 +46,7 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
       CREATE TABLE agenda_extras(idagenda integer,idcliente integer);
       CREATE TABLE contagem_entradas(parque text,idempotency_key text,actor_cpf text,request_hash text,result jsonb,PRIMARY KEY(parque,idempotency_key));
       CREATE TABLE passeio_operacao(parque text,agenda_id integer,cliente_id integer,finalized_receipt_id uuid);
-      CREATE TABLE operacao_dias (parque TEXT, data DATE, estado TEXT, PRIMARY KEY (parque,data));
+      CREATE TABLE operacao_dias (parque TEXT, data DATE, estado TEXT, day_use_agenda_id INTEGER, PRIMARY KEY (parque,data));
     `);
     await pool.query(await readFile(new URL("../../docs/sql/2026-11-12-cash-sessions.sql", import.meta.url), "utf8"));
     today = (await pool.query("SELECT to_char((NOW() AT TIME ZONE 'America/Sao_Paulo')::date,'YYYY-MM-DD') AS today")).rows[0].today;
@@ -69,6 +69,27 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
     await pool.query("UPDATE voucher SET numvoucher='TICKET-'||idvoucher");
   });
 
+  it.each(['abe','lot'])("detects an unsold day use offer with agenda status %s", async status => {
+    await pool.query('UPDATE agenda SET stagenda=$1 WHERE idagenda=2', [status]);
+    expect(await readCountingAttendance(pool,today)).toMatchObject({ hasDayUse:true,sold:0,admitted:0 });
+    await pool.query("INSERT INTO operacao_dias(parque,data,estado,day_use_agenda_id) VALUES('rincao',$1,'open',2)", [today]);
+    expect(await readCountingAttendance(pool,today)).toMatchObject({ hasDayUse:true,sold:0,admitted:0 });
+  });
+  it.each(['absent','school','disabled','unlinked'])("does not infer day use from a %s agenda", async state => {
+    if (state === 'absent') await pool.query('DELETE FROM agenda WHERE idagenda=2');
+    if (state === 'school') await pool.query("UPDATE agenda SET tpagenda='escol' WHERE idagenda=2");
+    if (state === 'disabled') {
+      await pool.query("UPDATE agenda SET stagenda='fec' WHERE idagenda=2");
+      await pool.query("INSERT INTO operacao_dias(parque,data,estado,day_use_agenda_id) VALUES('rincao',$1,'open',2)", [today]);
+    }
+    if (state === 'unlinked') await pool.query("INSERT INTO operacao_dias(parque,data,estado) VALUES('rincao',$1,'open')", [today]);
+    expect(await readCountingAttendance(pool,today)).toMatchObject({ hasDayUse:false,sold:0,admitted:0 });
+  });
+  it('preserves sold and admitted history without an open day use offer', async () => {
+    await pool.query("UPDATE agenda SET stagenda='fec' WHERE idagenda=2");
+    await pool.query("UPDATE voucher SET dtinicio_validade=$1,dtuso=$1,stusado='s' WHERE idvoucher=1", [today]);
+    expect(await readCountingAttendance(pool,today)).toMatchObject({ hasDayUse:false,sold:1,admitted:1 });
+  });
   it("admits public tickets on mixed agendas and counts only public attendance", async () => {
     await pool.query("INSERT INTO agenda_extras VALUES(1,10),(2,10)");
     await pool.query("UPDATE voucher SET dtinicio_validade=$1 WHERE idvoucher=1", [today]);
@@ -133,13 +154,13 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
     expect(await admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'reserve-paid'},actor)).toMatchObject({admitted:true,replayed:false});
   });
   it("blocks gate admission after the financial day closes while agenda remains open",async()=>{
-    await pool.query("INSERT INTO operacao_dias VALUES('rincao',$1,'closed')",[today]);
+    await pool.query("INSERT INTO operacao_dias(parque,data,estado) VALUES('rincao',$1,'closed')",[today]);
     await expect(admitCountingVoucher({date:today,code:'1-1',idempotencyKey:'financial-closed'},{name:'A',cpf:'52998224725'})).rejects.toMatchObject({code:'voucher_day_closed'});
   });
 
 
   it("prevents a concurrent financial close from freezing a pre-admission snapshot",async()=>{
-    await pool.query("INSERT INTO operacao_dias VALUES('rincao',$1,'open')",[today]);
+    await pool.query("INSERT INTO operacao_dias(parque,data,estado) VALUES('rincao',$1,'open')",[today]);
     const closing=await pool.connect(),gate=await pool.connect(),original=gate.query.bind(gate);
     let releaseGate!:()=>void,gateReady!:()=>void;
     const ready=new Promise<void>(resolve=>{gateReady=resolve;}),release=new Promise<void>(resolve=>{releaseGate=resolve;});
@@ -275,14 +296,14 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
     if (closed === "validation_cash") await pool.query("UPDATE caixa_periodos SET fechado_em=now() WHERE id=1");
     if (closed === "financial_snapshot") await pool.query("INSERT INTO caixa_fechamentos(periodo_id,snapshot_json) VALUES(1,'{\"immutable\":true}')");
     if (closed === "legacy_snapshot") await pool.query("UPDATE voucher SET periodo_id=1,closed_at=now() WHERE idvoucher=1");
-    if (closed === "day") await pool.query("INSERT INTO operacao_dias VALUES('rincao',$1,'closed')", [today]);
+    if (closed === "day") await pool.query("INSERT INTO operacao_dias(parque,data,estado) VALUES('rincao',$1,'closed')", [today]);
     const before = (await pool.query("SELECT * FROM voucher WHERE idvoucher=1")).rows[0];
     for (const mutate of [unvalidateSelectedVouchers, invalidateSelectedVouchers]) await expect(mutate([1], actor, 2)).rejects.toMatchObject({ status: 409 });
     expect((await pool.query("SELECT * FROM voucher WHERE idvoucher=1")).rows[0]).toEqual(before);
     expect((await pool.query("SELECT * FROM edicoes_log")).rowCount).toBe(1);
   });
   it.each(["closed", "no_agenda", "school_only", "closed_agenda"])("rejects day use %s", async (state) => {
-    if (state === "closed") await pool.query("INSERT INTO operacao_dias VALUES ('rincao',$1,'closed')", [today]);
+    if (state === "closed") await pool.query("INSERT INTO operacao_dias(parque,data,estado) VALUES ('rincao',$1,'closed')", [today]);
     if (state === "no_agenda") await pool.query("DELETE FROM agenda WHERE idagenda=2");
     if (state === "school_only") await pool.query("UPDATE agenda SET tpagenda='escol' WHERE idagenda=2");
     if (state === "closed_agenda") await pool.query("UPDATE agenda SET stagenda='fec' WHERE idagenda=2");

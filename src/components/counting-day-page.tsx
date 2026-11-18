@@ -31,6 +31,7 @@ export function CountingDayPage({ date,manager,actorCpf,canGate = false,trip }: 
   useCountingLeaveWarning(command.pending !== null || startCommand.pending !== null);
   const blocked = command.blocked || startCommand.blocked;
   const groups = data?.groups.filter(group => !trip || (group.agendaId === trip.agendaId && group.clientId === trip.clientId)) ?? [];
+  const empty = !blocked && !trip && data && !data.closed && data.groups.length === 0 && !error && !attendance.error && attendance.data?.hasDayUse === false && attendance.data.sold === 0 && attendance.data.admitted === 0;
   const today = data?.today ?? getSaoPauloToday(),editable = date <= today && (manager || date === today) && !data?.closed;
   const vehicles = groups.flatMap(group => group.vehicles);
   const completed = vehicles.filter(vehicle => vehicle.state === 'completed'),counting = vehicles.filter(vehicle => vehicle.state === 'counting');
@@ -45,6 +46,7 @@ export function CountingDayPage({ date,manager,actorCpf,canGate = false,trip }: 
     {!trip && <nav aria-label="Dias de contagem" className="-mx-4 -mt-5 flex gap-2 overflow-x-auto [scrollbar-width:none] bg-[#133a62] px-4 pb-4">
       {dates.map(day => <a key={day.date} href={`/contagem?date=${day.date}`} aria-current={day.date === date ? 'date' : undefined} className={`grid min-w-[58px] shrink-0 place-items-center rounded-xl border py-2 ${day.date === date ? 'border-white bg-white text-[#0b1f36]' : 'border-white/20 text-white'}`}><span className="text-[11px] uppercase">{day.date === today ? 'hoje' : day.label}</span><b className="text-xl">{day.day}</b></a>)}
     </nav>}
+    {empty ? <div className="px-2.5 py-10 text-center text-sm text-[#6a7c92]"><h1 className="mb-1.5 text-base font-bold text-[#0b1f36]">Sem movimento em {new Date(`${date}T12:00:00Z`).toLocaleDateString('pt-BR',{ weekday: 'long',day: 'numeric',month: 'long',timeZone: 'UTC' })}</h1><p>Não há passeios nem day use nesta data.</p></div> : <>
     {trip && <a className="inline-flex min-h-11 items-center underline" href={`/contagem?date=${date}`}>← Voltar aos passeios</a>}
     {trip ? <h1 className="text-xl font-bold">{groups[0]?.clientName ?? "Passeio"}</h1> : <h1 className="sr-only">{new Date(`${date}T12:00:00Z`).toLocaleDateString('pt-BR',{ day: 'numeric',month: 'long',timeZone: 'UTC' })}</h1>}
     {date > today && <p className="rounded-xl border border-[#d9e3ee] bg-[#eaf2fb] p-3 text-sm">A contagem desta data abre no próprio dia. Aqui você já vê o que está previsto.</p>}
@@ -93,5 +95,6 @@ export function CountingDayPage({ date,manager,actorCpf,canGate = false,trip }: 
     })}</ul></section>}
     <p className="text-center text-xs text-[#6a7c92]">{checkedAt ? `Consultado às ${countTime(checkedAt)} · atualização a cada 5 s` : 'Consultando passeios…'}</p>
     {!trip && date <= today && <div className="sticky bottom-0 -mx-4 bg-[#f4f7fb]/95 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3"><a href={`/contagem/relatorios?date=${date}${date === today && !data?.closed ? '&finalizar=1' : ''}`} className={`${countingPrimary} w-full`}>{data?.closed || date !== today ? 'Ver relatórios do dia' : 'Finalizar contagem do dia'}</a></div>}
+    </>}
   </div>;
 }

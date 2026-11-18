@@ -3,7 +3,7 @@ import { countingTotals } from './counting-slip-contract';
 import {countCategories,COUNT_CATEGORIES,type CountCategory} from './trip-counting-contract';
 import type {CountingAttendance} from './counting-attendance';
 export type CountingReportGroup={agendaId:number;clientId:number;name:string;plannedPeople:number|null;transportName:string|null;foodNotes:string|null;slips:CountingSlip[];pending:{vehicleId:number;label:string;state:string}[]};
-export type CountingDayReport={date:string;generatedAt:string;fingerprint:string;dayUse:CountingAttendance;groups:CountingReportGroup[]};
+export type CountingDayReport={date:string;generatedAt:string;fingerprint:string;dayUse:Omit<CountingAttendance,'hasDayUse'>;groups:CountingReportGroup[]};
 export function countingReportTotals(report:CountingDayReport){const counts=Object.fromEntries(countCategories.map(k=>[k,0])) as Record<CountCategory,number>;let participants=0,team=0,pcd=0,pending=0;
  for(const group of report.groups){pending+=group.pending.length+(group.slips.length===0&&group.pending.length===0?1:0);for(const slip of group.slips){const t=countingTotals(slip.draft);participants+=t.participants;team+=t.team;pcd+=t.pcd;for(const k of countCategories)counts[k]+=slip.draft.counts[k]??0;}}
  return {participants,team,pcd,counts,pending,trips:participants+team,total:participants+team+report.dayUse.admitted};

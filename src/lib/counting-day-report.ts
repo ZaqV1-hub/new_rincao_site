@@ -7,7 +7,9 @@ import {normalizeCountDraft,type CountDraft} from './trip-counting-contract';
 import type {CountingDayReport} from './counting-day-report-contract';
 import type {CountingSlip} from './counting-slip-contract';
 export async function readCountingDayReport(client:PoolClient,date:string):Promise<CountingDayReport>{
- const day=await readCountingDay(client,date),dayUse=await readCountingAttendance(client,date);
+ const day=await readCountingDay(client,date),attendance=await readCountingAttendance(client,date);
+ // Offer availability is not a count fact and must not invalidate issued report fingerprints.
+ const dayUse={date:attendance.date,sold:attendance.sold,admitted:attendance.admitted,expected:attendance.expected};
  const revisions=(await client.query<{id:string;vehicleId:string;catalogVersion:number;counts:CountDraft['counts'];pcdDetails:CountDraft['pcdDetails'];notes:string;name:string;phone:string;confirmed:boolean;ownerName:string;startedAt:string;completedAt:string;context:Partial<CountingSlip>|null}>(`SELECT n.id,n.vehicle_id::text AS "vehicleId",n.catalog_version AS "catalogVersion",n.counts,n.pcd_details AS "pcdDetails",n.notes,n.responsible_name AS name,n.responsible_phone AS phone,n.contact_confirmed AS confirmed,n.owner_name AS "ownerName",n.created_at::text AS "startedAt",n.completed_at::text AS "completedAt",n.document_context AS context
  FROM passeio_contagens n JOIN passeio_veiculos v ON v.current_count_id=n.id AND v.parque=n.parque JOIN agenda a ON a.idagenda=v.agenda_id WHERE n.parque=$1 AND a.dtagenda=$2::date AND n.status='completed' AND v.estado='completed'`,[getOperationalParkId(),date])).rows;
  const groups=day.groups.map(group=>({agendaId:group.agendaId,clientId:group.clientId,name:group.clientName,plannedPeople:group.plannedPeople,foodNotes:group.foodNotes,transportName:group.transportName,

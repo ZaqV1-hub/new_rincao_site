@@ -1,10 +1,10 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { applyAgendaPriceSelection, canSelectAgendaDate, getAgendaToneClasses, groupAgendaEntries, PainelAgendaManager } from "@/components/painel-agenda-manager";
+import { applyAgendaPriceSelection, canSelectAgendaDate, getAgendaToneClasses, groupAgendaEntries, PainelAgendaManager, EmptyAgendaDateDialog } from "@/components/painel-agenda-manager";
 
 describe("PainelAgendaManager tone helpers", () => {
-  it("keeps open standard agendas lime green when selected", () => {
+  it("keeps open standard agendas blue when selected", () => {
     const classes = getAgendaToneClasses(
       {
         status: "abe",
@@ -17,7 +17,7 @@ describe("PainelAgendaManager tone helpers", () => {
     expect(classes).toContain("ring-2");
   });
 
-  it("renders closed agendas with muted legacy styling", () => {
+  it("renders closed agendas with the neutral calendar styling", () => {
     const classes = getAgendaToneClasses(
       {
         status: "fec",
@@ -26,8 +26,8 @@ describe("PainelAgendaManager tone helpers", () => {
       true,
     );
 
-    expect(classes).toContain("bg-[#dce8f2]");
-    expect(classes).toContain("text-[#24455d]");
+    expect(classes).toContain("bg-white");
+    expect(classes).toContain("text-[#0f2d52]");
     expect(classes).toContain("ring-2");
   });
 });
@@ -53,10 +53,10 @@ describe("operational agenda calendar", () => {
     expect(groupAgendaEntries(data.entries).get("2099-01-03")?.map((item) => item.id)).toEqual([1, 2]);
     const html = renderToStaticMarkup(React.createElement(PainelAgendaManager, props));
     expect(html).toContain("Day use aberto");
-    expect(html).toContain("1 agenda de grupos");
-    expect(html).toContain("Alta temporada");
+    expect(html).toContain("1 passeio");
+    expect(html).not.toContain("Alta temporada");
     expect(html).toContain('href="/painel/agenda/2099-01-03?mes=1&amp;ano=2099"');
-    expect(html).toContain('/painel/agenda/2099-01-02/editar');
+    expect(html).not.toContain('/painel/agenda/2099-01-02/editar');
   });
   it("uses refreshed configuration instead of a stale sold-out agenda status", () => {
     const html = renderToStaticMarkup(React.createElement(PainelAgendaManager, {
@@ -76,34 +76,57 @@ describe("operational agenda calendar", () => {
     expect(html).not.toContain('aria-label="Selecionar 01/01/2099"');
     expect(html).not.toContain('aria-label="Selecionar 02/01/2099"');
     expect(html).toContain('aria-label="Selecionar 03/01/2099"');
-    expect(html).toContain("Dia finalizado");
+    expect(html).toContain("Fechado");
   });
-  it("shows saved prices without requiring an existing day-use agenda", () => {
-    const html = renderToStaticMarkup(React.createElement(PainelAgendaManager, props));
-    expect(html).toContain("Tabela de preço da data");
-    expect(html).toContain("Alta temporada");
-    expect(html).toContain("Abrir day use");
+  it("opens empty future dates through a dialog instead of linking directly to day-use editing", () => {
+    const html = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, indicators: [] }));
+    expect(html).toContain('aria-label="Abrir opções de 02/01/2099" aria-haspopup="dialog"');
+    expect(html).toContain("group-hover:opacity-100");
+    expect(html).not.toContain("Tabela de preço da data");
+    expect(html).not.toContain("Alta temporada");
+    expect(html).not.toContain('/painel/agenda/2099-01-02/editar');
+  });
+  it("offers the selected date and both real destinations in the empty-date dialog", () => {
+    const html = renderToStaticMarkup(React.createElement(EmptyAgendaDateDialog, { date: "2099-01-02", canEdit: true, canAccessClients: true, onClose: () => {} }));
+    expect(html).toContain("Ainda não há nada aberto nesta data.");
+    expect(html).toContain("2 de janeiro de 2099");
+    expect(html).toContain("Abrir Day Use");
+    expect(html).toContain('href="/painel/agenda/2099-01-02/editar"');
+    expect(html).toContain("Agendar passeio de grupo");
+    expect(html).toContain('href="/painel/clientes"');
+    expect(html).toContain("Cancelar");
+    const readOnly = renderToStaticMarkup(React.createElement(EmptyAgendaDateDialog, { date: "2099-01-02", canEdit: false, canAccessClients: false, onClose: () => {} }));
+    expect(readOnly).not.toContain("/editar");
+    expect(readOnly).not.toContain("/painel/clientes");
+  });
+  it("keeps existing dates with pending closure navigable and uses neutral styling for group-only dates", () => {
+    const indicators = [{ date: "2099-01-04", plannedPeople: 20, groupCount: 1, vehicleCount: 1, counting: false, revenueCents: 0, closed: false, closurePending: true }];
+    const html = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, indicators }));
+    expect(html).toContain('href="/painel/agenda/2099-01-04?mes=1&amp;ano=2099"');
+    expect(html).not.toContain('aria-label="Abrir opções de 04/01/2099"');
+    expect(html).toContain("Fechamento pendente");
+    expect(getAgendaToneClasses({ type: "escol", status: "abe" }, false)).toContain("bg-white");
   });
   it("hides mutations from non-managers and blocks them while configuration is unavailable", () => {
     const readOnly = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, canEdit: false }));
     expect(readOnly).not.toContain('type="checkbox"');
-    expect(readOnly).not.toContain("Abrir day use");
+    expect(readOnly).not.toContain("+ Abrir day use");
     const unavailable = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, operationalDays: null }));
     expect(unavailable).toContain("Programação indisponível");
     expect(unavailable).not.toContain('type="checkbox"');
+    expect(unavailable).not.toContain('aria-haspopup="dialog"');
+    expect(unavailable).toContain('href="/painel/agenda/2099-01-02?mes=1&amp;ano=2099"');
   });
-  it("shows program statuses from the server, links with access, and never invents missing statuses", () => {
+  it("only marks created day programs without adding past-program noise to the calendar", () => {
     const programStatuses = { "2099-01-02": "uncreated", "2099-01-03": "created", "2099-01-04": "exported", "2099-01-05": "past_created", "2099-01-06": "past_uncreated" } as const;
     const indicators = [2, 3, 4, 5, 6, 7].map(day => ({ date: `2099-01-0${day}`, plannedPeople: 20, groupCount: 1, vehicleCount: 1, counting: false, revenueCents: 0, closed: false, closurePending: false }));
     const html = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, indicators, programStatuses, canAccessProgram: true }));
-    for (const status of ["A criar", "Criado", "Arquivos gerados", "Já ocorreu", "Já ocorreu e não criado"]) expect(html).toContain(status);
-    expect(html).toContain('href="/painel/agenda/2099-01-02/dia-seguinte?returnTo=2099-01-02"');
-    expect(html).toContain("Programação do dia · Criar");
-    expect(html).toContain("Programação indisponível");
+    expect(html.match(/title="Dia seguinte criado"/g)).toHaveLength(3);
+    for (const status of ["A criar", "Já ocorreu", "Programação:", "Programação indisponível"]) expect(html).not.toContain(status);
     const denied = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, programStatuses, canAccessProgram: false }));
-    expect(denied).not.toContain("/dia-seguinte"); expect(denied).not.toContain("Arquivos gerados");
+    expect(denied).not.toContain("Dia seg.");
     const failed = renderToStaticMarkup(React.createElement(PainelAgendaManager, { ...props, programStatuses: null, canAccessProgram: true }));
-    expect(failed).toContain("Programação do dia indisponível"); expect(failed).not.toContain("Programação do dia · Criar");
+    expect(failed).toContain("Programação do dia indisponível");
   });
   it("submits only dates, expected versions, price and reason, then returns confirmed days", async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({ ok: true, data: [{ ...day, version: 4 }] }));

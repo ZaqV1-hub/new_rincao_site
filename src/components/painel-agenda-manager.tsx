@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   type PainelAgendaMonthEntry,
   type PainelAgendaScreenData,
@@ -59,22 +59,14 @@ function formatMoney(value: string | null) {
 
 function getAgendaBaseToneClasses(entry?: AgendaToneInput) {
   if (!entry) {
-    return "border-dashed border-[#b8cbdc] bg-white text-[#45647f]";
+    return "border-dashed border-[#d9e3ee] bg-transparent text-[#6a7c92]";
   }
 
-  if (entry.status === "lot") {
-    return "border-[#c89b45] bg-[#fff3dc] text-[#694812]";
+  if ((entry.type !== "padra" && entry.type !== "promo") || entry.status === "fec") {
+    return "border-[#d9e3ee] bg-white text-[#0f2d52]";
   }
 
-  if (entry.status === "fec") {
-    return "border-[#90a9bd] bg-[#dce8f2] text-[#24455d]";
-  }
-
-  if (entry.type === "promo") {
-    return "border-[#2f6fb2] bg-[#eaf2fb] text-[#123b63]";
-  }
-
-  return "border-[#2f6fb2] bg-[#eaf2fb] text-[#123b63]";
+  return "border-2 border-[#2f6fb2] bg-[#eaf2fb] text-[#0f2d52]";
 }
 
 export function getAgendaToneClasses(
@@ -87,7 +79,7 @@ export function getAgendaToneClasses(
     return baseClasses;
   }
 
-  return `${baseClasses} ring-2 ring-[#17351f] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.38)]`;
+  return `${baseClasses} ring-2 ring-[#2f6fb2] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.38)]`;
 }
 
 function buildAgendaHref(month: number, year: number, date?: string | null) {
@@ -126,8 +118,25 @@ export async function applyAgendaPriceSelection(
 }
 
 const control = "min-h-11 rounded-lg border border-[#b8cbdc] px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#236699] disabled:opacity-50";
-const programLabels: Record<DayProgram["status"], string> = { uncreated: "A criar", created: "Criado", exported: "Arquivos gerados · envio manual", past_created: "Já ocorreu", past_uncreated: "Já ocorreu e não criado" };
 const isDayUse = (entry: PainelAgendaMonthEntry) => entry.type === "padra" || entry.type === "promo";
+
+export function EmptyAgendaDateDialog({ date, canEdit, canAccessClients, onClose }: { date: string; canEdit: boolean; canAccessClients: boolean; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    return () => element?.close();
+  }, []);
+  return <dialog ref={dialog} onCancel={onClose} aria-labelledby="empty-agenda-title" aria-describedby="empty-agenda-description" className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-xl border border-[#d9e3ee] bg-white p-6 text-[#0f2d52] backdrop:bg-[#0f2d52]/40">
+    <h2 id="empty-agenda-title" className="text-xl font-bold">{new Intl.DateTimeFormat("pt-BR", { dateStyle: "full", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`))}</h2>
+    <p id="empty-agenda-description" className="mt-3 text-sm text-[#6a7c92]">Ainda não há nada aberto nesta data.</p>
+    <div className="mt-4 divide-y divide-[#e8eef5] rounded-lg border border-[#d9e3ee] px-4">
+      {canEdit && <div className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0 flex-1"><h3 className="font-semibold">Abrir Day Use</h3><p className="mt-1 text-sm text-[#6a7c92]">Ingressos e serviços adicionais à venda no site e nos caixas</p></div><Link className={`${control} inline-flex items-center bg-[#133a62] text-white`} href={`/painel/agenda/${date}/editar`}>Abrir</Link></div>}
+      {canAccessClients && <div className="flex flex-wrap items-center justify-between gap-3 py-4"><div className="min-w-0 flex-1"><h3 className="font-semibold">Agendar passeio de grupo</h3><p className="mt-1 text-sm text-[#6a7c92]">Feito pelo cadastro do cliente</p></div><Link className={`${control} inline-flex items-center`} href="/painel/clientes">Ir para clientes</Link></div>}
+    </div>
+    <button type="button" className={`${control} mt-4`} onClick={onClose}>Cancelar</button>
+  </dialog>;
+}
 
 export function PainelAgendaManager({ data, indicators = null, operationalDays, operationalError, today, canEdit, canAccessProgram = false, programStatuses = null, programError }: PainelAgendaManagerProps) {
   const entriesByDate = useMemo(() => groupAgendaEntries(data.entries), [data.entries]);
@@ -136,6 +145,7 @@ export function PainelAgendaManager({ data, indicators = null, operationalDays, 
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [priceTableId, setPriceTableId] = useState("");
   const [reason, setReason] = useState("");
+  const [emptyDate, setEmptyDate] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
@@ -143,18 +153,9 @@ export function PainelAgendaManager({ data, indicators = null, operationalDays, 
   const daysByDate = new Map((days ?? []).map((day) => [day.date, day]));
   const indicatorsByDate = new Map((indicators ?? []).map(day => [day.date, day]));
   const selectedDate = data.selectedDate;
-  const selectedDay = data.selectedDay;
-  const selectedProgramStatus = selectedDate ? programStatuses?.[selectedDate] : undefined;
-  const selectedEntries = selectedDate ? entriesByDate.get(selectedDate) ?? [] : [];
-  const selectedConfig = selectedDate ? daysByDate.get(selectedDate) : undefined;
-  const programAction = !canEdit || selectedConfig?.closed ? "Abrir" : selectedProgramStatus === "uncreated" ? "Criar" : selectedProgramStatus === "created" || selectedProgramStatus === "exported" ? "Alterar" : "Abrir";
-  const selectedDayUse = selectedEntries.find(isDayUse);
-  const selectedPriceId = selectedConfig?.priceTableId ?? selectedDayUse?.priceTableId;
   const previousMonth = addMonths(data.month, data.year, -1);
   const nextMonth = addMonths(data.month, data.year, 1);
-  const tableName = (id: number) => data.priceTables.find((table) => table.id === id)?.label ?? `Tabela ${id}`;
   const writable = canEdit && days !== null;
-  const selectedEditable = writable && selectedDate && canSelectAgendaDate(selectedDate, today, selectedConfig);
 
   async function applyPrices(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -191,9 +192,9 @@ export function PainelAgendaManager({ data, indicators = null, operationalDays, 
   return (
     <div className="mx-auto grid w-full max-w-[1440px] gap-4 text-[#123b63]">
       <div className="grid items-start gap-4 ">
-        <section className="panel-section min-w-0 p-3.5">
+        <section className="panel-section min-w-0 p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-2xl font-bold">Agenda</h1>
+            <div><p className="text-xs font-bold uppercase tracking-widest text-[#4e6e92]">Agenda</p><h1 className="mt-1 text-[28px] font-bold text-[#0f2d52]">Agenda do parque</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-[#6a7c92]">Tudo começa aqui. Entre numa data para ver o relatório, os passeios, as compras, os caixas e o fechamento. Numa data vazia você abre o day use.</p></div>
             <Link href={buildAgendaHref(Number(today.slice(5, 7)), Number(today.slice(0, 4)), today)} className={`${control} hover:bg-[#eef4fb]`}>Ir para hoje</Link>
           </div>
 
@@ -206,27 +207,28 @@ export function PainelAgendaManager({ data, indicators = null, operationalDays, 
           ) : null}
           {canAccessProgram && programStatuses === null && <p role="alert" className="mt-4 text-sm text-[#694812]">{programError || "Programação do dia indisponível. Atualize a página para tentar novamente."}</p>}
           {indicators === null && <p role="alert" className="mt-4 text-sm text-[#694812]">Indicadores da agenda indisponíveis. Atualize a página para tentar novamente.</p>}
-          <div className="mt-4 overflow-hidden rounded-xl border border-[#d4dfeb]">
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 text-[#123b63]"><nav className="flex items-center gap-3" aria-label="Mês da agenda">
-              <Link aria-label="Mês anterior" href={buildAgendaHref(previousMonth.month, previousMonth.year)} className="flex min-h-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#123b63]">
+          <div className="mt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 text-[#0f2d52]"><nav className="flex items-center gap-3" aria-label="Mês da agenda">
+              <Link aria-label="Mês anterior" href={buildAgendaHref(previousMonth.month, previousMonth.year)} className="flex min-h-11 min-w-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#123b63]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
               </Link>
-              <h2 className="text-center text-base font-semibold">{formatPainelAgendaMonthLabel(data.month, data.year)}</h2>
-              <Link aria-label="Próximo mês" href={buildAgendaHref(nextMonth.month, nextMonth.year)} className="flex min-h-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#123b63]">
+              <h2 className="min-w-40 text-center text-[17px] font-semibold">{formatPainelAgendaMonthLabel(data.month, data.year)}</h2>
+              <Link aria-label="Próximo mês" href={buildAgendaHref(nextMonth.month, nextMonth.year)} className="flex min-h-11 min-w-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#123b63]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
               </Link>
               </nav>
-          <fieldset className="flex flex-wrap gap-2">
+          <fieldset className="flex flex-wrap overflow-hidden rounded-lg border border-[#d9e3ee]">
             <legend className="sr-only">Filtrar datas</legend>
             {[["all", "Todas"], ["dayuse", "Day use"], ["groups", "Grupos"], ["pending", "Fechamento pendente"]].map(([value, label]) => (
-              <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={`${control} ${filter === value ? "bg-[#123b63] text-white" : "hover:bg-[#eef4fb]"}`}>{label}</button>
+              <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={`min-h-11 border-r border-[#d9e3ee] px-3 text-[13px] font-medium last:border-r-0 focus-visible:outline-2 focus-visible:outline-[#2f6fb2] ${filter === value ? "bg-[#133a62] text-white" : "text-[#6a7c92] hover:bg-[#eaf2fb]"}`}>{label}</button>
             ))}
           </fieldset>
             </div>
-            <div className="hidden grid-cols-7 md:grid bg-white text-center text-xs font-semibold">
+            {writable && <p className="mb-3 text-[13px] text-[#6a7c92]">Marque o quadradinho no canto das datas para selecionar várias e trocar a tabela de preço de uma vez.</p>}
+            <div className="hidden grid-cols-7 md:grid text-center text-[11px] font-bold uppercase tracking-widest text-[#4e6e92]">
               {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((label) => <div key={label} className="py-2">{label}</div>)}
             </div>
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-7 bg-white p-2">
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-7">
               {calendarCells.map((cell) => {
                 const entries = entriesByDate.get(cell.date) ?? [];
                 const config = daysByDate.get(cell.date);
@@ -234,28 +236,33 @@ export function PainelAgendaManager({ data, indicators = null, operationalDays, 
                 const dayUse = entries.find(isDayUse);
                 const groups = entries.filter((entry) => !isDayUse(entry));
                 const open = config ? config.dayUseOpen : dayUse?.status === "abe";
-                const movement = Boolean(open || config?.closed || (indicator?.groupCount ?? groups.length) > 0 || indicator?.vehicleCount || indicator?.revenueCents || indicator?.closurePending);
+                const movement = Boolean(entries.length || config?.dayUseAgendaId || config?.closed || indicator?.closed || (indicator?.groupCount ?? 0) > 0 || indicator?.vehicleCount || indicator?.plannedPeople || indicator?.revenueCents || indicator?.closurePending);
                 const matches = filter === "all" || (filter === "dayuse" ? Boolean(open) : filter === "pending" ? Boolean(indicator?.closurePending) : (indicator?.groupCount ?? groups.length) > 0);
-                if (!cell.inMonth || !matches) return <div key={cell.key} className="hidden min-h-24 px-2 py-2 text-xs text-[#60758d] md:block">{cell.day}</div>;
-                const tone = config?.closed ? { status: "fec" as const, type: "padra" as const } : config?.dayUseAgendaId ? { status: config.onlineSoldOut ? "lot" as const : open ? "abe" as const : "fec" as const, type: dayUse?.type ?? "padra" as const } : dayUse;
+                if (!cell.inMonth) return <div key={cell.key} aria-hidden="true" className="hidden md:block" />;
+                const tone = open || (config ? config.onlineSoldOut : dayUse?.status === "lot") ? { status: "abe" as const, type: "padra" as const } : movement ? { status: "fec" as const, type: "padra" as const } : undefined;
+                const dayClass = "flex min-h-[118px] w-full flex-col rounded-lg px-2 py-2 text-left text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f6fb2]";
+                const programCreated = canAccessProgram && ["created", "exported", "past_created"].includes(programStatuses?.[cell.date] ?? "");
                 return (
-                  <div key={cell.key} className={`relative min-w-0 rounded-lg border ${cell.date === today ? "outline-2 outline-[#b9892c]" : ""} ${getAgendaToneClasses(tone, cell.date === selectedDate || selectedDates.includes(cell.date))}`}>
-                    <Link href={buildAgendaHref(data.month, data.year, cell.date)} aria-label={`Abrir ${formatPainelAgendaDateLabel(cell.date)}`} aria-current={cell.date === today ? "date" : undefined} className="block min-h-24 rounded-lg px-1 py-2 text-xs focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#123b63] sm:px-2">
-                      <span className="pr-10 text-sm font-bold tabular-nums">{cell.day}</span>
-                      {cell.date === today ? <span className="block text-[10px] font-bold">Hoje</span> : null}
-                      <span className="mt-1 block break-words text-[10px] leading-4 sm:text-xs">
-                        {config?.closed ? <span className="block font-semibold">Dia finalizado</span> : null}
-                        {dayUse || config?.dayUseAgendaId ? <span className="block">
-                          <span className="whitespace-nowrap sm:hidden">{(config ? Boolean(config.onlineSoldOut) : dayUse?.status === "lot") ? "Lotado" : open ? "Aberto" : "Fechado"}</span>
-                          <span className="hidden sm:inline">{(config ? Boolean(config.onlineSoldOut) : dayUse?.status === "lot") ? "Day use esgotado" : open ? "Day use aberto" : "Day use fechado"}</span>
-                        </span> : null}
-                        {indicator && movement && <><span className="mt-2 block text-base font-bold tabular-nums">{indicator.plannedPeople === null ? "Previsão a preencher" : `${indicator.plannedPeople} pessoas`}</span><span className="block">{indicator.groupCount === null ? "Passeios indisponíveis" : `${indicator.groupCount} passeio(s)`} · {indicator.vehicleCount} veíc.</span>{indicator.revenueCents === null ? <span className="block">Receita indisponível</span> : indicator.revenueCents > 0 && <span className="block font-semibold tabular-nums">{formatMoney(String(indicator.revenueCents / 100))}</span>}{indicator.counting && <span className="mt-1 block font-semibold text-[#694812]">Contando</span>}{indicator.closurePending && <span className="mt-1 block font-semibold text-[#694812]">Fechamento pendente</span>}</>}
-                        {!indicator && groups.length > 0 && <span className="block">{`${groups.length} agenda${groups.length === 1 ? "" : "s"} de grupos`}</span>}
-                        {canAccessProgram && movement && <span className="mt-1 block rounded border border-current/25 px-1 font-semibold" title={programStatuses?.[cell.date] === "exported" ? "Os arquivos foram gerados; o envio é feito pelo gerente." : undefined}>{programStatuses?.[cell.date] ? `Programação: ${programLabels[programStatuses[cell.date]]}` : "Programação indisponível"}</span>}
-                        {config?.priceTableId ? <span className="block truncate" title={tableName(config.priceTableId)}>{tableName(config.priceTableId)}</span> : null}
+                  <div key={cell.key} className={`group relative min-w-0 rounded-[9px] border ${getAgendaToneClasses(tone, cell.date === selectedDate || selectedDates.includes(cell.date))} ${cell.date === today ? "shadow-[inset_0_0_0_2px_#e7b864]" : ""} ${!matches ? "opacity-30" : ""} ${movement ? "hover:shadow-[0_4px_14px_rgba(19,58,98,0.14)]" : "hover:border-[#2f6fb2]"}`}>
+                    {movement || indicators === null || days === null ? <Link href={buildAgendaHref(data.month, data.year, cell.date)} aria-label={`Abrir ${formatPainelAgendaDateLabel(cell.date)}`} aria-current={cell.date === today ? "date" : undefined} className={dayClass}>
+                      <span className="pr-8 text-sm font-bold tabular-nums">{cell.day}</span>
+                      {indicator && movement && <><span className="mt-1 block text-[22px] font-extrabold leading-none tabular-nums">{indicator.plannedPeople === null ? <span className="text-xs font-medium leading-4">Previsão a preencher</span> : <>{indicator.plannedPeople}<span className="ml-1 text-[10px] font-bold uppercase tracking-wide text-[#6a7c92]">pessoas</span></>}</span><span className="mt-1 block text-[11px] leading-4 text-[#6a7c92]">{indicator.groupCount === null ? "Passeios indisponíveis" : indicator.groupCount > 0 ? `${indicator.groupCount} ${indicator.groupCount === 1 ? "passeio" : "passeios"}` : "público geral"}{indicator.vehicleCount > 0 ? ` · ${indicator.vehicleCount} veíc.` : ""}</span>{indicator.revenueCents === null ? <span className="text-[11px]">Receita indisponível</span> : indicator.revenueCents > 0 && <span className="mt-0.5 text-[11px] font-semibold tabular-nums">{formatMoney(String(indicator.revenueCents / 100))}</span>}</>}
+                      {!indicator && groups.length > 0 && <span className="mt-1 text-[11px]">{`${groups.length} ${groups.length === 1 ? "passeio" : "passeios"}`}</span>}
+                      <span className="mt-auto flex flex-wrap gap-1 pt-2 text-[9px] font-bold">
+                        {cell.date === today && <span className="rounded bg-[#e7b864] px-1.5 py-0.5 text-[#3a2606]">Hoje</span>}
+                        {open && <span className="rounded bg-[#2f6fb2] px-1.5 py-0.5 text-white">Day use</span>}
+                        {(config ? config.onlineSoldOut : dayUse?.status === "lot") && <span className="rounded bg-[#fff1cf] px-1.5 py-0.5 text-[#8a5a00]">Esgotado</span>}
+                        {!open && (dayUse || config?.dayUseAgendaId) && !config?.closed && <span className="rounded bg-[#e6ecf3] px-1.5 py-0.5 text-[#5c6f86]">Day use fechado</span>}
+                        {(config?.closed || indicator?.closed) && <span className="rounded bg-[#e3f4e9] px-1.5 py-0.5 text-[#1f7440]">Fechado</span>}
+                        {indicator?.counting && <span className="rounded bg-[#fff1cf] px-1.5 py-0.5 text-[#8a5a00]">Contando</span>}
+                        {indicator?.closurePending && <span className="rounded bg-[#fff1cf] px-1.5 py-0.5 text-[#8a5a00]">Fechamento pendente</span>}
+                        {programCreated && <span title="Dia seguinte criado" className="rounded bg-[#fceadb] px-1.5 py-0.5 text-[#9a4a12]">Dia seg.</span>}
                       </span>
-                    </Link>
-                    {writable && !open && !config?.closed && cell.date >= today && <Link className="flex min-h-11 items-center px-2 text-xs font-semibold underline underline-offset-4" href={`/painel/agenda/${cell.date}/editar`}>+ Abrir day use</Link>}
+                    </Link> : cell.date >= today ? <button type="button" aria-label={`Abrir opções de ${formatPainelAgendaDateLabel(cell.date)}`} aria-haspopup="dialog" onClick={() => setEmptyDate(cell.date)} className={dayClass}>
+                      <span className="pr-8 text-sm font-semibold tabular-nums text-[#6a7c92]">{cell.day}</span>
+                      <span className="mt-auto text-xs font-semibold text-[#2f6fb2] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">{writable ? "+ Abrir day use" : "Ver opções"}</span>
+                    </button> : <div className={dayClass}><span className="text-sm tabular-nums text-[#6a7c92]">{cell.day}</span></div>}
+
                     {writable && canSelectAgendaDate(cell.date, today, config) ? (
                       <label className="absolute right-0 top-0 flex min-h-11 w-11 cursor-pointer items-center justify-center">
                         <input type="checkbox" aria-label={`Selecionar ${formatPainelAgendaDateLabel(cell.date)}`} checked={selectedDates.includes(cell.date)} disabled={busy} onChange={(event) => setSelectedDates((current) => event.target.checked ? [...current, cell.date].sort() : current.filter((date) => date !== cell.date))} className="h-4 w-4 accent-[#123b63] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#123b63]" />
@@ -266,7 +273,13 @@ export function PainelAgendaManager({ data, indicators = null, operationalDays, 
               })}
             </div>
           </div>
-          {writable ? <p className="mt-3 text-xs leading-5 text-[#45647f]">Marque datas de hoje em diante para trocar a tabela de preço. Dias finalizados ficam somente para consulta.</p> : null}
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[#6a7c92]" aria-label="Legenda da agenda">
+            <span className="inline-flex items-center gap-2"><i aria-hidden="true" className="h-3.5 w-3.5 rounded border-2 border-[#2f6fb2] bg-[#eaf2fb]" />Day use aberto</span>
+            <span className="inline-flex items-center gap-2"><i aria-hidden="true" className="h-3.5 w-3.5 rounded border border-[#d9e3ee] bg-white" />Só grupos</span>
+            <span className="inline-flex items-center gap-2"><i aria-hidden="true" className="h-3.5 w-3.5 rounded border border-dashed border-[#d9e3ee]" />Sem nada aberto</span>
+            <span className="inline-flex items-center gap-2"><i aria-hidden="true" className="h-3.5 w-3.5 rounded shadow-[inset_0_0_0_2px_#e7b864]" />Hoje</span>
+            {canAccessProgram && <span className="inline-flex items-center gap-2"><i aria-hidden="true" className="h-3.5 w-3.5 rounded bg-[#fceadb]" />Dia seguinte criado</span>}
+          </div>
           {selectedDates.length > 0 ? (
             <form onSubmit={(event) => void applyPrices(event)} className="mt-4 grid gap-3 border-t border-[#d4dfeb] pt-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -290,94 +303,8 @@ export function PainelAgendaManager({ data, indicators = null, operationalDays, 
           ) : null}
           {feedback ? <p role={feedback.error ? "alert" : "status"} className={`mt-4 rounded-lg border p-3 text-sm ${feedback.error ? "border-[#e3b8b2] bg-[#fff4f2] text-[#913c30]" : "border-[#a9cfb7] bg-[#eef8f1] text-[#245b37]"}`}>{feedback.text}</p> : null}
         </section>
-
-        <section className="panel-section min-w-0 p-4 ">
-          <h2 className="text-xl font-bold">{selectedDate ? formatPainelAgendaDateLabel(selectedDate) : "Selecione uma data"}</h2>
-          {selectedDate ? <>
-            <p className="mt-3 text-sm">{selectedConfig?.closed ? "Dia finalizado" : (selectedConfig ? Boolean(selectedConfig.onlineSoldOut) : selectedDayUse?.status === "lot") ? "Day use aberto · vendas esgotadas" : selectedConfig?.dayUseOpen || (!selectedConfig && selectedDayUse?.status === "abe") ? "Day use aberto" : "Day use fechado"}</p>
-            <div className="mt-4 border-t border-[#d4dfeb] pt-3">
-              <p className="text-sm text-[#45647f]">Tabela de preço da data</p>
-              <p className="mt-1 font-semibold">{selectedPriceId ? tableName(selectedPriceId) : "Nenhuma tabela definida"}</p>
-            </div>
-            {selectedEntries.length ? (
-              <ul className="mt-4 space-y-2 text-sm">
-                {selectedEntries.map((entry) => (
-                  <li key={entry.id}>{entry.typeLabel} · {isDayUse(entry) && selectedConfig ? selectedConfig.dayUseOpen ? "Aberta" : "Fechada" : entry.statusLabel}</li>
-                ))}
-              </ul>
-            ) : <p className="mt-4 text-sm text-[#45647f]">Nenhuma agenda cadastrada nesta data.</p>}
-            <div className="mt-4 flex flex-wrap gap-2">
-              {canAccessProgram && <Link href={`/painel/agenda/${selectedDate}/dia-seguinte?returnTo=${selectedDate}`} className={`${control} hover:bg-[#eef4fb]`}>Programação do dia · {programAction}</Link>}
-              <Link href={buildAgendaHref(data.month, data.year, selectedDate)} className={`${control} hover:bg-[#eef4fb]`}>Abrir página do dia</Link>
-              {selectedEditable ? (
-                <Link href={`/painel/agenda/${selectedDate}/editar?mes=${data.month}&ano=${data.year}`} className={`${control} bg-[#123b63] text-white hover:bg-[#174e7e]`}>
-                  {selectedConfig?.dayUseAgendaId || selectedDayUse ? "Editar day use" : "Abrir day use"}
-                </Link>
-              ) : null}
-            </div>
-          </> : <p className="mt-3 text-sm leading-6 text-[#45647f]">Abra uma data no calendário para consultar a programação, os grupos e os vouchers.</p>}
-        </section>
       </div>
-
-      {selectedDay && selectedDay.vouchers.length > 0 ? (
-        <section className="panel-section p-3.5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-[#45647f]">Vouchers do dia</p>
-              <h2 className="mt-1 text-[24px] font-black text-[#123b63]">
-                {formatPainelAgendaDateLabel(selectedDay.selectedDate)}
-              </h2>
-            </div>
-            <div className="text-sm text-[#60758d]">
-              {selectedDay.vouchers.length} voucher(s)
-            </div>
-          </div>
-
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full overflow-hidden rounded-[12px] border border-[#d4dfeb] text-sm">
-              <thead className="bg-[#eef4fb] text-left text-[#123b63]">
-                <tr>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Compra</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Usuário</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Telefone</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Celular</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">E-mail</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Voucher</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Tipo</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Valor</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Data de uso</th>
-                  <th className="px-3 py-2.5 text-xs font-semibold">Usado?</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedDay.vouchers.map((voucher, index) => (
-                  <tr
-                    key={`${voucher.purchaseId}-${voucher.voucherNumber}-${index}`}
-                    className={index % 2 === 0 ? "bg-white" : "bg-[#f8fbfd]"}
-                  >
-                    <td className="px-3 py-3 font-semibold text-[#123b63]">
-                      {voucher.purchaseId}
-                    </td>
-                    <td className="px-3 py-3">{voucher.customerName || "-"}</td>
-                    <td className="px-3 py-3">{voucher.phone || "-"}</td>
-                    <td className="px-3 py-3">{voucher.mobile || "-"}</td>
-                    <td className="px-3 py-3">{voucher.email || "-"}</td>
-                    <td className="px-3 py-3">{voucher.voucherNumber || "-"}</td>
-                    <td className="px-3 py-3">{voucher.voucherTypeLabel || "-"}</td>
-                    <td className="px-3 py-3">{formatMoney(voucher.unitValue)}</td>
-                    <td className="px-3 py-3">
-                      {voucher.useDate
-                        ? formatPainelAgendaDateLabel(voucher.useDate)
-                        : "-"}
-                    </td>
-                    <td className="px-3 py-3">{voucher.used ? "Sim" : "Não"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : null}
+      {emptyDate && <EmptyAgendaDateDialog date={emptyDate} canAccessClients={canAccessProgram} canEdit={Boolean(writable && canSelectAgendaDate(emptyDate, today, daysByDate.get(emptyDate)))} onClose={() => setEmptyDate(null)} />}
     </div>
   );
 }
