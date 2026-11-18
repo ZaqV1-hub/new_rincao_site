@@ -124,8 +124,9 @@ export function EmptyAgendaDateDialog({ date, canEdit, canAccessClients, onClose
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const element = dialog.current;
+    const trigger = document.activeElement;
     element?.showModal();
-    return () => element?.close();
+    return () => { element?.close(); if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus(); };
   }, []);
   return <dialog ref={dialog} onCancel={onClose} aria-labelledby="empty-agenda-title" aria-describedby="empty-agenda-description" className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-xl border border-[#d9e3ee] bg-white p-6 text-[#0f2d52] backdrop:bg-[#0f2d52]/40">
     <h2 id="empty-agenda-title" className="text-xl font-bold">{new Intl.DateTimeFormat("pt-BR", { dateStyle: "full", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`))}</h2>
@@ -240,7 +241,7 @@ export function PainelAgendaManager({ data, indicators = null, operationalDays, 
                 const matches = filter === "all" || (filter === "dayuse" ? Boolean(open) : filter === "pending" ? Boolean(indicator?.closurePending) : (indicator?.groupCount ?? groups.length) > 0);
                 if (!cell.inMonth) return <div key={cell.key} aria-hidden="true" className="hidden md:block" />;
                 const tone = open || (config ? config.onlineSoldOut : dayUse?.status === "lot") ? { status: "abe" as const, type: "padra" as const } : movement ? { status: "fec" as const, type: "padra" as const } : undefined;
-                const dayClass = "flex min-h-[118px] w-full flex-col rounded-lg px-2 py-2 text-left text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f6fb2]";
+                const dayClass = "flex h-full min-h-[118px] w-full flex-col rounded-lg px-2 py-2 text-left text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f6fb2]";
                 const programCreated = canAccessProgram && ["created", "exported", "past_created"].includes(programStatuses?.[cell.date] ?? "");
                 return (
                   <div key={cell.key} className={`group relative min-w-0 rounded-[9px] border ${getAgendaToneClasses(tone, cell.date === selectedDate || selectedDates.includes(cell.date))} ${cell.date === today ? "shadow-[inset_0_0_0_2px_#e7b864]" : ""} ${!matches ? "opacity-30" : ""} ${movement ? "hover:shadow-[0_4px_14px_rgba(19,58,98,0.14)]" : "hover:border-[#2f6fb2]"}`}>
