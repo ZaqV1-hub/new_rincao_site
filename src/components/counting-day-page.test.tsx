@@ -24,7 +24,10 @@ describe('counting day mobile cards',() => {
     const html = render();
     expect(html).toContain('Ônibus 2');
     expect(html).toContain('Transportadora A');
-    expect(html).toContain('3 até agora · provisório');
+    expect(html).toContain('3 até agora');
+    expect(html).toContain('Contagem provisória');
+    expect(html).toContain('Monitor A está contando');
+    expect(html).not.toContain('Outra data');
     expect(html).toContain('pessoas contadas no parque');
     expect(html).toContain('>2</strong>');
     expect(html).toContain('há passeios sem previsão');
@@ -39,6 +42,10 @@ describe('counting day mobile cards',() => {
     expect(html).toContain('2 ingressos lidos');
     const past=fixture();past.today='2026-11-14';
     expect(render(past,true)).not.toContain('/contagem/day-use');
+  });
+  it('identifies the author of a completed count and distinguishes a single passenger',() => {
+    const data = fixture(); Object.assign(data.groups[0].vehicles[0],{ state: 'completed',total: 1,draftSubtotal: null });
+    const html = render(data); expect(html).toContain('Contado por Monitor A'); expect(html).toContain('1 pessoa'); expect(html).not.toContain('1 pessoas');
   });
   it('links each group to its contextual detail',() => { expect(render()).toContain('/contagem/passeios/1/2?date=2026-11-13'); });
   it('blocks adding vehicles in future dates even for managers and in closed days',() => {

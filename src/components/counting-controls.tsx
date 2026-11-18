@@ -120,7 +120,7 @@ export function CountingAccountMenu({ name }: { name: string }) {
   }
   return <details className="relative">
     <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-white" aria-label={`Conta de ${name}`}>
-      <span className="max-w-32 truncate text-sm">{name.split(' ')[0]}</span><span className="grid h-9 w-9 place-items-center rounded-full bg-[#8fb9e3] text-sm font-bold text-[#0b1f36]">{name.trim().split(/\s+/).map(word => word[0]).slice(0,2).join('')}</span>
+      <span className="grid h-9 w-9 place-items-center rounded-full bg-[#8fb9e3] text-sm font-bold text-[#0b1f36]">{name.trim().charAt(0).toLocaleUpperCase('pt-BR') || 'O'}</span>
     </summary>
     <div className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-[#d9e3ee] bg-white p-4 text-[#0f2d52] shadow-lg">
       <p className="break-words font-semibold">{name}</p><a href="/painel" className="flex min-h-11 items-center underline">Voltar ao painel</a>
