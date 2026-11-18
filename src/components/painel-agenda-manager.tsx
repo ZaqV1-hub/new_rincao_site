@@ -208,11 +208,11 @@ export function PainelAgendaManager({ data, indicators = null, operationalDays, 
           {canAccessProgram && programStatuses === null && <p role="alert" className="mt-4 text-sm text-[#694812]">{programError || "Programação do dia indisponível. Atualize a página para tentar novamente."}</p>}
           {indicators === null && <p role="alert" className="mt-4 text-sm text-[#694812]">Indicadores da agenda indisponíveis. Atualize a página para tentar novamente.</p>}
           <div className="mt-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 text-[#0f2d52]"><nav className="flex items-center gap-3" aria-label="Mês da agenda">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 text-[#0f2d52]"><nav className="flex items-center gap-2 sm:gap-3" aria-label="Mês da agenda">
               <Link aria-label="Mês anterior" href={buildAgendaHref(previousMonth.month, previousMonth.year)} className="flex min-h-11 min-w-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#123b63]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 6-6 6 6 6" /></svg>
               </Link>
-              <h2 className="min-w-40 text-center text-[17px] font-semibold">{formatPainelAgendaMonthLabel(data.month, data.year)}</h2>
+              <h2 className="min-w-32 text-center text-[17px] font-semibold sm:min-w-40">{formatPainelAgendaMonthLabel(data.month, data.year)}</h2>
               <Link aria-label="Próximo mês" href={buildAgendaHref(nextMonth.month, nextMonth.year)} className="flex min-h-11 min-w-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[#123b63]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
               </Link>
