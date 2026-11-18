@@ -1,20 +1,25 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "./page";
-const mocks = vi.hoisted(() => ({ read: vi.fn(), program: vi.fn(), access: vi.fn() }));
+const mocks = vi.hoisted(() => ({ count: vi.fn(), read: vi.fn(), program: vi.fn(), access: vi.fn() }));
 vi.mock("@/lib/day-program", () => ({ getDayProgram: mocks.program }));
 vi.mock("@/lib/painel-session", () => ({ requirePainelAccess: mocks.access }));
 vi.mock("@/lib/operational-day-summary", () => ({ getOperationalDaySummary: mocks.read, OperationalDaySummaryError: class extends Error {} }));
 vi.mock("@/lib/operational-day", () => ({ OperationalDayError: class extends Error {} }));
 vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("NOT_FOUND"); }, redirect: (url: string) => { throw new Error(`REDIRECT ${url}`); } }));
-beforeEach(() => { mocks.access.mockReset().mockResolvedValue({ authSource: "panel", legacyRoleId: 1, legacyResources: ["vis_agenda", "vis_clientes"] }); mocks.read.mockReset().mockResolvedValue({ date: "2099-01-02" }); mocks.program.mockReset().mockResolvedValue({ date: "2099-01-02", status: "exported", groups: [{ phone: "private" }] }); });
+vi.mock("@/lib/operational-day-lists", () => ({ getOperationalDayPurchaseCount: mocks.count }));
+beforeEach(() => { mocks.count.mockReset().mockResolvedValue(4); mocks.access.mockReset().mockResolvedValue({ authSource: "panel", legacyRoleId: 1, legacyResources: ["vis_agenda", "vis_clientes"] }); mocks.read.mockReset().mockResolvedValue({ date: "2099-01-02" }); mocks.program.mockReset().mockResolvedValue({ date: "2099-01-02", status: "exported", groups: [{ phone: "private" }] }); });
 const props = { params: Promise.resolve({ date: "2099-01-02" }) };
 describe("operational day route", () => {
   it("requires agenda access and passes real summary with manager capability", async () => {
     const element = await Page(props);
     expect(mocks.access).toHaveBeenCalledWith("vis_agenda", "/painel/agenda");
     expect(mocks.read).toHaveBeenCalledWith("2099-01-02");
-    expect(element.props).toMatchObject({ summary: { date: "2099-01-02" }, canManage: true });
+    expect(element.props).toMatchObject({ summary: { date: "2099-01-02" }, canManage: true,initialPurchaseCount: 4 });
+  });
+  it("does not fabricate a zero or hide the summary when purchase counting fails", async () => {
+    mocks.count.mockRejectedValue(new Error('private SQL'));
+    expect((await Page(props)).props).toMatchObject({summary:{date:'2099-01-02'},initialPurchaseCount:null});
   });
   it("does not grant management to operators", async () => {
     mocks.access.mockResolvedValue({ authSource: "panel", legacyRoleId: 3 });

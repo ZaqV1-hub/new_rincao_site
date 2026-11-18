@@ -148,7 +148,11 @@ async function readPrograms(client: QueryClient, park: OperationalParkId, dates:
   const carriers = (await client.query<DayProgramCarrier>(`SELECT id::text,nome AS name,contato AS contact,telefone AS phone FROM transportadores WHERE parque=$1 ORDER BY nome,id`, [park])).rows;
   const hiringItems = (await client.query<{ date: string; id: string; name: string; value: string | null }>(`SELECT dates.date::text, c.id::text,c.nome AS name,v.valor AS value FROM programacao_contratacao_catalogo c CROSS JOIN unnest($2::date[]) AS dates(date)
     LEFT JOIN programacao_contratacoes v ON v.parque=c.parque AND v.item_id=c.id AND v.data=dates.date WHERE c.parque=$1 ORDER BY c.ordem,c.id`, [park, dates])).rows;
-  const soldRows = (await client.query<{ date: string; count: string }>(`SELECT COALESCE(v.dtinicio_validade,a.dtagenda)::text AS date, count(*)::text AS count FROM voucher v
+  const soldRows = (await client.query<{ date: string; count: string }>(`WITH dated AS MATERIALIZED (
+    SELECT * FROM voucher WHERE dtinicio_validade=ANY($2::date[])
+    UNION ALL SELECT v.* FROM agenda a JOIN voucher v ON v.idagenda=a.idagenda
+      WHERE a.dtagenda=ANY($2::date[]) AND v.dtinicio_validade IS NULL
+  ) SELECT COALESCE(v.dtinicio_validade,a.dtagenda)::text AS date, count(*)::text AS count FROM dated v
     JOIN compra cp ON cp.idcompra=v.idcompra JOIN agenda a ON a.idagenda=v.idagenda
     WHERE COALESCE(v.dtinicio_validade,a.dtagenda)=ANY($2::date[]) AND (v.parque_operacional IS NULL OR v.parque_operacional=$1)
       AND cp.stcompra='conc' AND (cp.tpcompra IN ('ponli','bilhe') OR (cp.tpcompra='reser' AND COALESCE(UPPER(TRIM(cp.formapag)),'') NOT IN ('','N/A')))

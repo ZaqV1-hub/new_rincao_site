@@ -348,7 +348,7 @@ export function PainelShell({
   }
 
   return (
-    <div className="rincao-panel min-h-screen bg-[#f4f7fb] text-[#133d63]">
+    <div className={`rincao-panel min-h-screen bg-[#f4f7fb] text-[#133d63] ${/^\/painel\/agenda(?:\/\d{4}-\d{2}-\d{2})?\/?$/.test(pathname) ? "rincao-agenda-theme" : ""}`}>
       <div
         className={`grid min-h-screen transition-[grid-template-columns] duration-200 ${
           sidebarCollapsed

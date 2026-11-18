@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
 import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect, vi } from "vitest";
-import { readOperationalDayList } from "./operational-day-lists";
+import { readOperationalDayList, readOperationalDayPurchaseCount } from "./operational-day-lists";
 
 const connectionString = process.env.PANEL_TEST_DATABASE_URL;
 if (connectionString) {
@@ -36,6 +36,16 @@ describe.skipIf(!connectionString)("day lists PostgreSQL", () => {
       INSERT INTO agenda VALUES (1,'2099-11-15','padra'),(2,'2099-11-20','escol');`);
   });
   afterEach(() => vi.unstubAllEnvs());
+  it("counts distinct purchases across statuses and item types without counting another date or park", async () => {
+    await pool.query(`INSERT INTO compra VALUES(1,NULL,'A','conc','bilhe'),(2,NULL,'B','pend','ponli'),(3,NULL,'C','canc','other');
+      INSERT INTO voucher(idcompra,idagenda,dtinicio_validade,parque_operacional,vlunicompra,tpvoucher) VALUES
+      (1,1,NULL,NULL,10,'norma'),(1,1,NULL,NULL,20,'espec'),(2,2,'2099-11-15','rincao',30,'escol'),
+      (3,1,NULL,'estancia',40,'norma'),(3,1,'2099-11-20',NULL,50,'norma');`);
+    expect(await readOperationalDayPurchaseCount(pool,'2099-11-15')).toBe(2);
+    expect(await readOperationalDayPurchaseCount(pool,'2099-11-15')).toBe((await readOperationalDayList(pool,'2099-11-15','purchases',1)).total);
+    expect(await readOperationalDayPurchaseCount(pool,'2099-12-01')).toBe(0);
+    await expect(readOperationalDayPurchaseCount(pool,'2099-02-30')).rejects.toThrow('data');
+  });
   it("reports admission usage and composition separately from service items and financial status", async () => {
     await pool.query(`INSERT INTO compra VALUES(1,NULL,'Mista','conc','bilhe'),(2,NULL,'Escolar','conc','ponli');
       INSERT INTO servicos_adicionais VALUES(7,'rincao','Estacionamento');

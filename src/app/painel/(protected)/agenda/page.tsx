@@ -4,7 +4,7 @@ import { getOperationalCalendar } from "@/lib/painel-operational-calendar";
 import { getPainelAgendaScreenData } from "@/lib/painel-agenda";
 import { requirePainelAccess } from "@/lib/painel-session";
 import { listOperationalDays, OperationalDayError, type OperationalDay } from "@/lib/operational-day";
-import { getSaoPauloToday } from "@/lib/operational-date";
+import { getSaoPauloToday, isCivilDate } from "@/lib/operational-date";
 import { getDayPrograms, type DayProgram } from "@/lib/day-program";
 import { hasLegacyPanelResource } from "@/lib/painel-access";
 import { buildPainelAgendaCalendar } from "@/lib/painel-agenda-ui";
@@ -33,8 +33,9 @@ export default async function PainelAgendaPage({
   const data = await getPainelAgendaScreenData({
     month: params.mes,
     year: params.ano,
-    selectedDate: params.dia,
   });
+
+  data.selectedDate = params.dia && isCivilDate(params.dia) ? params.dia : null;
 
   const dates = buildPainelAgendaCalendar(data.month, data.year).filter((cell) => cell.inMonth);
   const canAccessProgram = session.authSource === "panel" && hasLegacyPanelResource(session.legacyResources, "vis_agenda")

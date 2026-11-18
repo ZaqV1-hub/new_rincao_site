@@ -3,14 +3,18 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach,describe,expect,it,vi } from 'vitest';
 import type { CountingDay } from '@/lib/trip-counting';
 import { CountingDayPage } from './counting-day-page';
-const { read,commandState } = vi.hoisted(() => ({ read: vi.fn(),commandState: { blocked: false,pending: null as null | { key: string; url: string } } }));
+const { read,commandState,refs,effects } = vi.hoisted(() => ({ read: vi.fn(),commandState: { blocked: false,pending: null as null | { key: string; url: string } },refs: [] as { current: unknown }[],effects: [] as { run: () => unknown; dependencies: unknown[] | undefined }[] }));
+vi.mock('react',async original => {
+  const actual = await original<typeof import('react')>();
+  return { ...actual,useRef: (value: unknown) => { const ref = actual.useRef(value); refs.push(ref); return ref; },useEffect: (run: () => unknown,dependencies?: unknown[]) => { effects.push({ run,dependencies }); } };
+});
 vi.mock('next/navigation',() => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('./counting-controls',async importOriginal => ({
   ...await importOriginal<typeof import('./counting-controls')>(),
   useCountingRead: read,
   useCountingCommand: () => ({ ...commandState,ready: !commandState.blocked || commandState.pending !== null,busy: false,message: '' }),
 }));
-afterEach(() => { vi.clearAllMocks(); commandState.blocked=false; commandState.pending=null; });
+afterEach(() => { vi.clearAllMocks(); commandState.blocked=false; commandState.pending=null; refs.length=0; effects.length=0; });
 function fixture(): CountingDay {
   const vehicle = { id: 9,agendaId: 1,clientId: 2,date: '2026-11-13',clientName: 'Escola Teste',type: 'bus' as const,plannedPeople: 40,state: 'counting' as const,version: 2,addedOnDay: true,isExtra: true,ordinal: 2,transportName: 'Transportadora A',groupType: 'school' as const,financiallyFinalized: false,currentRevision: 'revision',lastCompletedRevision: null,total: null,draftSubtotal: 3,ownerName: 'Monitor A',startedAt: '2026-11-13T12:00:00.000Z' };
   return { date: '2026-11-13',today: '2026-11-13',park: 'rincao',closed: false,generatedAt: '2026-11-13T12:01:00.000Z',carriers: [],feed: [{ id: 1,action: 'start',vehicleId: 9,actorName: 'Monitor A',at: '2026-11-13T12:00:00.000Z' }],groups: [{ agendaId: 1,clientId: 2,clientName: 'Escola Teste',groupType: 'school',foodNotes: null,plannedPeople: null,transportName: 'Transportadora A',vehicleCounts: { planned: 0,extra: 1,waiting: 0,counting: 1,completed: 0 },vehicles: [vehicle] }] };
@@ -20,6 +24,24 @@ function render(data = fixture(),canGate = false) {
   return renderToStaticMarkup(<CountingDayPage date={data.date} manager actorCpf="52998224725" canGate={canGate}/>);
 }
 describe('counting day mobile cards',() => {
+  it('keeps native date scrolling available without intercepting vertical gestures',() => {
+    const nav = render().match(/<nav[\s\S]*?<\/nav>/)?.[0] ?? '';
+    expect(nav).toContain('overflow-x-auto');
+    expect(nav).toContain('[scrollbar-width:thin]');
+    expect(nav).not.toContain('[scrollbar-width:none]');
+    expect(nav.match(/href="\/contagem\?date=/g)).toHaveLength(8);
+    expect(nav).toContain('href="/contagem?date=2026-11-13" aria-current="date"');
+  });
+  it('positions the selected date horizontally without moving the page vertically',() => {
+    render();
+    const strip = { scrollLeft: 50,scrollTop: 120,clientWidth: 320,getBoundingClientRect: () => ({ left: 100 }) };
+    refs[0].current = { parentElement: strip,offsetWidth: 58,getBoundingClientRect: () => ({ left: 300 }) };
+    const effect = effects.find(item => item.dependencies?.[0] === fixture().date);
+    expect(effect).toBeDefined();
+    effect!.run();
+    expect(strip.scrollLeft).toBe(119);
+    expect(strip.scrollTop).toBe(120);
+  });
   function emptyDay({ hasDayUse = false,sold = 0,admitted = 0,closed = false,dayError = '',attendanceError = '',loadingDay = false,loadingAttendance = false,withGroup = false } = {}) {
     const data = fixture(); data.closed = closed; if (!withGroup) data.groups = []; data.feed = [];
     read.mockImplementation((url: string) => ({ data: url.endsWith('/entradas') ? (loadingAttendance ? null : { date: data.date,hasDayUse,sold,admitted,expected: Math.max(0,sold-admitted) }) : (loadingDay ? null : data),error: url.endsWith('/entradas') ? attendanceError : dayError,checkedAt: '',refresh: vi.fn() }));

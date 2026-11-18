@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { PainelOperationalDayPage } from "@/components/painel-operational-day-page";
 import { OperationalDayError } from "@/lib/operational-day";
 import { getOperationalDaySummary, OperationalDaySummaryError } from "@/lib/operational-day-summary";
+import { getOperationalDayPurchaseCount } from "@/lib/operational-day-lists";
 import { isCivilDate } from "@/lib/operational-date";
 import { getDayProgram, type DayProgram } from "@/lib/day-program";
 import { hasLegacyPanelResource } from "@/lib/painel-access";
@@ -23,8 +24,9 @@ export default async function PainelAgendaDayPage({ params, searchParams }: { pa
     && hasLegacyPanelResource(session.legacyResources, ["vis_clientes", "vis_escola"]);
   const canAccessCash = hasLegacyPanelResource(session.legacyResources, "vis_bilhet");
   let summary;
+  let purchaseCount: number | null = null;
   try {
-    summary = await getOperationalDaySummary(date);
+    [summary,purchaseCount] = await Promise.all([getOperationalDaySummary(date),getOperationalDayPurchaseCount(date).catch(() => null)]);
   } catch (error) {
     const message = error instanceof OperationalDayError || error instanceof OperationalDaySummaryError
       ? error.message : "Não foi possível consultar o resumo. Atualize a página para tentar novamente.";
@@ -36,7 +38,7 @@ export default async function PainelAgendaDayPage({ params, searchParams }: { pa
     try { programStatus = (await getDayProgram(date)).status; }
     catch { programError = "Programação do dia indisponível. Atualize a página para tentar novamente."; }
   }
-  return <PainelOperationalDayPage key={date} summary={summary} canManage={session.legacyRoleId === 1}
+  return <PainelOperationalDayPage key={date} summary={summary} initialPurchaseCount={purchaseCount} canManage={session.legacyRoleId === 1}
     financialActorCpf={canAccessCash && canAccessProgram ? session.actorCpf ?? undefined : undefined}
     canAccessCash={canAccessCash} canAccessProgram={canAccessProgram} programStatus={programStatus} programError={programError}
     initialTab={typeof query.tab === "string" ? query.tab : undefined} initialPurchaseContext={readPurchaseListContext(date, query)} />;

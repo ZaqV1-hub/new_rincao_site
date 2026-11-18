@@ -215,7 +215,7 @@
     --panel-border: #d9e3ee;
     --panel-soft: #eaf2fb;
     --panel-green: #1d68a2;
-    background: #f4f8fc;
+    background: #f4f7fb;
     color: var(--panel-ink);
     text-align: left;
   }
@@ -1142,4 +1142,59 @@
       grid-template-columns: minmax(0, 1fr);
     }
   }
+  /* The supplied panel prototype follows the device color scheme. */
+  @media screen and (prefers-color-scheme: dark) {
+    .rincao-panel.rincao-agenda-theme {
+      color-scheme: dark;
+      --panel-ink: #eaf2fb;
+      --panel-muted: #8fa3bb;
+      --panel-border: #28405e;
+      --panel-soft: #1b2f4a;
+      --panel-green: #2f6fb2;
+      background: #0f1a28 !important;
+      color: #c9d6e4;
+      scrollbar-color: #33506f #0f1a28;
+    }
+    .rincao-panel.rincao-agenda-theme .panel-section { background: #16243a; }
+    .rincao-panel.rincao-agenda-theme #painel-navigation { background: #0d2440 !important; border-color: #1e3a5c; }
+    .rincao-panel.rincao-agenda-theme #painel-navigation [class~="bg-white/12"] { background: #1c3e63; }
+    .rincao-panel.rincao-agenda-theme :is([class~="bg-white"]) { background-color: #16243a !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="bg-[#eaf2fb]"], [class~="bg-[#edf4fa]"], [class~="bg-[#eef4fb]"], [class~="bg-[#e5edf5]"]) { background-color: #1b2f4a !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="bg-[#f4f7fb]"], [class~="bg-[#f4f8fc]"]) { background-color: #0f1a28 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="bg-[#133a62]"], [class~="bg-[#133a62]!"], [class~="bg-[#123b63]"], [class~="bg-[#133d63]"], [class~="bg-[#0f2d52]"], [class~="bg-[#205a7f]"], [class~="bg-[#174e7e]"]) { background-color: #2f6fb2 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="bg-[#2f6fb2]"]) { background-color: #7db5ec !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="bg-[#e3f4e9]"], [class~="bg-[#eef8f1]"]) { background-color: #143225 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="bg-[#fff1cf]"], [class~="bg-[#fff9ed]"]) { background-color: #3a2e12 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="bg-[#fceadb]"]) { background-color: #3a2316 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="bg-[#e6ecf3]"]) { background-color: #1c2c42 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="bg-[#fff4f2]"], [class~="bg-[#fce7e5]"]) { background-color: #3a1a18 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="text-[#0f2d52]"], [class~="text-[#123b63]"], [class~="text-[#133d63]"]) { color: var(--panel-ink) !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="text-[#6a7c92]"], [class~="text-[#45647f]"]) { color: var(--panel-muted) !important; }
+    .rincao-panel.rincao-agenda-theme [class~="text-[#4e6e92]"] { color: #8fb2d6 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="text-[#2f6fb2]"]) { color: #7db5ec !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="text-[#1f7440]"], [class~="text-[#245b37]"]) { color: #6fd39a !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="text-[#8a5a00]"], [class~="text-[#694812]"]) { color: #f2c766 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="text-[#9a4a12]"]) { color: #f0a06e !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="text-[#5c6f86]"]) { color: #9cb0c7 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="text-[#913c30]"]) { color: #f2877c !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="border-[#d9e3ee]"], [class~="border-[#d4dfeb]"], [class~="border-[#b8cbdc]"], [class~="border-[#b9cddd]"], [class~="border-[#a7c4db]"]) { border-color: var(--panel-border) !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="border-[#e8eef5]"]) { border-color: #203550 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="border-[#2f6fb2]"]) { border-color: #7db5ec !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="border-[#133a62]"]) { border-color: #2f6fb2 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="border-[#d6b272]"]) { border-color: #b98a22 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="border-[#a9cfb7]"]) { border-color: #2f7d50 !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="border-[#e3b8b2]"]) { border-color: #7e3933 !important; }
+    .rincao-panel.rincao-agenda-theme :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+      background-color: #13203a !important; color: var(--panel-ink); border-color: var(--panel-border);
+    }
+    .rincao-panel.rincao-agenda-theme :is(.panel-button-secondary, a[class*="border-[#b8cade]"], a[class*="border-[#d0dbe7]"], button[class*="border-[#b8cade]"], button[class*="border-[#d0dbe7]"]) { background: #16243a !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="hover:bg-[#eaf2fb]"], [class~="hover:bg-[#eef4fb]"]):hover { background-color: #1b2f4a !important; }
+    .rincao-panel.rincao-agenda-theme :is([class~="outline-[#236699]"], [class~="outline-[#123b63]"], [class~="outline-[#2f6fb2]"]) { outline-color: #7db5ec; }
+    .rincao-panel.rincao-agenda-theme [class~="accent-[#123b63]"] { accent-color: #7db5ec; }
+    .rincao-panel.rincao-agenda-theme [data-revenue-bar][class~="bg-[#133a62]"] { background: #7db5ec !important; }
+    .rincao-panel.rincao-agenda-theme [data-revenue-bar][class~="bg-[#2f6fb2]"] { background: #4c8fd1 !important; }
+    .rincao-panel.rincao-agenda-theme [data-revenue-bar][class~="bg-[#5fa8d3]"] { background: #9cc9e8 !important; }
+    .rincao-panel.rincao-agenda-theme [data-revenue-bar][class~="bg-[#e0a43a]"] { background: #e8b45a !important; }
+  }
+
 }

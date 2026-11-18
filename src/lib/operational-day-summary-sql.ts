@@ -1,12 +1,14 @@
 // Shared queries: the operational summary and owners use the same financial sources.
 export const DAY_SALES_SQL = `
-    WITH selected_vouchers AS (
-      SELECT idvoucher FROM voucher WHERE dtinicio_validade=$1::date
-      UNION
-      SELECT v.idvoucher FROM agenda a JOIN voucher v ON v.idagenda=a.idagenda
+    WITH selected_vouchers AS MATERIALIZED (
+      SELECT DISTINCT ON (idvoucher) * FROM (
+      SELECT * FROM voucher WHERE dtinicio_validade=$1::date
+      UNION ALL
+      SELECT v.* FROM agenda a JOIN voucher v ON v.idagenda=a.idagenda
         WHERE a.dtagenda=$1::date AND v.dtinicio_validade IS NULL
-      UNION
-      SELECT idvoucher FROM voucher WHERE dtuso=$1::date
+      UNION ALL
+      SELECT * FROM voucher WHERE dtuso=$1::date
+      ) dated
     ), facts AS (
       SELECT v.vlunicompra * 100 AS cents, v.stusado, v.dtuso,
         COALESCE(v.dtinicio_validade, a.dtagenda) AS chosen_date, v.dtinicio_validade,
@@ -24,7 +26,7 @@ export const DAY_SALES_SQL = `
           ELSE 'unknown'
         END AS kind,
         c.tpcompra IN ('ponli','bilhe') OR (c.tpcompra='reser' AND COALESCE(UPPER(TRIM(c.formapag)), '') NOT IN ('','N/A')) AS known_channel
-      FROM selected_vouchers selected JOIN voucher v ON v.idvoucher=selected.idvoucher
+      FROM selected_vouchers v
       JOIN compra c ON c.idcompra=v.idcompra JOIN agenda a ON a.idagenda=v.idagenda
       WHERE (v.parque_operacional IS NULL OR v.parque_operacional=$2)
     )

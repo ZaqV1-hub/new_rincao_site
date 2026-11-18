@@ -1,5 +1,6 @@
 import { OperationalDayError } from "@/lib/operational-day";
 import { getOperationalDaySummary, OperationalDaySummaryError } from "@/lib/operational-day-summary";
+import { getOperationalDayPurchaseCount } from "@/lib/operational-day-lists";
 import { isCivilDate } from "@/lib/operational-date";
 import { requirePainelApiAccess } from "@/lib/painel-api-auth";
 import { opsErrorResponse } from "@/lib/ops-route-utils";
@@ -14,7 +15,8 @@ export async function GET(request: Request, context: { params: Promise<{ date: s
     if (!access.ok) return privateResponse(access.response);
     const { date } = await context.params;
     if (!isCivilDate(date) || new URL(request.url).search) throw new OperationalDaySummaryError("invalid_input", "Informe uma data civil válida, sem parâmetros adicionais.");
-    return privateResponse(Response.json({ ok: true, data: await getOperationalDaySummary(date) }));
+    const [summary,purchaseCount] = await Promise.all([getOperationalDaySummary(date),getOperationalDayPurchaseCount(date).catch(() => null)]);
+    return privateResponse(Response.json({ ok: true, data: { ...summary,purchaseCount } }));
   } catch (error) {
     if (error instanceof OperationalDayError) return privateResponse(opsErrorResponse(error.code, error.message, error.code === "invalid_input" ? 400 : 409));
     if (error instanceof OperationalDaySummaryError) {

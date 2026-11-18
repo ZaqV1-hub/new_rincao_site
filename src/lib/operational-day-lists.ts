@@ -173,3 +173,20 @@ export async function readOperationalDayList(client: Pick<PoolClient, "query">, 
 export async function getOperationalDayList(date: string, kind: DayListKind, page = 1, filters?: Partial<DayPurchaseFilters>) {
   return readOperationalDayList(getOperationalCatalogPool(), date, kind, page, filters);
 }
+
+export async function readOperationalDayPurchaseCount(client: Pick<PoolClient, "query">, date: string): Promise<number> {
+  if (!isCivilDate(date)) throw new OperationalDayListError("invalid_input", "Informe uma data válida.");
+  const { rows: [row] } = await client.query<{ total: string }>(`
+    WITH dated AS MATERIALIZED (
+      SELECT v.idcompra FROM voucher v JOIN agenda a ON a.idagenda=v.idagenda
+      WHERE v.dtinicio_validade=$1::date AND (v.parque_operacional IS NULL OR v.parque_operacional=$2)
+      UNION ALL
+      SELECT v.idcompra FROM agenda a JOIN voucher v ON v.idagenda=a.idagenda
+      WHERE a.dtagenda=$1::date AND v.dtinicio_validade IS NULL AND (v.parque_operacional IS NULL OR v.parque_operacional=$2)
+    ) SELECT COUNT(DISTINCT c.idcompra)::text AS total FROM dated JOIN compra c ON c.idcompra=dated.idcompra
+  `, [date,getOperationalParkId()]);
+  return integer(row.total);
+}
+export async function getOperationalDayPurchaseCount(date: string) {
+  return readOperationalDayPurchaseCount(getOperationalCatalogPool(),date);
+}

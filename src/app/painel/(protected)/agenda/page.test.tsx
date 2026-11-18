@@ -14,6 +14,11 @@ describe("agenda server page configuration", () => {
     expect(mocks.list).toHaveBeenCalledWith("2099-01-01", "2099-01-31");
     expect(element.props).toMatchObject({ operationalDays: [{ date: "2099-01-02", version: 2 }], today: "2099-01-02", canEdit: true });
   });
+  it("preserves the highlighted date without loading its unused purchase detail", async () => {
+    const element=await Page({searchParams:Promise.resolve({mes:'1',ano:'2099',dia:'2099-01-02'})});
+    expect(mocks.screen).toHaveBeenCalledWith({month:'1',year:'2099'});
+    expect(element.props.data.selectedDate).toBe('2099-01-02');
+  });
   it("keeps the calendar readable but marks configuration unavailable when its query fails", async () => {
     mocks.list.mockRejectedValue(new Error("database failure"));
     const element = await Page({ searchParams: Promise.resolve({}) });

@@ -16,6 +16,11 @@ export const vehicleColors = {
 };
 const feedActions = { start: 'começou',takeover: 'assumiu',complete: 'concluiu',add: 'adicionou',recount: 'abriu recontagem de' };
 export function CountingDayPage({ date,manager,actorCpf,canGate = false,trip }: { date: string; manager: boolean; actorCpf: string; canGate?: boolean; trip?: { agendaId: number; clientId: number } }) {
+  const selectedDay = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    const selected = selectedDay.current,strip = selected?.parentElement;
+    if (selected && strip) strip.scrollLeft += selected.getBoundingClientRect().left-strip.getBoundingClientRect().left-(strip.clientWidth-selected.offsetWidth)/2;
+  },[date,trip]);
   const router = useRouter(),startAfterAdd = useRef(false),extraDialog = useRef<HTMLDialogElement>(null);
   const addIntentKey = `rincao:count:add-intent:${actorCpf}:${date}`;
   const [addedVehicle,setAddedVehicle] = useState<number | null>(null);
@@ -43,8 +48,8 @@ export function CountingDayPage({ date,manager,actorCpf,canGate = false,trip }: 
     return { date: day.toISOString().slice(0,10),day: day.getUTCDate(),label: day.toLocaleDateString('pt-BR',{ weekday: 'short',timeZone: 'UTC' }).replace('.','') };
   });
   return <div className="space-y-6">
-    {!trip && <nav aria-label="Dias de contagem" className="-mx-4 -mt-5 flex gap-2 overflow-x-auto [scrollbar-width:none] bg-[#133a62] px-4 pb-4">
-      {dates.map(day => <a key={day.date} href={`/contagem?date=${day.date}`} aria-current={day.date === date ? 'date' : undefined} className={`grid min-w-[58px] shrink-0 place-items-center rounded-xl border py-2 ${day.date === date ? 'border-white bg-white text-[#0b1f36]' : 'border-white/20 text-white'}`}><span className="text-[11px] uppercase">{day.date === today ? 'hoje' : day.label}</span><b className="text-xl">{day.day}</b></a>)}
+    {!trip && <nav aria-label="Dias de contagem" className="-mx-4 -mt-5 flex gap-2 overflow-x-auto [scrollbar-width:thin] [scrollbar-color:#b9cce2_#133a62] bg-[#133a62] px-4 pb-4">
+      {dates.map(day => <a key={day.date} ref={day.date === date ? selectedDay : undefined} href={`/contagem?date=${day.date}`} aria-current={day.date === date ? 'date' : undefined} className={`grid min-w-[58px] shrink-0 place-items-center rounded-xl border py-2 ${day.date === date ? 'border-white bg-white text-[#0b1f36]' : 'border-white/20 text-white'}`}><span className="text-[11px] uppercase">{day.date === today ? 'hoje' : day.label}</span><b className="text-xl">{day.day}</b></a>)}
     </nav>}
     {empty ? <div className="px-2.5 py-10 text-center text-sm text-[#6a7c92]"><h1 className="mb-1.5 text-base font-bold text-[#0b1f36]">Sem movimento em {new Date(`${date}T12:00:00Z`).toLocaleDateString('pt-BR',{ weekday: 'long',day: 'numeric',month: 'long',timeZone: 'UTC' })}</h1><p>Não há passeios nem day use nesta data.</p></div> : <>
     {trip && <a className="inline-flex min-h-11 items-center underline" href={`/contagem?date=${date}`}>← Voltar aos passeios</a>}

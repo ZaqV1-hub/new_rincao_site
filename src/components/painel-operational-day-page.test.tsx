@@ -51,6 +51,12 @@ describe("operational day summary UI", () => {
     data.closure = available(2);
     expect(render(data)).toContain("Fechamento diário: revisão 2.");
   });
+  it("shows the purchase count badge before opening the list, including a real zero", () => {
+    const markup=(count:number|null)=>renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage initialPurchaseCount={count}/>);
+    expect(markup(4)).toMatch(/Compras e vouchers<span[^>]*>4<\/span>/);
+    expect(markup(0)).toMatch(/Compras e vouchers<span[^>]*>0<\/span>/);
+    expect(markup(null)).not.toMatch(/Compras e vouchers<span[^>]*>0/);
+  });
   it("uses only backend movement dates and preserves calendar selection", () => {
     const html = render();
     expect(html).toContain('href="/painel/agenda/2098-12-26"');
@@ -82,7 +88,7 @@ describe("operational day summary UI", () => {
   });
   it("shows session counts separately from revenue and links the selected date only with cash permission", () => {
     const html = renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage={false} canAccessCash />);
-    expect(html).toContain('href="/painel/caixas?date=2099-01-02"');
+    expect(html).not.toContain('>Caixas da data</a>');
     expect(html).toMatch(/Sessões de caixa<\/dt><dd[^>]*>2<\/dd>/);
     expect(html).not.toContain("Caixas e fechamento: integração pendente.");
     expect(render()).not.toContain('href="/painel/caixas');
