@@ -33,6 +33,24 @@ describe("operational day summary UI", () => {
     expect(html).toContain("Day use: entradas reais no parque");
     expect(html).toContain("Não representam recebimentos do dia nem saldo em caixa");
   });
+  it("keeps the four metrics prominent without changing their data sources", () => {
+    const data = summary();
+    data.forecast.plannedGroupPeople = available(12);
+    data.attendance.completedVehiclePeople = available(7);
+    data.revenue.totalCents = available(3000);
+    data.closure = available(0);
+    const html = render(data);
+    expect(html).toMatch(/Pessoas previstas<\/dt><dd[^>]*text-\[32px\][^>]*>20<\/dd>/);
+    expect(html).toMatch(/Já no parque<\/dt><dd[^>]*text-\[32px\][^>]*>10<\/dd>/);
+    expect(html).toMatch(/Faturamento do dia<\/dt><dd[^>]*text-\[32px\][^>]*>R\$\s*30,00<\/dd>/);
+    expect(html).toContain("12 em grupos · 8 de day use");
+    expect(html).toContain("7 contadas no app · 3 ingressos lidos");
+    expect(html).toContain("Fechamento diário: em aberto.");
+    expect(html).not.toContain("Subtotal conhecido · parcial");
+    expect(html).toContain("Conferência do faturamento");
+    data.closure = available(2);
+    expect(render(data)).toContain("Fechamento diário: revisão 2.");
+  });
   it("uses only backend movement dates and preserves calendar selection", () => {
     const html = render();
     expect(html).toContain('href="/painel/agenda/2098-12-26"');
@@ -60,7 +78,7 @@ describe("operational day summary UI", () => {
     const html = renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage canAccessProgram programStatus={programStatus} />);
     expect(html).toContain(`${action} dia seguinte`); expect(html).toContain(label);
     expect(html).toContain('href="/painel/agenda/2099-01-02/dia-seguinte?returnTo=2099-01-02"');
-    expect(html).toContain("Fechamento diário: em aberto."); expect(html).not.toContain("Dia seguinte, caixas");
+    expect(html).toContain("Fechamento diário: indisponível."); expect(html).not.toContain("Dia seguinte, caixas");
   });
   it("shows session counts separately from revenue and links the selected date only with cash permission", () => {
     const html = renderToStaticMarkup(<PainelOperationalDayPage summary={summary()} canManage={false} canAccessCash />);
