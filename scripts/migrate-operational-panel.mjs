@@ -24,6 +24,7 @@ const migrations = [
   "2026-11-13-counting-day-revisions.sql",
   "2026-11-13-counting-manual-shares.sql",
   "2026-11-13-counting-access.sql",
+  "2026-11-18-counting-whatsapp.sql",
 ];
 
 export function migrationSql(contents) {

@@ -1,0 +1,11 @@
+import {beforeEach,expect,it,vi} from 'vitest';
+const mocks=vi.hoisted(()=>({access:vi.fn(),send:vi.fn(),status:vi.fn()}));
+vi.mock('@/lib/painel-api-auth',()=>({requirePainelApiAccess:mocks.access}));
+vi.mock('@/lib/counting-whatsapp',()=>({sendCountingWhatsapp:mocks.send,getCountingWhatsappStatus:mocks.status}));
+import {POST,GET} from './route';
+const url='https://example.test/api/contagem/filipetas/11111111-1111-1111-1111-111111111111/whatsapp',context={params:Promise.resolve({revisionId:'11111111-1111-1111-1111-111111111111'})};
+beforeEach(()=>{vi.clearAllMocks();mocks.access.mockResolvedValue({ok:true,session:{actorName:'Operador',actorCpf:'12345678901',legacyRoleId:1}});mocks.send.mockResolvedValue({status:'accepted',pages:1,accepted:1});});
+it('rejects missing or foreign origins before sending',async()=>{for(const origin of ['', 'https://foreign.test']){expect((await POST(new Request(url,{method:'POST',headers:{origin,'Content-Type':'application/json'},body:'{}'}),context)).status).toBe(403);}expect(mocks.send).not.toHaveBeenCalled();});
+it('does not accept a client-selected recipient or template',async()=>{expect((await POST(new Request(url,{method:'POST',headers:{origin:'https://example.test','Content-Type':'application/json'},body:JSON.stringify({recipient:'5511999999999'})}),context)).status).toBe(400);expect(mocks.send).not.toHaveBeenCalled();});
+it('uses the authenticated actor and disables response caching',async()=>{const response=await POST(new Request(url,{method:'POST',headers:{origin:'https://example.test','Content-Type':'application/json'},body:'{}'}),context);expect(response.status).toBe(200);expect(response.headers.get('cache-control')).toBe('private, no-store');expect(mocks.send).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111',{name:'Operador',cpf:'12345678901',manager:true});});
+it('preserves access denial for sending and status',async()=>{mocks.access.mockResolvedValue({ok:false,response:new Response(null,{status:403})});expect((await GET(new Request(url),context)).status).toBe(403);expect((await POST(new Request(url,{method:'POST',headers:{origin:'https://example.test','Content-Type':'application/json'},body:'{}'}),context)).status).toBe(403);expect(mocks.send).not.toHaveBeenCalled();});
