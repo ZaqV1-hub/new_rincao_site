@@ -31,13 +31,13 @@ export function OperationalDialog({ title, children, onClose, sheet = false }: {
 }
 
 export function PanelActionDialog({ title, children, label = title, disabled = false }: {
-  title: string; label?: string; children: React.ReactNode; disabled?: boolean;
+  title: string; label?: string; children: React.ReactNode | ((close: () => void) => React.ReactNode); disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return <>
     <button type="button" className="management-action" disabled={disabled} onClick={() => setOpen(true)}>{label}</button>
     {open && <OperationalDialog title={title} onClose={() => setOpen(false)}>
-      {children}
+      {typeof children === 'function' ? children(() => setOpen(false)) : children}
       <button type="button" className="management-action mt-4" onClick={() => setOpen(false)}>Fechar</button>
     </OperationalDialog>}
   </>;

@@ -75,3 +75,8 @@
 
 .counting-app { text-align: left; }
 .counting-login-card .rincao-field { font-weight: 400; }
+
+/* Desktop sheets stay inside the app frame; mobile sheets use the viewport. */
+@media (min-width: 521px) {
+  .counting-sheet { max-width: 380px; max-height: min(88dvh, calc(clamp(600px, calc(100dvh - 60px), 860px) - 20px)); bottom: max(0px, calc(100dvh - 14px - clamp(600px, calc(100dvh - 60px), 860px))); }
+}
