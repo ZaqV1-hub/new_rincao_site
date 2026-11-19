@@ -337,7 +337,7 @@
 
   .rincao-panel a[href]:focus-visible,
   .rincao-panel button:not(:disabled):focus-visible,
-  .rincao-panel summary:focus-visible,
+  .rincao-panel summary:focus-visible:not(.management-ui *),
   .rincao-panel [role="button"]:focus-visible {
     border-radius: 8px;
     box-shadow: 0 0 0 3px rgba(29, 104, 162, 0.18) !important;
@@ -352,11 +352,11 @@
     position: relative;
   }
 
-  .rincao-panel a[href][class*="rounded"]:hover,
-  .rincao-panel button[class*="rounded"]:not(:disabled):hover,
-  .rincao-panel summary:hover,
-  .rincao-panel .panel-button:hover,
-  .rincao-panel .panel-button-secondary:hover {
+  .rincao-panel a[href][class*="rounded"]:hover:not(.management-ui *),
+  .rincao-panel button[class*="rounded"]:not(:disabled):hover:not(.management-ui *),
+  .rincao-panel summary:hover:not(.management-ui *),
+  .rincao-panel .panel-button:hover:not(.management-ui *),
+  .rincao-panel .panel-button-secondary:hover:not(.management-ui *) {
     box-shadow: 0 12px 24px rgba(19, 61, 99, 0.12) !important;
     filter: brightness(0.97);
     transform: translateY(-1px);
@@ -1226,16 +1226,3 @@
 
 .rincao-panel .management-ui :is(button, a):hover { box-shadow: none !important; transform: none !important; filter: none !important; }
 .management-action:hover:not(:disabled) { background: #eaf2fb; }
-
-/* Important rules inside a layer outrank unlayered important declarations. */
-@layer components {
-  .rincao-panel .management-ui summary:hover,
-  .rincao-panel .management-ui :is(button, a):not(:disabled):hover {
-    box-shadow: none !important;
-    transform: none !important;
-    filter: none !important;
-  }
-  .rincao-panel .management-ui summary:focus-visible {
-    box-shadow: none !important;
-  }
-}
