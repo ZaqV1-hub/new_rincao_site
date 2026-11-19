@@ -127,7 +127,7 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
     </div>}
     {data?.revision && <>
       {step !== 2 && <div className="sticky top-0 z-10 flex justify-between gap-3 rounded-2xl border border-[#d9e3ee] bg-[#f4f7fb]/95 p-4"><div><b className="text-3xl tabular-nums">{total.total}</b><small className="block text-[#6a7c92]">pessoas · {total.participants} participantes</small></div><div className="text-right"><b className="text-2xl tabular-nums">{total.team}</b><small className="block text-[#6a7c92]">professores e acompanhantes</small></div></div>}
-      {step === 0 && <fieldset disabled={editBlocked} className="space-y-5">
+      {step === 0 && <fieldset disabled={editBlocked} className="counting-categories space-y-5">
         <legend className="sr-only">Passageiros por categoria</legend>
         {legacy && <p className="rounded-xl bg-[#fff1cf] p-3 text-sm">Rascunho do catálogo anterior. Quantidades vazias seguem não informadas (—). Confirme-as explicitamente com − para zero ou + para contar.</p>}
         {needsConversion && <div className="space-y-3 rounded-xl border border-[#f2b33d] bg-[#fff1cf] p-3"><p className="text-sm">Antes de salvar, revise os detalhes PCD antigos e escolha os tipos atuais. A quantidade precisa corresponder aos detalhes; as contagens já concluídas permanecem no histórico.</p>
@@ -147,7 +147,7 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
         </section>)}
         <label className="grid gap-2 text-sm font-semibold">Observações<textarea className={countingInput} rows={3} maxLength={2000} placeholder="Restrições alimentares e orientações de atendimento" value={draft.notes} onChange={event => edit({ ...draft,notes: event.target.value })}/><small className="font-normal text-[#6a7c92]">Vai na filipeta e no relatório da cozinha. Evite nomes e diagnósticos.</small></label>
       </fieldset>}
-      {step === 1 && <fieldset disabled={editBlocked} className="space-y-4"><legend className="mb-3 font-bold">Quem acompanha este veículo?</legend><p className="text-sm text-[#6a7c92]">Peça ao responsável para conferir a contagem e a lista de presença antes de assinar.</p>
+      {step === 1 && <fieldset disabled={editBlocked} className="counting-responsible space-y-4"><legend className="mb-3 font-bold">Quem acompanha este veículo?</legend><p className="text-sm text-[#6a7c92]">Peça ao responsável para conferir a contagem e a lista de presença antes de assinar.</p>
         <label className="grid gap-2 text-sm font-semibold">Nome do responsável<input className={countingInput} autoComplete="off" maxLength={160} value={draft.responsible.name} onChange={e => edit({ ...draft,responsible: { ...draft.responsible,name: e.target.value,confirmed: false } })}/></label>
         <label className="grid gap-2 text-sm font-semibold">WhatsApp com DDD<input className={countingInput} type="tel" autoComplete="off" maxLength={40} placeholder="(11) 90000-0000" value={draft.responsible.phone} onChange={e => edit({ ...draft,responsible: { ...draft.responsible,phone: e.target.value,confirmed: false } })}/></label>
         <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5 shrink-0 accent-[#2f6fb2]" checked={draft.responsible.confirmed} onChange={e => edit({ ...draft,responsible: { ...draft.responsible,confirmed: e.target.checked } })}/>Conferi nome e WhatsApp com o responsável.</label>
