@@ -1,5 +1,6 @@
 'use client';
 /* eslint-disable @next/next/no-img-element -- Authenticated immutable signatures. */
+import {closeDialogOnBackdrop} from './operational-dialog';
 import {useEffect,useRef,useState} from 'react';
 import type {CountingDayClosure} from '@/lib/counting-day-closure';
 import {countingDayReportText,countingReportTotals} from '@/lib/counting-day-report-contract';
@@ -33,8 +34,8 @@ export function CountingDayReports({date,actorCpf,manager=false,finalize=false}:
  {revision&&selected!=='live'&&<p className="text-sm">Emitido por {revision.actorName??'Operador'}{revision.reason&&` · Motivo: ${revision.reason}`}</p>}
  {canManage&&past&&<label className="grid gap-2 text-sm">Motivo da correção de data passada<textarea className="min-h-20 rounded-lg border bg-white p-2" maxLength={1000} value={reason} disabled={busy||!!pending} onChange={e=>setReason(e.target.value)}/></label>}
  {message&&<p role="status">{message}</p>}{pending?<button disabled={busy} className={countingPrimary} onClick={()=>void change(pending.action,pending)}>Conferir a mesma tentativa</button>:canManage&&<div className="flex flex-wrap gap-3"><button disabled={busy||!ready||(past&&!reason.trim())} className={countingPrimary} onClick={()=>dialog.current?.showModal()}>{data?.current?'Emitir nova revisão':'Finalizar contagem do dia'}</button>{data?.closed&&<button disabled={busy||!ready||(past&&!reason.trim())} className={countingButton} onClick={()=>void change('reopen')}>Reabrir contagem</button>}</div>}
- <dialog ref={dialog} aria-labelledby="count-close-title" className="fixed inset-x-0 bottom-0 top-auto m-0 max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 text-[#0f2d52] backdrop:bg-[#0b1f36]/50 sm:mx-auto">
- <h2 id="count-close-title" className="text-xl font-bold">Finalizar contagem do dia?</h2><p className="mt-3 text-sm">Encerra a contagem e emite os relatórios. Caixas e financeiro permanecem como estão.</p>
+ <dialog ref={dialog} onClick={event=>closeDialogOnBackdrop(event,()=>{if(!busy)dialog.current?.close();})} aria-labelledby="count-close-title" className="counting-sheet">
+ <div className="counting-sheet-grab" aria-hidden="true"/><h2 id="count-close-title" className="text-xl font-bold">Finalizar contagem do dia?</h2><p className="mt-3 text-sm">Encerra a contagem e emite os relatórios. Caixas e financeiro permanecem como estão.</p>
  {data && countingReportTotals(data.live).pending>0 && <><p className="mt-4 font-semibold">Ainda há veículos ou grupos sem contagem:</p><ul className="my-3 list-disc space-y-2 pl-5 text-sm">{data.live.groups.flatMap(group=>group.pending.length?group.pending.map(vehicle=><li key={vehicle.vehicleId}>{vehicle.label} · {group.name}{vehicle.state==='counting'?' (contando)':' (livre)'}</li>):!group.slips.length?[<li key={`${group.agendaId}:${group.clientId}`}>{group.name} · sem veículos cadastrados</li>]:[])}</ul><p className="text-sm">Eles serão identificados como não contados no relatório.</p></>}
  <div className="mt-5 grid gap-3"><button className={countingPrimary} disabled={busy||!ready||!!pending||(past&&!reason.trim())} onClick={()=>{dialog.current?.close();void change('close');}}>{data && countingReportTotals(data.live).pending>0?'Finalizar mesmo assim':'Finalizar e ver relatórios'}</button><a className={countingButton} href={`/contagem?date=${date}`}>Continuar contando</a></div>
  </dialog>

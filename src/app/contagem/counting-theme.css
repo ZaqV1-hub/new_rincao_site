@@ -26,3 +26,52 @@
   .counting-app button:hover:not(:disabled) { filter: brightness(1.12); }
   .counting-app canvas { color-scheme: light; }
 }
+
+/* Shared app frame and login, matching the counting prototype. */
+.counting-app { font-family: var(--font-rubik), "Segoe UI", sans-serif; }
+.counting-shell, .counting-login-shell { min-height: 100dvh; padding: 24px 0; background: #dfe6ef; }
+.counting-device, .counting-login-device { width: 100%; max-width: 400px; margin: 0 auto; min-height: min(860px, calc(100dvh - 48px)); border: 10px solid #0b1f36; border-radius: 40px; overflow: clip; background: #f4f7fb; box-shadow: 0 24px 60px rgb(11 31 54 / 25%); }
+.counting-login-device { background: #133a62; padding: 24px 16px; display: flex; align-items: center; }
+.counting-login { width: 100%; display: flex; flex-direction: column; gap: 22px; padding: 24px 0; }
+.counting-login-brand { text-align: center; }
+.counting-login-brand img { display: block; width: 220px; max-width: 70%; height: auto; margin: auto; }
+.counting-login-brand small { display: block; color: #b9cce2; font-size: 11px; font-weight: 600; letter-spacing: .2em; margin-top: 4px; }
+.counting-login-card { background: #fff; border-radius: 20px; padding: 22px 18px 16px; display: grid; gap: 14px; }
+.counting-login-card h2 { margin: 0; color: #0f2d52; font-size: 22px; font-weight: 600; }
+.counting-login-card p { margin: 2px 0 0; color: #6a7c92; font-size: 14px; }
+.counting-login-card .rincao-field { min-height: 48px; border: 1px solid #d9e3ee; border-radius: 12px; background: #fff; padding: 12px; font-size: 16px; box-shadow: none; }
+.counting-login-card button[type="submit"] { border-radius: 12px; background: #2f6fb2; box-shadow: none; font-weight: 600; font-size: 16px; }
+.counting-login-forgot { text-align: center; padding: 10px; color: #2f6fb2; font-size: 14px; font-weight: 600; }
+.counting-sheet { position: fixed; inset: auto 0 0; margin: 0 auto; width: 100%; max-width: 400px; max-height: 88dvh; overflow-y: auto; padding: 12px max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)); border: 0; border-radius: 24px 24px 0 0; color: #0f2d52; background: #fff; box-shadow: 0 -8px 40px rgb(11 31 54 / 20%); }
+.counting-sheet::backdrop { background: rgb(11 31 54 / 50%); }
+.counting-sheet-grab { width: 38px; height: 5px; border-radius: 99px; background: #cbd6e3; margin: 0 auto 18px; }
+.counting-account { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 12px; border-radius: 99px; background: rgb(255 255 255 / 10%); color: #dce7f3; font-size: 12.5px; }
+.counting-app summary { list-style: none; }
+.counting-app summary::-webkit-details-marker { display: none; }
+@media (max-width: 520px) {
+  .counting-shell, .counting-login-shell { padding: 0; }
+  .counting-device, .counting-login-device { max-width: none; min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
+  .counting-sheet { max-width: none; }
+}
+@media (prefers-color-scheme: dark) {
+  .counting-shell, .counting-login-shell { background: #0a1420; }
+  .counting-device { background: #0f1a28; border-color: #000; }
+  .counting-login-device { background: #0d2440; border-color: #000; }
+  .counting-login-card, .counting-sheet { background: #16243a; color: #eaf2fb; }
+  .counting-login-card h2 { color: #eaf2fb; }
+  .counting-login-card :is(p, label) { color: #aabdd2; }
+  .counting-login-card .rincao-field { background: #0f1a28; border-color: #36516f; color: #eaf2fb; }
+  .counting-login-forgot { color: #6fa9e3; }
+  .counting-sheet-grab { background: #47617f; }
+}
+
+.counting-device { position: relative; display: flex; flex-direction: column; height: min(860px, calc(100dvh - 60px)); min-height: 600px; overflow: hidden; }
+.counting-device > header { flex: none; }
+.counting-device > main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; }
+.counting-device:has(.counting-footer) > main { padding-bottom: 170px; }
+.counting-device .counting-footer { position: absolute; inset: auto 0 0; margin: 0; z-index: 20; border-top: 1px solid #d9e3ee; background: #f4f7fb; }
+@media (max-width: 520px) { .counting-device { height: 100dvh; min-height: 0; } }
+@media (prefers-color-scheme: dark) { .counting-device .counting-footer { background: #0f1a28; border-color: #28405e; } }
+
+.counting-app { text-align: left; }
+.counting-login-card .rincao-field { font-weight: 400; }

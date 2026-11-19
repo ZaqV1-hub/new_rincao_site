@@ -17,6 +17,7 @@ export function ScrollToTopOnRouteChange() {
       return;
     }
 
+    document.querySelector(".counting-device > main")?.scrollTo({ top: 0, left: 0, behavior: "auto" });
     window.scrollTo({
       top: 0,
       left: 0,

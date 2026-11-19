@@ -1,4 +1,5 @@
 "use client";
+import { getSaoPauloToday } from "@/lib/operational-date";
 
 import { DayCashBadge, DayCashPanel } from "./painel-operational-day-page-cash";
 import { useCountingRead, countTime } from "./counting-controls";
@@ -166,7 +167,7 @@ export function PainelOperationalDayPage({ summary: initialSummary, canManage, c
     setTab(tabs[next].id);
     event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("[role=tab]")[next]?.focus();
   }
-  return <div className="mx-auto w-full min-w-0 max-w-[1440px] space-y-4 text-[#0f2d52] [overflow-wrap:anywhere]">
+  return <div className="management-ui mx-auto w-full min-w-0 max-w-[1440px] space-y-4 text-[#0f2d52] [overflow-wrap:anywhere]">
     <nav aria-label="Caminho da página" className="flex flex-wrap items-center gap-2 text-sm text-[#6a7c92]"><Link href={calendarHref} aria-label="Voltar ao calendário" className="inline-flex min-h-11 items-center text-[#2f6fb2]">Agenda</Link><span aria-hidden="true">/</span><span>{dateLabel}</span></nav>
     <div className="panel-section min-w-0 p-4 sm:p-6">
     <header className="space-y-4">
@@ -175,7 +176,7 @@ export function PainelOperationalDayPage({ summary: initialSummary, canManage, c
           {navigation.previousDate ? <Link href={`/painel/agenda/${navigation.previousDate}`} className={`${button} min-w-11 px-2`} aria-label="Data anterior com movimento"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 5-7 7 7 7" /></svg></Link> : <button className={`${button} min-w-11 px-2`} disabled aria-label="Sem data anterior com movimento"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 5-7 7 7 7" /></svg></button>}
           {navigation.nextDate ? <Link href={`/painel/agenda/${navigation.nextDate}`} className={`${button} min-w-11 px-2`} aria-label="Próxima data com movimento"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 5 7 7-7 7" /></svg></Link> : <button className={`${button} min-w-11 px-2`} disabled aria-label="Sem próxima data com movimento"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 5 7 7-7 7" /></svg></button>}
         </nav>
-        <div className="min-w-0 flex-1 basis-64"><p className="text-[11px] font-bold uppercase tracking-widest text-[#4e6e92]">{summary.park === "rincao" ? "Rincão" : "Estância"} · Resumo da data</p><h1 className="mt-1 text-2xl font-bold leading-tight sm:text-[28px]">{dateLabel}</h1></div>
+        <div className="min-w-0 flex-1 basis-64"><p className="text-[11px] font-bold uppercase tracking-widest text-[#4e6e92]">{summary.date === getSaoPauloToday() ? "Hoje" : summary.date < getSaoPauloToday() ? "Data que já passou" : "Próxima data"}</p><h1 className="mt-1 text-2xl font-bold leading-tight sm:text-[28px]">{dateLabel}</h1></div>
         <div className="flex flex-wrap gap-2">{canManage && <Link className={button} href={`/painel/agenda/${summary.date}/editar`}>{day?.dayUseAgendaId ? "Editar day use" : "Abrir day use nesta data"}</Link>}{canAccessProgram && <Link className={`${button} ${programStatus === "uncreated" && canManage && !day?.closed ? "bg-[#133a62]! text-white!" : ""}`} href={`/painel/agenda/${summary.date}/dia-seguinte?returnTo=${summary.date}`}>{programAction} dia seguinte</Link>}</div>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">

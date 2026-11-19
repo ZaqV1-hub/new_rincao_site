@@ -1,4 +1,5 @@
 'use client';
+import { OperationalDialog } from './operational-dialog';
 import { useEffect,useState } from 'react';
 import { CurrencyInput,parseCurrencyInput } from './currency-input';
 import { tripMoney } from './trip-settlement-summary';
@@ -12,6 +13,7 @@ export function OperationalExpensesPanel({ date,today,actorCpf,scope,expenses,se
   date: string; today: string; actorCpf: string; scope: 'day' | 'trips'; expenses: OperationalExpense[] | null; sessions: CashSession[];
   groups?: { agendaId: number; clientId: number; clientName: string }[]; closed: boolean; onSaved: () => Promise<void>;
 }) {
+  const [adding,setAdding] = useState(false);
   const storageKey = `expense:${actorCpf}:${scope}:${date}`;
   const [ready,setReady] = useState(false),[pending,setPending] = useState(false),[busy,setBusy] = useState(false),[message,setMessage] = useState<string | null>(null),[method,setMethod] = useState('pix'),[version,setVersion] = useState(0);
   useEffect(() => { let active = true; Promise.resolve().then(() => { try { const command = readStoredCashCommand(storageKey); if (active) { setPending(!!command); setReady(true); } } catch { if (active) setMessage('Não foi possível recuperar a tentativa anterior. Solicite conferência antes de lançar outra despesa.'); } }); return () => { active = false; }; },[storageKey]);
@@ -22,7 +24,7 @@ export function OperationalExpensesPanel({ date,today,actorCpf,scope,expenses,se
     setBusy(true); setMessage(null);
     const result = await submitCashCommand({ storageKey,url: '/api/painel/despesas',...(pending ? {} : { payload }) });
     if (result.ok) {
-      setPending(false); setVersion(v => v+1); setMessage('Despesa registrada.');
+      setPending(false); setVersion(v => v+1); setAdding(false); setMessage('Despesa registrada.');
       try { await onSaved(); } catch { setMessage('Despesa registrada. Confira os dados atuais para atualizar a lista.'); }
     } else {
       setMessage(result.message);
@@ -35,7 +37,8 @@ export function OperationalExpensesPanel({ date,today,actorCpf,scope,expenses,se
     {expenses.length === 0 ? <p>Nenhuma despesa registrada.</p> : <ul className="divide-y divide-[#d4dfeb]">{expenses.map(e => <li key={e.id} className="py-3"><p className="font-semibold">{e.description} · {tripMoney(e.amountCents)}</p><p className="text-sm">{categories[e.category as keyof typeof categories] ?? e.category} · {e.agendaId ? groups.find(g => g.agendaId === e.agendaId && g.clientId === e.clientId)?.clientName ?? `Passeio #${e.agendaId}/${e.clientId}` : scope === 'trips' ? 'Todos os passeios' : 'Dia'} · {methods[e.method] ?? e.method}{e.periodId ? ` · Caixa #${e.periodId}` : ''}</p><p className="text-sm">Comprovante: {e.reference} · Registrado por {e.actorName ?? 'Operador identificado'}</p></li>)}</ul>}
     {message && <p role="status" className="rounded-lg border border-[#b9cddd] bg-[#f3f7fb] p-3">{message}</p>}
     {pending && <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3"><p>Há uma despesa sem confirmação. Confira a mesma tentativa antes de lançar outra.</p><button type="button" className="min-h-11 underline" disabled={busy} onClick={() => void save()}>Conferir tentativa anterior</button></div>}
-    {!closed && <details><summary className="min-h-11 cursor-pointer py-3 font-semibold">Lançar despesa</summary><form key={version} onSubmit={event => { event.preventDefault(); void save(new FormData(event.currentTarget)); }}><fieldset className="grid gap-3 sm:grid-cols-2" disabled={busy || pending || !ready}>
+    {!closed && <button type="button" className="management-action" onClick={() => setAdding(true)}>Lançar despesa</button>}
+    {!closed && adding && <OperationalDialog title="Lançar despesa" onClose={() => { if (!busy) setAdding(false); }}>{message && <p role="status" className="mb-3 text-sm">{message}</p>}<form key={version} onSubmit={event => { event.preventDefault(); void save(new FormData(event.currentTarget)); }}><fieldset className="grid gap-3 sm:grid-cols-2" disabled={busy || pending || !ready}>
       <label className="grid gap-1 font-semibold sm:col-span-2">Descrição<input className={field} name="description" required maxLength={300} /></label>
       <label className="grid gap-1 font-semibold">Alocação<select className={field} name="category">{Object.entries(categories).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       {scope === 'trips' && <label className="grid gap-1 font-semibold">Passeio<select className={field} name="trip"><option value="">Todos os passeios</option>{groups.map(g => <option key={`${g.agendaId}:${g.clientId}`} value={`${g.agendaId}:${g.clientId}`}>{g.clientName}</option>)}</select></label>}
@@ -45,6 +48,6 @@ export function OperationalExpensesPanel({ date,today,actorCpf,scope,expenses,se
       <label className="grid gap-1 font-semibold">Referência do comprovante<input className={field} name="reference" required maxLength={200} /></label>
       <label className="grid gap-1 font-semibold sm:col-span-2">Motivo {date === today ? '(opcional)' : '(data fora de hoje; exige gerente)'}<textarea className={field} name="reason" maxLength={1000} required={date !== today} /></label>
       <button className="min-h-11 rounded-lg bg-[#205a7f] px-4 py-2 font-semibold text-white disabled:opacity-50" type="submit">{busy ? 'Registrando…' : 'Registrar despesa'}</button>
-    </fieldset></form></details>}
+    </fieldset></form><button type="button" className="management-action mt-4" disabled={busy} onClick={() => setAdding(false)}>Cancelar</button></OperationalDialog>}
   </section>;
 }

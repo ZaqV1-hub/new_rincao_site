@@ -1,4 +1,5 @@
 'use client';
+import { OperationalDialog } from './operational-dialog';
 import { useCallback,useEffect,useRef,useState,useSyncExternalStore } from 'react';
 import { readCountingJson,sendCountingCommand,type CountingCommandBody } from '@/lib/trip-counting-client';
 import type { CountingResult } from '@/lib/trip-counting-contract';
@@ -105,11 +106,11 @@ export function useCountingLeaveWarning(unsaved: boolean) {
   },[unsaved]);
 }
 
-export function CountingAccountMenu({ name }: { name: string }) {
-  const [busy,setBusy] = useState(false),[error,setError] = useState('');
+export function CountingAccountMenu({ name, role = 'Monitor' }: { name: string; role?: string }) {
+  const [open,setOpen] = useState(false),[busy,setBusy] = useState(false),[error,setError] = useState('');
+  const initials = name.trim().split(/\s+/).filter(Boolean).slice(0,2).map(part => part[0]).join('').toLocaleUpperCase('pt-BR') || 'O';
   async function logout() {
     if (!window.dispatchEvent(new Event('counting:before-leave',{ cancelable: true }))) return;
-    if (!window.confirm('Sair da conta? Contagens atribuídas a você continuam no seu nome. Outro monitor poderá assumir com motivo registrado.')) return;
     setBusy(true); setError('');
     try {
       const response = await fetch('/api/ops/session',{ method: 'DELETE' });
@@ -118,17 +119,19 @@ export function CountingAccountMenu({ name }: { name: string }) {
       window.location.assign('/painel/login?redirect=%2Fcontagem');
     } catch { setError('Não foi possível encerrar a sessão. Tente novamente.'); setBusy(false); }
   }
-  return <details className="relative">
-    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-white" aria-label={`Conta de ${name}`}>
-      <span className="grid h-9 w-9 place-items-center rounded-full bg-[#8fb9e3] text-sm font-bold text-[#0b1f36]">{name.trim().charAt(0).toLocaleUpperCase('pt-BR') || 'O'}</span>
-    </summary>
-    <div className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-[#d9e3ee] bg-white p-4 text-[#0f2d52] shadow-lg">
-      <p className="break-words font-semibold">{name}</p><a href="/painel" className="flex min-h-11 items-center underline">Voltar ao painel</a>
+  return <>
+    <button type="button" className="counting-account" aria-label={`Conta de ${name}`} onClick={() => setOpen(true)}>
+      <span className="max-w-28 truncate">{name.trim().split(/\s+/)[0]}</span>
+      <span className="grid h-8 w-8 place-items-center rounded-full bg-[#8fb9e3] text-sm font-bold text-[#0b1f36]">{initials}</span>
+    </button>
+    {open && <OperationalDialog sheet title={name} onClose={() => { if (!busy) setOpen(false); }}>
+      <p className="mb-4 text-sm text-[#6a7c92]">{role} · conectado neste aparelho</p>
+      <p className="mb-4 text-sm">As contagens que você fizer saem com o seu nome no relatório e no painel.</p>
       <button type="button" className={`${countingButton} w-full`} disabled={busy} onClick={() => void logout()}>{busy ? 'Saindo…' : 'Sair da conta'}</button>
-      <button type="button" className={`${countingButton} mt-2 w-full`} onClick={event => event.currentTarget.closest('details')?.removeAttribute('open')}>Fechar</button>
+      <button type="button" className={`${countingButton} mt-2 w-full`} disabled={busy} onClick={() => setOpen(false)}>Fechar</button>
       {error && <p role="alert" className="mt-2 text-sm">{error}</p>}
-    </div>
-  </details>;
+    </OperationalDialog>}
+  </>;
 }
 
 export function CountingStepper({ label,hint,value,onMinus,onPlus,disabled }: {

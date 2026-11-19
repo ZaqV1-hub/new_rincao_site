@@ -11,7 +11,7 @@ import { hasLegacyPanelResource } from "@/lib/painel-access";
 import { requirePainelAccess } from "@/lib/painel-session";
 import { readPurchaseListContext, type PurchaseNavigationQuery } from "@/lib/operational-purchase-navigation";
 
-export const metadata: Metadata = { title: "Resumo da data | Painel Rincão", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Agenda da data | Painel Rincão", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 export default async function PainelAgendaDayPage({ params, searchParams }: { params: Promise<{ date: string }>; searchParams?: Promise<PurchaseNavigationQuery> }) {

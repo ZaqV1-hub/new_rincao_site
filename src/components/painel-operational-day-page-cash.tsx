@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { OperationalDialog } from "./operational-dialog";
 import { useEffect, useState } from "react";
 import { CashSessionCommandForm } from "./cash-session-command-form";
 import { availableCashLocations } from "./painel-cash-sessions-page";
@@ -53,10 +54,11 @@ export function DayCashPanel({ date, closed }: { date: string; closed: boolean }
     <p className="text-sm text-[#45647f]">Um caixa aberto por local. O saldo em caixa é separado da receita da visita. Atualização a cada 5 segundos.</p>
     {!canOpen && <p className="text-sm">{closed ? "Dia finalizado: caixas somente para consulta." : "Novos caixas só podem ser abertos na data de hoje."}</p>}
     {error && <p role="alert">{error} <button className={button} onClick={() => void refresh()}>Tentar novamente</button></p>}
-    {showOpen && canOpen && <div className="rounded-xl border border-[#d4dfeb] bg-white p-5">
+    {showOpen && canOpen && <OperationalDialog title="Abrir caixa" onClose={() => setShowOpen(false)}>
       {locationError && <p role="alert">{locationError} <button className={button} onClick={() => setAttempt(value => value + 1)}>Atualizar locais</button></p>}
       {!locations || !sessions ? <p role="status">Consultando locais disponíveis…</p> : <><h3 className="mb-3 font-bold">Local e troco inicial</h3>{!available.length && <p>Não há locais ativos disponíveis.</p>}<CashSessionCommandForm action="open" date={date} locations={available} disabled={!available.length} onSuccess={async () => { await refresh(); setShowOpen(false); }} /></>}
-    </div>}
+      <button type="button" className={button} onClick={() => setShowOpen(false)}>Cancelar</button>
+    </OperationalDialog>}
     {!sessions ? <p role="status">Carregando caixas…</p> : !sessions.length ? <p>Nenhum caixa aberto nesta data.</p> : <><ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{sessions.slice((currentPage - 1) * 6, currentPage * 6).map(session => <CashCard key={session.id} session={session} />)}</ul>{pageCount > 1 && <nav aria-label="Páginas de caixas" className="flex flex-wrap items-center gap-3"><button className={button} disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>Anterior</button><span>{currentPage} de {pageCount}</span><button className={button} disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)}>Próxima</button></nav>}</>}
   </section>;
 }

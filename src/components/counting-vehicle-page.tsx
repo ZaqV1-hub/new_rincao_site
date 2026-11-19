@@ -1,4 +1,5 @@
 'use client';
+import { OperationalDialog } from './operational-dialog';
 import { useEffect,useReducer,useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CountingVehicleDetail } from '@/lib/trip-counting';
@@ -40,6 +41,7 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
   const [editor,dispatch] = useReducer(countEditorReducer,{ draft: emptyCountDraft(),version: 0,dirty: false });
   const { draft,version,dirty } = editor;
   const [reason,setReason] = useState(''),[signature,setSignature] = useState(''),[step,setStep] = useState<0 | 1 | 2>(0),[validation,setValidation] = useState('');
+  const [confirmAction,setConfirmAction] = useState<'takeover' | 'recount' | null>(null);
   const [pcdAsk,setPcdAsk] = useState<'pcdChild' | 'pcdAdult' | null>(null);
   const command = useCountingCommand(`rincao:count:vehicle:${actorCpf}:${id}`,async (result,body) => {
     if (body?.draft && result.state === 'counting') dispatch({ type: 'saved',version: result.version,submitted: body.draft as CountDraft });
@@ -83,10 +85,10 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
     dispatch({ type: 'edit',draft: next }); setValidation('');
     if (signature) { setSignature(''); setValidation('A contagem mudou. Peça uma nova conferência e assinatura ao responsável.'); }
   }
-  async function action(action: CountAction) {
+  async function action(action: CountAction, confirmed = false) {
     if (!data) return;
-    if (action === 'takeover' && !window.confirm('Assumir esta contagem? Você recupera o último rascunho confirmado. Edições que ficaram apenas no outro aparelho não podem ser recuperadas.')) return;
-    if (action === 'recount' && !window.confirm('Abrir uma nova contagem do zero? A contagem e a assinatura anteriores ficam preservadas no histórico.')) return;
+    if (!confirmed && (action === 'takeover' || action === 'recount')) { setConfirmAction(action); return; }
+    setConfirmAction(null);
     await command.submit(`/api/contagem/veiculos/${id}/${action}`,{ version,reason,...(['save','complete'].includes(action) ? { draft } : {}),...(action === 'complete' ? { signature } : {}) });
   }
   function loadCurrent() {
@@ -100,7 +102,7 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
       if (countCategories.some(key => draft.counts[key] === null)) throw new Error('Confirme todas as quantidades, inclusive zeros. Use − para confirmar zero nas categorias ainda vazias.');
       normalizeCountDraft(draft,step === 1);
       if (step === 1 && !signature) throw new Error('Peça a assinatura do responsável antes de avançar.');
-      setValidation(''); setStep(step === 0 ? 1 : 2); window.scrollTo({ top: 0,behavior: 'instant' });
+      setValidation(''); setStep(step === 0 ? 1 : 2); window.scrollTo({ top: 0,behavior: 'instant' }); document.querySelector('.counting-device > main')?.scrollTo({ top: 0,behavior: 'instant' });
     } catch (error) { setValidation(error instanceof Error ? error.message : 'Confira os campos.'); }
   }
   const exceptional = data && !data.cancelled && !data.closed && !data.financiallyFinalized && allowedDate && ((data.state === 'counting' && !data.revision?.ownedByMe && data.revision?.ownerName) || data.state === 'completed' || data.date !== data.today);
@@ -137,6 +139,7 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
             const pcd = key === 'pcdChild' || key === 'pcdAdult';
             const label = key === 'coordinator' && data.groupType === 'group' ? 'Coordenador do grupo' : COUNT_CATEGORIES[key].label.split(' · ')[0];
             return <div key={key} className="space-y-2"><CountingStepper label={label} hint={COUNT_CATEGORIES[key].label.split(' · ')[1]} value={draft.counts[key]} disabled={editBlocked || (pcd && needsConversion)} onMinus={() => edit(changeCount(draft,key,-1))} onPlus={() => pcd ? setPcdAsk(pcdAsk === key ? null : key) : edit(changeCount(draft,key,1))}/>
+
               {pcdAsk === key && <div className="space-y-3 rounded-xl border border-[#2f6fb2] bg-white p-3"><p className="text-sm font-semibold">Qual a deficiência?</p><div className="flex flex-wrap gap-2">{PCD_TYPES.map(type => <button key={type} type="button" className="min-h-11 rounded-full border border-[#d9e3ee] bg-[#f4f7fb] px-3 text-sm font-semibold" onClick={() => { edit(changeCount(draft,key,1,type)); setPcdAsk(null); }}>{type}</button>)}</div><button type="button" className="min-h-11 text-sm underline" onClick={() => setPcdAsk(null)}>Cancelar</button></div>}
               {pcd && <div className="flex flex-wrap gap-2">{draft.pcdDetails.filter(detail => detail.category === key).map((detail,index) => <span key={`${detail.description}:${index}`} className="inline-flex items-center gap-1 rounded-full border border-[#d9e3ee] bg-[#eaf2fb] pl-3 text-xs font-semibold">{detail.quantity > 1 ? `${detail.quantity} × ` : ''}{detail.description}<button type="button" className="grid h-11 w-11 place-items-center rounded-full text-lg" aria-label={`Remover uma pessoa: ${label} ${detail.description}`} disabled={editBlocked || needsConversion} onClick={() => edit(changeCount(draft,key,-1,detail.description as PcdType))}>×</button></span>)}</div>}
             </div>;
@@ -155,12 +158,17 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
       {canEdit && <>
         {command.failed && !command.pending && <button className={`${countingButton} w-full`} disabled={command.blocked || !canSave} onClick={() => void action('save')}>Tentar salvar novamente</button>}
         {step === 0 && <button className="min-h-11 text-sm underline" disabled={command.blocked || dirty || !!signature || conflict} onClick={() => void action('release')}>Liberar para outro contador</button>}
-        <div className="sticky bottom-0 z-20 -mx-4 space-y-2 bg-[#f4f7fb]/95 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">
+        <div className="counting-footer sticky bottom-0 z-20 -mx-4 space-y-2 bg-[#f4f7fb]/95 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">
           <button className={`${countingPrimary} min-h-13 w-full`} disabled={total.total === 0 || !canSave || command.blocked || command.failed || !!error || (step === 2 && dirty)} onClick={() => step === 2 ? void action('complete') : advance()}>{step === 0 ? `Avançar · ${total.total} pessoas` : step === 1 ? 'Avançar · conferir filipeta' : dirty ? 'Aguardando salvar rascunho…' : 'Finalizar contagem'}</button>
           {step > 0 && <button className={`${countingButton} w-full`} disabled={command.busy} onClick={() => setStep(step === 2 ? 1 : 0)}>Voltar{step === 2 ? ' e corrigir' : ' à contagem'}</button>}
         </div>
       </>}
     </>}
+    {confirmAction && <OperationalDialog sheet title={confirmAction === 'takeover' ? `${data?.revision?.ownerName ?? 'Outro monitor'} está contando` : 'Recontar este veículo?'} onClose={() => setConfirmAction(null)}>
+      <p className="mb-4 text-sm">{confirmAction === 'takeover' ? 'Você recupera o último rascunho confirmado. Edições que ficaram apenas no outro aparelho não podem ser recuperadas.' : 'A nova contagem começa do zero. A contagem e a assinatura anteriores ficam preservadas no histórico.'}</p>
+      <button type="button" className={`${countingPrimary} w-full`} disabled={command.blocked || !reason.trim()} onClick={() => void action(confirmAction,true)}>{confirmAction === 'takeover' ? 'Assumir esta contagem' : 'Recontar este veículo'}</button>
+      <button type="button" className={`${countingButton} mt-2 w-full`} onClick={() => setConfirmAction(null)}>Cancelar</button>
+    </OperationalDialog>}
     {!!data?.historyEvents?.length && <section className="space-y-3 border-t border-[#d9e3ee] pt-4"><h2 className="text-xs font-bold uppercase tracking-widest text-[#6a7c92]">Histórico de responsáveis</h2><ul className="divide-y divide-[#d9e3ee]">{data.historyEvents.map(event => <li key={event.id} className="space-y-1 py-3 text-sm"><p>{event.actorName ?? 'Operador'} {event.action === 'takeover' ? 'assumiu de' : 'abriu recontagem de'} {event.previousOwnerName ?? 'responsável anterior não registrado'}</p><p className="text-xs text-[#6a7c92]">{new Date(event.at).toLocaleString('pt-BR',{ timeZone: 'America/Sao_Paulo' })}</p><p className="whitespace-pre-wrap break-words">Motivo: {event.reason}</p></li>)}</ul></section>}
     {!!data?.history.length && <section className="space-y-3 border-t border-[#d9e3ee] pt-4"><h2 className="text-xs font-bold uppercase tracking-widest text-[#6a7c92]">Histórico de conclusões</h2><ul className="divide-y divide-[#d9e3ee]">{data.history.map(revision => <li key={revision.id} className="py-3 text-sm"><p>{revision.ownerName ?? 'Operador'} · {new Date(revision.completedAt).toLocaleString('pt-BR',{ timeZone: 'America/Sao_Paulo' })}</p>{revision.canReadSignature && <a href={`/contagem/filipetas/${revision.id}`} className="inline-flex min-h-11 items-center underline">Consultar filipeta e assinatura</a>}</li>)}</ul></section>}
   </div>;

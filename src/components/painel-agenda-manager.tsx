@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { closeDialogOnBackdrop } from "./operational-dialog";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   type PainelAgendaMonthEntry,
@@ -128,7 +129,7 @@ export function EmptyAgendaDateDialog({ date, canEdit, canAccessClients, onClose
     element?.showModal();
     return () => { element?.close(); if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus(); };
   }, []);
-  return <dialog ref={dialog} onCancel={onClose} aria-labelledby="empty-agenda-title" aria-describedby="empty-agenda-description" className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-xl border border-[#d9e3ee] bg-white p-6 text-[#0f2d52] backdrop:bg-[#0f2d52]/40">
+  return <dialog ref={dialog} onCancel={onClose} onClick={event => closeDialogOnBackdrop(event, onClose)} aria-labelledby="empty-agenda-title" aria-describedby="empty-agenda-description" className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-xl border border-[#d9e3ee] bg-white p-6 text-[#0f2d52] backdrop:bg-[#0f2d52]/40">
     <h2 id="empty-agenda-title" className="text-xl font-bold">{new Intl.DateTimeFormat("pt-BR", { dateStyle: "full", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`))}</h2>
     <p id="empty-agenda-description" className="mt-3 text-sm text-[#6a7c92]">Ainda não há nada aberto nesta data.</p>
     <div className="mt-4 divide-y divide-[#e8eef5] rounded-lg border border-[#d9e3ee] px-4">
@@ -193,7 +194,7 @@ export function PainelAgendaManager({ data, indicators = null, operationalDays, 
   return (
     <div className="mx-auto grid w-full max-w-[1440px] gap-4 text-[#123b63]">
       <div className="grid items-start gap-4 ">
-        <section className="panel-section min-w-0 p-4 sm:p-6">
+        <section className="management-ui panel-section min-w-0 p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><p className="text-xs font-bold uppercase tracking-widest text-[#4e6e92]">Agenda</p><h1 className="mt-1 text-[28px] font-bold text-[#0f2d52]">Agenda do parque</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-[#6a7c92]">Tudo começa aqui. Entre numa data para ver o relatório, os passeios, as compras, os caixas e o fechamento. Numa data vazia você abre o day use.</p></div>
             <Link href={buildAgendaHref(Number(today.slice(5, 7)), Number(today.slice(0, 4)), today)} className={`${control} hover:bg-[#eef4fb]`}>Ir para hoje</Link>

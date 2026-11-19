@@ -1198,3 +1198,31 @@
   }
 
 }
+
+/* Gestão: disclosure headers highlight in place, as in the approved HTML. */
+.rincao-panel .management-ui summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; border-radius: 10px; padding: 12px 14px; min-height: 48px; }
+.rincao-panel .management-ui summary::-webkit-details-marker { display: none; }
+.rincao-panel .management-ui summary::after { content: ""; display: block; flex: 0 0 10px; width: 10px; height: 10px; margin: 0 4px 4px 8px; border-right: 2px solid #6a7c92; border-bottom: 2px solid #6a7c92; transform: rotate(45deg); transition: transform .15s; }
+.rincao-panel .management-ui details[open] > summary::after { transform: rotate(225deg); margin-bottom: 0; }
+.rincao-panel .management-ui details[open] > summary { border-bottom: 1px solid #e8eef5; border-radius: 10px 10px 0 0; margin-bottom: 12px; }
+.rincao-panel .management-ui summary:hover { background: #eaf2fb !important; box-shadow: none !important; filter: none !important; transform: none !important; }
+.rincao-panel .management-ui summary:focus-visible { outline: 2px solid #2f6fb2; outline-offset: 2px; box-shadow: none !important; }
+.management-action { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; border: 1px solid #b8cbdc; border-radius: 8px; padding: 9px 14px; background: #fff; color: #0f2d52; font-size: 14px; font-weight: 600; cursor: pointer; }
+.management-action:disabled { opacity: .5; cursor: not-allowed; }
+.management-dialog { margin: auto; max-height: 90dvh; width: calc(100% - 32px); max-width: 560px; overflow-y: auto; border: 0; border-radius: 12px; padding: 24px 26px; background: #fff; color: #0f2d52; box-shadow: 0 20px 50px rgb(11 31 54 / 30%); }
+.management-dialog::backdrop { background: rgb(11 31 54 / 40%); }
+@media (prefers-color-scheme: dark) {
+  .rincao-panel.rincao-agenda-theme .management-ui summary:hover { background: #1b2f4a !important; }
+  .rincao-panel.rincao-agenda-theme .management-ui details[open] > summary { border-color: #28405e; }
+  .rincao-panel.rincao-agenda-theme :is(.management-dialog, .management-action) { background: #16243a; color: #eaf2fb; border-color: #36516f; }
+}
+@media (prefers-reduced-motion: reduce) { .rincao-panel .management-ui summary::after { transition: none; } }
+
+.rincao-panel .management-ui .trip-result { padding: 20px 22px; border: 1px solid #d9e3ee; border-radius: 12px; background: #f4f7fb; }
+.rincao-panel .management-ui .trip-result > div:first-child dd { font-size: 30px; line-height: 1.2; }
+.rincao-panel .management-ui .trip-result dt { font-size: 13px; color: #6a7c92; }
+.rincao-panel .management-ui .trip-result p { margin-top: 4px; color: #6a7c92; }
+@media (prefers-color-scheme: dark) { .rincao-panel.rincao-agenda-theme .management-ui .trip-result { background: #1b2f4a; border-color: #28405e; } .rincao-panel.rincao-agenda-theme .management-ui .trip-result :is(dt,p) { color: #aabdd2; } }
+
+.rincao-panel .management-ui :is(button, a):hover { box-shadow: none !important; transform: none !important; filter: none !important; }
+.management-action:hover:not(:disabled) { background: #eaf2fb; }

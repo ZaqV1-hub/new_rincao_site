@@ -1,5 +1,7 @@
 "use client";
 
+import "@/app/contagem/counting-theme.css";
+import Image from "next/image";
 import { PainelBrandLogo } from "@/components/painel-brand-logo";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
@@ -125,10 +127,12 @@ export function PainelLoginPage({
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(initialError);
+  const [forgotHelp, setForgotHelp] = useState(false);
   const [phase, setPhase] = useState<PainelLoginPhase>("idle");
   const activePhase = isNavigating && phase === "idle" ? "redirecting" : phase;
   const feedback = getPainelLoginFeedback(activePhase);
   const isBusy = activePhase !== "idle";
+  const isCountingLogin = redirectTo === "/contagem" || redirectTo.startsWith("/contagem/") || redirectTo.startsWith("/contagem?");
   const isContractLogin = redirectTo === "/contrato";
   const loginLabel = isContractLogin ? "E-mail" : "CPF";
   const loginPlaceholder = isContractLogin
@@ -212,7 +216,7 @@ export function PainelLoginPage({
   }
 
   return (
-    <section className="min-h-screen bg-[linear-gradient(180deg,#eef5fb_0%,#ffffff_320px)] px-4 py-8 md:px-6">
+    <section className={isCountingLogin ? "counting-app counting-login-shell" : "min-h-screen bg-[linear-gradient(180deg,#eef5fb_0%,#ffffff_320px)] px-4 py-8 md:px-6"}>
       {recaptchaSiteKey ? (
         <Script
           src={`https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(
@@ -221,21 +225,20 @@ export function PainelLoginPage({
           strategy="afterInteractive"
         />
       ) : null}
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[760px] items-center">
-        <div className="w-full rounded-[28px] border border-[#d3e3f1] bg-white p-8 shadow-[0_22px_52px_rgba(26,61,94,0.12)] md:p-10">
-          <PainelBrandLogo compact />
-          <h2 className="mt-6 text-[38px] font-black text-[#123e6f]">Entrar</h2>
-          <p className="mt-2 text-sm leading-6 text-[#516b86]">
-            {"Acesse o painel do Rinc\u00e3o."}
-          </p>
+      <div className={isCountingLogin ? "counting-login-device" : "mx-auto flex min-h-[calc(100vh-4rem)] max-w-[760px] items-center"}>
+        <div className={isCountingLogin ? "counting-login" : "w-full rounded-[28px] border border-[#d3e3f1] bg-white p-8 shadow-[0_22px_52px_rgba(26,61,94,0.12)] md:p-10"}>
+          {isCountingLogin ? <div className="counting-login-brand"><Image src="/contagem/logo.webp" width={220} height={95} style={{ height: "auto" }} alt="Clube e Park Rincão, Pousada e Lazer" priority/><small>CONTAGEM</small></div> : <PainelBrandLogo compact />}
+          {!isCountingLogin && <h2 className="mt-6 text-[38px] font-black text-[#123e6f]">Entrar</h2>}
+          {!isCountingLogin && <p className="mt-2 text-sm leading-6 text-[#516b86]">Acesse o painel do Rincão.</p>}
 
           <form
-            className="mt-6 grid gap-4"
+            className={isCountingLogin ? "counting-login-card" : "mt-6 grid gap-4"}
             method="post"
             action="/api/painel/session"
             onSubmit={handleSubmit}
             aria-busy={isBusy}
           >
+            {isCountingLogin && <div><h2>Entrar</h2><p>Use o mesmo login do painel do Rincão.</p></div>}
             <label className="flex flex-col gap-2 text-sm font-semibold text-[#35576f]">
               {loginLabel}
               <input
@@ -309,18 +312,19 @@ export function PainelLoginPage({
                   className="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"
                 />
               ) : null}
-              {feedback.buttonLabel}
+              {isCountingLogin && isBusy ? (activePhase === "submitting" ? "Validando acesso…" : "Abrindo contagem…") : feedback.buttonLabel}
             </button>
+            {isCountingLogin && <><button type="button" className="counting-login-forgot" onClick={() => setForgotHelp(true)}>Esqueci minha senha</button>{forgotHelp && <p role="status">Peça ao gerente para trocar sua senha no painel.</p>}</>}
           </form>
 
-          <div className="mt-4 text-sm">
+          {!isCountingLogin && <div className="mt-4 text-sm">
             <a
               href="/painel/login/esqueci"
               className="font-semibold text-[#214f80] hover:text-[#173f68]"
             >
               esqueci minha senha
             </a>
-          </div>
+          </div>}
         </div>
       </div>
     </section>

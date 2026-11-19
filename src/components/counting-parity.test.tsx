@@ -47,6 +47,15 @@ describe('counting entry gestures',()=>{
   expect(command.submit).toHaveBeenCalledWith('/api/contagem/veiculos/9/start',{version:3,reason:''});expect(preventDefault).toHaveBeenCalled();
   await command.confirmed({commandId:'command',vehicleId:9,version:4,state:'counting',revisionId:'revision',confirmedAt:new Date().toISOString()});expect(hooks.push).toHaveBeenCalledWith('/contagem/veiculos/9');
  });
+ it.each(['counting','completed'] as const)('opens %s vehicle details without starting or changing a count',state=>{
+  const data=day();Object.assign(data.groups[0].vehicles[0],{state,ownerName:'Ana',total:3,draftSubtotal:2,lastCompletedRevision:'revision-1'});setupRead(data);
+  const b=bank(),props={date:today,manager:false,actorCpf:'actor'};let tree=render(b,()=>CountingDayPage(props));const preventDefault=vi.fn();
+  click(find(tree,n=>n.type==='a'&&n.props.href==='/contagem/veiculos/9'),{preventDefault});expect(preventDefault).toHaveBeenCalledOnce();
+  tree=render(b,()=>CountingDayPage(props));expect(plain(tree)).toContain(state==='completed'?'Contado por Ana':'Ana está contando');
+  expect(nodes(tree).some(n=>n.type==='button'&&plain(n)==='Fechar')).toBe(true);
+  expect(hooks.commands.get(`rincao:count:start:actor:${today}`)!.submit).not.toHaveBeenCalled();
+  if(state==='completed')expect(nodes(tree).some(n=>n.type==='a'&&n.props.href==='/contagem/filipetas/revision-1')).toBe(true);
+ });
  it('keeps financially finalized vehicles read-only at the entry gesture',()=>{const data=day();data.groups[0].vehicles[0].financiallyFinalized=true;setupRead(data);const tree=render(bank(),()=>CountingDayPage({date:today,manager:false,actorCpf:'actor'}));click(find(tree,n=>n.type==='a'&&n.props.href==='/contagem/veiculos/9'),{preventDefault:vi.fn()});expect(hooks.commands.get(`rincao:count:start:actor:${today}`)!.submit).not.toHaveBeenCalled();});
  it.each(['count','only'])('adds once and %s controls whether the confirmed vehicle starts',async mode=>{
   setupRead(day());const b=bank(),props={date:today,manager:false,actorCpf:'actor'};let tree=render(b,()=>CountingDayPage(props));click(find(tree,n=>n.type==='button'&&plain(n).includes('Chegou mais')));tree=render(b,()=>CountingDayPage(props));

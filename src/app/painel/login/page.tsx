@@ -14,7 +14,7 @@ import {
 } from "@/lib/painel-login";
 import { getRecaptchaSiteKey } from "@/lib/recaptcha";
 
-export const metadata: Metadata = {
+const loginMetadata: Metadata = {
   title: "Painel - Entrar | Rincao",
   description: "Entrada do novo painel interno operacional do Rincao.",
   robots: {
@@ -34,6 +34,12 @@ type PainelLoginPageProps = {
     error?: string;
   }>;
 };
+
+export async function generateMetadata({ searchParams }: PainelLoginPageProps): Promise<Metadata> {
+  const redirectTo = sanitizePainelRedirect((await searchParams)?.redirect);
+  const counting = redirectTo === "/contagem" || redirectTo.startsWith("/contagem/") || redirectTo.startsWith("/contagem?");
+  return { ...loginMetadata, title: counting ? "Entrar | Contagem Rincão" : loginMetadata.title };
+}
 
 export default async function PainelLoginRoute({
   searchParams,
