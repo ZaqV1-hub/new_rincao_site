@@ -1230,7 +1230,7 @@
 /* Important rules inside a layer outrank unlayered important declarations. */
 @layer components {
   .rincao-panel .management-ui summary:hover,
-  .rincao-panel .management-ui :is(button, a):hover {
+  .rincao-panel .management-ui :is(button, a):not(:disabled):hover {
     box-shadow: none !important;
     transform: none !important;
     filter: none !important;

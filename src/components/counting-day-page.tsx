@@ -8,7 +8,7 @@ import { CountingTripCompletions } from './counting-trip-completions';
 import type { CountingDay } from '@/lib/trip-counting';
 import type { CountingAttendance } from '@/lib/counting-attendance';
 import { getSaoPauloToday } from '@/lib/operational-date';
-import { CountingCommandStatus,countingButton,countingInput,countingPrimary,countTime,useCountingCommand,useCountingLeaveWarning,useCountingRead } from './counting-controls';
+import { CountingCommandStatus,countingButton,countingBlue,countingInput,countingPrimary,countTime,useCountingCommand,useCountingLeaveWarning,useCountingRead } from './counting-controls';
 
 export const vehicleColors = {
   waiting: 'border-[#cbd6e3] bg-[#e6ecf3] text-[#5c6f86]',
@@ -90,7 +90,7 @@ export function CountingDayPage({ date,manager,actorCpf,canGate = false,trip }: 
               <label className="grid gap-1 text-sm">Transportador<select className={countingInput} value={carrier} onChange={e => setCarrier(e.target.value)}><option value="">Do passeio: {group.transportName ?? 'não informado'}</option>{data?.carriers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
               <label className="grid gap-1 text-sm">Previsão de pessoas (opcional)<input className={countingInput} type="number" min="0" max="100000" step="1" inputMode="numeric" value={planned} onChange={e => setPlanned(e.target.value)}/></label>
               {manager && date !== today && <label className="grid gap-1 text-sm">Motivo da correção<input className={countingInput} maxLength={1000} value={reason} onChange={e => setReason(e.target.value)} required/></label>}
-              <button className={`${countingPrimary} w-full`} type="submit" value="count">Adicionar e contar agora</button><button className={`${countingButton} w-full`} type="submit" value="only">Só adicionar</button><button className={`${countingButton} w-full`} type="button" onClick={() => setAdding(null)}>Cancelar</button>
+              <button className={`${countingBlue} w-full`} type="submit" value="count">Adicionar e contar agora</button><button className={`${countingButton} w-full`} type="submit" value="only">Só adicionar</button><button className={`${countingButton} w-full`} type="button" onClick={() => setAdding(null)}>Cancelar</button>
             </fieldset>
           </form></dialog>}
         </article>;
@@ -99,7 +99,7 @@ export function CountingDayPage({ date,manager,actorCpf,canGate = false,trip }: 
     {selectedVehicle && <OperationalDialog sheet title={`${selectedVehicle.type === 'bus' ? 'Ônibus' : 'Van'} ${selectedVehicle.ordinal}${selectedVehicle.state === 'completed' ? ' concluído' : ''}`} onClose={() => setSelectedVehicle(null)}>
       <p className="mb-3 text-sm">{selectedVehicle.clientName}</p>
       <p className="mb-4 text-sm">{selectedVehicle.state === 'completed' ? `Contado por ${selectedVehicle.ownerName ?? 'Operador'} · ${selectedVehicle.total ?? '—'} pessoas.` : `${selectedVehicle.ownerName ?? 'Outro monitor'} está contando · ${selectedVehicle.draftSubtotal ?? '—'} pessoas até agora${selectedVehicle.startedAt ? `, desde ${countTime(selectedVehicle.startedAt).slice(0,5)}` : ''}.`}</p>
-      {selectedVehicle.state === 'completed' && selectedVehicle.lastCompletedRevision && <a className={`${countingPrimary} w-full`} href={`/contagem/filipetas/${selectedVehicle.lastCompletedRevision}`}>Ver filipeta</a>}
+      {selectedVehicle.state === 'completed' && selectedVehicle.lastCompletedRevision && <a className={`${countingBlue} w-full`} href={`/contagem/filipetas/${selectedVehicle.lastCompletedRevision}`}>Ver filipeta</a>}
       {editable && !selectedVehicle.financiallyFinalized && <a className={`${countingButton} mt-2 w-full`} href={`/contagem/veiculos/${selectedVehicle.id}`}>{selectedVehicle.state === 'completed' ? 'Recontar este veículo' : 'Assumir esta contagem'}</a>}
       <button type="button" className={`${countingButton} mt-2 w-full`} onClick={() => setSelectedVehicle(null)}>Fechar</button>
     </OperationalDialog>}
@@ -109,7 +109,7 @@ export function CountingDayPage({ date,manager,actorCpf,canGate = false,trip }: 
       return <li key={event.id} className="flex items-center gap-2.5 py-2.5 text-[13.5px]"><span aria-hidden="true" className={`h-[9px] w-[9px] shrink-0 rounded-full ${event.action === 'complete' ? 'bg-[#2e8b4e]' : event.action === 'add' ? 'bg-[#2f6fb2]' : 'bg-[#f2b33d]'}`}/><span className="min-w-0 flex-1">{event.actorName ?? 'Operador'} {feedActions[event.action]} {vehicle ? `${vehicle.type === 'bus' ? 'ônibus' : 'van'} ${vehicle.ordinal} · ${vehicle.clientName}` : 'um veículo'}{event.action === 'complete' && vehicle?.state === 'completed' ? ` (${vehicle.total ?? '—'} ${vehicle.total === 1 ? 'pessoa' : 'pessoas'})` : ''}</span><time className="shrink-0 text-xs text-[#6a7c92]" dateTime={event.at}>{countTime(event.at).slice(0,5)}</time></li>;
     })}</ul></section>}
     <p className="text-center text-xs text-[#6a7c92]">{checkedAt ? `Consultado às ${countTime(checkedAt)} · atualização a cada 5 s` : 'Consultando passeios…'}</p>
-    {!trip && date <= today && <div className="counting-footer sticky bottom-0 -mx-4 bg-[#f4f7fb]/95 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3"><a href={`/contagem/relatorios?date=${date}${date === today && !data?.closed ? '&finalizar=1' : ''}`} className={`${countingPrimary} w-full`}>{data?.closed || date !== today ? 'Ver relatórios do dia' : 'Finalizar contagem do dia'}</a></div>}
+    {!trip && date <= today && <div className="counting-footer sticky bottom-0 -mx-4 bg-[#f4f7fb]/95 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3"><a href={`/contagem/relatorios?date=${date}${date === today && !data?.closed ? '&finalizar=1' : ''}`} className={`${data?.closed || date !== today ? countingBlue : countingPrimary} w-full`}>{data?.closed || date !== today ? 'Ver relatórios do dia' : 'Finalizar contagem do dia'}</a></div>}
     </>}
   </div>;
 }

@@ -5,6 +5,7 @@ import { readCountingJson,sendCountingCommand,type CountingCommandBody } from '@
 import type { CountingResult } from '@/lib/trip-counting-contract';
 export const countingInput = 'min-h-12 w-full rounded-xl border border-[#d9e3ee] bg-white px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1764a0] disabled:bg-[#edf2f7]';
 export const countingButton = 'inline-flex min-h-11 items-center justify-center rounded-xl border border-[#d9e3ee] bg-white px-4 py-2 font-semibold hover:bg-[#e8f1fa] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1764a0] disabled:cursor-not-allowed disabled:opacity-50';
+export const countingBlue = `${countingButton} !border-[#2f6fb2] !bg-[#2f6fb2] !text-white hover:!bg-[#245d98]`;
 export const countingPrimary = `${countingButton} !border-[#2e8b4e] !bg-[#2e8b4e] !text-white hover:!bg-[#24703e]`;
 export const countStateLabel = { waiting: 'Livre',counting: 'Em contagem',completed: 'Concluído' };
 function subscribeConnection(change: () => void) { window.addEventListener('online',change); window.addEventListener('offline',change); return () => { window.removeEventListener('online',change); window.removeEventListener('offline',change); }; }

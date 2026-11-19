@@ -8,7 +8,7 @@ import { countingTotals } from '@/lib/counting-slip-contract';
 import { CountingVehicleIcon } from './counting-vehicle-icon';
 import { CountingSlipCard } from './counting-slip';
 import { CountingSignature } from './counting-signature';
-import { CountingCommandStatus,CountingStepper,countingButton,countingInput,countingPrimary,countStateLabel,countTime,useCountingCommand,useCountingConnection,useCountingLeaveWarning,useCountingRead } from './counting-controls';
+import { CountingCommandStatus,CountingStepper,countingButton,countingBlue,countingInput,countingPrimary,countStateLabel,countTime,useCountingCommand,useCountingConnection,useCountingLeaveWarning,useCountingRead } from './counting-controls';
 
 export type CountEditor = { draft: CountDraft; version: number; dirty: boolean };
 type EditorEvent = { type: 'edit'; draft: CountDraft } | { type: 'load'; draft: CountDraft; version: number } | { type: 'saved'; version: number; submitted: CountDraft };
@@ -123,7 +123,7 @@ export function CountingVehiclePage({ id,manager,actorCpf }: { id: number; manag
     {data && !data.cancelled && !data.closed && !data.financiallyFinalized && allowedDate && <div className="space-y-3">
       {(data.state === 'waiting' || (data.state === 'counting' && !data.revision?.ownerName)) && <button className={`${countingPrimary} w-full`} disabled={command.blocked || conflict || !version || (data.date !== data.today && !reason.trim())} onClick={() => void action('start')}>Iniciar contagem</button>}
       {data.state === 'counting' && !data.revision?.ownedByMe && data.revision?.ownerName && <><p className="rounded-xl bg-[#fff1cf] p-3 text-sm">{data.revision.ownerName} está contando · {data.draftSubtotal ?? '—'} pessoas até agora (provisório). Assumir recupera somente o rascunho confirmado.</p><button className={`${countingButton} w-full`} disabled={command.blocked || conflict || !reason.trim()} onClick={() => void action('takeover')}>Assumir contagem</button></>}
-      {data.state === 'completed' && <><a href={`/contagem/filipetas/${data.lastCompletedRevision}`} className={`${countingPrimary} w-full`}>Ver filipeta concluída</a><button className={`${countingButton} w-full`} disabled={command.blocked || conflict || !reason.trim()} onClick={() => void action('recount')}>Abrir recontagem</button></>}
+      {data.state === 'completed' && <><a href={`/contagem/filipetas/${data.lastCompletedRevision}`} className={`${countingBlue} w-full`}>Ver filipeta concluída</a><button className={`${countingButton} w-full`} disabled={command.blocked || conflict || !reason.trim()} onClick={() => void action('recount')}>Abrir recontagem</button></>}
     </div>}
     {data?.revision && <>
       {step !== 2 && <div className="sticky top-0 z-10 flex justify-between gap-3 rounded-2xl border border-[#d9e3ee] bg-[#f4f7fb]/95 p-4"><div><b className="text-3xl tabular-nums">{total.total}</b><small className="block text-[#6a7c92]">pessoas · {total.participants} participantes</small></div><div className="text-right"><b className="text-2xl tabular-nums">{total.team}</b><small className="block text-[#6a7c92]">professores e acompanhantes</small></div></div>}

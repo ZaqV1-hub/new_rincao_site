@@ -3,7 +3,7 @@ import { useEffect,useRef,useState } from 'react';
 import { CountingQrIcon } from './counting-qr-icon';
 import { getSaoPauloToday } from '@/lib/operational-date';
 import type { CountingAttendance } from '@/lib/counting-attendance';
-import { useCountingRead,countingButton,countingInput,countingPrimary } from './counting-controls';
+import { useCountingRead,countingButton,countingBlue,countingInput } from './counting-controls';
 type Attempt={code:string;date:string;idempotencyKey:string};
 export function CountingDayUsePage({date,actorCpf}:{date:string;actorCpf:string}){
   const {data,error,refresh}=useCountingRead<CountingAttendance>(`/api/contagem/dias/${date}/entradas`);
@@ -47,7 +47,7 @@ export function CountingDayUsePage({date,actorCpf}:{date:string;actorCpf:string}
     {!isToday && <p className="rounded-xl border border-[#d9e3ee] bg-white p-3">Esta data está disponível para consulta. A leitura de QR só está disponível hoje.</p>}
     {isToday && <div className="relative aspect-square overflow-hidden rounded-2xl bg-[#143756] p-4 text-white"><video ref={video} muted playsInline className={`h-full w-full rounded-xl object-cover ${camera?'':'hidden'}`} aria-label="Câmera para ler QR Code"/>{!camera&&<div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-10 text-center"><CountingQrIcon className="h-12 w-12 text-[#8fb9e3]"/><p className="max-w-48 text-sm">Aponte a câmera para o QR Code do voucher</p></div>}<div aria-hidden="true" className="pointer-events-none absolute inset-[15%] rounded-xl border-2 border-white/80"/></div>}
     {message&&<p role="status" className={`rounded-xl border p-4 ${resultState==='accepted'?'border-green-700 bg-green-50 text-green-900':resultState==='rejected'?'border-red-700 bg-red-50 text-red-900':'border-amber-600 bg-amber-50 text-amber-950'}`}><strong className="mb-1 block">{resultState==='accepted'?'Entrada liberada':resultState==='rejected'?'Entrada não autorizada':'Confira antes de liberar'}</strong>{message}</p>}
-    {pending?<button className={countingPrimary} disabled={busy} onClick={()=>void admit(pending.code,pending)}>Conferir a mesma tentativa</button>:isToday&&<button className={`${countingPrimary} gap-2`} disabled={busy||!ready} onClick={()=>camera?stop():void start()}>{!camera && <CountingQrIcon className="h-5 w-5"/>}{camera?'Parar câmera':'Ler QR Code'}</button>}
+    {pending?<button className={countingBlue} disabled={busy} onClick={()=>void admit(pending.code,pending)}>Conferir a mesma tentativa</button>:isToday&&<button className={`${countingBlue} gap-2`} disabled={busy||!ready} onClick={()=>camera?stop():void start()}>{!camera && <CountingQrIcon className="h-5 w-5"/>}{camera?'Parar câmera':'Ler QR Code'}</button>}
     {isToday && <form className="grid gap-3" onSubmit={e=>{e.preventDefault();void admit(code);}}><label className="grid gap-2">Código do ingresso<input className={countingInput} value={code} onChange={e=>setCode(e.target.value)} maxLength={100} autoComplete="off" required disabled={busy||!!pending}/></label><button className={countingButton} disabled={busy||!!pending||!ready}>Validar código</button></form>}
   </div>;
 }
