@@ -27,7 +27,7 @@ it("shows a pending exception, the Cielo deadline, and the stored dossier action
 
   expect(html).toContain("30000000000000000001");
   expect(html).toContain("71000000000000000001");
-  expect(html).toContain("Aguardando análise humana");
+  expect(html).toContain("Pendência no processamento");
   expect(html).toContain("Vínculo ambíguo");
   expect(html).toContain("Defesa recebida para análise");
   expect(html).toContain("11/11/2026");

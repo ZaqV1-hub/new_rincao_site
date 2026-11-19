@@ -1,10 +1,10 @@
 # Operação automática de contestações Cielo
 
-O job consulta casos confirmados pela API Cielo, correlaciona a compra, coleta evidências, arquiva o dossiê e alerta a equipe. **Todas as contestações pendentes exigem análise humana.** A apresentação da defesa é feita pela equipe na Cielo; o sistema acompanha as atualizações. Não existe aprovação/envio pelo painel.
+O job consulta casos confirmados pela API Cielo, correlaciona a compra, coleta evidências, arquiva o dossiê e apresenta a defesa automaticamente quando as verificações passam. **Não há aprovação humana obrigatória por motivo, inclusive fraude.** O painel acompanha documentos, envios, resultados e pendências; alertas operacionais vão para `dev@cluberincao.com.br`.
 
-**Política autorizada em 16/11/2026:** ativar consultas, recebimento de callbacks, geração de dossiês e alertas, mantendo todo envio automático bloqueado no código. `CIELO_CHARGEBACK_ENABLED=true` habilita apenas esse processamento. A antiga função de apresentação rejeita qualquer chamada antes de autenticação/rede, tanto em sandbox quanto em produção. A política anterior de envio elegível e sua autorização condicional estão substituídas por esta decisão. Ver [plano e registro operacional](../superpowers/plans/2026-11-09-chargeback-fraude-finalizacao.md).
+**Política autorizada em 19/11/2026:** envio automático para qualquer motivo/bandeira, incluindo Visa 104, Mastercard 4837 e Elo 83. A política `automatic-all-reasons-v1` substitui a análise obrigatória ativada em 16/11. `CIELO_CHARGEBACK_ENABLED=true` passa a permitir também apresentação de defesas reais. Não é necessário habilitar outra flag ou aprovar cada caso.
 
-**Estado verificado em 16/11, 11:12 BRT:** release `b396540` ativa; flag true, tarefa habilitada a cada cinco minutos e três execuções bem-sucedidas, sem casos nas janelas consultadas e sem defesas transmitidas. A varredura histórica segue em andamento. Nenhum callback externo legítimo observado nesta validação.
+O envio não garante êxito da defesa. O texto solicita revisão com os registros anexos; o PDF preserva as limitações de identidade, autenticação e histórico. Uso do ingresso não comprova identidade do portador. Nenhuma evidência ausente é inventada.
 
 ## 1. Habilitação com a Cielo
 
@@ -18,7 +18,7 @@ Solicitar ao suporte da API de Chargeback, com acompanhamento do gestor comercia
 - Confirmar requisitos de defesa por motivo, bandeira e estágio do processo; validar amostras reais. Documento gerado e retorno de aceitação do envio não significam vitória na disputa.
 - O filtro de consulta usa `idCase` (camelCase), conforme a collection e a chamada real; `idcase` minúsculo foi ignorado no sandbox. Confirmar limites inclusivos/exclusivos das datas e retenção do histórico. A janela máxima é 180 dias; o cliente rejeita datas iguais e trabalha com início anterior ao fim.
 
-**Histórico de homologação do envio, atualmente bloqueado:** em 07/11/2026 o envio JSON/base64 descrito no OpenAPI foi rejeitado por HTTP 400. O formato multipart do manual v3.2.1 e da collection foi aceito por HTTP 200/código 102. O cliente anterior enviava os campos textuais `establishmentNumber`, `idChargeback`, `reasonToRefuse` e `userName`, além do PDF binário no campo `file`, com nome `<idCase>.pdf`. Os identificadores mantêm todos os dígitos. Não tratar HTTP 200 isolado como confirmação: o sucesso de apresentação exige código 102. Esse aceite foi exercitado somente em sandbox, com dados fictícios.
+**Contrato de apresentação homologado:** em 07/11/2026 o envio JSON/base64 descrito no OpenAPI foi rejeitado por HTTP 400. O formato multipart do manual v3.2.1 e da collection foi aceito por HTTP 200/código 102. O cliente envia os campos textuais `establishmentNumber`, `idChargeback`, `reasonToRefuse` e `userName`, além do PDF binário no campo `file`, com nome `<idCase>.pdf`. Os identificadores mantêm todos os dígitos. Não tratar HTTP 200 isolado como confirmação: o sucesso de apresentação exige código 102. Esse aceite foi exercitado somente em sandbox, com dados fictícios.
 
 Referências oficiais: [credenciais](https://docs.cielo.com.br/pix-can-cbk/reference/autenticacao-e-credenciais-cb), [mTLS](https://docs.cielo.com.br/pix-can-cbk/reference/geracao-de-certificado-mtls-cb), [token](https://docs.cielo.com.br/pix-can-cbk/reference/obtencao-token), [consulta](https://docs.cielo.com.br/pix-can-cbk/reference/consulta-contestacao-pendente-tratada), [recusa](https://docs.cielo.com.br/pix-can-cbk/reference/recusa-de-contestacao), [webhooks](https://docs.cielo.com.br/pix-can-cbk/reference/webhook), [sandbox](https://docs.cielo.com.br/pix-can-cbk/reference/instrucoes-sandbox) e [códigos de retorno](https://docs.cielo.com.br/pix-can-cbk/reference/status-de-retorno).
 
@@ -64,7 +64,9 @@ Preservar a configuração existente da consulta E-commerce (`INGRESSO_CIELO_MER
 
 A varredura consulta uma página por execução, começando pelas notificações mais recentes e caminhando até o início do histórico configurado. O cursor é persistido; casos conhecidos têm prioridade e falhas não reiniciam a varredura. Um novo ciclo começa 24 horas após completar o anterior. Casos descobertos entram no próximo tick do job.
 
-A política `human-review-v1` exige análise humana para todos os motivos, inclusive serviço não recebido, fraude, uso integral e uso parcial. As verificações de pagamento, vínculo, valor e utilização apontam pendências no dossiê; não autorizam envio. Casos pendentes preparados usam o estado interno `exception`, exibido como **Aguardando análise humana**, preservando o esquema e os alertas existentes. Casos já tratados continuam em acompanhamento do ciclo de vida.
+A política `automatic-all-reasons-v1` não restringe motivo ou bandeira. Mantém as verificações técnicas existentes: primeira contestação identificada, moeda real, caso pendente e dentro do prazo, vínculo inequívoco com compra/pagamento/EC, captura confirmada, ausência de estorno ou cobrança duplicada, valores conciliados e uso válido cobrindo o valor integral. Caso/evidências são consultados novamente antes de transmitir. Uma inconsistência mantém o caso em `exception` (**Pendência no processamento**) e gera alerta; remover análise humana por fraude não autoriza enviar documentos da compra errada ou afirmar fatos sem comprovação.
+
+Antes da primeira transmissão, o contador de tentativas é reiniciado: revisões periódicas anteriores não consomem as 12 tentativas de envio. Falhas definitivamente transitórias mantêm esse limite nas tentativas seguintes; respostas incertas nunca autorizam reenvio automático.
 
 Os alertas usam `queueLegacyEmail`. Configurar `EMAIL_SMTP_SERVER`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_SSL`, `EMAIL_SMTP_USERNAME`, `EMAIL_SMTP_PASSWORD`, `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME` e `EMAIL_REPLYTO_ADDRESS`. Para entrega síncrona, usar `PASSWORD_RESET_SEND_SYNC=true` — esse é o nome já usado pelo módulo compartilhado. Se estiver `false`, comprovar que existe um consumidor ativo da fila `email`. Enfileiramento não comprova entrega ou leitura; testar uma mensagem de alerta na caixa operacional e monitorar falhas SMTP.
 
@@ -103,7 +105,7 @@ Na VM, o arquivo fica fora do checkout; usar seu caminho absoluto:
 node --env-file="C:\SitesData\Rincao\hml\.env.local" "C:\Deploy\Rincao\hml\repo\scripts\run-chargeback-sync.mjs"
 ```
 
-**Esse comando consulta casos e prepara dossiês/alertas; não apresenta defesas.** Conferir antes que a release contém a política obrigatória de análise humana e o bloqueio na função de apresentação. O timeout limita a espera do runner; não garante cancelamento do worker no servidor. Em resultado incerto, consultar o estado persistido em vez de forçar retransmissão.
+**Esse comando pode apresentar defesas reais em produção.** A ativação foi autorizada em 19/11/2026; conferir ambiente, release e credenciais antes de executá-lo. O timeout limita a espera do runner; não garante cancelamento do worker no servidor. Em resultado incerto, consultar o estado persistido em vez de forçar retransmissão.
 
 Para registrar uma tarefa a cada cinco minutos, adaptar o exemplo abaixo ao ambiente confirmado. Ele acompanha o padrão de conta `SYSTEM` já usado em `scripts/install-vm-runtime.ps1`; a conta precisa ler o arquivo de ambiente. Nenhum segredo aparece nos argumentos da tarefa. O exemplo cria uma tarefa nova, sem sobrescrever tarefas existentes:
 
@@ -145,7 +147,7 @@ Saídas esperadas:
 
 - Validar migração reexecutável e backup/restauração incluindo bytes dos PDFs e snapshots.
 - Autenticação mTLS/OAuth, consultas PENDING/DONE, código 102, consulta de documento e ciclo de vida foram exercitados no sandbox. Paginação e ausência de resultados foram exercitadas também em produção, somente em leitura. O documento retornado pelo sandbox é fixo e diferente do PDF enviado; a confirmação por hash e a recuperação de resposta perdida têm testes locais, mas ainda exigem validação externa em cenário com persistência real. Não remover essas proteções para acomodar o simulador.
-- Validar casos completos e incompletos terminando em análise humana, PDF arquivado, alerta sem duplicação, evento duplicado e consulta do resultado de uma defesa apresentada externamente. Nenhum cenário pode chamar a apresentação de defesa, mesmo com a integração habilitada. Preservar a reconciliação de transmissões incertas anteriores à mudança.
+- Validar envio único de casos elegíveis de serviço e fraude, exceções com alerta, PDF arquivado, evento duplicado, mudança de evidência, falha transitória e resposta de envio perdida. Reinício e resposta incerta devem reconciliar o documento/estado sem retransmitir cegamente.
 - Validar que resultado favorável/desfavorável vem do ciclo de vida e permanece distinto de defesa apenas apresentada.
 - Confirmar entrega de alerta, funcionamento da tarefa após reinício da VM e ausência de tokens/PDFs/dados de pagamento nos logs.
 
@@ -167,12 +169,12 @@ Abrir `/painel/compras/contestacoes` com permissão de consulta de compras e usa
 
 Sucesso técnico do job não significa ausência de exceções por caso nem vitória na disputa. Conferir prazo, pendência, última sincronização, retorno Cielo, estado do envio e dossiê de cada caso. Alertas vão para `dev@cluberincao.com.br`; teste real de entrega confirmado no Gmail em 09/11. A saúde exibida depende da atualização da consulta; não é um alerta externo de indisponibilidade do servidor.
 
-## 8. Ativação e manutenção da política de análise humana
+## 8. Ativação e operação do envio automático
 
-Em 16/11/2026, o responsável autorizou ativar o processamento com análise humana obrigatória para todos os casos. Não é necessário aguardar a confirmação dos webhooks para consultar periodicamente a API já habilitada. A recepção externa só estará comprovada quando houver um callback legítimo persistido; a previsão anterior de liberação não é prova de entrega.
+Em 19/11/2026, após o período de operação com análise humana, o responsável autorizou o envio automático para todos os motivos, incluindo fraude. A autorização anterior de análise humana obrigatória está substituída. Os critérios de consistência e segurança permanecem; casos já tratados não são reabertos.
 
-Antes de ativar: testes aprovados, revisão independente concluída, código publicado e release verificada na VM. Preservar cópia protegida do ambiente, ponteiro de release e XML da tarefa. Alterar apenas `CIELO_CHARGEBACK_ENABLED=true`, reiniciar o runtime e conferir a saúde. Habilitar a tarefa existente `RincaoChargebackSync-prod` e observar duas execuções concluídas, sem criar casos fictícios em produção. Não alterar credenciais nem permissões de ingresso.
+Implantação: testar, revisar e publicar; preservar cópia protegida do ambiente, ponteiro da release e XML da tarefa. Desabilitar temporariamente `RincaoChargebackSync-prod` e persistir `CIELO_CHARGEBACK_ENABLED=false` antes do deploy. Validar a nova release, então habilitar flag, reiniciar o runtime, habilitar a tarefa existente e acompanhar duas execuções. Não modificar credenciais, recriar tarefas ou fabricar casos de produção.
 
-A equipe acompanha `/painel/compras/contestacoes`, verifica os prazos, baixa o PDF e avalia se há evidência suficiente. A apresentação é manual pela Cielo. Casos de fraude podem exigir dados adicionais; uso do ingresso, mesmo CPF ou histórico de compras não comprovam a identidade do portador. O dossiê registra essas limitações. A resposta da Expansão de 11/11 foi incorporada à documentação e às evidências auxiliares em 13/11.
+A equipe acompanha `/painel/compras/contestacoes`: **Defesa apresentada** é recibo técnico, não vitória. **Tratada na Cielo** indica tratamento externo; **Finalizada na Cielo** deve ser interpretada junto do retorno favorável/desfavorável. **Pendência no processamento**, **Envio bloqueado** e **Envio a confirmar** exigem atenção ao motivo e ao prazo. Não apresentar outra defesa manualmente se o envio estiver em curso ou incerto sem confirmar a situação na Cielo.
 
-Rollback: desabilitar primeiro a tarefa e restaurar `CIELO_CHARGEBACK_ENABLED=false`, reiniciando o runtime. **Nunca restaurar uma release anterior à política de análise humana com a flag ligada**, pois versões anteriores podiam apresentar defesas. Preservar as tabelas e os estados; não redefinir `submitting`/`uncertain` para a fila.
+Rollback: desabilitar a tarefa, persistir `CIELO_CHARGEBACK_ENABLED=false` e reiniciar o runtime antes de restaurar uma release. Preservar tabelas, PDFs, recibos e estados incertos; não redefinir `submitting`/`uncertain` para a fila. A confirmação de recepção externa por webhook continua separada da saúde da consulta periódica.

@@ -16,7 +16,7 @@ const dateTime = new Intl.DateTimeFormat("pt-BR", {
 const statusLabels: Record<string, string> = {
   queued: "Na fila",
   retry: "Aguardando nova tentativa",
-  exception: "Aguardando análise humana",
+  exception: "Pendência no processamento",
   submitting: "Apresentando defesa",
   uncertain: "Envio a confirmar",
   submitted: "Defesa apresentada",
@@ -129,7 +129,7 @@ export function ChargebackAutomationSummary({ automation }: { automation: Charge
           <div><dt className="inline font-semibold">Última execução bem-sucedida: </dt><dd className="inline">{formatDate(automation.lastSuccessAt)}</dd></div>
         </dl>
       )}
-      <p className="mt-2">Todas as contestações exigem análise humana. Baixe e revise o dossiê; a apresentação da defesa é feita pela equipe na Cielo. Nenhuma defesa é enviada automaticamente. Use Atualizar consulta para acompanhar os casos.</p>
+      <p className="mt-2">A automação envia defesas para todos os motivos, incluindo fraude, quando as verificações de compra, pagamento, uso e prazo são atendidas. Casos com pendências geram alertas. Use Atualizar consulta para acompanhar o envio e o retorno da Cielo.</p>
     </div>
   );
 }

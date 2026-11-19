@@ -5,6 +5,7 @@ import { getCieloChargebackDocument, getCieloChargebackLifecycle, isCieloChargeb
 import { collectChargebackEvidence, describeChargebackIssue, evaluateChargebackEvidence } from "@/lib/chargeback-dossier";
 import { renderChargebackDossierPdf } from "@/lib/chargeback-dossier-pdf";
 import { getDueChargebacks, saveChargebackDossier, updateChargebackState, upsertChargeback, withChargebackWorkerLock, type ChargebackQuery, type StoredChargeback } from "@/lib/chargeback-repository";
+import { presentChargebackDefense } from "@/lib/chargeback-submission";
 import { queueLegacyEmail } from "@/lib/legacy-email";
 
 function dateToday() {
@@ -102,11 +103,25 @@ export async function processChargeback(client: ChargebackQuery, row: StoredChar
   )).rows[0];
   const unchanged = previous?.policy_version === evaluation.policyVersion && isDeepStrictEqual(materialEvidence(previous.snapshot), materialEvidence(evidence));
   const pdf = unchanged ? previous.pdf : await renderChargebackDossierPdf(evidence);
-  if (!unchanged) await saveChargebackDossier(client, row.id, evidence, pdf, evaluation.policyVersion);
-  // Every pending case requires a person, even if all evidence checks pass.
-  const issues = ["Análise humana obrigatória. Revise o dossiê e apresente a defesa pela Cielo.",
-    ...evaluation.issues.map(describeChargebackIssue)];
-  await updateChargebackState(client, row.id, "exception", issues.join(" ").slice(0, 2000), 360);
+  const dossierId = unchanged ? previous.id : await saveChargebackDossier(client, row.id, evidence, pdf, evaluation.policyVersion);
+  if (!evaluation.eligible) {
+    await updateChargebackState(client, row.id, "exception", evaluation.issues.map(describeChargebackIssue).join(" ").slice(0, 2000), 360);
+    return;
+  }
+
+  // Recheck remote eligibility after collection/rendering, before recording a transmission intent.
+  const refreshed = await refreshCase(current);
+  if (refreshed.remoteStatus !== "PENDING" || JSON.stringify(refreshed) !== JSON.stringify(current) || refreshed.treatmentDeadline < dateToday()) {
+    await upsertChargeback(client, refreshed);
+    await updateChargebackState(client, row.id, "retry", "Caso alterado durante a coleta. Aguardando nova verificação.", 5);
+    return;
+  }
+  const latestEvidence = await collectChargebackEvidence(refreshed);
+  if (!evaluateChargebackEvidence(latestEvidence).eligible || !isDeepStrictEqual(materialEvidence(latestEvidence), materialEvidence(evidence))) {
+    await updateChargebackState(client, row.id, "retry", "Evidências alteradas durante a geração. Nova coleta programada.", 5);
+    return;
+  }
+  await presentChargebackDefense(client, row.id, refreshed, dossierId, pdf, evaluation.reason);
 }
 
 async function alertExceptions(client: ChargebackQuery) {
@@ -122,7 +137,7 @@ async function alertExceptions(client: ChargebackQuery) {
     const key = createHash("sha256").update(`${item.status}|${item.issue}|${item.deadline}`).digest("hex");
     if (key === item.alert_key) continue;
     // The email only includes identifiers and status. Detailed evidence stays behind panel authentication.
-    const emailId = await queueLegacyEmail({ to: recipient, toName: null, subject: `Contestação Cielo ${item.id_case} precisa de atenção`, html: `<p>O caso ${item.id_case} precisa de análise humana. Nenhuma defesa é enviada automaticamente.</p><p>Consulte Compras → Contestações no painel para ver o motivo e o prazo.</p>` });
+    const emailId = await queueLegacyEmail({ to: recipient, toName: null, subject: `Contestação Cielo ${item.id_case} precisa de atenção`, html: `<p>O processamento automático do caso ${item.id_case} encontrou uma pendência e precisa de atenção.</p><p>Consulte Compras → Contestações no painel para ver o motivo e o prazo.</p>` });
     if (!emailId) throw new Error("chargeback_alert_not_queued");
     await client.query("UPDATE chargeback_cases SET alert_key=$2 WHERE id=$1", [item.id, key]);
   }

@@ -580,15 +580,6 @@ export async function collectChargebackEvidence(chargeback: CieloChargebackCase)
   return evidence;
 }
 
-function serviceNotReceived(chargeback: CieloChargebackCase) {
-  const brand = chargeback.transactionDetails.cardAssociationName.toLowerCase().trim();
-  const reason = chargeback.chargebackDetails.reasonCode.trim();
-  // Cielo publishes legacy 131 (Visa) and 4859 (Mastercard). Visa and Mastercard
-  // document 13.1 and 4855 respectively. Mastercard 4853 covers multiple disputes.
-  return (brand === "visa" && ["13.1", "131"].includes(reason)) ||
-    (["master", "mastercard", "master card"].includes(brand) && ["4855", "4859"].includes(reason));
-}
-
 function captured(payment: PaymentAttempt) {
   return /^(2|paymentconfirmed|paid|confirmed|completed)$/i.test(payment.status);
 }
@@ -610,7 +601,6 @@ export function evaluateChargebackEvidence(evidence: ChargebackEvidence) {
   if (!["REAL", "BRL", "986"].includes(chargeback.transactionDetails.currency?.trim().toUpperCase() ?? "")) {
     issues.add("unsupported_currency");
   }
-  if (!serviceNotReceived(chargeback)) issues.add("unsupported_reason");
   if (chargeback.remoteStatus !== "PENDING") issues.add("case_not_pending");
   if (!payment || !captured(payment) || (evidence.livePayment && !captured(evidence.livePayment))) {
     issues.add("payment_capture_unconfirmed");
@@ -648,11 +638,10 @@ export function evaluateChargebackEvidence(evidence: ChargebackEvidence) {
   if (!notifiedCents || amountCovered !== notifiedCents) issues.add("partial_or_unproven_use");
 
   return {
-    requiresHumanReview: true as const,
-    eligible: false,
-    reason: issues.size === 0 ? "Registros de validação cobrem os ingressos pagos da transação." : [...issues][0],
+    eligible: issues.size === 0,
+    reason: issues.size === 0 ? "Solicitamos revisão com base nos registros de compra, pagamento e utilização anexos." : [...issues][0],
     issues: [...issues],
-    policyVersion: "human-review-v1",
+    policyVersion: "automatic-all-reasons-v1",
   };
 }
 
@@ -668,7 +657,6 @@ const issueDescriptions = new Map([
   ["establishment_unverified", "O vínculo com o estabelecimento informado pela Cielo ainda precisa ser confirmado."],
   ["unsupported_process", "O estágio informado pela Cielo exige análise específica."],
   ["unsupported_currency", "A moeda da transação precisa ser conferida."],
-  ["unsupported_reason", "O motivo informado pela Cielo exige análise das evidências disponíveis."],
   ["case_not_pending", "A contestação consta como tratada na Cielo."],
   ["payment_capture_unconfirmed", "A captura do pagamento ainda precisa ser confirmada."],
   ["payment_reversal", "Há registro de cancelamento ou estorno da cobrança."],

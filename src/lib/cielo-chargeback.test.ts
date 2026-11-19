@@ -198,13 +198,70 @@ describe("Cielo chargeback API", () => {
     replies.push({ error: "client_secret=secret" });
     await expect(listCieloChargebacks("PENDING")).rejects.toMatchObject({ code: "cielo_transport_error", message: "cielo_transport_error", transient: true });
   });
-  it.each(["sandbox", "production"])("blocks all defense submissions before any network call in %s", async (environment) => {
-    process.env.CIELO_CHARGEBACK_ENVIRONMENT = environment;
-    process.env.CIELO_CHARGEBACK_ENABLED = "true";
-    expect(isCieloChargebackConfigured()).toBe(true);
-    await expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), Buffer.from("%PDF-test"), "Defesa"))
-      .rejects.toMatchObject({ code: "cielo_human_review_required", transient: false, uncertain: false });
-    expect(requests).toHaveLength(0);
+  const pdf = Buffer.from("%PDF-1.7\n1 0 obj << /Type /Page >> endobj\n%%EOF");
+  it("submits multipart fields and exact PDF bytes with a lossless ID and accepts only code102", async () => {
+    replies.push({ body: { code: 102, message: "Chargeback recusado com sucesso!" } });
+    const binaryPdf = Buffer.concat([pdf.subarray(0, -5), Buffer.from([0, 128, 255]), Buffer.from("%%EOF")]);
+    await expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), binaryPdf, "Serviço comprovado.")).resolves.toMatchObject({ code: "102" });
+    const sent = requests.at(-1)!;
+    expect(sent.url).toContain("/chargeback/v1/refuse");
+    expect(sent.options.method).toBe("PUT");
+    const headers = sent.options.headers as Record<string, string | number>;
+    expect(headers["Content-Type"]).toMatch(/^multipart\/form-data; boundary=/);
+    expect(headers["Content-Length"]).toBe(sent.rawBody.length);
+    const form = await new Response(new Uint8Array(sent.rawBody), { headers: { "Content-Type": String(headers["Content-Type"]) } }).formData();
+    expect(Object.fromEntries([...form.entries()].filter(([name]) => name !== "file"))).toEqual({ establishmentNumber: "1234567890", idChargeback: "98765432109876543210", reasonToRefuse: "Serviço comprovado.", userName: "ops@example.test" });
+    const file = form.get("file");
+    expect(file).toMatchObject({ name: `${fixture.idCase}.pdf`, type: "application/pdf" });
+    if (!file || typeof file === "string") throw new Error("Expected a multipart file");
+    expect(Buffer.from(await file.arrayBuffer())).toEqual(binaryPdf);
+  });
+  it.each([
+    [{ errorMessage: { code: "901", message: "private" } }, "901", true, true],
+    [{ code: "412", details: [{ code: "902", message: "private" }] }, "902", false, false],
+    [{ errorMessage: { details: [{ code: "920", message: "private" }] } }, "920", false, false],
+    [{ errorMessage: { code: "931", message: "private" } }, "931", false, true],
+  ] as const)("preserves rejection and uncertainty for nested HTTP400 business errors %#", async (body, code, transient, uncertain) => {
+    replies.push({ status: 400, body });
+    await expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), pdf, "Defesa")).rejects.toMatchObject({ code: `cielo_business_${code}`, message: `cielo_business_${code}`, transient, uncertain });
+  });
+  it("never promotes a nested success-looking code on HTTP503 to success", async () => {
+    replies.push({ status: 503, body: { errorMessage: { code: "102" } } });
+    await expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), pdf, "Defesa")).rejects.toMatchObject({ code: "cielo_http_503", transient: true, uncertain: true });
+  });
+  it("marks uncertain submissions for reconciliation and never retries PUT automatically", async () => {
+    replies.push({ error: "connection reset" });
+    await expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), pdf, "Defesa")).rejects.toMatchObject({ code: "cielo_transport_error", uncertain: true });
+    expect(requests.filter((entry) => entry.options.method === "PUT")).toHaveLength(1);
+  });
+  it("keeps a defense submission uncertain on HTTP204", async () => {
+    replies.push({ status: 204, raw: "" });
+    await expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), pdf, "Defesa")).rejects.toMatchObject({ code: "cielo_invalid_json", uncertain: true });
+    expect(requests.filter((entry) => entry.options.method === "PUT")).toHaveLength(1);
+  });
+  it.each([400, 412, 409])("preserves already-treated code931 from HTTP%s for reconciliation without leaking response messages", async (status) => {
+    replies.push({ status, body: { code: 931, message: "private upstream details" } });
+    await expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), pdf, "Defesa")).rejects.toMatchObject({ code: "cielo_business_931", message: "cielo_business_931", transient: false, uncertain: true });
+  });
+  it("does not accept a success-looking business code on an unsuccessful HTTP response", async () => {
+    replies.push({ status: 503, body: { code: 102 } });
+    await expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), pdf, "Defesa")).rejects.toMatchObject({ code: "cielo_http_503", transient: true, uncertain: true });
+  });
+  it("aborts a stalled submission after its wall-clock deadline with an uncertain result", async () => {
+    vi.useFakeTimers();
+    replies.push({ hang: true });
+    const assertion = expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), pdf, "Defesa")).rejects.toMatchObject({ code: "cielo_timeout", transient: true, uncertain: true });
+    await vi.advanceTimersByTimeAsync(30_001);
+    await assertion;
+  });
+  it("refuses an expired treatment deadline before transmission using the Brazilian calendar date", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-12-01T02:59:00Z"));
+    replies.push({ body: { code: 102 } });
+    await expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), pdf, "Defesa")).resolves.toMatchObject({ code: "102" });
+    vi.setSystemTime(new Date("2026-12-01T03:00:00Z"));
+    await expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), pdf, "Defesa")).rejects.toMatchObject({ code: "cielo_deadline_expired", uncertain: false });
+    expect(requests.filter((entry) => entry.options.method === "PUT")).toHaveLength(1);
   });
   it("uses production hosts only when explicitly selected", async () => {
     process.env.CIELO_CHARGEBACK_ENVIRONMENT = "production";
@@ -212,5 +269,31 @@ describe("Cielo chargeback API", () => {
     await listCieloChargebacks("PENDING");
     expect(requests[0].url).toBe("https://api-internet.cielo.com.br/cielo-security-sys-web/oauth/v2/MulesoftPRD/protocol/openid-connect/token");
     expect(requests[1].url).toContain("https://api-internet.cielo.com.br/cielo-chargeback-sys-external/");
+  });
+  it.each([
+    [{ code: 901 }, 200, true, true],
+    [{ code: 931 }, 200, false, true],
+    [{ code: 905 }, 200, false, false],
+    [{}, 200, false, true],
+    [{}, 503, true, true],
+    [{}, 403, false, false],
+    [{ code: 777 }, 200, false, true],
+    [{ code: 101 }, 200, false, true],
+  ])("distinguishes rejected and uncertain submit replies %#", async (body, status, transient, uncertain) => {
+    replies.push({ body, status: status as number });
+    await expect(submitCieloChargebackDefense(parseCieloChargebackCase(fixture), pdf, "Defesa")).rejects.toMatchObject({ transient, uncertain });
+  });
+  it("rejects bad PDF, oversized PDF, too many pages, invalid reason, wrong EC and treated case before network", async () => {
+    const valid = parseCieloChargebackCase(fixture);
+    for (const [item, data, reason] of [
+      [valid, Buffer.from("not pdf"), "Defesa"],
+      [valid, Buffer.alloc(8_000_001), "Defesa"],
+      [valid, Buffer.from("%PDF-1.7\n" + "/Type /Page\n".repeat(11) + "%%EOF"), "Defesa"],
+      [valid, pdf, "x".repeat(101)],
+      [valid, pdf, ""],
+      [{ ...valid, establishmentNumber: "2222222222" }, pdf, "Defesa"],
+      [{ ...valid, remoteStatus: "DONE" }, pdf, "Defesa"],
+    ] as const) await expect(submitCieloChargebackDefense(item, data, reason)).rejects.toThrow();
+    expect(requests).toHaveLength(0);
   });
 });

@@ -231,12 +231,12 @@ describe("chargeback evidence", () => {
     expect(JSON.stringify(evidence)).not.toMatch(/4444224444441234|foreign-document-secret|private-reference|private-cavv|secret-not-version/);
   });
 
-  it.each([["Visa", "104"], ["Mastercard", "4837"], ["Elo", "83"]])("keeps fraud blocked for %s %s with declarations and used tickets", async (brand, reasonCode) => {
+  it.each([["Visa", "104"], ["Mastercard", "4837"], ["Elo", "83"]])("allows fraud %s %s without a human approval gate", async (brand, reasonCode) => {
     candidates = [payment({ EstablishmentNumber: "4234", Eci: "05", Authenticate: true, CreditCard: { Holder: "Titular Declarado", Brand: brand } })];
     attempts = candidates;
     const evidence = await collectChargebackEvidence({ ...chargeback, transactionDetails: { ...chargeback.transactionDetails, cardAssociationName: brand }, chargebackDetails: { reasonCode, reasonDescription: "Fraude" } });
     expect(evidence.paymentAttempts[0]).toMatchObject({ holderName: "Titular Declarado" });
-    expect(evaluateChargebackEvidence(evidence)).toMatchObject({ eligible: false, issues: expect.arrayContaining(["unsupported_reason"]) });
+    expect(evaluateChargebackEvidence(evidence)).toMatchObject({ eligible: true, issues: [], policyVersion: "automatic-all-reasons-v1" });
   });
 
   it("uses the exact TID, includes failed attempts and delivery, and excludes raw card/authentication secrets", async () => {
@@ -261,7 +261,7 @@ describe("chargeback evidence", () => {
 
     configured.mockReturnValue(true);
     querySale.mockResolvedValue(JSON.parse(payment().payload).sale);
-    expect(evaluateChargebackEvidence(await collectChargebackEvidence(chargeback))).toMatchObject({ eligible: false, requiresHumanReview: true, issues: [] });
+    expect(evaluateChargebackEvidence(await collectChargebackEvidence(chargeback))).toMatchObject({ eligible: true, issues: [] });
   });
 
   it.each([
@@ -269,7 +269,11 @@ describe("chargeback evidence", () => {
     ["Visa", "13.1", "BRL", "1"],
     ["Mastercard", "4855", "986", "1"],
     ["Master", "4859", "REAL", "PRIMEIRO_CHARGEBACK"],
-  ])("allows documented service reason %s %s in %s at stage %s", async (brand, reasonCode, currency, process) => {
+    ["Elo", "83", "REAL", "PRIMEIRO_CHARGEBACK"],
+    ["Visa", "104", "REAL", "PRIMEIRO_CHARGEBACK"],
+    ["Mastercard", "4837", "REAL", "PRIMEIRO_CHARGEBACK"],
+    ["Outra bandeira", "9999", "REAL", "PRIMEIRO_CHARGEBACK"],
+  ])("allows any reason %s %s in %s at stage %s", async (brand, reasonCode, currency, process) => {
     candidates = [payment({ EstablishmentNumber: "4234" })];
     attempts = [...candidates];
     const evidence = await collectChargebackEvidence({
@@ -280,7 +284,7 @@ describe("chargeback evidence", () => {
     });
     expect(evidence.case.process).toBe(process);
     expect(evidence.case.transactionDetails.currency).toBe(currency);
-    expect(evaluateChargebackEvidence(evidence)).toMatchObject({ eligible: false, requiresHumanReview: true, issues: [] });
+    expect(evaluateChargebackEvidence(evidence)).toMatchObject({ eligible: true, issues: [] });
   });
 
   it.each([
@@ -375,7 +379,7 @@ describe("chargeback evidence", () => {
     expect(evaluateChargebackEvidence(evidence).issues).toContain("partial_or_unproven_use");
   });
 
-  it("records malformed linked audit data and rejects evidence for refunds, duplicates and unsupported reasons", async () => {
+  it("records malformed linked audit data and rejects evidence for refunds and duplicates even on fraud cases", async () => {
     candidates = [payment({ VoidedAmount: 50 })];
     attempts = [candidates[0], payment({ Tid: "SECOND" }, "SECOND")];
     auditRows = [{ id: 1, purchase_id: 20, action: "validar", details: "invalid" }];
@@ -384,7 +388,7 @@ describe("chargeback evidence", () => {
       chargebackDetails: { reasonCode: "104", reasonDescription: "Fraude" },
     });
     expect(evaluateChargebackEvidence(evidence).issues).toEqual(expect.arrayContaining([
-      "voucher_audit_incomplete", "payment_reversal", "duplicate_capture", "unsupported_reason",
+      "voucher_audit_incomplete", "payment_reversal", "duplicate_capture",
     ]));
   });
 });

@@ -1,6 +1,22 @@
 # Finalização da preparação de chargebacks de fraude
 
-## Objetivo vigente — decisão de 16/11/2026
+## Objetivo vigente — autorização de 19/11/2026
+
+Habilitar e manter ativo o envio automático de defesas para todos os motivos, incluindo fraude, sem aprovação humana obrigatória. Substitui a decisão de 16/11. Preservar vínculo/EC, prazo, BRL/primeira contestação, captura/ausência de estorno e duplicidade, valores/uso integral, limites do PDF, revalidação antes de enviar e reconciliação sem reenvio incerto. Argumentação estritamente factual, sem presumir identidade do portador ou suficiência para vencer a disputa.
+
+Plano: restaurar cliente e apresentação já homologados; remover o bloqueio por motivo e análise humana; atualizar painel/alertas/testes/runbook; testar submissão, fraude, recuperação e banco isolado; revisar; fazer backup e pausar a tarefa para implantar; publicar no remoto; ativar após conferir a release; verificar execuções reais. Escopo sem nova migração ou novas credenciais. Os registros de 16/11 abaixo são históricos.
+
+Verificação inicial: produção em `5d9116d`, integração e tarefa ativas no modo humano; 13 casos tratados (3 remote_done, 10 resolved), nenhum pendente local, sem recibos/envios automáticos. Varredura histórica completou em 19/11. Consulta Context7 sem documentação específica de Chargeback; referências oficiais Cielo verificadas como alternativa. Sem grafo Graphify existente; callers e contratos conferidos por busca direta.
+
+Implementação: política `automatic-all-reasons-v1`, justificativa “Solicitamos revisão com base nos registros de compra, pagamento e utilização anexos.” Revisão independente identificou contador de revisões antigas consumindo o orçamento de tentativas; corrigido para reiniciar apenas na primeira intenção de envio, com regressão PostgreSQL (20 revisões, falha transitória, sucesso posterior). Achado encerrado pelo revisor.
+
+Validação: 170 testes unitários/contratos/painel, 13 integrações PostgreSQL e seis testes do runner aprovados; TypeScript e ESLint sem erros. Revisão independente concluída. O sandbox rejeitou a autenticação com as credenciais de produção (HTTP 400 no token, nenhum PUT executado); credenciais específicas de sandbox não estão persistidas na VM. Mantida a homologação externa anterior do mesmo contrato multipart, com regressões locais atuais. Nenhum dado real foi enviado ao sandbox. Implantação e ativação em andamento; registro final após validação na VM.
+
+---
+
+## Histórico — decisão de 16/11/2026 (substituída)
+
+### Escopo anterior de 16/11/2026
 
 Ativar a operação de consultas, webhooks, geração de dossiês e alertas com **análise humana obrigatória para todas as contestações**. Nenhuma defesa pode ser transmitida automaticamente, mesmo quando o conjunto de evidências está completo. A equipe revisa o PDF no painel e apresenta a defesa na Cielo. Esta decisão substitui o objetivo de envio automático e as condições de ativação históricas abaixo.
 
