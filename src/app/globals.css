@@ -1226,3 +1226,16 @@
 
 .rincao-panel .management-ui :is(button, a):hover { box-shadow: none !important; transform: none !important; filter: none !important; }
 .management-action:hover:not(:disabled) { background: #eaf2fb; }
+
+/* Important rules inside a layer outrank unlayered important declarations. */
+@layer components {
+  .rincao-panel .management-ui summary:hover,
+  .rincao-panel .management-ui :is(button, a):hover {
+    box-shadow: none !important;
+    transform: none !important;
+    filter: none !important;
+  }
+  .rincao-panel .management-ui summary:focus-visible {
+    box-shadow: none !important;
+  }
+}
