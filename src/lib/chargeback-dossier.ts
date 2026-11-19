@@ -701,7 +701,7 @@ export function evaluateChargebackEvidence(evidence: ChargebackEvidence) {
     eligible: false,
     reason: issues.size === 0 ? "Registros de validação cobrem os ingressos pagos da transação." : [...issues][0],
     issues: [...issues],
-    policyVersion: "human-review-v2",
+    policyVersion: "human-review-v3",
   };
 }
 

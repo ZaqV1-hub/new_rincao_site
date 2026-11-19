@@ -47,11 +47,11 @@ function Dossier({ evidence }: { evidence: ChargebackEvidence }) {
   return (
     <Document title={`Contestação ${chargeback.idCase} - resumo da compra e análise`} author="Parque Rincão"
       creationDate={capturedAt} modificationDate={capturedAt}>
-      {evidence.purchaseId && evidence.purchase ? <PurchaseSummaryPage detail={buildChargebackPurchaseSummary(evidence)} /> : null}
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.brand}>CLUBE &amp; PARK RINCÃO</Text>
           <Text style={styles.title}>Dossiê de contestação</Text>
+          {evidence.purchaseId && evidence.purchase && <Text style={styles.note}>O Comprovante de Compra de Ingressos está na próxima página.</Text>}
           <Text style={styles.note}>Caso Cielo {chargeback.idCase} · Compra {display(evidence.purchaseId)}</Text>
         </View>
 
@@ -94,6 +94,7 @@ function Dossier({ evidence }: { evidence: ChargebackEvidence }) {
         <Text style={styles.note}>Documento preparado para revisão humana antes da apresentação à Cielo. Dados consultados em {dossierDate(evidence.capturedAt)}. Datas desconhecidas permanecem não informadas.</Text>
         <Text fixed style={styles.footer} render={({ pageNumber, totalPages }) => `Caso ${chargeback.idCase} · Página ${pageNumber}/${totalPages}`} />
       </Page>
+      {evidence.purchaseId && evidence.purchase ? <PurchaseSummaryPage detail={buildChargebackPurchaseSummary(evidence)} /> : null}
     </Document>
   );
 }

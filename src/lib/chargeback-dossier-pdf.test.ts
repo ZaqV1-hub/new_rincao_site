@@ -51,12 +51,14 @@ function documentText() {
 }
 
 describe("chargeback review package", () => {
-  it("starts with the existing purchase summary and explains the recorded interest and chronology", async () => {
+  it("starts with the dossier followed by the purchase receipt and explains the recorded interest and chronology", async () => {
     const first = await renderChargebackDossierPdf(evidence);
     expect(first.subarray(0, 5).toString()).toBe("%PDF-");
     expect(await renderChargebackDossierPdf(evidence)).toEqual(first);
     const text = documentText();
-    expect(text.indexOf("COMPROVANTE")).toBeLessThan(text.indexOf("Dossiê de contestação"));
+    expect(text.indexOf("Dossiê de contestação")).toBeLessThan(text.indexOf("DADOS DA COMPRA / RESERVA"));
+    expect(text).toContain("O Comprovante de Compra de Ingressos está na próxima página.");
+    expect(text.toLowerCase()).not.toContain("nota fiscal");
     expect(text).toContain("VOUCHER-5");
     expect(text).toContain("R$ 8,48 de juros");
     expect(text).toContain("01/11/2026");

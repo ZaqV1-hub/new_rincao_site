@@ -122,7 +122,7 @@ export function PurchaseSummaryPage({ detail }: { detail: Omit<PainelPurchaseDet
             />
           </View>
           <View style={{ flexGrow: 1, alignItems: "center", paddingHorizontal: 8 }}>
-            <Text style={styles.title}>NOTA FISCAL / COMPROVANTE{"\n"}DE COMPRA DE INGRESSOS</Text>
+            <Text style={styles.title}>Comprovante de Compra de Ingressos</Text>
             <Text style={styles.subtitle}>Documento de registro da compra e utilização</Text>
           </View>
           <View style={styles.orderBox}>
@@ -355,5 +355,5 @@ export function PurchaseSummaryPage({ detail }: { detail: Omit<PainelPurchaseDet
 }
 
 export async function renderPainelPurchaseSummaryPdf(detail: PainelPurchaseDetail) {
-  return renderToBuffer(<Document title={`Resumo da compra ${detail.purchaseId}`}><PurchaseSummaryPage detail={detail} /></Document>);
+  return renderToBuffer(<Document title={`Comprovante de Compra de Ingressos - ${detail.purchaseId}`}><PurchaseSummaryPage detail={detail} /></Document>);
 }

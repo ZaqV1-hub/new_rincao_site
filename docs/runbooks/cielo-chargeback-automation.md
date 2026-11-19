@@ -2,7 +2,7 @@
 
 O job consulta casos confirmados pela API Cielo, correlaciona a compra, coleta evidências, arquiva o dossiê e alerta a equipe. **Todas as contestações pendentes exigem análise humana.** A apresentação da defesa é feita pela equipe na Cielo; o sistema acompanha as atualizações. Não existe aprovação/envio pelo painel.
 
-O pacote `human-review-v2` começa pelo mesmo resumo de compra usado no painel e apresenta a cronologia, o motivo da contestação e a composição financeira. Juros só conciliam a diferença quando a cotação arquivada confere com a compra, o pagamento e o número de parcelas. O PDF diferencia a data recebida da Cielo do primeiro registro no Rincão e mantém as evidências completas no snapshot interno.
+O pacote `human-review-v3` começa pelo dossiê com a cronologia, o motivo da contestação e a composição financeira, informando que o Comprovante de Compra de Ingressos está na próxima página. O comprovante usa o mesmo modelo gerado pelo painel. Juros só conciliam a diferença quando a cotação arquivada confere com a compra, o pagamento e o número de parcelas. O PDF diferencia a data recebida da Cielo do primeiro registro no Rincão e mantém as evidências completas no snapshot interno.
 
 A validação por voucher, seleção, compra, passeio e portaria consulta o bloqueio da contestação após travar a compra. Ingressos ainda não utilizados ficam impedidos de entrar quando o caso confirmado está vinculado à compra. O bloqueio permanece durante a análise e em decisões a favor do emissor; a liberação exige resultado final a favor do estabelecimento e caso tratado na Cielo. A identificação depende do recebimento do callback ou da consulta agendada. Casos sem vínculo confiável continuam exigindo conferência da equipe.
 
