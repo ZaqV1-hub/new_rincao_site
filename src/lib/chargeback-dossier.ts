@@ -288,8 +288,8 @@ function safeCase(value: CieloChargebackCase): CieloChargebackCase {
     chargebackDetails: {
       reasonCode: value.chargebackDetails.reasonCode,
       reasonDescription: value.chargebackDetails.reasonDescription,
-      receptionDate: value.chargebackDetails.receptionDate,
-      replyDate: value.chargebackDetails.replyDate,
+      ...(value.chargebackDetails.receptionDate ? { receptionDate: value.chargebackDetails.receptionDate } : {}),
+      ...(value.chargebackDetails.replyDate ? { replyDate: value.chargebackDetails.replyDate } : {}),
     },
     remoteStatus: value.remoteStatus,
   };
