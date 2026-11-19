@@ -6,6 +6,8 @@ O job consulta casos confirmados pela API Cielo, correlaciona a compra, coleta e
 
 O envio não garante êxito da defesa. O texto solicita revisão com os registros anexos; o PDF preserva as limitações de identidade, autenticação e histórico. Uso do ingresso não comprova identidade do portador. Nenhuma evidência ausente é inventada.
 
+**Estado verificado em 19/11/2026, 15:08 BRT:** release `5096a9f`, flag true, tarefa habilitada e duas execuções bem-sucedidas após ativação. Nenhum pendente encontrado na consulta histórica atual; nenhuma defesa real apresentada nesta validação. A implantação foi recuperada de falta de espaço, com cópia verificada e deploy do artefato compilado. Restaram cerca de 2 GB livres na VM; acompanhar capacidade. Ver [registro de validação e limites](../superpowers/plans/2026-11-09-chargeback-fraude-finalizacao.md).
+
 ## 1. Habilitação com a Cielo
 
 Solicitar ao suporte da API de Chargeback, com acompanhamento do gestor comercial:
