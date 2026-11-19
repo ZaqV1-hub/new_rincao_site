@@ -42,6 +42,7 @@ describe.skipIf(!connectionString)("purchase-scoped voucher selection with Postg
       CREATE TABLE operacao_dias (parque TEXT, data DATE, estado TEXT, PRIMARY KEY (parque,data));
     `);
     await pool.query(await readFile(new URL("../../docs/sql/2026-11-12-cash-sessions.sql", import.meta.url), "utf8"));
+    await pool.query(await readFile(new URL("../../docs/sql/2026-11-03-chargeback-dossiers.sql", import.meta.url), "utf8"));
     today = (await pool.query("SELECT to_char((NOW() AT TIME ZONE 'America/Sao_Paulo')::date,'YYYY-MM-DD') AS today")).rows[0].today;
   });
   afterAll(async () => {

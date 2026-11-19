@@ -777,6 +777,19 @@ describe("operational voucher validity", () => {
     expect(query).toHaveBeenCalledWith(expect.stringContaining("UPDATE voucher"), [9001, date, "12:00:00", periodId, null, null]);
   });
 
+  it("blocks an unused ticket while its Cielo dispute is pending, including confirmed payments", async () => {
+    const original = query.getMockImplementation()!;
+    query.mockImplementation(async (sql: string, ...args: unknown[]) => {
+      if (sql.includes("FROM chargeback_cases")) return { rows: [{ id_case: "61314023" }] };
+      return original(sql, ...args);
+    });
+    await expect(markVoucherUsed(client, 9001, "2026-04-23", "12:00:00")).rejects.toMatchObject({
+      code: "voucher_chargeback_pending", status: 409,
+    });
+    expect(row.stusado).toBe("n");
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("UPDATE voucher"))).toBe(false);
+  });
+
   it.each([
     ["2026-04-19", "voucher_not_yet_valid"],
     ["2026-04-27", "voucher_expired"],

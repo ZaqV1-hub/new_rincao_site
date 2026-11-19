@@ -2,6 +2,10 @@
 
 O job consulta casos confirmados pela API Cielo, correlaciona a compra, coleta evidências, arquiva o dossiê e alerta a equipe. **Todas as contestações pendentes exigem análise humana.** A apresentação da defesa é feita pela equipe na Cielo; o sistema acompanha as atualizações. Não existe aprovação/envio pelo painel.
 
+O pacote `human-review-v2` começa pelo mesmo resumo de compra usado no painel e apresenta a cronologia, o motivo da contestação e a composição financeira. Juros só conciliam a diferença quando a cotação arquivada confere com a compra, o pagamento e o número de parcelas. O PDF diferencia a data recebida da Cielo do primeiro registro no Rincão e mantém as evidências completas no snapshot interno.
+
+A validação por voucher, seleção, compra, passeio e portaria consulta o bloqueio da contestação após travar a compra. Ingressos ainda não utilizados ficam impedidos de entrar quando o caso confirmado está vinculado à compra. O bloqueio permanece durante a análise e em decisões a favor do emissor; a liberação exige resultado final a favor do estabelecimento e caso tratado na Cielo. A identificação depende do recebimento do callback ou da consulta agendada. Casos sem vínculo confiável continuam exigindo conferência da equipe.
+
 **Política autorizada em 16/11/2026:** ativar consultas, recebimento de callbacks, geração de dossiês e alertas, mantendo todo envio automático bloqueado no código. `CIELO_CHARGEBACK_ENABLED=true` habilita apenas esse processamento. A antiga função de apresentação rejeita qualquer chamada antes de autenticação/rede, tanto em sandbox quanto em produção. A política anterior de envio elegível e sua autorização condicional estão substituídas por esta decisão. Ver [plano e registro operacional](../superpowers/plans/2026-11-09-chargeback-fraude-finalizacao.md).
 
 **Estado verificado em 16/11, 11:12 BRT:** release `b396540` ativa; flag true, tarefa habilitada a cada cinco minutos e três execuções bem-sucedidas, sem casos nas janelas consultadas e sem defesas transmitidas. A varredura histórica segue em andamento. Nenhum callback externo legítimo observado nesta validação.

@@ -1,4 +1,5 @@
 import { assertOnlineCapacityReleased, OnlineCapacityError } from "@/lib/online-capacity";
+import { getChargebackVoucherHold } from "@/lib/chargeback-voucher-hold";
 import { VoucherValidationRow, VoucherAgendaUsageResult, VoucherOperationError } from "@/lib/ops-voucher-validation-contract";
 export { VoucherOperationError } from "@/lib/ops-voucher-validation-contract";
 export type { VoucherValidationRow, SchoolTripVoucherRow, VoucherOperationMode, VoucherOperationSuccess, VoucherOperationInputActor, VoucherAgendaUsageResult } from "@/lib/ops-voucher-validation-contract";
@@ -177,6 +178,11 @@ export async function markVoucherUsed(
   const row = voucher.rows[0];
   if (!row) throw new VoucherOperationError("voucher_not_found", "Ingresso não encontrado.", 404);
   if (row.stusado !== "n") throw new VoucherOperationError("voucher_already_used", "Ingresso já utilizado ou indisponível para entrada.", 409);
+  const chargeback = row.idcompra ? await getChargebackVoucherHold(client, row.idcompra) : null;
+  if (chargeback) {
+    throw new VoucherOperationError("voucher_chargeback_pending",
+      `Ingresso bloqueado pela contestação Cielo ${chargeback}. Procure o atendimento para análise.`, 409);
+  }
   if (row?.dtinicio_validade != null) {
     if (row.parque_operacional !== park || !isCivilDate(row.dtinicio_validade) ||
       !isCivilDate(row.dtvalidade) || row.dtinicio_validade > row.dtvalidade || !isCivilDate(date)) {

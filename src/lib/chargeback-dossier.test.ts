@@ -101,6 +101,8 @@ describe("chargeback evidence", () => {
     purchaseDate = "2026-10-09";
     systemQuery.mockReset().mockImplementation(async (sql: string) => {
       if (/^(BEGIN|COMMIT|ROLLBACK)/.test(sql)) return { rows: [] };
+      if (sql.includes("to_regclass('checkout_installment_quotes')")) return { rows: [{ regclass: null }] };
+      if (sql.includes("FROM chargeback_cases")) return { rows: [] };
       if (sql.includes("to_regclass('usuario_site_conta')")) return { rows: [{ regclass: siteAccountsPresent ? "usuario_site_conta" : null }] };
       if (sql.includes("AS registered_on")) return { rows: accounts.filter((a) => a.source === (sql.includes("JOIN usuario_site_conta") ? "usuario_site_conta" : "usuario")) };
       if (sql.includes("AS previous_purchase_count")) return { rows: previousPurchases };
@@ -180,6 +182,21 @@ describe("chargeback evidence", () => {
     expect(describeChargebackIssue("payment_reversal")).toContain("estorno");
     expect(describeChargebackIssue("unknown_upstream_detail")).not.toContain("unknown_upstream_detail");
     expect(describeChargebackIssue("toString")).toBe("A verificação encontrou uma inconsistência sem descrição cadastrada.");
+  });
+
+  it("reconciles installment interest only when the stored quote matches the transaction", async () => {
+    const original = await collectChargebackEvidence(chargeback);
+    const paid = original.paymentAttempts.find((entry) => "id" in entry)!;
+    const evidence = {
+      ...original,
+      case: { ...original.case, transactionAmount: "108.48" },
+      paymentAttempts: [{ ...paid, installments: 3, amountCents: 10848 }],
+      installmentQuote: { baseCents: 10000, chargedCents: 10848, feeCents: 848, installments: 3, brand: "Visa" },
+    };
+    expect(evaluateChargebackEvidence(evidence).issues).not.toContain("amount_not_reconciled");
+    expect(evaluateChargebackEvidence(evidence).issues).not.toContain("partial_or_unproven_use");
+    expect(evaluateChargebackEvidence({ ...evidence, installmentQuote: null }).issues).toContain("amount_not_reconciled");
+    expect(evaluateChargebackEvidence({ ...evidence, installmentQuote: { ...evidence.installmentQuote, feeCents: 847 } }).issues).toContain("amount_not_reconciled");
   });
 
   it.each([

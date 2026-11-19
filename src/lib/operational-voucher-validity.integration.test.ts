@@ -49,6 +49,7 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
       CREATE TABLE operacao_dias (parque TEXT, data DATE, estado TEXT, day_use_agenda_id INTEGER, PRIMARY KEY (parque,data));
     `);
     await pool.query(await readFile(new URL("../../docs/sql/2026-11-12-cash-sessions.sql", import.meta.url), "utf8"));
+    await pool.query(await readFile(new URL("../../docs/sql/2026-11-03-chargeback-dossiers.sql", import.meta.url), "utf8"));
     today = (await pool.query("SELECT to_char((NOW() AT TIME ZONE 'America/Sao_Paulo')::date,'YYYY-MM-DD') AS today")).rows[0].today;
   });
   afterAll(async () => {
@@ -57,7 +58,7 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
   });
   beforeEach(async () => {
     vi.stubEnv("OPERATIONAL_PARK_ID", "rincao"); resetVoucherLifecycleSchemaForTests();
-    await pool.query("TRUNCATE contagem_entradas,agenda_extras,voucher, compra, agenda, operacao_dias, online_capacity_reservations,pagpagseguro,edicoes_log,caixa_operacoes,caixa_periodos,caixa_locais,caixa_fechamentos,compra_pagamentos RESTART IDENTITY CASCADE");
+    await pool.query("TRUNCATE chargeback_cases,contagem_entradas,agenda_extras,voucher, compra, agenda, operacao_dias, online_capacity_reservations,pagpagseguro,edicoes_log,caixa_operacoes,caixa_periodos,caixa_locais,caixa_fechamentos,compra_pagamentos RESTART IDENTITY CASCADE");
     await pool.query(`INSERT INTO compra (idcompra,cpf,dtcompra,stcompra) VALUES (1,'52998224725',$1::date-10,'conc');
       `, [today]);
     await pool.query("INSERT INTO pagpagseguro VALUES(1,3); INSERT INTO caixa_locais(parque,nome,tipo) VALUES('rincao','Portaria','sales'),('rincao','Piscina','sales')");

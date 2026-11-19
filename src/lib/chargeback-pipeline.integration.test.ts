@@ -12,6 +12,7 @@ import {
   withChargebackWorkerLock,
 } from "@/lib/chargeback-repository";
 import { runChargebackSync } from "@/lib/chargeback-sync";
+import { getChargebackVoucherHold } from "@/lib/chargeback-voucher-hold";
 
 const mocks = vi.hoisted(() => ({
   pool: null as Pool | null,
@@ -126,7 +127,7 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
     mocks.pool = pool;
     migration = await readFile(new URL("../../docs/sql/2026-11-03-chargeback-dossiers.sql", import.meta.url), "utf8");
     await pool.query(migration);
-    await pool.query("CREATE TABLE compra (dtcompra DATE NOT NULL)");
+    await pool.query("CREATE TABLE compra (idcompra INTEGER PRIMARY KEY, dtcompra DATE NOT NULL)");
   });
 
   afterAll(async () => {
@@ -162,6 +163,18 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
   });
 
   afterEach(() => vi.unstubAllEnvs());
+
+  it("keeps a purchase on hold through a pending dispute and releases only after a merchant decision", async () => {
+    const id = await upsertChargeback(pool, pending);
+    await pool.query("UPDATE chargeback_cases SET purchase_id=25 WHERE id=$1", [id]);
+    expect(await getChargebackVoucherHold(pool, 25)).toBe(pending.idCase);
+    await pool.query("UPDATE chargeback_cases SET result_message='A favor do Estabelecimento' WHERE id=$1", [id]);
+    expect(await getChargebackVoucherHold(pool, 25)).toBe(pending.idCase);
+    await pool.query("UPDATE chargeback_cases SET payload=jsonb_set(payload,'{remoteStatus}','\"DONE\"'::jsonb),result_message='A favor do Emissor' WHERE id=$1", [id]);
+    expect(await getChargebackVoucherHold(pool, 25)).toBe(pending.idCase);
+    await pool.query("UPDATE chargeback_cases SET result_message='A favor do Estabelecimento' WHERE id=$1", [id]);
+    expect(await getChargebackVoucherHold(pool, 25)).toBeNull();
+  });
 
   it("imports a webhook, archives for human review, alerts once and tracks an external defense", async () => {
     const notification = {

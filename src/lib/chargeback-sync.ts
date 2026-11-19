@@ -95,7 +95,15 @@ export async function processChargeback(client: ChargebackQuery, row: StoredChar
     return;
   }
   const evidence = await collectChargebackEvidence(current);
-  await client.query("UPDATE chargeback_cases SET purchase_id=$2,payload=$3::jsonb,last_synced_at=NOW() WHERE id=$1", [row.id, evidence.purchaseId, JSON.stringify(current)]);
+  await client.query("BEGIN");
+  try {
+    if (evidence.purchaseId) await client.query("SELECT idcompra FROM compra WHERE idcompra=$1 FOR UPDATE", [evidence.purchaseId]);
+    await client.query("UPDATE chargeback_cases SET purchase_id=COALESCE(purchase_id,$2),payload=$3::jsonb,last_synced_at=NOW() WHERE id=$1", [row.id, evidence.purchaseId, JSON.stringify(current)]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  }
   const evaluation = evaluateChargebackEvidence(evidence);
   const previous = (await client.query<{ id: number; snapshot: typeof evidence; pdf: Buffer; policy_version: string }>(
     "SELECT id,snapshot,pdf,policy_version FROM chargeback_dossiers WHERE case_id=$1 ORDER BY id DESC LIMIT 1", [row.id],
