@@ -50,7 +50,8 @@ export async function getBilheteriaAgendaStatusToday() {
   const selectedDay = await getPainelAgendaDay(today);
   const agenda = selectedDay.agenda;
   const hasOpenAgendaToday =
-    agenda != null && (agenda.status === "abe" || agenda.status === "lot");
+    // The agenda status controls online checkout, not sales at the physical box office.
+    agenda != null && ["abe", "lot", "fec"].includes(agenda.status);
 
   return {
     today,

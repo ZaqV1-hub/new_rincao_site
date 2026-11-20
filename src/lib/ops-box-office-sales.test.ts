@@ -64,20 +64,22 @@ describe("ops-box-office-sales", () => {
     });
   });
 
-  it("creates a sale with bulk voucher and payment writes", async () => {
+  it.each(["abe", "lot", "fec"])("creates a box office sale when online agenda status is %s", async (agendaStatus) => {
     mocks.clientQuery.mockImplementation(async (sql: string, values?: unknown[]) => {
       if (sql === "BEGIN" || sql === "COMMIT" || sql === "ROLLBACK") {
         return { rows: [] };
       }
 
       if (sql.includes("FROM agenda")) {
+        expect(sql).toContain("agenda.stagenda IN ('abe', 'lot', 'fec')");
+        expect(sql).toContain("agenda.dtagenda = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date");
         return {
           rows: [
             {
               idagenda: 88,
               dtagenda: "2026-07-25",
               tpagenda: "padra",
-              stagenda: "abe",
+              stagenda: agendaStatus,
               vlnormalbil: "100.00",
               vlinfantbil: "70.00",
             },

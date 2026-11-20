@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function PainelBilheteriaVendasPage() {
   const session = await requirePainelAccess("vis_bilhet", "/painel/bilheteria/vendas");
   const { today, openAgendas } = await getBilheteriaAgendaStatusToday();
-  const agendas = openAgendas.filter((agenda) => agenda.status === "abe");
+  const agendas = openAgendas;
   const agenda = agendas[0] ?? null;
   const availableProducts = agenda
     ? buildStandardTicketProducts(
