@@ -190,7 +190,7 @@ export async function runChargebackSync() {
     const history = await client.query<{ start: string | null }>("SELECT MIN(dtcompra)::date::text AS start FROM compra");
     const historyStart = process.env.CIELO_CHARGEBACK_START_DATE?.trim() || history.rows[0]?.start || shiftDate(dateToday(), -30);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(historyStart) || historyStart > dateToday()) throw new Error("chargeback_history_date_invalid");
-    const pendingEvents = await client.query<{ id: string; id_case: string; establishment_number: string }>("SELECT id,id_case,establishment_number FROM chargeback_events WHERE processed_at IS NULL AND attempts<12 AND next_attempt_at<=NOW() ORDER BY id LIMIT 10");
+    const pendingEvents = await client.query<{ id: string; id_case: string; establishment_number: string }>("SELECT id,id_case,establishment_number FROM chargeback_events WHERE processed_at IS NULL AND next_attempt_at<=NOW() ORDER BY id LIMIT 10");
     for (const row of await getDueChargebacks(client)) {
       if (Date.now() - started > 60000) break;
       try { await processChargeback(client, row); processed++; }
@@ -224,7 +224,7 @@ export async function runChargebackSync() {
       if (found) {
         await client.query("UPDATE chargeback_events SET processed_at=NOW() WHERE id=$1", [event.id]);
       } else {
-        await client.query("UPDATE chargeback_events SET attempts=attempts+1,next_attempt_at=NOW()+INTERVAL '30 minutes' WHERE id=$1", [event.id]);
+        await client.query("UPDATE chargeback_events SET attempts=attempts+1,next_attempt_at=NOW()+(CASE WHEN attempts>=11 THEN INTERVAL '1 day' ELSE INTERVAL '30 minutes' END) WHERE id=$1", [event.id]);
       }
     }
     try { imported += await reconcilePage(client, historyStart); }

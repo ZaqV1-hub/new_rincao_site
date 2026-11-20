@@ -6,7 +6,7 @@ export async function getChargebackVoucherHold(client: Pick<PoolClient, "query">
     `SELECT id_case FROM chargeback_cases
      WHERE purchase_id = $1
        AND (payload->>'remoteStatus' = 'PENDING'
-         OR COALESCE(result_message, '') <> 'A favor do Estabelecimento')
+         OR lower(trim(COALESCE(result_message, ''))) <> 'a favor do estabelecimento')
      ORDER BY created_at DESC, id DESC LIMIT 1`,
     [purchaseId],
   );
