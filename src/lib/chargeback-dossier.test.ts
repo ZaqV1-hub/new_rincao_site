@@ -104,6 +104,7 @@ describe("chargeback evidence", () => {
       if (sql.includes("to_regclass('usuario_site_conta')")) return { rows: [{ regclass: siteAccountsPresent ? "usuario_site_conta" : null }] };
       if (sql.includes("AS registered_on")) return { rows: accounts.filter((a) => a.source === (sql.includes("JOIN usuario_site_conta") ? "usuario_site_conta" : "usuario")) };
       if (sql.includes("AS previous_purchase_count")) return { rows: previousPurchases };
+      if (sql.includes("checkout_installment_quotes") || sql.includes("FROM chargeback_cases")) return { rows: [] };
       if (sql.includes("to_regclass")) return { rows: [{ regclass: "edicoes_log" }] };
       if (sql.includes('AS payload')) {
         return { rows: sql.includes("WHERE idcompra") ? attempts : candidates };
@@ -236,7 +237,7 @@ describe("chargeback evidence", () => {
     attempts = candidates;
     const evidence = await collectChargebackEvidence({ ...chargeback, transactionDetails: { ...chargeback.transactionDetails, cardAssociationName: brand }, chargebackDetails: { reasonCode, reasonDescription: "Fraude" } });
     expect(evidence.paymentAttempts[0]).toMatchObject({ holderName: "Titular Declarado" });
-    expect(evaluateChargebackEvidence(evidence)).toMatchObject({ eligible: true, issues: [], policyVersion: "automatic-all-reasons-v1" });
+    expect(evaluateChargebackEvidence(evidence)).toMatchObject({ eligible: true, issues: [], policyVersion: "automatic-all-reasons-v2" });
   });
 
   it("uses the exact TID, includes failed attempts and delivery, and excludes raw card/authentication secrets", async () => {

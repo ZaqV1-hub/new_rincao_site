@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import type { CieloChargebackCase } from "@/lib/chargeback-contract";
 import { getCieloChargebackDocument, getCieloChargebackLifecycle, isCieloChargebackConfigured, listCieloChargebacks, listCieloChargebackPage } from "@/lib/cielo-chargeback";
-import { collectChargebackEvidence, describeChargebackIssue, evaluateChargebackEvidence } from "@/lib/chargeback-dossier";
+import { CHARGEBACK_DOSSIER_POLICY, collectChargebackEvidence, describeChargebackIssue, evaluateChargebackEvidence } from "@/lib/chargeback-dossier";
 import { renderChargebackDossierPdf } from "@/lib/chargeback-dossier-pdf";
 import { getDueChargebacks, saveChargebackDossier, updateChargebackState, upsertChargeback, withChargebackWorkerLock, type ChargebackQuery, type StoredChargeback } from "@/lib/chargeback-repository";
 import { presentChargebackDefense } from "@/lib/chargeback-submission";
@@ -68,6 +68,18 @@ function materialEvidence(value: Awaited<ReturnType<typeof collectChargebackEvid
   return { ...value, capturedAt: null, communicationsCapturedAt: null, livePaymentCheckedAt: null };
 }
 
+async function refreshArchivedDossier(client: ChargebackQuery, row: StoredChargeback, current: CieloChargebackCase) {
+  if (!row.purchase_id || row.submitted_dossier_id || row.submitted_at) return;
+  const previous = (await client.query<{ policy_version: string }>(
+    "SELECT policy_version FROM chargeback_dossiers WHERE case_id=$1 ORDER BY id DESC LIMIT 1", [row.id],
+  )).rows[0];
+  if (!previous?.policy_version || previous.policy_version === CHARGEBACK_DOSSIER_POLICY) return;
+  const evidence = await collectChargebackEvidence(current);
+  if (evidence.purchaseId !== row.purchase_id || !evidence.purchase) return;
+  await saveChargebackDossier(client, row.id, evidence, await renderChargebackDossierPdf(evidence),
+    evaluateChargebackEvidence(evidence).policyVersion);
+}
+
 export async function processChargeback(client: ChargebackQuery, row: StoredChargeback) {
   const fetched = await refreshCase(row.payload);
   const current = row.payload.remoteStatus === "DONE" && fetched.remoteStatus === "PENDING" ? row.payload : fetched;
@@ -92,17 +104,22 @@ export async function processChargeback(client: ChargebackQuery, row: StoredChar
 
   if (current.remoteStatus === "DONE" || row.status === "submitted" || row.status === "remote_done") {
     const terminal = await saveLifecycle(client, row, current);
+    await refreshArchivedDossier(client, row, current);
     const status = terminal ? "resolved" : row.status === "submitted" ? "submitted" : "remote_done";
     await updateChargebackState(client, row.id, status, null, 360);
     return;
   }
 
-  if (!current.treatmentDeadline || current.treatmentDeadline < dateToday()) {
-    await updateChargebackState(client, row.id, "exception", "Prazo de defesa expirado ou indisponível na Cielo.", 1440);
+  const evidence = await collectChargebackEvidence(current);
+  if (row.purchase_id !== null && row.purchase_id !== undefined && evidence.purchaseId !== row.purchase_id) {
+    await updateChargebackState(client, row.id, "exception", "Confira o vínculo da contestação com a compra.", 360);
     return;
   }
-  const evidence = await collectChargebackEvidence(current);
-  await client.query("UPDATE chargeback_cases SET purchase_id=$2,payload=$3::jsonb,last_synced_at=NOW() WHERE id=$1", [row.id, evidence.purchaseId, JSON.stringify(current)]);
+  await client.query(
+    `WITH purchase_lock AS (SELECT idcompra FROM compra WHERE idcompra=$2 FOR UPDATE)
+     UPDATE chargeback_cases SET purchase_id=COALESCE(purchase_id,(SELECT idcompra FROM purchase_lock)),
+       payload=$3::jsonb,last_synced_at=NOW() WHERE id=$1`, [row.id, evidence.purchaseId, JSON.stringify(current)],
+  );
   const evaluation = evaluateChargebackEvidence(evidence);
   const previous = (await client.query<{ id: number; snapshot: typeof evidence; pdf: Buffer; policy_version: string }>(
     "SELECT id,snapshot,pdf,policy_version FROM chargeback_dossiers WHERE case_id=$1 ORDER BY id DESC LIMIT 1", [row.id],
@@ -110,6 +127,10 @@ export async function processChargeback(client: ChargebackQuery, row: StoredChar
   const unchanged = previous?.policy_version === evaluation.policyVersion && isDeepStrictEqual(materialEvidence(previous.snapshot), materialEvidence(evidence));
   const pdf = unchanged ? previous.pdf : await renderChargebackDossierPdf(evidence);
   const dossierId = unchanged ? previous.id : await saveChargebackDossier(client, row.id, evidence, pdf, evaluation.policyVersion);
+  if (!current.treatmentDeadline || current.treatmentDeadline < dateToday()) {
+    await updateChargebackState(client, row.id, "exception", "Prazo de defesa expirado ou indisponível na Cielo.", 1440);
+    return;
+  }
   if (!evaluation.eligible) {
     await updateChargebackState(client, row.id, "exception", evaluation.issues.map(describeChargebackIssue).join(" ").slice(0, 2000), 360);
     return;
@@ -203,7 +224,7 @@ export async function runChargebackSync() {
     const history = await client.query<{ start: string | null }>("SELECT MIN(dtcompra)::date::text AS start FROM compra");
     const historyStart = process.env.CIELO_CHARGEBACK_START_DATE?.trim() || history.rows[0]?.start || shiftDate(dateToday(), -30);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(historyStart) || historyStart > dateToday()) throw new Error("chargeback_history_date_invalid");
-    const pendingEvents = await client.query<{ id: string; id_case: string; establishment_number: string }>("SELECT id,id_case,establishment_number FROM chargeback_events WHERE processed_at IS NULL AND attempts<12 AND next_attempt_at<=NOW() ORDER BY id LIMIT 10");
+    const pendingEvents = await client.query<{ id: string; id_case: string; establishment_number: string }>("SELECT id,id_case,establishment_number FROM chargeback_events WHERE processed_at IS NULL AND next_attempt_at<=NOW() ORDER BY id LIMIT 10");
     for (const row of await getDueChargebacks(client)) {
       if (Date.now() - started > 60000) break;
       try { await processChargeback(client, row); processed++; }
@@ -237,7 +258,7 @@ export async function runChargebackSync() {
       if (found) {
         await client.query("UPDATE chargeback_events SET processed_at=NOW() WHERE id=$1", [event.id]);
       } else {
-        await client.query("UPDATE chargeback_events SET attempts=attempts+1,next_attempt_at=NOW()+INTERVAL '30 minutes' WHERE id=$1", [event.id]);
+        await client.query("UPDATE chargeback_events SET attempts=attempts+1,next_attempt_at=NOW()+(CASE WHEN attempts>=11 THEN INTERVAL '1 day' ELSE INTERVAL '30 minutes' END) WHERE id=$1", [event.id]);
       }
     }
     try { imported += await reconcilePage(client, historyStart); }

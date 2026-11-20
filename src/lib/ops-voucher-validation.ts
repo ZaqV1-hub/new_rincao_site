@@ -1,3 +1,4 @@
+import { getChargebackVoucherHold } from "@/lib/chargeback-voucher-hold";
 import { type PoolClient } from "pg";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
@@ -484,10 +485,14 @@ async function getVouchersByIds(client: PoolClient, voucherIds: number[]) {
 
 async function markVoucherUsed(
   client: PoolClient,
+  purchaseId: number | null,
   voucherId: number,
   date: string,
   time: string,
 ) {
+  if (purchaseId !== null && await getChargebackVoucherHold(client, purchaseId)) {
+    throw new VoucherOperationError("voucher_chargeback_hold", "Ingresso bloqueado por contestação de pagamento.", 409);
+  }
   await client.query(
     `
       UPDATE voucher
@@ -689,7 +694,7 @@ export async function validateVoucherByNumber(
       throw new VoucherOperationError(usage.code, usage.message, 409);
     }
 
-    await markVoucherUsed(client, voucher.idvoucher, date, time);
+    await markVoucherUsed(client, voucher.idcompra, voucher.idvoucher, date, time);
     const auditLogId = await registerVoucherOperationAuditLog(client, {
       action: "validate",
       mode: "voucher_number",
@@ -820,7 +825,7 @@ export async function validatePurchaseVouchers(
         );
       }
 
-      await markVoucherUsed(client, voucher.idvoucher, date, time);
+      await markVoucherUsed(client, voucher.idcompra, voucher.idvoucher, date, time);
       affectedVoucherIds.push(voucher.idvoucher);
     }
 
@@ -965,7 +970,7 @@ export async function validateSelectedVouchers(
         continue;
       }
 
-      await markVoucherUsed(client, voucher.idvoucher, date, time);
+      await markVoucherUsed(client, voucher.idcompra, voucher.idvoucher, date, time);
       affectedVoucherIds.push(voucher.idvoucher);
     }
 
@@ -1115,7 +1120,7 @@ export async function validateSchoolTripVouchers(
         );
       }
 
-      await markVoucherUsed(client, voucher.idvoucher, date, time);
+      await markVoucherUsed(client, voucher.idcompra, voucher.idvoucher, date, time);
       affectedVoucherIds.push(voucher.idvoucher);
     }
 

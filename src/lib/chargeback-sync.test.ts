@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 
 const mocks = vi.hoisted(() => ({ list: vi.fn(), lifecycle: vi.fn(), document: vi.fn(), collect: vi.fn(), evaluate: vi.fn(), render: vi.fn(), save: vi.fn(), present: vi.fn(), update: vi.fn(), query: vi.fn() }));
 vi.mock("@/lib/cielo-chargeback", () => ({ listCieloChargebacks: mocks.list, getCieloChargebackLifecycle: mocks.lifecycle, getCieloChargebackDocument: mocks.document, isCieloChargebackConfigured: () => true }));
-vi.mock("@/lib/chargeback-dossier", () => ({ collectChargebackEvidence: mocks.collect, evaluateChargebackEvidence: mocks.evaluate, describeChargebackIssue: (code: string) => code }));
+vi.mock("@/lib/chargeback-dossier", () => ({ CHARGEBACK_DOSSIER_POLICY: "v1", collectChargebackEvidence: mocks.collect, evaluateChargebackEvidence: mocks.evaluate, describeChargebackIssue: (code: string) => code }));
 vi.mock("@/lib/chargeback-dossier-pdf", () => ({ renderChargebackDossierPdf: mocks.render }));
 vi.mock("@/lib/chargeback-submission", () => ({ presentChargebackDefense: mocks.present }));
 vi.mock("@/lib/chargeback-repository", async (original) => ({ ...await original<typeof import("@/lib/chargeback-repository")>(), saveChargebackDossier: mocks.save, updateChargebackState: mocks.update }));
@@ -49,6 +49,15 @@ describe("automatic chargeback processing", () => {
     await processChargeback({ query: mocks.query }, row);
     expect(mocks.present).not.toHaveBeenCalled();
     expect(mocks.update).toHaveBeenCalledWith(expect.anything(), 1, "remote_done", null, expect.any(Number));
+  });
+  it("updates an old archived dossier for a treated purchase without submitting it", async () => {
+    const payload = { ...row.payload, remoteStatus: "DONE" as const };
+    mocks.list.mockResolvedValue([payload]);
+    mocks.query.mockResolvedValue({ rows: [{ policy_version: "old" }] });
+    mocks.collect.mockResolvedValueOnce({ purchaseId: 123, purchase: { date: "2026-11-01" } });
+    await processChargeback({ query: mocks.query }, { ...row, purchase_id: 123, status: "remote_done" });
+    expect(mocks.save).toHaveBeenCalledOnce();
+    expect(mocks.present).not.toHaveBeenCalled();
   });
   it("never reopens a durable DONE case from a stale PENDING response", async () => {
     await processChargeback({ query: mocks.query }, { ...row, payload: { ...row.payload, remoteStatus: "DONE" } });

@@ -19,7 +19,7 @@ const statusLabels: Record<string, string> = {
   exception: "Pendência no processamento",
   submitting: "Apresentando defesa",
   uncertain: "Envio a confirmar",
-  submitted: "Defesa apresentada",
+  submitted: "Envio automático confirmado",
   remote_done: "Tratada na Cielo",
   resolved: "Finalizada na Cielo",
   rejected: "Envio bloqueado",
@@ -91,7 +91,7 @@ export function ChargebackCaseList({ items }: { items: ChargebackCaseSummary[] }
             )}
             {item.submittedAt && (
               <div>
-                <dt className="font-semibold">Defesa apresentada em</dt>
+                <dt className="font-semibold">Envio automático confirmado em</dt>
                 <dd>{formatDate(item.submittedAt)}</dd>
               </div>
             )}

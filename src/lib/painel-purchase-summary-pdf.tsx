@@ -103,7 +103,7 @@ function paidStatus(status: string) {
   return normalized.includes("conclu") || normalized.includes("paga") || normalized.includes("pago");
 }
 
-function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
+export function PurchaseSummaryPage({ detail }: { detail: Omit<PainelPurchaseDetail, "operational"> }) {
   const paymentIsPaid = paidStatus(detail.statusLabel);
   const usedVouchers = detail.vouchers.filter((voucher) => voucher.usedLabel.toLowerCase() === "sim");
   const usedDates = [...new Set(usedVouchers.map((voucher) => voucher.usedDate).filter(Boolean))];
@@ -113,7 +113,6 @@ function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
   );
 
   return (
-    <Document title={`Resumo da compra ${detail.purchaseId}`}>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View style={styles.brandSlot}>
@@ -123,7 +122,7 @@ function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
             />
           </View>
           <View style={{ flexGrow: 1, alignItems: "center", paddingHorizontal: 8 }}>
-            <Text style={styles.title}>NOTA FISCAL / COMPROVANTE{"\n"}DE COMPRA DE INGRESSOS</Text>
+            <Text style={styles.title}>Comprovante de Compra de Ingressos</Text>
             <Text style={styles.subtitle}>Documento de registro da compra e utilização</Text>
           </View>
           <View style={styles.orderBox}>
@@ -352,10 +351,9 @@ function PurchaseSummary({ detail }: { detail: PainelPurchaseDetail }) {
           Este documento é um comprovante de registro da compra e utilização dos ingressos.
         </Text>
       </Page>
-    </Document>
   );
 }
 
 export async function renderPainelPurchaseSummaryPdf(detail: PainelPurchaseDetail) {
-  return renderToBuffer(<PurchaseSummary detail={detail} />);
+  return renderToBuffer(<Document title={`Comprovante de Compra de Ingressos - ${detail.purchaseId}`}><PurchaseSummaryPage detail={detail} /></Document>);
 }

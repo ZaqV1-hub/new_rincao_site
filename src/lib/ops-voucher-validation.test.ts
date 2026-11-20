@@ -77,10 +77,14 @@ describe("ops-voucher-validation", () => {
     expect(syncTicketValidation).not.toHaveBeenCalled();
   });
 
-  it("validates a single online voucher by number", async () => {
+  it.each([false, true])("checks a single paid voucher with chargeback hold %s", async (held) => {
     query.mockImplementation(async (sql: string) => {
       if (sql === "BEGIN" || sql === "COMMIT") {
         return { rows: [] };
+      }
+
+      if (sql.includes("FROM chargeback_cases")) {
+        return { rows: held ? [{ id_case: "61336875" }] : [] };
       }
 
       if (sql.includes("WHERE voucher.numvoucher = $1")) {
@@ -106,6 +110,13 @@ describe("ops-voucher-validation", () => {
 
       return { rows: [] };
     });
+
+    if (held) {
+      await expect(validateVoucherByNumber("A1234")).rejects.toMatchObject({ code: "voucher_chargeback_hold", status: 409 });
+      expect(query.mock.calls.some(([sql]) => String(sql).includes("UPDATE voucher"))).toBe(false);
+      expect(syncTicketValidation).not.toHaveBeenCalled();
+      return;
+    }
 
     const result = await validateVoucherByNumber("A1234");
 

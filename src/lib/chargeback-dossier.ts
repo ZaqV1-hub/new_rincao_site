@@ -25,6 +25,7 @@ type Payment = {
   reversedCents: number | null;
   reversalRecorded: boolean;
   installments: number | null;
+  method?: string;
   brand: string;
   lastFour: string;
   eci: string;
@@ -54,6 +55,9 @@ type Voucher = {
   state: "used" | "available" | "invalidated" | "unknown";
   usedAt: string | null;
   invalidatedAt: string | null;
+  schoolName?: string | null;
+  studentName?: string | null;
+  className?: string | null;
 };
 
 type AuditRow = {
@@ -81,6 +85,14 @@ export type ChargebackEvidence = {
   purchaseId: number | null;
   paymentId: string | null;
   capturedAt: string;
+  firstNotifiedAt?: string | null;
+  installmentQuote?: {
+    baseCents: number | null;
+    chargedCents: number | null;
+    feeCents: number | null;
+    installments: number;
+    brand: string;
+  } | null;
   issues: string[];
   link: { method: "tid" | "nsu_authorization_date"; establishmentVerified: boolean } | null;
   purchase: {
@@ -89,6 +101,8 @@ export type ChargebackEvidence = {
     status: string;
     buyerName: string;
     buyerEmail: string;
+    buyerCpf?: string;
+    time?: string;
   } | null;
   paymentAttempts: PaymentAttempt[];
   livePayment: Payment | null;
@@ -201,6 +215,7 @@ function readPayment(row: PaymentRow): Payment {
       (Array.isArray(reversals) && reversals.length) || text(row.cancellation_source) === "portal" ||
       ["6", "7"].includes(text(row.ledger_status)) && /^(2|paymentconfirmed)$/i.test(status)),
     installments: cents(payment.Installments ?? payment.installments),
+    method: text(payment.Type ?? payment.type),
     brand: text(card.Brand ?? card.brand),
     lastFour: lastFour(card.CardNumber ?? card.cardNumber),
     eci: eciConflict ? "" : externalEci || rootEci,
@@ -273,6 +288,8 @@ function safeCase(value: CieloChargebackCase): CieloChargebackCase {
     chargebackDetails: {
       reasonCode: value.chargebackDetails.reasonCode,
       reasonDescription: value.chargebackDetails.reasonDescription,
+      ...(value.chargebackDetails.receptionDate ? { receptionDate: value.chargebackDetails.receptionDate } : {}),
+      ...(value.chargebackDetails.replyDate ? { replyDate: value.chargebackDetails.replyDate } : {}),
     },
     remoteStatus: value.remoteStatus,
   };
@@ -402,9 +419,9 @@ async function collectSystemEvidence(
   const [purchaseResult, attemptResult, voucherResult, auditTable] = await Promise.all([
     system.query<{
       purchase_date: string | null; total: string | null; status: string | null;
-      buyer_name: string | null; buyer_email: string | null;
+      buyer_name: string | null; buyer_email: string | null; buyer_cpf: string | null; purchase_time: string | null;
     }>(`SELECT ${textColumn("c.dtcompra")} AS purchase_date, ${textColumn("c.vltotcompra")} AS total, c.stcompra AS status,
-               u.nmusuario AS buyer_name, u.email AS buyer_email
+               u.nmusuario AS buyer_name, u.email AS buyer_email, c.cpf AS buyer_cpf, ${textColumn("c.hrcompra")} AS purchase_time
         FROM compra c LEFT JOIN usuario u ON u.cpf = c.cpf WHERE c.idcompra = $1`, [purchaseId]),
     system.query<PaymentRow>(`SELECT ${paymentColumns} FROM pagpagseguro
       WHERE idcompra = $1 ORDER BY idpagseguro`, [purchaseId]),
@@ -412,11 +429,14 @@ async function collectSystemEvidence(
       voucher_id: number; voucher_number: string | null; voucher_type: string | null;
       visit_date: string | null; unit_value: string | null; state: string | null;
       use_date: string | null; use_time: string | null;
+      school_name: string | null; student_name: string | null; class_name: string | null;
     }>(`SELECT v.idvoucher AS voucher_id, v.numvoucher AS voucher_number,
                COALESCE(NULLIF(v.descricao, ''), v.tpvoucher) AS voucher_type,
                ${textColumn("a.dtagenda")} AS visit_date, ${textColumn("v.vlunicompra")} AS unit_value,
-               v.stusado AS state, ${textColumn("v.dtuso")} AS use_date, ${textColumn("v.hruso")} AS use_time
+               v.stusado AS state, ${textColumn("v.dtuso")} AS use_date, ${textColumn("v.hruso")} AS use_time,
+               school.nome AS school_name, v.nomealuno AS student_name, v.turma AS class_name
         FROM voucher v LEFT JOIN agenda a ON a.idagenda = v.idagenda
+        LEFT JOIN clientes school ON school.idcliente = v.idescola
         WHERE v.idcompra = $1 ORDER BY v.idvoucher`, [purchaseId]),
     system.query<{ regclass: string | null }>("SELECT to_regclass('edicoes_log') AS regclass"),
   ]);
@@ -429,6 +449,8 @@ async function collectSystemEvidence(
     status: text(purchase.status),
     buyerName: text(purchase.buyer_name),
     buyerEmail: text(purchase.buyer_email),
+    buyerCpf: text(purchase.buyer_cpf),
+    time: text(purchase.purchase_time),
   };
 
   // Only current account metadata exists; it is not a session or cardholder-authentication history.
@@ -472,6 +494,29 @@ async function collectSystemEvidence(
     if (text(attempt.payment_id) === paymentId) return { ...parsed, id: paymentId };
     return { status: parsed.status, ledgerStatus: parsed.ledgerStatus, amountCents: parsed.amountCents };
   });
+  const quoteTable = await system.query<{ regclass: string | null }>("SELECT to_regclass('checkout_installment_quotes') AS regclass");
+  if (quoteTable.rows[0]?.regclass) {
+    const quotes = await system.query<{
+      base_amount: string; charged_amount: string; fee_amount: string; installments: number; card_brand: string;
+    }>(`SELECT base_amount, charged_amount, fee_amount, installments, card_brand
+        FROM checkout_installment_quotes WHERE idcompra = $1
+        ORDER BY created_at DESC, id DESC`, [purchaseId]);
+    const quote = quotes.rows.find((entry) => brlCents(entry.charged_amount) === payment.amountCents &&
+      entry.installments === payment.installments);
+    evidence.installmentQuote = quote ? {
+      baseCents: brlCents(quote.base_amount),
+      chargedCents: brlCents(quote.charged_amount),
+      feeCents: brlCents(quote.fee_amount),
+      installments: quote.installments,
+      brand: quote.card_brand,
+    } : null;
+  }
+  const notification = await system.query<{ received_at: Date | string }>(
+    "SELECT created_at AS received_at FROM chargeback_cases WHERE establishment_number=$1 AND id_chargeback=$2",
+    [chargeback.establishmentNumber, chargeback.idChargeback],
+  );
+  evidence.firstNotifiedAt = notification.rows[0]?.received_at
+    ? new Date(notification.rows[0].received_at).toISOString() : null;
   const current = attemptResult.rows.filter((attempt) => text(attempt.payment_id) === paymentId);
   if (current.length !== 1 || JSON.stringify(readPayment(current[0])) !== JSON.stringify(payment)) {
     evidence.issues.push("transaction_changed_during_collection");
@@ -489,6 +534,9 @@ async function collectSystemEvidence(
       state: state === "s" ? "used" : state === "n" ? "available" : state === "inv" ? "invalidated" : "unknown",
       usedAt: state === "s" ? recordedAt : null,
       invalidatedAt: state === "inv" ? recordedAt : null,
+      schoolName: voucher.school_name ?? null,
+      studentName: voucher.student_name ?? null,
+      className: voucher.class_name ?? null,
     };
   });
 
@@ -612,11 +660,14 @@ function captured(payment: PaymentAttempt) {
   return /^(2|paymentconfirmed|paid|confirmed|completed)$/i.test(payment.status);
 }
 
+export const CHARGEBACK_DOSSIER_POLICY = "automatic-all-reasons-v2";
+
 export function evaluateChargebackEvidence(evidence: ChargebackEvidence) {
   const issues = new Set(evidence.issues);
   const chargeback = evidence.case;
   const payment = evidence.paymentAttempts.find((attempt): attempt is Payment => "id" in attempt && attempt.id === evidence.paymentId);
   const notifiedCents = brlCents(chargeback.transactionAmount);
+  const amounts = getChargebackAmounts(evidence);
   if (!evidence.link || !evidence.purchaseId || !payment) issues.add("unverified_purchase_payment");
   const liveTidVerified = evidence.link?.method === "tid" && evidence.livePayment?.id === evidence.paymentId &&
     Boolean(evidence.livePayment?.tid && evidence.livePayment.tid === chargeback.transactionDetails.tid);
@@ -654,23 +705,40 @@ export function evaluateChargebackEvidence(evidence: ChargebackEvidence) {
     return voucher.state === "used" && useDate && purchaseDate && useDate >= purchaseDate &&
       (!transactionDate || useDate >= transactionDate) &&
       useDate === voucher.visitDate && useDate <= datePart(evidence.capturedAt) &&
+      (!chargeback.chargebackDetails.receptionDate || useDate <= chargeback.chargebackDetails.receptionDate) &&
       (newestEvent.get(voucher.id) ?? "validar") === "validar"
       ? total + (voucher.unitCents ?? 0)
       : total;
   }, 0);
-  if (!notifiedCents || payment?.amountCents !== notifiedCents || evidence.purchase?.totalCents !== notifiedCents ||
+  if (!notifiedCents || payment?.amountCents !== notifiedCents || !amounts.reconciled ||
     evidence.vouchers.some((voucher) => voucher.unitCents === null) ||
-    evidence.vouchers.reduce((total, voucher) => total + (voucher.unitCents ?? 0), 0) !== notifiedCents) {
+    evidence.vouchers.reduce((total, voucher) => total + (voucher.unitCents ?? 0), 0) !== amounts.baseCents) {
     issues.add("amount_not_reconciled");
   }
-  if (!notifiedCents || amountCovered !== notifiedCents) issues.add("partial_or_unproven_use");
+  if (amounts.baseCents === null || amountCovered !== amounts.baseCents) issues.add("partial_or_unproven_use");
 
   return {
     eligible: issues.size === 0,
-    reason: issues.size === 0 ? "Solicitamos revisão com base nos registros de compra, pagamento e utilização anexos." : [...issues][0],
+    reason: issues.size === 0 ? "Registros de validação cobrem os ingressos pagos da transação." : [...issues][0],
     issues: [...issues],
-    policyVersion: "automatic-all-reasons-v1",
+    policyVersion: CHARGEBACK_DOSSIER_POLICY,
   };
+}
+
+export function getChargebackAmounts(evidence: ChargebackEvidence) {
+  const baseCents = evidence.purchase?.totalCents ?? null;
+  const notifiedCents = brlCents(evidence.case.transactionAmount);
+  const payment = evidence.paymentAttempts.find((entry): entry is Payment =>
+    "id" in entry && entry.id === evidence.paymentId);
+  const quote = evidence.installmentQuote;
+  const verifiedQuote = Boolean(quote && baseCents !== null &&
+    quote.baseCents === baseCents && quote.chargedCents === notifiedCents &&
+    quote.chargedCents === payment?.amountCents && quote.installments === payment?.installments &&
+    quote.feeCents !== null && quote.feeCents >= 0 && baseCents + quote.feeCents === notifiedCents);
+  const reconciled = baseCents !== null && notifiedCents !== null &&
+    payment?.amountCents === notifiedCents && (baseCents === notifiedCents || verifiedQuote);
+  return { baseCents, chargedCents: notifiedCents, feeCents: verifiedQuote ? quote!.feeCents : baseCents === notifiedCents ? 0 : null,
+    reconciled, verifiedQuote };
 }
 
 const issueDescriptions = new Map([

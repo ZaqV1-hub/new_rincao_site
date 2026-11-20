@@ -129,7 +129,7 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
     mocks.pool = pool;
     migration = await readFile(new URL("../../docs/sql/2026-11-03-chargeback-dossiers.sql", import.meta.url), "utf8");
     await pool.query(migration);
-    await pool.query("CREATE TABLE compra (dtcompra DATE NOT NULL)");
+    await pool.query("CREATE TABLE compra (dtcompra DATE NOT NULL, idcompra int)");
     await pool.query("CREATE TABLE voucher(idcompra int,idvoucher int,stusado text,dtuso date,hruso time)");
     await pool.query(await readFile(new URL("../../docs/sql/2026-11-20-chargeback-voucher-block.sql", import.meta.url), "utf8"));
   });
@@ -170,7 +170,7 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
 
   it("blocks only unused tickets of the verified issuer loss and recovers an external sync failure", async () => {
     await pool.query(`
-      ALTER TABLE compra ADD COLUMN idcompra int, ADD COLUMN tpcompra text, ADD COLUMN formapag text, ADD COLUMN vltotcompra numeric;
+      ALTER TABLE compra ADD COLUMN tpcompra text, ADD COLUMN formapag text, ADD COLUMN vltotcompra numeric;
       CREATE TABLE pagpagseguro(idcompra int, idpagseguro text,status int,"cancellationSource" text,"xmlRequisicao" text);
 
       INSERT INTO compra VALUES (current_date,25,'ponli','pgseg',100);
@@ -262,7 +262,7 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
     expect(mocks.submit).toHaveBeenCalledOnce();
     expect(mocks.submit).toHaveBeenCalledWith(remote, expect.any(Buffer), "Solicitamos revisão com base nos registros de compra, pagamento e utilização anexos.");
     expect((await pool.query("SELECT status FROM chargeback_cases WHERE id=$1", [id])).rows[0].status).toBe("submitted");
-    expect((await pool.query("SELECT policy_version FROM chargeback_dossiers WHERE case_id=$1", [id])).rows[0].policy_version).toBe("automatic-all-reasons-v1");
+    expect((await pool.query("SELECT policy_version FROM chargeback_dossiers WHERE case_id=$1", [id])).rows[0].policy_version).toBe("automatic-all-reasons-v2");
     await pool.query("UPDATE chargeback_cases SET next_attempt_at=NOW() WHERE id=$1", [id]);
     await runChargebackSync();
     expect(mocks.submit).toHaveBeenCalledOnce();
