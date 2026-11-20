@@ -91,7 +91,7 @@ export async function upsertChargeback(client: ChargebackQuery, payload: CieloCh
 export async function getDueChargebacks(client: ChargebackQuery) {
   const result = await client.query<StoredChargeback>(
     `SELECT id, payload, status, attempts, issue, purchase_id, submitted_dossier_id, submitted_at
-     FROM chargeback_cases WHERE next_attempt_at <= NOW() AND status NOT IN ('resolved','rejected')
+     FROM chargeback_cases WHERE next_attempt_at <= NOW() AND status <> 'resolved' AND (status <> 'rejected' OR payload->>'remoteStatus'='DONE')
      ORDER BY CASE WHEN status IN ('queued','retry','exception','submitting','uncertain') THEN 0 ELSE 1 END,
        NULLIF(payload->>'treatmentDeadline','') ASC NULLS LAST, id LIMIT 10`,
   );

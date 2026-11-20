@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   lifecycle: vi.fn(),
   document: vi.fn(),
   email: vi.fn(),
+  tickets: vi.fn(),
 }));
 
 vi.mock("@/lib/ingresso-db", () => ({
@@ -42,6 +43,7 @@ vi.mock("@/lib/chargeback-dossier", async (original) => ({
   ...await original<typeof import("@/lib/chargeback-dossier")>(),
   collectChargebackEvidence: mocks.collect,
 }));
+vi.mock("@/lib/ticket-service", () => ({ syncTicketValidation: mocks.tickets }));
 vi.mock("@/lib/legacy-email", () => ({ queueLegacyEmail: mocks.email }));
 
 // Opt in with a dedicated scratch database on loopback. The suite owns a random schema.
@@ -128,6 +130,8 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
     migration = await readFile(new URL("../../docs/sql/2026-11-03-chargeback-dossiers.sql", import.meta.url), "utf8");
     await pool.query(migration);
     await pool.query("CREATE TABLE compra (dtcompra DATE NOT NULL)");
+    await pool.query("CREATE TABLE voucher(idcompra int,idvoucher int,stusado text,dtuso date,hruso time)");
+    await pool.query(await readFile(new URL("../../docs/sql/2026-11-20-chargeback-voucher-block.sql", import.meta.url), "utf8"));
   });
 
   afterAll(async () => {
@@ -163,6 +167,46 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
   });
 
   afterEach(() => vi.unstubAllEnvs());
+
+  it("blocks only unused tickets of the verified issuer loss and recovers an external sync failure", async () => {
+    await pool.query(`
+      ALTER TABLE compra ADD COLUMN idcompra int, ADD COLUMN tpcompra text, ADD COLUMN formapag text, ADD COLUMN vltotcompra numeric;
+      CREATE TABLE pagpagseguro(idcompra int, idpagseguro text,status int,"cancellationSource" text,"xmlRequisicao" text);
+
+      INSERT INTO compra VALUES (current_date,25,'ponli','pgseg',100);
+      INSERT INTO voucher VALUES (25,1,'n',null,null),(25,2,'s','2024-06-02','09:00'),(26,3,'n',null,null);
+    `);
+    await pool.query('INSERT INTO pagpagseguro VALUES (25,$1,3,NULL,$2)', ["p", JSON.stringify({
+      Payment: { PaymentId: "p", Tid: "TEST-TID", Amount: 10000, EstablishmentNumber: pending.establishmentNumber }
+    })]);
+    const id = await upsertChargeback(pool, { ...pending, remoteStatus: "DONE" });
+    await pool.query("UPDATE chargeback_cases SET status='resolved',result_message='A favor do Estabelecimento' WHERE id=$1", [id]);
+    await runChargebackSync();
+    expect(mocks.tickets).not.toHaveBeenCalled();
+    expect((await pool.query("SELECT stusado FROM voucher WHERE idvoucher=1")).rows[0].stusado).toBe("n");
+    await pool.query("UPDATE chargeback_cases SET result_message='A favor do Emissor',lifecycle=$1",[JSON.stringify([{actionDate:receptionDate,action:"A favor do Emissor"}])]);
+    await pool.query("UPDATE chargeback_cases SET voucher_block_enabled=false");
+    expect(await runChargebackSync()).toMatchObject({ failed: 0 });
+    expect((await pool.query("SELECT stusado FROM voucher WHERE idvoucher=1")).rows[0].stusado).toBe("n");
+    await pool.query("UPDATE chargeback_cases SET voucher_block_enabled=true");
+    await pool.query("UPDATE compra SET vltotcompra=200");
+    expect(await runChargebackSync()).toMatchObject({ failed: 1 });
+    expect((await pool.query("SELECT stusado FROM voucher WHERE idvoucher=1")).rows[0].stusado).toBe("n");
+    await pool.query("UPDATE compra SET vltotcompra=100");
+    await pool.query("UPDATE chargeback_cases SET next_attempt_at=now()");
+    mocks.tickets.mockResolvedValueOnce({ status: "skipped" }).mockResolvedValue({ status: "sent" });
+    expect(await runChargebackSync()).toMatchObject({ failed: 1 });
+    expect((await pool.query("SELECT stusado,dtuso::text AS date FROM voucher ORDER BY idvoucher")).rows).toEqual([
+      {stusado:"inv",date:expect.any(String)}, {stusado:"s",date:"2024-06-02"}, {stusado:"n",date:null}
+    ]);
+    await pool.query("UPDATE chargeback_cases SET next_attempt_at=now()");
+    expect(await runChargebackSync()).toMatchObject({ failed: 0 });
+    await runChargebackSync();
+    await expect(pool.query("UPDATE voucher SET stusado='n' WHERE idvoucher=2")).rejects.toMatchObject({code:"23514"});
+    expect(mocks.tickets).toHaveBeenCalledTimes(2);
+    expect(mocks.tickets).toHaveBeenCalledWith([{purchaseId:25,voucherId:1}], "invalidate");
+    expect(mocks.submit).not.toHaveBeenCalled();
+  });
 
   it("imports a webhook, archives and submits once, and updates the outcome on another tick", async () => {
     const notification = {

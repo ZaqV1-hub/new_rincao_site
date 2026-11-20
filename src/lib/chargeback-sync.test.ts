@@ -83,6 +83,14 @@ describe("automatic chargeback processing", () => {
     expect(mocks.present).not.toHaveBeenCalled();
     expect(mocks.query.mock.calls.some(([sql]) => sql.includes("status='submitted'"))).toBe(true);
   });
+  it("records a final issuer ruling even if the previous defense document is unavailable", async () => {
+    mocks.list.mockResolvedValue([{ ...row.payload, remoteStatus: "DONE" }]);
+    mocks.document.mockRejectedValueOnce(new Error("document unavailable"));
+    mocks.lifecycle.mockResolvedValue({ action: "A favor do Emissor", actionDate: "2026-11-06" });
+    await processChargeback({ query: mocks.query }, { ...row, status: "uncertain", submitted_dossier_id: 5 });
+    expect(mocks.update).toHaveBeenCalledWith(expect.anything(), 1, "resolved", null, 360);
+    expect(mocks.present).not.toHaveBeenCalled();
+  });
   it("rejects expired cases before submission", async () => {
     mocks.list.mockResolvedValue([{ ...row.payload, treatmentDeadline: "2000-01-01" }]);
     await processChargeback({ query: mocks.query }, row);

@@ -1,3 +1,4 @@
+import { reconcileIssuerLosses } from "@/lib/chargeback-voucher-block";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import type { CieloChargebackCase } from "@/lib/chargeback-contract";
@@ -72,12 +73,17 @@ export async function processChargeback(client: ChargebackQuery, row: StoredChar
   const current = row.payload.remoteStatus === "DONE" && fetched.remoteStatus === "PENDING" ? row.payload : fetched;
 
   if (row.status === "submitting" || row.status === "uncertain") {
-    const document = await getCieloChargebackDocument(current) as { file?: string | string[] } | null;
+    const document = await getCieloChargebackDocument(current).catch(error => {
+      if (current.remoteStatus !== "DONE") throw error;
+      return null;
+    }) as { file?: string | string[] } | null;
     const file = Array.isArray(document?.file) ? document.file[0] : document?.file;
     const archived = await client.query<{ sha256: string }>("SELECT sha256 FROM chargeback_dossiers WHERE id=$1 AND case_id=$2", [row.submitted_dossier_id, row.id]);
     if (typeof file === "string" && archived.rows[0]?.sha256 === createHash("sha256").update(Buffer.from(file, "base64")).digest("hex")) {
       await client.query("UPDATE chargeback_cases SET status='submitted',issue=NULL,receipt=$2::jsonb,next_attempt_at=NOW()+INTERVAL '6 hours',updated_at=NOW() WHERE id=$1", [row.id, JSON.stringify({ confirmedBy: "supportDocument", checkedAt: new Date().toISOString() })]);
       if (await saveLifecycle(client, row, current)) await updateChargebackState(client, row.id, "resolved", null, 360);
+    } else if (current.remoteStatus === "DONE" && await saveLifecycle(client, row, current)) {
+      await updateChargebackState(client, row.id, "resolved", null, 360);
     } else {
       await updateChargebackState(client, row.id, "uncertain", "Envio anterior sem confirmação. A reconciliação continua; solicite confirmação à Cielo. O sistema não retransmite sem garantia contra duplicação.", 30);
     }
@@ -129,7 +135,7 @@ async function alertExceptions(client: ChargebackQuery) {
   if (!recipient) throw new Error("chargeback_alert_email_missing");
   const result = await client.query<{ id: number; id_case: string; status: string; issue: string | null; deadline: string; alert_key: string | null }>(
     `SELECT id,id_case,status,issue,payload->>'treatmentDeadline' AS deadline,alert_key FROM chargeback_cases
-     WHERE status IN ('exception','rejected','uncertain','submitting') OR
+     WHERE (status='resolved' AND issue IS NOT NULL) OR status IN ('exception','rejected','uncertain','submitting') OR
        (status IN ('queued','retry') AND NULLIF(payload->>'treatmentDeadline','')::date <= CURRENT_DATE+1)
      ORDER BY id`,
   );
@@ -239,6 +245,7 @@ export async function runChargebackSync() {
       failed++;
       try { await alertIntegrationFailure(client); } catch { failed++; }
     }
+    failed += await reconcileIssuerLosses(client);
     try { await alertExceptions(client); } catch { failed++; }
     return { imported, processed, failed, startedAt: new Date(started).toISOString(), finishedAt: new Date().toISOString() };
   });

@@ -292,33 +292,11 @@ async function loadAuditRows(
   }
 }
 
-async function collectSystemEvidence(
-  system: PoolClient,
-  chargeback: CieloChargebackCase,
-  mysql: boolean,
-): Promise<ChargebackEvidence> {
-  const evidence: ChargebackEvidence = {
-    case: safeCase(chargeback),
-    purchaseId: null,
-    paymentId: null,
-    capturedAt: new Date().toISOString(),
-    issues: [],
-    link: null,
-    purchase: null,
-    paymentAttempts: [],
-    livePayment: null,
-    livePaymentCheckedAt: null,
-    vouchers: [],
-    voucherEvents: [],
-    deliveryEvents: [],
-    emailQueued: null,
-    communicationsCapturedAt: null,
-  };
+async function matchChargebackPayments(system: Pick<PoolClient, "query">, chargeback: CieloChargebackCase, mysql: boolean) {
   const xmlColumn = mysql ? "xmlRequisicao" : '"xmlRequisicao"';
   const cancellationColumn = mysql ? "cancellationSource" : '"cancellationSource"';
   const paymentColumns = `idcompra AS purchase_id, idpagseguro AS payment_id, status AS ledger_status,
     ${cancellationColumn} AS cancellation_source, ${xmlColumn} AS payload`;
-  const textColumn = (column: string) => mysql ? `CAST(${column} AS CHAR)` : `${column}::text`;
   const transaction = chargeback.transactionDetails;
   const nsu = normalizedIdentifier(transaction.nsu);
   const authorization = normalizedIdentifier(transaction.authorization);
@@ -348,7 +326,57 @@ async function collectSystemEvidence(
     }
   }
 
-  const matches = exact.length ? exact : fallback;
+  return { matches: exact.length ? exact : fallback, transactionDate, paymentColumns, matchedTid: exact.length > 0 };
+}
+
+// Called inside the voucher transaction. The case can arrive for the first time after it has closed.
+export async function findIssuerLossPurchase(system: Pick<PoolClient, "query">, chargeback: CieloChargebackCase) {
+  const { matches, paymentColumns } = await matchChargebackPayments(system, chargeback, false);
+  if (matches.length !== 1) return null;
+  const { row, payment } = matches[0];
+  const purchaseId = Number(row.purchase_id);
+  const tx = chargeback.transactionDetails;
+  const amount = brlCents(chargeback.transactionAmount);
+  if (!Number.isSafeInteger(purchaseId) || purchaseId <= 0 || !payment.id || payment.id !== text(row.payment_id) ||
+    !amount || payment.amountCents !== amount || !["REAL", "BRL", "986"].includes(tx.currency?.toUpperCase() ?? "") ||
+    conflictsWithCase(payment, chargeback, purchaseId)) return null;
+  // Some e-commerce records omit the EC. Require independent transaction identifiers in that case.
+  if (!payment.establishment && !(tx.tid && payment.tid === tx.tid && tx.authorization &&
+    normalizedIdentifier(tx.authorization) === normalizedIdentifier(payment.authorization) &&
+    tx.nsu && normalizedIdentifier(tx.nsu) === normalizedIdentifier(payment.nsu))) return null;
+  const purchase = await system.query<{total: string}>(`SELECT vltotcompra::text AS total FROM compra
+    WHERE idcompra=$1 AND tpcompra='ponli' AND formapag='pgseg' FOR UPDATE`, [purchaseId]);
+  if (brlCents(purchase.rows[0]?.total) !== amount) return null;
+  const attempts = await system.query<PaymentRow>(`SELECT ${paymentColumns} FROM pagpagseguro WHERE idcompra=$1 FOR UPDATE`, [purchaseId]);
+  if (attempts.rows.some(attempt => text(attempt.payment_id) !== payment.id &&
+    (captured(readPayment(attempt)) || ["3", "4"].includes(text(attempt.ledger_status))))) return null;
+  return purchaseId;
+}
+
+async function collectSystemEvidence(
+  system: PoolClient,
+  chargeback: CieloChargebackCase,
+  mysql: boolean,
+): Promise<ChargebackEvidence> {
+  const evidence: ChargebackEvidence = {
+    case: safeCase(chargeback),
+    purchaseId: null,
+    paymentId: null,
+    capturedAt: new Date().toISOString(),
+    issues: [],
+    link: null,
+    purchase: null,
+    paymentAttempts: [],
+    livePayment: null,
+    livePaymentCheckedAt: null,
+    vouchers: [],
+    voucherEvents: [],
+    deliveryEvents: [],
+    emailQueued: null,
+    communicationsCapturedAt: null,
+  };
+  const textColumn = (column: string) => mysql ? `CAST(${column} AS CHAR)` : `${column}::text`;
+  const { matches, transactionDate, paymentColumns, matchedTid } = await matchChargebackPayments(system, chargeback, mysql);
   const match = matches[0];
   if (matches.length !== 1) {
     evidence.issues.push(match ? "ambiguous_transaction" : "transaction_not_found");
@@ -367,7 +395,7 @@ async function collectSystemEvidence(
   evidence.purchaseId = purchaseId;
   evidence.paymentId = paymentId;
   evidence.link = {
-    method: exact.length ? "tid" : "nsu_authorization_date",
+    method: matchedTid ? "tid" : "nsu_authorization_date",
     establishmentVerified: Boolean(payment.establishment),
   };
 
