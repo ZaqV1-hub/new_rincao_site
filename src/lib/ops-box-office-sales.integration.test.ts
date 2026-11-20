@@ -83,8 +83,14 @@ describe.skipIf(!connectionString)("cash scoped sales and reservation payments w
       { idagenda: 1, tpvoucher: "espec", servico_id: "1", vlunicompra: "10.00" },
     ]);
     expect((await getCashSession(session.id)).snapshot.sales).toMatchObject({ ticketCount: 0, serviceCount: 2, revenueCents: 2000 });
-    await expect(createOperationalBoxOfficeSale(input(session.id,"forbidden-admission"))).rejects.toMatchObject({ code: "agenda_not_found" });
-    await expect(createOperationalBoxOfficeSale({ ...input(session.id,"forbidden-courtesy"), items: [], courtesies: [{ authorId: 3, quantity: 1 }], payments: [] })).rejects.toMatchObject({ code: "agenda_not_found" });
+    if (kind === "group only") {
+      await expect(createOperationalBoxOfficeSale(input(session.id,"forbidden-admission"))).rejects.toMatchObject({ code: "agenda_not_found" });
+      await expect(createOperationalBoxOfficeSale({ ...input(session.id,"forbidden-courtesy"), items: [], courtesies: [{ authorId: 3, quantity: 1 }], payments: [] })).rejects.toMatchObject({ code: "agenda_not_found" });
+    } else {
+      await expect(createOperationalBoxOfficeSale(input(session.id,"closed-online-admission"))).resolves.toMatchObject({ totalCents: 10000 });
+      await expect(createOperationalBoxOfficeSale({ ...input(session.id,"closed-online-courtesy"), items: [], courtesies: [{ authorId: 3, quantity: 1 }], payments: [] })).resolves.toMatchObject({ totalCents: 0 });
+      expect((await pool.query("SELECT * FROM agenda")).rows).toEqual(before);
+    }
     await pool.query("UPDATE servicos_adicionais SET ativo=false WHERE id=1");
     await expect(createOperationalBoxOfficeSale({ ...input(session.id,"inactive-group-service"), items: [], services: [{ serviceId: 1, quantity: 1 }] })).rejects.toMatchObject({ code: "service_unavailable" });
   });

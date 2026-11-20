@@ -32,6 +32,14 @@ describe("cash payment arithmetic", () => {
   it.each([{ method: "boleto", value: "1" }, { method: "pix", value: "0.001" }, { method: "pix", value: "1e3" }, { method: "dinhe", value: -1 }, { method: "pix", value: "1.2,34" }])("rejects unsupported or inexact payments", (payment) => { expect(() => readCashPayments([payment])).toThrow(); });
 });
 describe("scoped box office sale", () => {
+  it("allows an online-closed agenda while preserving the open operational day and cash date", async () => {
+    await createOperationalBoxOfficeSale(input);
+    const query = mock.query.mock.calls.find(([sql]) => String(sql).includes("FROM agenda"))![0];
+    expect(query).toContain("a.stagenda IN ('abe','lot','fec')");
+    expect(query).toContain("d.estado='open'");
+    expect(query).toContain("a.dtagenda=$3::date");
+  });
+
   it("requires an explicit period, idempotency key, valid CPF and bounded units", async () => {
     for (const patch of [{ periodId: 0 }, { idempotencyKey: "" }, { cpf: "11111111111" }, { items: [{ type: "norma", quantity: 501 }] }, { services: [{ serviceId: 9, quantity: 1, discountId: 7 }] }]) await expect(createOperationalBoxOfficeSale({ ...input, ...patch })).rejects.toMatchObject({ status: 400 });
     expect(mock.query).not.toHaveBeenCalled();

@@ -12,7 +12,7 @@ describe("getBilheteriaAgendaStatusToday", () => {
     vi.clearAllMocks();
   });
 
-  it("uses box office prices from the selected agenda price table", async () => {
+  it.each(["abe", "lot", "fec"])("uses box office prices independently of online agenda status %s", async (status) => {
     getPainelAgendaDay.mockResolvedValue({
       selectedDate: "2026-07-01",
       agenda: {
@@ -22,7 +22,7 @@ describe("getBilheteriaAgendaStatusToday", () => {
         month: 7,
         year: 2026,
         type: "padra",
-        status: "abe",
+        status,
         priceTableId: 13,
         priceTableName: "ASSOCIADO - TESTE",
         normalValue: "20.00",
@@ -52,4 +52,9 @@ describe("getBilheteriaAgendaStatusToday", () => {
       ],
     });
   });
+  it.each([null, { status: "canc" }])("does not enable sales without a valid agenda: %j", async (agenda) => {
+    getPainelAgendaDay.mockResolvedValue({ agenda });
+    await expect(getBilheteriaAgendaStatusToday()).resolves.toMatchObject({ hasOpenAgendaToday: false, openAgendas: [] });
+  });
+
 });

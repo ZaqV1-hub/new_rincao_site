@@ -203,7 +203,7 @@ export async function createOperationalBoxOfficeSale(input: CreateBoxOfficeSaleI
               ) FOR SHARE OF a`, [agendaId, session.park, session.date])).rows[0]
           : (await client.query<AgendaRow>(`SELECT a.idagenda,a.dtagenda::text AS dtagenda,t.vlnormalbil::text AS vlnormalbil,t.vlinfantbil::text AS vlinfantbil,d.validade AS validity,d.tipos_ingresso AS "ticketTypes"
               FROM agenda a JOIN tabpreco t ON t.idtabpreco=a.idtabpreco JOIN operacao_dias d ON d.parque=$2 AND d.data=a.dtagenda AND d.day_use_agenda_id=a.idagenda AND d.estado='open'
-              WHERE a.idagenda=$1 AND a.dtagenda=$3::date AND a.tpagenda IN ('padra','promo') AND a.stagenda IN ('abe','lot') FOR SHARE OF a,t`, [agendaId, session.park, session.date])).rows[0];
+              WHERE a.idagenda=$1 AND a.dtagenda=$3::date AND a.tpagenda IN ('padra','promo') AND a.stagenda IN ('abe','lot','fec') FOR SHARE OF a,t`, [agendaId, session.park, session.date])).rows[0];
         if (!agenda) throw new BoxOfficeSaleError("agenda_not_found", "Agenda indisponível para venda neste caixa.", 409);
         const discountIds = [...new Set(items.flatMap((item) => item.discountId === null ? [] : [item.discountId]))];
         const discounts = discountIds.length ? (await client.query<Discount>("SELECT id,nome,tipo_aplicacao,valor::text AS valor FROM descontos WHERE id=ANY($1::int[]) FOR SHARE", [discountIds])).rows : [];
