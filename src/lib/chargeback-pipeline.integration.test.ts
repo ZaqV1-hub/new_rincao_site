@@ -260,7 +260,10 @@ describe.skipIf(!connectionString)("chargeback pipeline with PostgreSQL", () => 
     await pool.query("UPDATE chargeback_cases SET status='exception',issue='Análise humana obrigatória.' WHERE id=$1", [id]);
     expect(await runChargebackSync()).toMatchObject({ processed: 1, failed: 0 });
     expect(mocks.submit).toHaveBeenCalledOnce();
-    expect(mocks.submit).toHaveBeenCalledWith(remote, expect.any(Buffer), "Solicitamos revisão com base nos registros de compra, pagamento e utilização anexos.");
+    const [submittedCase, submittedPdf, reason] = mocks.submit.mock.calls[0];
+    expect(submittedCase).toEqual(remote);
+    expect(submittedPdf.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(reason).toBe("Registros de validação cobrem os ingressos pagos da transação.");
     expect((await pool.query("SELECT status FROM chargeback_cases WHERE id=$1", [id])).rows[0].status).toBe("submitted");
     expect((await pool.query("SELECT policy_version FROM chargeback_dossiers WHERE case_id=$1", [id])).rows[0].policy_version).toBe("automatic-all-reasons-v2");
     await pool.query("UPDATE chargeback_cases SET next_attempt_at=NOW() WHERE id=$1", [id]);
