@@ -88,10 +88,12 @@ export function addMonthsToDateString(value: string | null, months: number) {
     .slice(0, 10);
 }
 
+export function voucherExpirationDate(row: VoucherValidationRow) {
+  return row.dtinicio_validade != null ? row.dtvalidade ?? null : addMonthsToDateString(row.dtcompra, 6);
+}
+
 export function isVoucherExpired(row: VoucherValidationRow, todayDate: string) {
-  const validUntil = row.dtinicio_validade != null
-    ? row.dtvalidade
-    : addMonthsToDateString(row.dtcompra, 6);
+  const validUntil = voucherExpirationDate(row);
 
   return (
     String(row.stvoucher ?? "").trim() === "vencido" ||
@@ -161,6 +163,7 @@ export async function markVoucherUsed(
   time: string,
   context: VoucherAdmissionContext,
   actor?: VoucherOperationInputActor | null,
+  options: { allowExpired?: boolean; preview?: boolean } = {},
 ) {
   const park = getOperationalParkId();
   assertAdmissionDate(context, date);
@@ -191,7 +194,7 @@ export async function markVoucherUsed(
     if (row.stusado !== "n") {
       throw new VoucherOperationError("voucher_already_used", "Ingresso já utilizado ou indisponível para entrada.", 409);
     }
-    if (String(row.stvoucher ?? "").trim() === "vencido" || date > row.dtvalidade) {
+    if (!options.allowExpired && (String(row.stvoucher ?? "").trim() === "vencido" || date > row.dtvalidade)) {
       throw new VoucherOperationError("voucher_expired", `Ingresso vencido em ${formatDateBr(row.dtvalidade)}. A entrada não está autorizada.`, 409);
     }
     if (date < row.dtinicio_validade) {
@@ -222,6 +225,7 @@ export async function markVoucherUsed(
     }
   }
   assertAdmissionDate(context, date);
+  if (options.preview) return;
   const updated = await client.query(
     `
       UPDATE voucher

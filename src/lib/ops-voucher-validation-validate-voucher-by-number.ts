@@ -1,7 +1,7 @@
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { ensureVoucherLifecycleSchema } from "@/lib/voucher-repository";
 import { getVoucherByNumber } from "@/lib/ops-voucher-validation-queries";
-import { requireVoucherPeriodId, lockVoucherCashContext, alreadyUsedError, VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, formatDateBr, normalizeVoucherNumber, normalizeCpfDigits, registerVoucherOperationAuditLog, addMonthsToDateString, isVoucherExpired, isOnlinePurchasePaid, buildReservationPaymentMessage, evaluateAgendaUsage, markVoucherUsed, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
+import { requireVoucherPeriodId, lockVoucherCashContext, alreadyUsedError, VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, formatDateBr, normalizeVoucherNumber, normalizeCpfDigits, registerVoucherOperationAuditLog, voucherExpirationDate, isVoucherExpired, isOnlinePurchasePaid, buildReservationPaymentMessage, evaluateAgendaUsage, markVoucherUsed, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
 
 export async function validateVoucherByNumber(
   voucherNumberInput: string,
@@ -54,23 +54,6 @@ export async function validateVoucherByNumber(
       throw alreadyUsedError(voucher);
     }
 
-    if (voucher.dtinicio_validade != null && isVoucherExpired(voucher, date)) {
-      throw new VoucherOperationError(
-        "voucher_expired",
-        `Ingresso vencido em ${formatDateBr(voucher.dtvalidade ?? null)}. A entrada não está autorizada.`,
-        409,
-      );
-    }
-
-    if (isVoucherExpired(voucher, date) && !confirm) {
-      const validUntil = addMonthsToDateString(voucher.dtcompra, 6);
-      throw new VoucherOperationError(
-        "voucher_expired_confirmation_required",
-        `Ingresso foi vencido dia ${formatDateBr(validUntil)}. Deseja validar?`,
-        409,
-      );
-    }
-
     if (voucher.stcompra !== "conc") {
       throw new VoucherOperationError(
         "voucher_payment_pending",
@@ -87,13 +70,27 @@ export async function validateVoucherByNumber(
       );
     }
 
+    const expiredAdmission = isVoucherExpired(voucher, date)
+      ? { expiredOn: voucherExpirationDate(voucher), admittedOn: date }
+      : undefined;
+    if (expiredAdmission && !confirm) {
+      const expiration = expiredAdmission.expiredOn
+        ? `Este ingresso venceu em ${formatDateBr(expiredAdmission.expiredOn)}.`
+        : "Este ingresso está vencido.";
+      throw new VoucherOperationError(
+        "voucher_expired_confirmation_required",
+        `${expiration} Deseja validar mesmo assim, sem reagendar?`,
+        409,
+      );
+    }
+
     const usage = evaluateAgendaUsage(voucher, confirm, date);
 
     if (usage.status === "invalid" || usage.status === "confirmation_required") {
       throw new VoucherOperationError(usage.code, usage.message, 409);
     }
 
-    await markVoucherUsed(client, voucher.idvoucher, date, time, cash, actor);
+    await markVoucherUsed(client, voucher.idvoucher, date, time, cash, actor, { allowExpired: Boolean(expiredAdmission && confirm) });
     const auditLogId = await registerVoucherOperationAuditLog(client, {
       cash: cash.session,
       action: "validate",
@@ -103,6 +100,7 @@ export async function validateVoucherByNumber(
       affectedVoucherIds: [voucher.idvoucher],
       explicitPurchaseId: Number(voucher.idcompra ?? 0) || null,
       requestedVoucherNumber: voucher.numvoucher ?? voucherNumber,
+      expiredAdmission,
     });
     await client.query("COMMIT");
 

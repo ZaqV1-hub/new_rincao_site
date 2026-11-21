@@ -6,7 +6,7 @@ import { expireUnusedVouchers, rescheduleUserVoucher, resetVoucherLifecycleSchem
 import { lockVoucherCashContext } from "@/lib/ops-voucher-validation-cash";
 import { validateVoucherByNumber, validateSelectedVouchers, validateSchoolTripVouchers, unvalidateSelectedVouchers, invalidateSelectedVouchers } from "@/lib/ops-voucher-validation";
 import { readCountingAttendance } from "./counting-attendance";
-import { admitCountingVoucher } from "./counting-admission";
+import { admitCountingVoucher, previewCountingVoucher } from "./counting-admission";
 import { markVoucherUsed } from "@/lib/ops-voucher-validation-shared";
 
 const mock = vi.hoisted(() => ({ pool: null as Pool | null }));
@@ -134,6 +134,21 @@ describe.skipIf(!connectionString)("operational voucher validity with PostgreSQL
     expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);
     expect((await pool.query('SELECT count(*) FROM contagem_entradas')).rows[0].count).toBe('1');
   });
+  it("previews an expired QR without entry, then audits explicit confirmation", async () => {
+    const actor = {name:'Monitora',cpf:'52998224725'};
+    const input = {date:today,code:'1-2',idempotencyKey:'expired-preview'};
+    const preview = await previewCountingVoucher(input,actor);
+    expect(preview).toMatchObject({admitted:false,category:'norma',expired:true,expiredOn:expect.any(String)});
+    expect((await pool.query('SELECT stusado FROM voucher WHERE idvoucher=2')).rows[0].stusado).toBe('n');
+    expect((await pool.query('SELECT count(*)::int n FROM contagem_entradas')).rows[0].n).toBe(0);
+    await expect(admitCountingVoucher({...input,confirmExpired:true},actor)).resolves.toMatchObject({admitted:true});
+    const audit = await pool.query("SELECT detalhes_json::jsonb->'expiredAdmission' AS expiry FROM edicoes_log WHERE origem='portaria'");
+    expect(audit.rows[0].expiry).toEqual({expiredOn:preview.expiredOn,admittedOn:today});
+    await expect(previewCountingVoucher(input,actor)).rejects.toMatchObject({
+      code:'voucher_already_used',details:{validation:{actorName:'Monitora',date:today}},
+    });
+  });
+
   it("gate rejects expired, unpaid, wrong-park and closed-day admissions", async () => {
     const actor={name:'A',cpf:'52998224725'};
     await expect(admitCountingVoucher({date:today,code:'1-2',idempotencyKey:'expired'},actor)).rejects.toMatchObject({code:'voucher_expired'});

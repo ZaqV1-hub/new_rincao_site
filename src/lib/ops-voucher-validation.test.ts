@@ -818,11 +818,15 @@ describe("operational voucher validity", () => {
     await expect(markVoucherUsed(client, 9001, "2026-04-23", "12:01:00")).rejects.toMatchObject({ code: "voucher_already_used" });
   });
 
-  it.each([false, true])("never bypasses snapshot expiry with confirm=%s", async (confirm) => {
+  it("requires explicit confirmation for a voucher past its individual validity", async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date("2026-04-27T15:00:00Z"));
-    await expect(validateVoucherByNumber("A1234", confirm)).rejects.toMatchObject({ code: "voucher_expired" });
+    await expect(validateVoucherByNumber("A1234")).rejects.toMatchObject({
+      code: "voucher_expired_confirmation_required", message: expect.stringContaining("26/04/2026"),
+    });
     expect(row.stusado).toBe("n");
     expect(syncTicketValidation).not.toHaveBeenCalled();
+    await expect(validateVoucherByNumber("A1234", true)).resolves.toMatchObject({ processedCount: 1 });
+    expect(row.stusado).toBe("s");
   });
 
   it.each(["selection", "purchase"])("protects paid reservations through %s validation", async (mode) => {

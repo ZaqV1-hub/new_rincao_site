@@ -25,6 +25,7 @@ type ConfirmationState =
       description: string;
       confirmLabel: string;
       expired?: boolean;
+      voucherNumber: string;
     }
   | {
       kind: "validate-selected";
@@ -445,16 +446,6 @@ export function PainelBilheteriaWorkstation({
       const payload = await readJson<VoucherValidationResponse>(response);
 
       if (!response.ok || !payload?.ok) {
-        if (payload?.error?.code === "voucher_expired_confirmation_required") {
-          setConfirmationState({
-            kind: "validate-voucher",
-            title: "Ingresso vencido",
-            description: payload.error.message || "Este ingresso está vencido. Deseja validar?",
-            confirmLabel: "Validar mesmo assim",
-            expired: true,
-          });
-          return;
-        }
         setMessage({
           tone: "error",
           text: payload?.error?.message || "Não foi possível concluir está ação agora.",
@@ -618,7 +609,7 @@ export function PainelBilheteriaWorkstation({
     }
   }
 
-  async function executeVoucherSubmit(confirm = false) {
+  async function executeVoucherSubmit(numberToValidate: string, confirm = false) {
     if (!periodId) { setMessage({ tone: "warning", text: "Selecione um caixa aberto para validar ingressos." }); return; }
     setSubmittingVoucher(true);
     setObservationsOpen(false);
@@ -631,7 +622,7 @@ export function PainelBilheteriaWorkstation({
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          voucherNumber,
+          voucherNumber: numberToValidate,
           confirm,
           periodId,
         }),
@@ -639,6 +630,17 @@ export function PainelBilheteriaWorkstation({
       const payload = await readJson<VoucherValidationResponse>(response);
 
       if (!response.ok || !payload?.ok) {
+        if (payload?.error?.code === "voucher_expired_confirmation_required") {
+          setConfirmationState({
+            kind: "validate-voucher",
+            title: "Ingresso vencido",
+            description: payload.error.message || "Este ingresso está vencido. Deseja validar?",
+            confirmLabel: "Validar mesmo assim",
+            expired: true,
+            voucherNumber: numberToValidate,
+          });
+          return;
+        }
         setMessage({
           tone: "error",
           text: payload?.error?.message || "Não foi possível validar o voucher agora.",
@@ -673,6 +675,7 @@ export function PainelBilheteriaWorkstation({
       title: "Confirmar validação",
       description: `Deseja validar o ingresso ${voucherNumber.trim()} agora?`,
       confirmLabel: "Validar ingresso",
+      voucherNumber: voucherNumber.trim(),
     });
   }
 
@@ -812,7 +815,7 @@ export function PainelBilheteriaWorkstation({
     setConfirmationState(null);
 
     if (currentConfirmation.kind === "validate-voucher") {
-      await executeVoucherSubmit(currentConfirmation.expired === true);
+      await executeVoucherSubmit(currentConfirmation.voucherNumber, currentConfirmation.expired === true);
       return;
     }
 

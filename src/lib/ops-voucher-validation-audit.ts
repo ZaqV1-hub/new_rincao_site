@@ -130,6 +130,7 @@ export async function registerVoucherOperationAuditLog(
     skippedVoucherNumbers?: string[];
     explicitPurchaseId?: number | null;
     requestedVoucherNumber?: string | null;
+    expiredAdmission?: { expiredOn: string | null; admittedOn: string };
     schoolId?: number | null;
     agendaId?: number | null;
   },
@@ -163,10 +164,11 @@ export async function registerVoucherOperationAuditLog(
       agendaId: input.agendaId,
       requestedVoucherNumber: input.requestedVoucherNumber,
     }),
-    motivo: buildVoucherAuditReason(input.action, input.mode),
+    motivo: input.expiredAdmission ? "Validação confirmada de ingresso vencido." : buildVoucherAuditReason(input.action, input.mode),
     usuarioNome: buildAuditActorName(input.actor),
     detalhes: {
       via: "apps/web",
+      ...(input.expiredAdmission ? { expiredAdmission: input.expiredAdmission } : {}),
       cash: { id: input.cash.id, park: input.cash.park, date: input.cash.date, locationId: input.cash.locationId, locationName: input.cash.locationName },
       before: affectedVoucherRows,
       after,
