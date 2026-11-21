@@ -77,14 +77,14 @@ describe("ops-voucher-validation", () => {
     expect(syncTicketValidation).not.toHaveBeenCalled();
   });
 
-  it.each([false, true])("checks a single paid voucher with chargeback hold %s", async (held) => {
+  it.each(["valid", "held", "expired"])("checks a single paid voucher in state %s", async (state) => {
     query.mockImplementation(async (sql: string) => {
       if (sql === "BEGIN" || sql === "COMMIT") {
         return { rows: [] };
       }
 
       if (sql.includes("FROM chargeback_cases")) {
-        return { rows: held ? [{ id_case: "61336875" }] : [] };
+        return { rows: state === "held" ? [{ id_case: "61336875" }] : [] };
       }
 
       if (sql.includes("WHERE voucher.numvoucher = $1")) {
@@ -97,6 +97,7 @@ describe("ops-voucher-validation", () => {
               dtuso: null,
               hruso: null,
               idcompra: 456,
+              dtcompra: state === "expired" ? "2025-08-01" : "2026-04-01",
               tpcompra: "ponli",
               stcompra: "conc",
               formapag: "pix",
@@ -111,14 +112,25 @@ describe("ops-voucher-validation", () => {
       return { rows: [] };
     });
 
-    if (held) {
+    if (state === "held") {
       await expect(validateVoucherByNumber("A1234")).rejects.toMatchObject({ code: "voucher_chargeback_hold", status: 409 });
       expect(query.mock.calls.some(([sql]) => String(sql).includes("UPDATE voucher"))).toBe(false);
       expect(syncTicketValidation).not.toHaveBeenCalled();
       return;
     }
 
-    const result = await validateVoucherByNumber("A1234");
+    if (state === "expired") {
+      await expect(validateVoucherByNumber("A1234")).rejects.toMatchObject({
+        code: "voucher_expired_confirmation_required", message: expect.stringContaining("01/02/2026"),
+      });
+      expect(query.mock.calls.some(([sql]) => String(sql).includes("UPDATE voucher"))).toBe(false);
+    }
+    const result = await validateVoucherByNumber("A1234", state === "expired");
+    if (state === "expired") {
+      expect(registerOpsAuditLog).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+        detalhes: expect.objectContaining({ expiredAdmission: { expiredOn: "2026-02-01", admittedOn: "2026-04-23" } }),
+      }), "postgres");
+    }
 
     expect(result).toEqual({
       action: "validate",

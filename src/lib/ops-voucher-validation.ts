@@ -249,6 +249,7 @@ async function registerVoucherOperationAuditLog(
     skippedVoucherNumbers?: string[];
     explicitPurchaseId?: number | null;
     requestedVoucherNumber?: string | null;
+    expiredAdmission?: { expiredOn: string | null; admittedOn: string };
     schoolId?: number | null;
     agendaId?: number | null;
   },
@@ -279,10 +280,11 @@ async function registerVoucherOperationAuditLog(
       agendaId: input.agendaId,
       requestedVoucherNumber: input.requestedVoucherNumber,
     }),
-    motivo: buildVoucherAuditReason(input.action, input.mode),
+    motivo: input.expiredAdmission ? "Validação confirmada de ingresso vencido." : buildVoucherAuditReason(input.action, input.mode),
     usuarioNome: buildAuditActorName(input.actor),
     detalhes: {
       via: "apps/web",
+      ...(input.expiredAdmission ? { expiredAdmission: input.expiredAdmission } : {}),
       mode: input.mode,
       affectedVoucherIds: input.affectedVoucherIds,
       affectedVoucherNumbers: affectedVoucherRows.map(
@@ -663,15 +665,6 @@ export async function validateVoucherByNumber(
       );
     }
 
-    if (isVoucherExpired(voucher, date) && !confirm) {
-      const validUntil = addMonthsToDateString(voucher.dtcompra, 6);
-      throw new VoucherOperationError(
-        "voucher_expired_confirmation_required",
-        `Ingresso foi vencido dia ${formatDateBr(validUntil)}. Deseja validar?`,
-        409,
-      );
-    }
-
     if (voucher.stcompra !== "conc") {
       throw new VoucherOperationError(
         "voucher_payment_pending",
@@ -684,6 +677,20 @@ export async function validateVoucherByNumber(
       throw new VoucherOperationError(
         "voucher_payment_status_invalid",
         `A transacao do voucher ${voucher.numvoucher ?? ""} nao esta confirmada para validacao.`,
+        409,
+      );
+    }
+
+    const expiredAdmission = isVoucherExpired(voucher, date)
+      ? { expiredOn: addMonthsToDateString(voucher.dtcompra, 6), admittedOn: date }
+      : undefined;
+    if (expiredAdmission && !confirm) {
+      const expiration = expiredAdmission.expiredOn
+        ? `Este ingresso venceu em ${formatDateBr(expiredAdmission.expiredOn)}.`
+        : "Este ingresso está vencido.";
+      throw new VoucherOperationError(
+        "voucher_expired_confirmation_required",
+        `${expiration} Deseja validar mesmo assim, sem reagendar?`,
         409,
       );
     }
@@ -703,6 +710,7 @@ export async function validateVoucherByNumber(
       affectedVoucherIds: [voucher.idvoucher],
       explicitPurchaseId: Number(voucher.idcompra ?? 0) || null,
       requestedVoucherNumber: voucher.numvoucher ?? voucherNumber,
+      expiredAdmission,
     });
     await client.query("COMMIT");
 
