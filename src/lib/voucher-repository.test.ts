@@ -216,11 +216,16 @@ describe("voucher-repository", () => {
 
     getSchoolVoucherInformation.mockResolvedValue("Levar autorização assinada.");
 
-    const result = await getUserVoucherExportData("52998224725", 77, [11]);
-
-    expect(result?.isSchool).toBe(true);
-    expect(result?.information).toBe("Levar autorização assinada.");
-    expect(getSchoolVoucherInformation).toHaveBeenCalledOnce();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-19T15:00:00Z"));
+    try {
+      const result = await getUserVoucherExportData("52998224725", 77, [11]);
+      expect(result?.isSchool).toBe(true);
+      expect(result?.information).toBe("Levar autorização assinada.");
+      expect(getSchoolVoucherInformation).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
