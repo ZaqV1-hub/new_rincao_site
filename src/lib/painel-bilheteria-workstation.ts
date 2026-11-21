@@ -115,7 +115,7 @@ export type PainelBilheteriaCustomerLookupPurchase = {
 
 export type PainelBilheteriaCustomerLookupResult = {
   lookup: string;
-  documentKind: "cpf" | "rg";
+  documentKind: "cpf" | "rg" | "purchase";
   customer: {
     cpf: string | null;
     cpfLabel: string;
@@ -318,7 +318,13 @@ export async function lookupPainelBilheteriaTicketByVoucherId(
 export async function lookupPainelBilheteriaCustomerDocument(
   rawDocument: string,
 ): Promise<PainelBilheteriaCustomerLookupResult> {
-  const lookup = normalizeDocument(rawDocument);
+  const rawLookup = rawDocument.trim();
+  const byPurchase = rawLookup.startsWith("#");
+  const lookup = byPurchase ? rawLookup.slice(1).trim() : normalizeDocument(rawLookup);
+  const purchaseId = byPurchase && /^[1-9]\d{0,9}$/.test(lookup) && Number(lookup) <= 2147483647 ? Number(lookup) : null;
+  if (byPurchase && !purchaseId) {
+    throw new PainelBilheteriaWorkstationError("invalid_purchase_id", "Informe um ID de compra válido após o #.");
+  }
 
   if (!lookup) {
     throw new PainelBilheteriaWorkstationError(
@@ -329,11 +335,16 @@ export async function lookupPainelBilheteriaCustomerDocument(
 
   const pool = getIngressoSistemaDbPool();
   await ensureSiteAccountOverridesTable();
-  const documentKind = lookup.length === 11 ? "cpf" : "rg";
+  const documentKind = byPurchase ? "purchase" : lookup.length === 11 ? "cpf" : "rg";
   let customer: CustomerRow | null = null;
   let cpf = lookup.length === 11 ? lookup : null;
 
-  if (documentKind === "cpf") {
+  if (purchaseId) {
+    const purchase = await pool.query<{ cpf: string | null }>("SELECT cpf FROM compra WHERE idcompra = $1", [purchaseId]);
+    cpf = purchase.rows[0]?.cpf ?? null;
+  }
+
+  if (documentKind === "cpf" || (byPurchase && cpf)) {
     const customerResult = await pool.query<CustomerRow>(
       `
         SELECT cpf, nmusuario, rg
@@ -344,10 +355,10 @@ export async function lookupPainelBilheteriaCustomerDocument(
         ) customer
         LIMIT 1
       `,
-      [lookup],
+      [cpf],
     );
     customer = customerResult.rows[0] ?? null;
-  } else {
+  } else if (!byPurchase) {
     const customerResult = await pool.query<CustomerRow>(
       `
         SELECT cpf, nmusuario, rg
@@ -365,7 +376,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
     cpf = customer?.cpf ?? null;
   }
 
-  if (!cpf) {
+  if (!cpf && !byPurchase) {
     return {
       lookup,
       documentKind,
@@ -382,7 +393,7 @@ export async function lookupPainelBilheteriaCustomerDocument(
     };
   }
 
-  const observations = await listSiteUserObservations(cpf);
+  const observations = cpf ? await listSiteUserObservations(cpf) : [];
 
   const purchasesResult = await pool.query<CustomerPurchaseRow>(
     `
@@ -412,12 +423,12 @@ export async function lookupPainelBilheteriaCustomerDocument(
         FROM voucher v
         WHERE v.idcompra = c.idcompra
       ) voucher_totals ON true
-      WHERE c.cpf = $1
+      WHERE ${byPurchase ? "c.idcompra = $1" : "c.cpf = $1"}
         AND c.stcompra <> 'canc'
       ORDER BY c.idcompra DESC
       LIMIT 50
     `,
-    [cpf],
+    [byPurchase ? purchaseId : cpf],
   );
   const purchaseIds = purchasesResult.rows.map((row) => row.idcompra);
   const vouchersByPurchaseId = new Map<number, PainelBilheteriaLookupVoucher[]>();

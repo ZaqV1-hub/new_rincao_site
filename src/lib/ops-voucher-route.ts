@@ -33,8 +33,8 @@ export async function runOpsVoucherOperationRoute(request: Request, action: Acti
             : payload.confirmedExpirations === undefined
               ? await validateSelectedVouchers(voucherIds, actor, periodId)
               : await validateSelectedVouchers(voucherIds, actor, periodId, undefined, readExpiredVoucherSelection(payload.confirmedExpirations))
-      : action === "unvalidate" ? purchaseId ? await unvalidatePurchaseVouchers(purchaseId, actor, periodId) : await unvalidateSelectedVouchers(voucherIds, actor, periodId, undefined, readExpiredVoucherSelection(payload.confirmedExpirations))
-        : purchaseId ? await invalidatePurchaseVouchers(purchaseId, actor, periodId) : await invalidateSelectedVouchers(voucherIds, actor, periodId, undefined, readExpiredVoucherSelection(payload.confirmedExpirations));
+      : action === "unvalidate" ? purchaseId ? await unvalidatePurchaseVouchers(purchaseId, actor, periodId) : await unvalidateSelectedVouchers(voucherIds, actor, periodId)
+        : purchaseId ? await invalidatePurchaseVouchers(purchaseId, actor, periodId) : await invalidateSelectedVouchers(voucherIds, actor, periodId);
     return privateResponse(Response.json({ ok: true, data: result }));
   } catch (error) {
     const operationError = error instanceof VoucherOperationError ? error : asVoucherOperationError(error);
