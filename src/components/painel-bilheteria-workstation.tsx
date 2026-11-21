@@ -873,7 +873,7 @@ export function PainelBilheteriaWorkstation({
                     <p className="mt-3 text-sm text-[#5d7282]">
                       {isTrip ? "Digite o código do passeio para consultar a escola e os ingressos." : form.id === "voucher-validation"
                         ? "Digite o código do voucher para validar."
-                        : "Digite o RG ou CPF do cliente para consultar."}
+                        : "Digite o RG, CPF ou #ID da compra (ex.: #198494)."}
                     </p>
                     {isTrip && trip ? (
                       <section ref={tripResultRef} className="mt-5 rounded-[8px] border border-[#c8d9ea] bg-[#eef5fb] p-4" aria-label="Dados do passeio">
@@ -1117,7 +1117,7 @@ export function PainelBilheteriaWorkstation({
               </p>
             </div>
             <div className="flex flex-col items-start gap-2 text-sm text-[#5d7282] sm:items-end">
-              <span>Consulta por {customerLookup.documentKind.toUpperCase()}</span>
+              <span>Consulta por {customerLookup.documentKind === "purchase" ? "ID da compra" : customerLookup.documentKind.toUpperCase()}</span>
               {customerLookup.customer?.cpf ? (
                 <Link
                   className="rounded-full border border-[#b9d0e6] bg-white px-4 py-2 font-semibold text-[#173f68]"
