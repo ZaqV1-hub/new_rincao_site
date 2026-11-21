@@ -1,3 +1,4 @@
+import { readExpiredVoucherSelection } from "@/lib/expired-voucher-selection";
 import { requirePainelApiAccess } from "@/lib/painel-api-auth";
 import { readJsonPayload } from "@/lib/ops-route-utils";
 import { asVoucherOperationError, validateVoucherByNumber, validatePurchaseVouchers, validateSchoolTripVouchers, validateSelectedVouchers,
@@ -29,13 +30,16 @@ export async function runOpsVoucherOperationRoute(request: Request, action: Acti
       ? voucherNumber ? await validateVoucherByNumber(voucherNumber, payload.confirm === true, actor, periodId)
         : purchaseId ? await validatePurchaseVouchers(purchaseId, payload.confirm === true, actor, periodId)
           : schoolId && agendaId ? await validateSchoolTripVouchers(schoolId, agendaId, actor, periodId)
-            : await validateSelectedVouchers(voucherIds, actor, periodId)
-      : action === "unvalidate" ? purchaseId ? await unvalidatePurchaseVouchers(purchaseId, actor, periodId) : await unvalidateSelectedVouchers(voucherIds, actor, periodId)
-        : purchaseId ? await invalidatePurchaseVouchers(purchaseId, actor, periodId) : await invalidateSelectedVouchers(voucherIds, actor, periodId);
+            : payload.confirmedExpirations === undefined
+              ? await validateSelectedVouchers(voucherIds, actor, periodId)
+              : await validateSelectedVouchers(voucherIds, actor, periodId, undefined, readExpiredVoucherSelection(payload.confirmedExpirations))
+      : action === "unvalidate" ? purchaseId ? await unvalidatePurchaseVouchers(purchaseId, actor, periodId) : await unvalidateSelectedVouchers(voucherIds, actor, periodId, undefined, readExpiredVoucherSelection(payload.confirmedExpirations))
+        : purchaseId ? await invalidatePurchaseVouchers(purchaseId, actor, periodId) : await invalidateSelectedVouchers(voucherIds, actor, periodId, undefined, readExpiredVoucherSelection(payload.confirmedExpirations));
     return privateResponse(Response.json({ ok: true, data: result }));
   } catch (error) {
     const operationError = error instanceof VoucherOperationError ? error : asVoucherOperationError(error);
     return privateResponse(Response.json({ ok: false, error: { code: operationError.code, message: operationError.message,
+      ...(operationError.expiredVouchers ? { expiredVouchers: operationError.expiredVouchers } : {}),
       ...(operationError.details ? { details: operationError.details } : {}) } }, { status: operationError.status }));
   }
 }

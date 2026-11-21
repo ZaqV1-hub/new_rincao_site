@@ -1,3 +1,4 @@
+import type { ExpiredVoucherSelection } from "@/lib/expired-voucher-selection";
 export type VoucherValidationRow = {
   idvoucher: number;
   idagenda: number | null;
@@ -68,6 +69,7 @@ export type VoucherAgendaUsageResult =
 export class VoucherOperationError extends Error {
   code: string;
   status: number;
+  expiredVouchers?: ExpiredVoucherSelection[];
   details?: { validation: { periodId: number | null; actorName?: string | null; locationName: string | null; validatedAt: string | null; date: string | null; time: string | null } };
 
   constructor(code: string, message: string, status: number) {

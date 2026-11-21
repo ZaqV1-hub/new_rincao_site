@@ -89,6 +89,18 @@ describe.skipIf(!connectionString)("purchase-scoped voucher selection with Postg
     await expect(unvalidateSelectedVouchers([1], actor, 2, 1)).rejects.toMatchObject({ code: "voucher_unvalidate_unavailable", status: 409 });
     expect(await snapshot()).toEqual(reversed);
   });
+  it("pauses a mixed selection and audits the individually expired voucher only after confirmation", async () => {
+    const initial = await snapshot();
+    const expiredOn = (await pool.query("SELECT dtvalidade::text AS date FROM voucher WHERE idvoucher=2")).rows[0].date;
+    await expect(validateSelectedVouchers([1,2], actor, 1, 1, [])).rejects.toMatchObject({
+      code: "voucher_expired_confirmation_required", expiredVouchers: [{ voucherId: 2, expiredOn }],
+    });
+    expect(await snapshot()).toEqual(initial);
+    await expect(validateSelectedVouchers([1,2], actor, 1, 1, [{ voucherId: 2, expiredOn }]))
+      .resolves.toMatchObject({ affectedVoucherIds: [1,2] });
+    expect((await pool.query("SELECT detalhes_json::jsonb->'expiredAdmissions' AS entries FROM edicoes_log")).rows[0].entries)
+      .toEqual([{ voucherId: 2, expiredOn, admittedOn: today }]);
+  });
   it.each([
     ["validate", "foreign"], ["validate", "missing"], ["validate", "other_park"],
     ["unvalidate", "foreign"], ["unvalidate", "missing"], ["unvalidate", "other_park"],

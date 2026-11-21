@@ -1,13 +1,15 @@
+import type { ExpiredVoucherSelection } from "@/lib/expired-voucher-selection";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
 import { ensureVoucherLifecycleSchema } from "@/lib/voucher-repository";
 import { getVouchersByIds } from "@/lib/ops-voucher-validation-queries";
-import { requireVoucherPeriodId, lockVoucherCashContext, buildAlreadyUsedMessage, VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, normalizeVoucherIds, normalizeCpfDigits, registerVoucherOperationAuditLog, isVoucherExpired, isOnlinePurchasePaid, isReservationPaid, buildReservationPaymentMessage, evaluateAgendaUsage, markVoucherUsed, appendTicketWarnings } from "@/lib/ops-voucher-validation-shared";
+import { requireVoucherPeriodId, lockVoucherCashContext, buildAlreadyUsedMessage, VoucherOperationSuccess, VoucherOperationInputActor, VoucherOperationError, getSaoPauloDateParts, normalizeVoucherIds, normalizeCpfDigits, registerVoucherOperationAuditLog, isVoucherExpired, isOnlinePurchasePaid, isReservationPaid, buildReservationPaymentMessage, evaluateAgendaUsage, markVoucherUsed, appendTicketWarnings, formatDateBr, voucherExpirationDate } from "@/lib/ops-voucher-validation-shared";
 
 export async function validateSelectedVouchers(
   voucherIdsInput: number[],
   actor?: VoucherOperationInputActor | null,
   periodId?: number,
   expectedPurchaseId?: number,
+  confirmedExpirations?: ExpiredVoucherSelection[],
 ): Promise<VoucherOperationSuccess> {
   requireVoucherPeriodId(periodId);
   const voucherIds = normalizeVoucherIds(voucherIdsInput);
@@ -32,6 +34,10 @@ export async function validateSelectedVouchers(
     const vouchersById = new Map(vouchers.map((voucher) => [voucher.idvoucher, voucher]));
     const affectedVoucherIds: number[] = [];
     const warnings: string[] = [];
+    const readyVouchers: typeof vouchers = [];
+    const expiredAdmissions: (ExpiredVoucherSelection & { admittedOn: string })[] = [];
+    const expiredVouchers: (ExpiredVoucherSelection & { number: string })[] = [];
+    const confirmedById = new Map(confirmedExpirations?.map(({ voucherId, expiredOn }) => [voucherId, expiredOn]));
 
     for (const voucherId of voucherIds) {
       const voucher = vouchersById.get(voucherId);
@@ -55,7 +61,8 @@ export async function validateSelectedVouchers(
         continue;
       }
 
-      if (isVoucherExpired(voucher, date)) {
+      const expired = isVoucherExpired(voucher, date);
+      if (expired && !confirmedExpirations) {
         warnings.push(`Voucher ${voucher.numvoucher ?? voucherId} vencido.`);
         continue;
       }
@@ -93,7 +100,28 @@ export async function validateSelectedVouchers(
         continue;
       }
 
-      await markVoucherUsed(client, voucher.idvoucher, date, time, cash, actor);
+      if (expired) {
+        const expiredOn = voucherExpirationDate(voucher);
+        if (confirmedById.get(voucherId) !== expiredOn) {
+          expiredVouchers.push({ voucherId, expiredOn, number: voucher.numvoucher ?? String(voucherId) });
+          continue;
+        }
+        expiredAdmissions.push({ voucherId, expiredOn, admittedOn: date });
+      }
+      readyVouchers.push(voucher);
+    }
+
+    if (expiredVouchers.length) {
+      const items = expiredVouchers.map(({ number, expiredOn }) =>
+        expiredOn ? `${number} (venceu em ${formatDateBr(expiredOn)})` : `${number} (data não registrada)`);
+      const error = new VoucherOperationError("voucher_expired_confirmation_required",
+        `${items.join("; ")}. Deseja validar mesmo assim, sem reagendar?`, 409);
+      error.expiredVouchers = expiredVouchers.map(({ voucherId, expiredOn }) => ({ voucherId, expiredOn }));
+      throw error;
+    }
+
+    for (const voucher of readyVouchers) {
+      await markVoucherUsed(client, voucher.idvoucher, date, time, cash, actor, { allowExpired: expiredAdmissions.some((item) => item.voucherId === voucher.idvoucher) });
       affectedVoucherIds.push(voucher.idvoucher);
     }
 
@@ -113,6 +141,7 @@ export async function validateSelectedVouchers(
       vouchers,
       affectedVoucherIds,
       warnings,
+      expiredAdmissions,
     });
     await client.query("COMMIT");
 

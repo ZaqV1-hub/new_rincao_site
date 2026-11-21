@@ -1,3 +1,4 @@
+import type { ExpiredVoucherSelection } from "@/lib/expired-voucher-selection";
 import type { PoolClient } from "pg";
 import { registerOpsAuditLog } from "@/lib/ops-audit-log";
 import type { VoucherOperationInputActor, VoucherValidationRow, VoucherOperationSuccess, VoucherOperationMode } from "@/lib/ops-voucher-validation-contract";
@@ -131,6 +132,7 @@ export async function registerVoucherOperationAuditLog(
     explicitPurchaseId?: number | null;
     requestedVoucherNumber?: string | null;
     expiredAdmission?: { expiredOn: string | null; admittedOn: string };
+    expiredAdmissions?: (ExpiredVoucherSelection & { admittedOn: string })[];
     schoolId?: number | null;
     agendaId?: number | null;
   },
@@ -164,11 +166,12 @@ export async function registerVoucherOperationAuditLog(
       agendaId: input.agendaId,
       requestedVoucherNumber: input.requestedVoucherNumber,
     }),
-    motivo: input.expiredAdmission ? "Validação confirmada de ingresso vencido." : buildVoucherAuditReason(input.action, input.mode),
+    motivo: input.expiredAdmission || input.expiredAdmissions?.length ? "Validação confirmada de ingresso vencido." : buildVoucherAuditReason(input.action, input.mode),
     usuarioNome: buildAuditActorName(input.actor),
     detalhes: {
       via: "apps/web",
       ...(input.expiredAdmission ? { expiredAdmission: input.expiredAdmission } : {}),
+      ...(input.expiredAdmissions?.length ? { expiredAdmissions: input.expiredAdmissions } : {}),
       cash: { id: input.cash.id, park: input.cash.park, date: input.cash.date, locationId: input.cash.locationId, locationName: input.cash.locationName },
       before: affectedVoucherRows,
       after,

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ExpiredVoucherSelection } from "@/lib/expired-voucher-selection";
 import { useEffect, useRef, useState } from "react";
 import { legacyPanelContracts } from "@/lib/legacy-panel-contracts";
 import { formatPainelBilheteriaDate } from "@/lib/painel-bilheteria-format";
@@ -31,6 +32,7 @@ type ConfirmationState =
       kind: "validate-selected";
       purchaseId: number;
       voucherIds: number[];
+      confirmedExpirations?: ExpiredVoucherSelection[];
       title: string;
       description: string;
       confirmLabel: string;
@@ -53,6 +55,7 @@ type VoucherValidationResponse = {
   };
   error?: {
     code?: string;
+    expiredVouchers?: ExpiredVoucherSelection[];
     message?: string;
   };
 };
@@ -431,6 +434,7 @@ export function PainelBilheteriaWorkstation({
     actionKey: string,
     endpoint: string,
     body: Record<string, unknown>,
+    selection?: { purchaseId: number; voucherIds: number[]; confirmedExpirations: ExpiredVoucherSelection[] },
   ) {
     if (!periodId) { setMessage({ tone: "warning", text: "Selecione um caixa aberto para validar ou desvalidar ingressos." }); return false; }
     setRunningActionKey(actionKey);
@@ -446,6 +450,20 @@ export function PainelBilheteriaWorkstation({
       const payload = await readJson<VoucherValidationResponse>(response);
 
       if (!response.ok || !payload?.ok) {
+        if (selection && payload?.error?.code === "voucher_expired_confirmation_required" && payload.error.expiredVouchers?.length) {
+          const confirmed = new Map(selection.confirmedExpirations.map((item) => [item.voucherId, item]));
+          for (const item of payload.error.expiredVouchers) confirmed.set(item.voucherId, item);
+          setConfirmationState({
+            kind: "validate-selected",
+            purchaseId: selection.purchaseId,
+            voucherIds: selection.voucherIds,
+            confirmedExpirations: [...confirmed.values()],
+            title: payload.error.expiredVouchers.length === 1 ? "Voucher vencido" : "Vouchers vencidos",
+            description: payload.error.message || "Deseja validar mesmo assim, sem reagendar?",
+            confirmLabel: "Validar mesmo assim",
+          });
+          return false;
+        }
         setMessage({
           tone: "error",
           text: payload?.error?.message || "Não foi possível concluir está ação agora.",
@@ -478,7 +496,7 @@ export function PainelBilheteriaWorkstation({
     }
   }
 
-  async function handleValidateSelectedPurchase(purchaseId: number, voucherIds: number[]) {
+  async function handleValidateSelectedPurchase(purchaseId: number, voucherIds: number[], confirmedExpirations: ExpiredVoucherSelection[] = []) {
     if (voucherIds.length === 0) {
       setMessage({
         tone: "warning",
@@ -490,7 +508,8 @@ export function PainelBilheteriaWorkstation({
     const ok = await runVoucherMutation(
       `validate-purchase-${purchaseId}`,
       "/api/painel/bilheteria/vouchers/validate",
-      { voucherIds },
+      { voucherIds, confirmedExpirations },
+      { purchaseId, voucherIds, confirmedExpirations },
     );
 
     if (ok) {
@@ -823,6 +842,7 @@ export function PainelBilheteriaWorkstation({
       await handleValidateSelectedPurchase(
         currentConfirmation.purchaseId,
         currentConfirmation.voucherIds,
+        currentConfirmation.confirmedExpirations,
       );
       return;
     }
@@ -1462,7 +1482,7 @@ export function PainelBilheteriaWorkstation({
             </h2>
           </div>
 
-          <div className="px-5 py-5 text-sm leading-6 text-[#35576f]">
+          <div className={`max-h-[55vh] overflow-y-auto px-5 py-5 text-sm leading-6 ${confirmationState?.kind === "validate-selected" && confirmationState.confirmedExpirations?.length ? "bg-red-50 text-red-800" : "text-[#35576f]"}`}>
             {confirmationState?.description || ""}
           </div>
 
