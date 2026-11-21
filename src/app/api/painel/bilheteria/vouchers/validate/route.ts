@@ -1,3 +1,4 @@
+import { readExpiredVoucherSelection } from "@/lib/expired-voucher-selection";
 import { NextResponse } from "next/server";
 import { readJsonPayload } from "@/lib/ops-route-utils";
 import {
@@ -18,6 +19,7 @@ type ValidatePayload = {
   agendaId?: unknown;
   voucherIds?: unknown;
   confirm?: unknown;
+  confirmedExpirations?: unknown;
 };
 
 function invalidResponse() {
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
             agendaId > 0
           ? await validateSchoolTripVouchers(schoolId, agendaId, actor)
           : voucherIds.length > 0
-            ? await validateSelectedVouchers(voucherIds, actor)
+            ? await validateSelectedVouchers(voucherIds, actor, readExpiredVoucherSelection(payload?.confirmedExpirations))
             : null;
 
     if (!result) {
@@ -95,6 +97,7 @@ export async function POST(request: Request) {
         error: {
           code: operationError.code,
           message: operationError.message,
+          ...(operationError.expiredVouchers ? { expiredVouchers: operationError.expiredVouchers } : {}),
         },
       },
       { status: operationError.status },

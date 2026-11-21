@@ -267,6 +267,34 @@ describe("ops-voucher-validation", () => {
     });
   });
 
+  it("requires confirmation for the selected expired ticket before admitting any of the selection", async () => {
+    query.mockImplementation(async (sql: string) => {
+      if (!sql.includes("WHERE voucher.idvoucher = ANY")) return { rows: [] };
+      const paid = { stusado: "n", idcompra: 456, tpcompra: "ponli", stcompra: "conc", payment_status: 3 };
+      return { rows: [
+        { ...paid, idvoucher: 9001, numvoucher: "EXPIRED", dtcompra: "2025-05-20" },
+        { ...paid, idvoucher: 9002, numvoucher: "CURRENT", dtcompra: "2026-04-20" },
+      ] };
+    });
+    const ids = [9001, 9002];
+    await expect(validateSelectedVouchers(ids, null, [{ voucherId: 9001, expiredOn: "2025-11-19" }])).rejects.toMatchObject({
+      code: "voucher_expired_confirmation_required",
+      message: expect.stringContaining("EXPIRED (venceu em 20/11/2025)"),
+      expiredVouchers: [{ voucherId: 9001, expiredOn: "2025-11-20" }],
+    });
+    expect(query.mock.calls.some(([sql]) => String(sql).includes("UPDATE voucher"))).toBe(false);
+    expect(registerOpsAuditLog).not.toHaveBeenCalled();
+    expect(syncTicketValidation).not.toHaveBeenCalled();
+
+    await expect(validateSelectedVouchers(ids, null, [{ voucherId: 9001, expiredOn: "2025-11-20" }]))
+      .resolves.toMatchObject({ affectedVoucherIds: ids });
+    expect(registerOpsAuditLog).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      detalhes: expect.objectContaining({
+        expiredAdmissions: [{ voucherId: 9001, expiredOn: "2025-11-20", admittedOn: "2026-04-23" }],
+      }),
+    }), "postgres");
+  });
+
   it("unvalidates vouchers already marked as used", async () => {
     query.mockImplementation(async (sql: string) => {
       if (sql === "BEGIN" || sql === "COMMIT") {

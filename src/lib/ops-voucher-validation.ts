@@ -1,3 +1,4 @@
+import type { ExpiredVoucherSelection } from "@/lib/expired-voucher-selection";
 import { getChargebackVoucherHold } from "@/lib/chargeback-voucher-hold";
 import { type PoolClient } from "pg";
 import { getIngressoSistemaDbPool } from "@/lib/ingresso-db";
@@ -62,6 +63,7 @@ type VoucherAgendaUsageResult =
 class VoucherOperationError extends Error {
   code: string;
   status: number;
+  expiredVouchers?: ExpiredVoucherSelection[];
 
   constructor(code: string, message: string, status: number) {
     super(message);
@@ -250,6 +252,7 @@ async function registerVoucherOperationAuditLog(
     explicitPurchaseId?: number | null;
     requestedVoucherNumber?: string | null;
     expiredAdmission?: { expiredOn: string | null; admittedOn: string };
+    expiredAdmissions?: (ExpiredVoucherSelection & { admittedOn: string })[];
     schoolId?: number | null;
     agendaId?: number | null;
   },
@@ -280,11 +283,12 @@ async function registerVoucherOperationAuditLog(
       agendaId: input.agendaId,
       requestedVoucherNumber: input.requestedVoucherNumber,
     }),
-    motivo: input.expiredAdmission ? "Validação confirmada de ingresso vencido." : buildVoucherAuditReason(input.action, input.mode),
+    motivo: input.expiredAdmission || input.expiredAdmissions?.length ? "Validação confirmada de ingresso vencido." : buildVoucherAuditReason(input.action, input.mode),
     usuarioNome: buildAuditActorName(input.actor),
     detalhes: {
       via: "apps/web",
       ...(input.expiredAdmission ? { expiredAdmission: input.expiredAdmission } : {}),
+      ...(input.expiredAdmissions?.length ? { expiredAdmissions: input.expiredAdmissions } : {}),
       mode: input.mode,
       affectedVoucherIds: input.affectedVoucherIds,
       affectedVoucherNumbers: affectedVoucherRows.map(
@@ -895,6 +899,7 @@ export async function validatePurchaseVouchers(
 export async function validateSelectedVouchers(
   voucherIdsInput: number[],
   actor?: VoucherOperationInputActor | null,
+  confirmedExpirations?: ExpiredVoucherSelection[],
 ): Promise<VoucherOperationSuccess> {
   const voucherIds = normalizeVoucherIds(voucherIdsInput);
 
@@ -917,6 +922,10 @@ export async function validateSelectedVouchers(
     const vouchersById = new Map(vouchers.map((voucher) => [voucher.idvoucher, voucher]));
     const affectedVoucherIds: number[] = [];
     const warnings: string[] = [];
+    const readyVouchers: typeof vouchers = [];
+    const expiredAdmissions: (ExpiredVoucherSelection & { admittedOn: string })[] = [];
+    const expiredVouchers: (ExpiredVoucherSelection & { number: string })[] = [];
+    const confirmedById = new Map(confirmedExpirations?.map(({ voucherId, expiredOn }) => [voucherId, expiredOn]));
 
     for (const voucherId of voucherIds) {
       const voucher = vouchersById.get(voucherId);
@@ -940,7 +949,8 @@ export async function validateSelectedVouchers(
         continue;
       }
 
-      if (isVoucherExpired(voucher, date)) {
+      const expired = isVoucherExpired(voucher, date);
+      if (expired && !confirmedExpirations) {
         warnings.push(`Voucher ${voucher.numvoucher ?? voucherId} vencido.`);
         continue;
       }
@@ -978,6 +988,27 @@ export async function validateSelectedVouchers(
         continue;
       }
 
+      if (expired) {
+        const expiredOn = addMonthsToDateString(voucher.dtcompra, 6);
+        if (confirmedById.get(voucherId) !== expiredOn) {
+          expiredVouchers.push({ voucherId, expiredOn, number: voucher.numvoucher ?? String(voucherId) });
+          continue;
+        }
+        expiredAdmissions.push({ voucherId, expiredOn, admittedOn: date });
+      }
+      readyVouchers.push(voucher);
+    }
+
+    if (expiredVouchers.length) {
+      const items = expiredVouchers.map(({ number, expiredOn }) =>
+        expiredOn ? `${number} (venceu em ${formatDateBr(expiredOn)})` : `${number} (data não registrada)`);
+      const error = new VoucherOperationError("voucher_expired_confirmation_required",
+        `${items.join("; ")}. Deseja validar mesmo assim, sem reagendar?`, 409);
+      error.expiredVouchers = expiredVouchers.map(({ voucherId, expiredOn }) => ({ voucherId, expiredOn }));
+      throw error;
+    }
+
+    for (const voucher of readyVouchers) {
       await markVoucherUsed(client, voucher.idcompra, voucher.idvoucher, date, time);
       affectedVoucherIds.push(voucher.idvoucher);
     }
@@ -997,6 +1028,7 @@ export async function validateSelectedVouchers(
       vouchers,
       affectedVoucherIds,
       warnings,
+      expiredAdmissions,
     });
     await client.query("COMMIT");
 
